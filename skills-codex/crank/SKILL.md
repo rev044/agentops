@@ -58,6 +58,8 @@ Never claim completion without the marker.
 
 When a task fails during wave execution, classify as **RETRY** (transient — re-add with adjustment, max 2), **DECOMPOSE** (too complex — split into sub-issues, terminal), or **PRUNE** (blocked — escalate immediately). Budget: 2 per task.
 
+**Mutation logging on failure:** DECOMPOSE logs `task_removed` + `task_added` per sub-task. PRUNE logs `task_removed`. RETRY logs nothing (task identity unchanged).
+
 ## Execution Steps
 
 Given `$crank [epic-id | plan-file.md | "description"]`:
@@ -80,6 +82,63 @@ else
     TRACKING_MODE="file"
 fi
 ```
+
+### Step 0.6: Initialize Shared Task Notes
+
+Create the shared notes file for cross-wave context persistence. See `references/shared-task-notes.md` for the full pattern.
+
+```bash
+mkdir -p .agents/crank
+cat > .agents/crank/SHARED_TASK_NOTES.md <<EOF
+# Shared Task Notes — Epic ${EPIC_ID:-unknown}
+
+> Cross-wave context for workers. Read before starting. Report discoveries in task output.
+> Maintained by the crank orchestrator — workers do NOT write to this file directly.
+
+EOF
+```
+
+### Step 0.7: Initialize Plan Mutation Audit Trail
+
+Create the JSONL file that tracks every plan mutation during execution. See `references/plan-mutations.md` for the full schema and mutation budget.
+
+```bash
+mkdir -p .agents/rpi
+: > .agents/rpi/plan-mutations.jsonl
+
+# Budget counters
+MUTATION_TASK_ADDED=0
+MUTATION_TASK_ADDED_LIMIT=5
+MUTATION_TASK_REORDERED=0
+MUTATION_TASK_REORDERED_LIMIT=3
+```
+
+**Helper function:**
+
+```bash
+log_plan_mutation() {
+    local mutation_type="$1" task_id="$2" before="$3" after="$4"
+    local ts
+    ts=$(date -Iseconds)
+
+    if [[ "$mutation_type" == "task_added" ]]; then
+        MUTATION_TASK_ADDED=$((MUTATION_TASK_ADDED + 1))
+        if [[ $MUTATION_TASK_ADDED -gt $MUTATION_TASK_ADDED_LIMIT ]]; then
+            echo "WARN: task_added budget exceeded ($MUTATION_TASK_ADDED/$MUTATION_TASK_ADDED_LIMIT). Consider re-running /plan."
+        fi
+    elif [[ "$mutation_type" == "task_reordered" ]]; then
+        MUTATION_TASK_REORDERED=$((MUTATION_TASK_REORDERED + 1))
+        if [[ $MUTATION_TASK_REORDERED -gt $MUTATION_TASK_REORDERED_LIMIT ]]; then
+            echo "WARN: task_reordered budget exceeded ($MUTATION_TASK_REORDERED/$MUTATION_TASK_REORDERED_LIMIT)."
+        fi
+    fi
+
+    echo "{\"timestamp\":\"$ts\",\"wave\":$wave,\"task_id\":\"$task_id\",\"mutation_type\":\"$mutation_type\",\"before\":$before,\"after\":$after}" \
+        >> .agents/rpi/plan-mutations.jsonl
+}
+```
+
+**Mutation types:** `task_added`, `task_removed`, `task_reordered`, `scope_changed`, `dependency_changed`.
 
 ### Step 1: Identify the Epic
 
@@ -122,7 +181,20 @@ Crank follows the FIRE loop for each wave:
 - **REAP:** wait, validate, and merge results
 - **ESCALATE:** retry or block when needed
 
-#### 4a: Build a Wave Task Packet
+#### 4a: Load Shared Task Notes
+
+Read cross-wave context to include in worker prompts:
+
+```bash
+SHARED_NOTES=""
+if [ -f .agents/crank/SHARED_TASK_NOTES.md ]; then
+    SHARED_NOTES=$(cat .agents/crank/SHARED_TASK_NOTES.md)
+fi
+```
+
+If `SHARED_NOTES` exceeds ~50 lines, summarize older waves (keep last 3 in full detail, preserve `[CRITICAL]` entries).
+
+#### 4b: Build a Wave Task Packet
 
 Create one packet per ready issue. Do not use CSV fan-out.
 
@@ -150,7 +222,7 @@ EOF
 
 Each task packet must include `metadata.issue_type`.
 
-#### 4b: Pre-spawn File Conflict Check
+#### 4c: Pre-spawn File Conflict Check
 
 ```text
 wave_tasks = [tasks from packet]
@@ -164,7 +236,7 @@ for task in wave_tasks:
 
 Display an ownership table before spawning workers. If conflicts exist, split into sub-waves and keep file ownership disjoint.
 
-#### 4c: Spawn Workers
+#### 4d: Spawn Workers
 
 Spawn one agent per issue. Prefer `worker` roles for implementation and `explorer` roles for file discovery when the runtime exposes `agent_type`.
 
@@ -177,6 +249,12 @@ Assignment: <subject>
 
 <description>
 
+---
+Context from prior waves (read before starting):
+<SHARED_NOTES content, or 'First wave — no prior context.' if empty>
+
+---
+
 FILE MANIFEST (files you are permitted to modify):
 <list of files>
 
@@ -185,6 +263,9 @@ Rules:
 2. Run validation: <validation_cmd>
 3. Keep your response short
 4. Write any durable notes to .agents/crank/results/<issue-id>.md or .agents/crank/results/<issue-id>.json
+5. DISCOVERY REPORTING: If you discover codebase quirks, failed approaches,
+   convention requirements, or dependency constraints, include a section in your
+   output titled '## Discoveries' with one bullet per finding.
 
 Use the repo's current Codex primitives only."
 )
@@ -202,7 +283,7 @@ Return a JSON array of paths only."
 )
 ```
 
-#### 4d: Wait for Workers
+#### 4e: Wait for Workers
 
 ```text
 wait_agent(ids=["agent-id-1", "agent-id-2"])
@@ -243,10 +324,68 @@ cat > ".agents/crank/wave-${wave}-checkpoint.json" << EOF
   "epic_id": "$EPIC_ID",
   "completed": $COMPLETED_COUNT,
   "failed": $FAILED_COUNT,
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "mutations_this_wave": $(grep -c "\"wave\":${wave}" .agents/rpi/plan-mutations.jsonl 2>/dev/null || echo 0),
+  "total_mutations": $(wc -l < .agents/rpi/plan-mutations.jsonl 2>/dev/null | tr -d ' '),
+  "mutation_budget": {
+    "task_added": {"used": ${MUTATION_TASK_ADDED:-0}, "limit": 5},
+    "task_reordered": {"used": ${MUTATION_TASK_REORDERED:-0}, "limit": 3}
+  }
 }
 EOF
 ```
+
+### Step 5.8: Update Shared Task Notes
+
+Harvest discoveries from completed workers and append to the shared notes file:
+
+```bash
+WAVE_DISCOVERIES=""
+for result_file in .agents/crank/results/*; do
+    if [ -f "$result_file" ]; then
+        DISCOVERIES=$(sed -n '/^## Discoveries/,/^## /{ /^## Discoveries/d; /^## /d; p; }' "$result_file" 2>/dev/null)
+        if [ -n "$DISCOVERIES" ]; then
+            WAVE_DISCOVERIES="${WAVE_DISCOVERIES}${DISCOVERIES}\n"
+        fi
+    fi
+done
+
+if [ -n "$WAVE_DISCOVERIES" ]; then
+    cat >> .agents/crank/SHARED_TASK_NOTES.md <<EOF
+
+## Wave ${wave} ($(date -Iseconds))
+$(echo -e "$WAVE_DISCOVERIES")
+EOF
+fi
+```
+
+**Capture:** Failed approaches, codebase quirks, convention discoveries, dependency notes.
+**Skip:** Full error logs, implementation details, task status.
+
+### Step 5.9: Log Plan Mutations
+
+After processing wave results, log mutations for any plan changes. Call `log_plan_mutation` for each:
+
+- **DECOMPOSE:** `task_removed` for original, `task_added` for each sub-task
+- **PRUNE:** `task_removed` with block reason
+- **Scope change:** `scope_changed` when file manifest updated after exploration
+- **Dependency discovered:** `dependency_changed` when blocked-by list modified
+- **Wave reassignment:** `task_reordered` when task moves between waves
+
+```bash
+# Example: task decomposed into sub-tasks
+log_plan_mutation "task_removed" "$decomposed_id" \
+    "{\"subject\":\"$ORIGINAL_SUBJECT\",\"status\":\"decomposed\"}" "null"
+log_plan_mutation "task_added" "$sub_id" "null" \
+    "{\"subject\":\"$SUB_SUBJECT\",\"reason\":\"Split from $decomposed_id\"}"
+
+# Example: scope change after exploration
+log_plan_mutation "scope_changed" "$task_id" \
+    "{\"files\":$ORIGINAL_FILES}" \
+    "{\"files\":$UPDATED_FILES,\"reason\":\"$REASON\"}"
+```
+
+Mutations are append-only to `.agents/rpi/plan-mutations.jsonl`. Read by `/post-mortem` for drift analysis.
 
 ### Step 6: Commit Wave Results
 
@@ -294,6 +433,18 @@ When the epic is DONE:
 $vibe validate the completed epic
 ```
 
+### Step 8.5: Archive Shared Task Notes
+
+Move the shared notes to an archive after epic completion:
+
+```bash
+if [ -f .agents/crank/SHARED_TASK_NOTES.md ]; then
+    mkdir -p .agents/crank/archives
+    mv .agents/crank/SHARED_TASK_NOTES.md \
+       ".agents/crank/archives/SHARED_TASK_NOTES-${EPIC_ID:-unknown}-$(date +%Y%m%d-%H%M%S).md"
+fi
+```
+
 ## Retry Policy
 
 - Max 2 retries per issue across all waves
@@ -311,6 +462,9 @@ $vibe validate the completed epic
 
 ## Reference Documents
 
+- [references/de-sloppify.md](references/de-sloppify.md) - cleanup pass after implementation waves
+- [references/plan-mutations.md](references/plan-mutations.md) - plan mutation audit trail for drift analysis
+- [references/shared-task-notes.md](references/shared-task-notes.md) - cross-wave context persistence
 - [references/commit-strategies.md](references/commit-strategies.md) - per-task vs wave-batch commits
 - [references/contract-template.md](references/contract-template.md) - contract template for worker specs
 - [references/failure-recovery.md](references/failure-recovery.md) - escalation and retry logic

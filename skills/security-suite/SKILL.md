@@ -76,6 +76,8 @@ python3 skills/security-suite/scripts/prompt_redteam.py scan \
   --out-dir .tmp/security-suite-redteam
 ```
 
+For OWASP Top 10 code-level review, see [references/owasp-checklist.md](references/owasp-checklist.md).
+
 ## Recommended Workflow
 
 1. Capture baseline on known-good release.
@@ -211,3 +213,9 @@ python3 skills/security-suite/scripts/prompt_redteam.py scan \
 | Policy verdict fails on `deny_command_patterns` | A new subcommand matches a deny regex in the policy file | Either rename the subcommand or update `deny_command_patterns` in your policy JSON to exclude the legitimate pattern. |
 | `baseline-diff.json` not generated | `--baseline-dir` was not provided or points to a missing directory | Ensure the baseline directory exists and contains a valid `contract/contract.json` from a prior run. |
 | Redteam scan fails after a wording cleanup | The attack pack no longer matches the intended guardrail language in target files | Review `redteam/redteam-results.json`, confirm whether the control regressed or the regex is too brittle, then update the target file or the pack intentionally. |
+
+## Reference Documents
+
+- [references/owasp-checklist.md](references/owasp-checklist.md)
+- [references/agentops-redteam-pack.json](references/agentops-redteam-pack.json)
+- [references/policy-example.json](references/policy-example.json)

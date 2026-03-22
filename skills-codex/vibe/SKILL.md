@@ -691,6 +691,8 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ## Reference Documents
 
+- [references/verification-report.md](references/verification-report.md)
+- [references/write-time-quality.md](references/write-time-quality.md)
 - [references/deep-audit-protocol.md](references/deep-audit-protocol.md)
 - [references/examples.md](references/examples.md)
 - [references/go-patterns.md](references/go-patterns.md)

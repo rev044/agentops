@@ -167,6 +167,8 @@ Skills that chain to other skills (e.g., `/rpi` calls `/research`, `/vibe` calls
 
 ## Reference Documents
 
+- [references/content-hash-cache.md](references/content-hash-cache.md)
+- [references/compaction-signals.md](references/compaction-signals.md)
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-claude-teams.md](references/backend-claude-teams.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)

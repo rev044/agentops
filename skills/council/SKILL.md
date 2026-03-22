@@ -628,6 +628,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 
 ## Reference Documents
 
+- [references/model-routing.md](references/model-routing.md)
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-claude-teams.md](references/backend-claude-teams.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)

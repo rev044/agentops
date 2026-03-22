@@ -710,6 +710,8 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 
 ## Reference Documents
 
+- [references/conflict-recovery.md](references/conflict-recovery.md)
+- [references/cold-start-contexts.md](references/cold-start-contexts.md)
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-claude-teams.md](references/backend-claude-teams.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)

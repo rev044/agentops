@@ -107,6 +107,26 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/write-time-quality.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/write-time-quality.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "hooks": [
           {
             "type": "command",

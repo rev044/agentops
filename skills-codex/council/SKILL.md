@@ -184,6 +184,7 @@ Missing gate item → minimum WARN. Critical unverifiable invariant → FAIL.
 
 ## Reference Documents
 
+- [references/model-routing.md](references/model-routing.md)
 - [references/agent-prompts.md](references/agent-prompts.md)
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)

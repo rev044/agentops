@@ -714,6 +714,7 @@ Tell the user:
 
 ## Reference Documents
 
+- [references/plan-mutations.md](references/plan-mutations.md)
 - [references/complexity-estimation.md](references/complexity-estimation.md)
 - [references/detail-templates.md](references/detail-templates.md)
 - [references/examples.md](references/examples.md)

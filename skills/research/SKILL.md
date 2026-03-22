@@ -110,10 +110,14 @@ Record the selected backend — it will be included in the research output docum
 
 #### Exploration Prompt (all backends)
 
-Use this prompt for whichever backend is selected:
+Use this prompt for whichever backend is selected. The exploration uses **iterative retrieval** (see `references/iterative-retrieval.md`): start broad, score relevance, extract new search terms from high-relevance files, and repeat for up to 3 cycles.
 
 ```
 Thoroughly investigate: <topic>
+
+Use iterative retrieval: after each discovery tier, score results 0-1 for relevance.
+From files scoring 0.5+, extract new search terms (function names, imports, config keys).
+Use extracted terms in subsequent tiers. Max 3 refinement cycles.
 
 Discovery tiers (execute in order, skip if source unavailable):
 
@@ -327,6 +331,8 @@ Include in your Explore agent prompt:
 
 ## Reference Documents
 
+- [references/iterative-retrieval.md](references/iterative-retrieval.md)
+- [references/deep-research-mcp.md](references/deep-research-mcp.md)
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-claude-teams.md](references/backend-claude-teams.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)

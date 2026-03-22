@@ -203,6 +203,8 @@ This is slower but functionally identical.
 
 ## Reference Documents
 
+- [references/conflict-recovery.md](references/conflict-recovery.md)
+- [references/cold-start-contexts.md](references/cold-start-contexts.md)
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)

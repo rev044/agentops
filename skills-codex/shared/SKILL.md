@@ -13,6 +13,8 @@ This directory contains shared reference documents used by multiple skills:
 - `references/backend-inline.md` - Degraded single-agent mode (no spawn)
 - `references/codex-cli-verified-commands.md` - Verified Codex CLI command shapes and caveats
 - `references/cli-command-failures-2026-02-26.md` - Dated failure log and mitigations from live runs
+- [references/content-hash-cache.md](references/content-hash-cache.md) - SHA-256 content-based caching for file processing
+- [references/compaction-signals.md](references/compaction-signals.md) - Tool-call-based strategic compaction signals
 
 These are **not directly invocable skills**. They are loaded by other skills (council, crank, swarm, research, implement) when needed.
 

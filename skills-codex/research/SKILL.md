@@ -300,6 +300,8 @@ Include in your Explore agent prompt:
 
 ## Reference Documents
 
+- [references/iterative-retrieval.md](references/iterative-retrieval.md)
+- [references/deep-research-mcp.md](references/deep-research-mcp.md)
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)

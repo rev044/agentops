@@ -167,4 +167,5 @@ One line per finding:
 
 ## References
 
+- [references/skill-stocktake.md](references/skill-stocktake.md)
 - [references/codex-parity.md](references/codex-parity.md)

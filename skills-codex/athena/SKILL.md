@@ -39,16 +39,60 @@ hotspots (high-CC functions with recent edits).
 **Fallback (no ao CLI):** Use `git log --since="7 days ago" --name-only` to find
 recurring file groups. List `.agents/research/*.md` and check references in learnings.
 
+**Assign Initial Confidence.** For every new learning candidate extracted, assign a
+confidence score based on evidence strength:
+
+| Evidence | Score | Rationale |
+|----------|-------|-----------|
+| Single session observation | 0.3 | Anecdotal — seen once, may not generalize |
+| Explicit user correction or post-mortem finding | 0.5 | Demonstrated — user-validated signal |
+| Pattern observed in 2+ sessions | 0.6 | Repeated — likely real, not coincidence |
+| Validated across multiple sessions or projects | 0.7 | Strong — safe to auto-apply |
+| Battle-tested, never contradicted | 0.9 | Near-certain — always apply |
+
+Also assign a **scope** tag: `project:<name>` (project-specific), `language:<lang>`
+(language convention), or `global` (universal pattern). Default to `project:<current>`
+unless the pattern is clearly language- or tool-universal.
+
+Write the confidence and scope into the learning frontmatter:
+
+```yaml
+---
+title: "Learning title"
+confidence: 0.3
+scope: project:agentops
+observed_in:
+  - session: "YYYY-MM-DD"
+    context: "Brief description of observation"
+---
+```
+
 ### Step 2 — Grow: LLM-Driven Synthesis
 
 This is the reasoning phase. Perform each sub-step using tool calls.
 
-**2a. Validate Top Learnings**
+**2a. Validate Top Learnings and Adjust Confidence**
 
 Select the 5 most recent files from `.agents/learnings/`. For each:
-1. Read the learning file
+1. Read the learning file (including its `confidence` and `scope` frontmatter)
 2. If it references a function or file path, use Read to verify the code still exists
 3. Classify as: **validated** (matches), **stale** (changed), or **contradicted** (opposite)
+4. **Adjust confidence** based on validation result:
+   - Validated and still accurate: **+0.1** (cap at 0.9)
+   - Stale but partially true: **no change** (mark for review)
+   - Contradicted by current code: **-0.2** (floor at 0.1, flag for removal)
+   - Pattern validated in a new project: **+0.15**
+   - Not referenced in 30+ days: **-0.05** (time decay)
+   - Not referenced in 90+ days: **-0.1** (time decay)
+
+Update the learning file frontmatter with the new confidence score.
+
+**Auto-Promotion Rule:** After confidence adjustment, check if the learning's
+confidence is **> 0.7**. If so, and it is not already in MEMORY.md, promote it:
+1. Add the learning's key insight to the relevant MEMORY.md topic file
+2. Log: `"Promoted '<title>' to MEMORY.md (confidence: <score>)"`
+3. If the same pattern appears in 2+ projects with confidence >= 0.8, promote its
+   scope from `project:<name>` to `global`
 
 **2b. Rescue Orphaned Research**
 
@@ -145,6 +189,10 @@ For a full Mine → Grow → Defrag cycle, invoke `$athena` manually.
 | No orphaned research | All research already referenced | Skip 2b, proceed to synthesis |
 | Empty mine output | No recent activity | Widen `--since` window |
 | Oscillation sweep empty | No oscillating goals | Healthy state — no action needed |
+
+## Reference Documents
+
+- [references/confidence-scoring.md](references/confidence-scoring.md)
 
 ## Local Resources
 

@@ -37,6 +37,7 @@ Three steps:
 /vibe recent                             # same as above
 /vibe src/auth/                          # validates specific path
 /vibe --quick recent                     # fast inline check, no agent spawning
+/vibe --structured recent                # 6-phase verification report (build→types→lint→tests→security→diff)
 /vibe --deep recent                      # 3 judges instead of 2
 /vibe --sweep recent                     # deep audit: per-file explorers + council
 /vibe --mixed recent                     # cross-vendor (Claude + Codex)
@@ -94,6 +95,18 @@ If nothing found, ask user.
 **Pre-flight: If no files found:**
 Return immediately with: "PASS (no changes to review) — no modified files detected."
 Do NOT spawn agents for empty file lists.
+
+### Step 1.5a: Structured Verification Path (--structured mode)
+
+**If `--structured` flag is set**, run a 6-phase mechanical verification pipeline instead of the council flow. This produces a machine-readable verification report suitable for PR gates and CI integration.
+
+Phases: Build → Types → Lint → Tests → Security → Diff Review.
+
+Read `references/verification-report.md` for the full report template and per-phase commands. Each phase is fail-fast — if Build fails, skip remaining phases and report NOT READY.
+
+After all phases complete, write the structured report to `.agents/council/YYYY-MM-DD-verification-<target>.md` and output the summary table to the user.
+
+**When to use:** Pre-PR gate, CI integration, when you need a mechanical pass/fail rather than judgment-based review.
 
 ### Step 1.5: Fast Path (--quick mode)
 
@@ -753,6 +766,16 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ---
 
+## Write-Time Quality Hook
+
+The `hooks/write-time-quality.sh` PostToolUse hook runs automatically after every Write/Edit tool call, catching common anti-patterns at edit time rather than review time. It checks:
+
+- **Go:** unchecked errors, `fmt.Print` in library code
+- **Python:** bare `except:`, `eval`/`exec`, missing type hints on public functions
+- **Shell:** missing `set -euo pipefail`, unquoted variables
+
+The hook is non-blocking (always exits 0) and outputs warnings via JSON. See [references/write-time-quality.md](references/write-time-quality.md) for the full design.
+
 ## See Also
 
 - `skills/council/SKILL.md` — Multi-model validation council
@@ -762,6 +785,8 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ## Reference Documents
 
+- [references/verification-report.md](references/verification-report.md)
+- [references/write-time-quality.md](references/write-time-quality.md)
 - [references/deep-audit-protocol.md](references/deep-audit-protocol.md)
 - [references/examples.md](references/examples.md)
 - [references/go-patterns.md](references/go-patterns.md)
