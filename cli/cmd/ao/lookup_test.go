@@ -686,4 +686,13 @@ func TestRecordLookupCitations(t *testing.T) {
 	if len(lines) != 3 {
 		t.Errorf("expected 3 citation lines, got %d", len(lines))
 	}
+	for i, line := range lines {
+		var event map[string]any
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			t.Fatalf("line %d: parse citation: %v", i, err)
+		}
+		if got := event["citation_type"]; got != "retrieved" {
+			t.Fatalf("line %d: citation_type = %v, want retrieved", i, got)
+		}
+	}
 }

@@ -55,7 +55,7 @@ func TestMarkCitationsFeedbackGiven_WritesAllTrue(t *testing.T) {
 		{ArtifactPath: ".agents/learnings/c.md", FeedbackGiven: true}, // already processed
 	}
 
-	markCitationsFeedbackGiven(citationsPath, citations)
+	markCitationsFeedbackGiven(tmp, citationsPath, citations, nil)
 
 	data, err := os.ReadFile(citationsPath)
 	if err != nil {
@@ -82,7 +82,7 @@ func TestMarkCitationsFeedbackGiven_EmptyList(t *testing.T) {
 	tmp := t.TempDir()
 	citationsPath := filepath.Join(tmp, "citations.jsonl")
 
-	markCitationsFeedbackGiven(citationsPath, nil)
+	markCitationsFeedbackGiven(tmp, citationsPath, nil, nil)
 
 	data, err := os.ReadFile(citationsPath)
 	if err != nil {
@@ -241,7 +241,7 @@ func TestProcessCitationFeedback_WritesFeedbackEvents(t *testing.T) {
 
 	// Write an unprocessed citation
 	citations := []types.CitationEvent{
-		{ArtifactPath: ".agents/learnings/fb-test.jsonl", FeedbackGiven: false},
+		{ArtifactPath: ".agents/learnings/fb-test.jsonl", CitationType: "applied", FeedbackGiven: false},
 	}
 	var citationLines []string
 	for _, c := range citations {
@@ -280,6 +280,12 @@ func TestProcessCitationFeedback_WritesFeedbackEvents(t *testing.T) {
 	if event.ArtifactPath == "" {
 		t.Error("FeedbackEvent.ArtifactPath is empty")
 	}
+	if event.Decision != "rewarded" {
+		t.Errorf("FeedbackEvent.Decision = %q, want rewarded", event.Decision)
+	}
+	if event.Reason != "artifact-applied" {
+		t.Errorf("FeedbackEvent.Reason = %q, want artifact-applied", event.Reason)
+	}
 	if event.UtilityBefore < 0.001 {
 		t.Errorf("FeedbackEvent.UtilityBefore = %f, expected non-zero", event.UtilityBefore)
 	}
@@ -297,47 +303,102 @@ func TestProcessCitationFeedback_WritesFeedbackEvents(t *testing.T) {
 	}
 }
 
-func TestUpgradeCitationType_PositiveReward(t *testing.T) {
-	citations := []types.CitationEvent{
-		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "retrieved"},
-		{ArtifactPath: "/repo/.agents/learnings/b.md", CitationType: "retrieved"},
+func TestProcessCitationFeedback_RetrievedCitationIsSkipped(t *testing.T) {
+	tmp := t.TempDir()
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	upgradeCitationType(citations, "/repo/.agents/learnings/a.md")
-	if citations[0].CitationType != "applied" {
-		t.Errorf("expected 'applied', got %q", citations[0].CitationType)
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if citations[1].CitationType != "retrieved" {
-		t.Errorf("expected b to remain 'retrieved', got %q", citations[1].CitationType)
+
+	learningPath := filepath.Join(learningsDir, "retrieved-only.jsonl")
+	if err := os.WriteFile(learningPath, []byte(`{"id":"retrieved-only","title":"Retrieved Only","utility":0.6}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	citation := types.CitationEvent{
+		ArtifactPath:  ".agents/learnings/retrieved-only.jsonl",
+		CitationType:  "retrieved",
+		FeedbackGiven: false,
+	}
+	data, err := json.Marshal(citation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(aoDir, "citations.jsonl"), append(data, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	total, rewarded, skipped := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 0 || skipped != 1 {
+		t.Fatalf("expected (1,0,1), got (%d,%d,%d)", total, rewarded, skipped)
+	}
+
+	updatedData, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(updatedData), `"utility":0.6`) {
+		t.Fatalf("expected utility to remain unchanged, got %s", string(updatedData))
+	}
+
+	feedbackData, err := os.ReadFile(filepath.Join(aoDir, "feedback.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event FeedbackEvent
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(feedbackData))), &event); err != nil {
+		t.Fatal(err)
+	}
+	if event.Decision != "skipped" {
+		t.Fatalf("expected skipped decision, got %q", event.Decision)
+	}
+	if event.Reason != "retrieved-no-artifact-evidence" {
+		t.Fatalf("expected retrieved-no-artifact-evidence, got %q", event.Reason)
+	}
+	if event.UtilityBefore != event.UtilityAfter {
+		t.Fatalf("expected unchanged utility in skipped event, got before=%f after=%f", event.UtilityBefore, event.UtilityAfter)
 	}
 }
 
-func TestUpgradeCitationType_AlreadyApplied(t *testing.T) {
-	citations := []types.CitationEvent{
-		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "applied"},
+func TestProcessCitationFeedback_PrefersAppliedEvidenceOverRetrieved(t *testing.T) {
+	tmp := t.TempDir()
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	upgradeCitationType(citations, "/repo/.agents/learnings/a.md")
-	if citations[0].CitationType != "applied" {
-		t.Errorf("expected 'applied' unchanged, got %q", citations[0].CitationType)
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-}
 
-func TestUpgradeCitationType_ReferenceUnchanged(t *testing.T) {
-	citations := []types.CitationEvent{
-		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "reference"},
+	learningPath := filepath.Join(learningsDir, "mixed-evidence.jsonl")
+	if err := os.WriteFile(learningPath, []byte(`{"id":"mixed-evidence","title":"Mixed Evidence","utility":0.5}`), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	upgradeCitationType(citations, "/repo/.agents/learnings/a.md")
-	if citations[0].CitationType != "reference" {
-		t.Errorf("expected 'reference' unchanged, got %q", citations[0].CitationType)
-	}
-}
 
-func TestUpgradeCitationType_NoMatch(t *testing.T) {
 	citations := []types.CitationEvent{
-		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "retrieved"},
+		{ArtifactPath: ".agents/learnings/mixed-evidence.jsonl", CitationType: "retrieved", FeedbackGiven: false, CitedAt: time.Now().Add(-time.Minute)},
+		{ArtifactPath: ".agents/learnings/mixed-evidence.jsonl", CitationType: "applied", FeedbackGiven: false, CitedAt: time.Now()},
 	}
-	upgradeCitationType(citations, "/repo/.agents/learnings/other.md")
-	if citations[0].CitationType != "retrieved" {
-		t.Errorf("expected 'retrieved' unchanged, got %q", citations[0].CitationType)
+	var lines []string
+	for _, citation := range citations {
+		data, err := json.Marshal(citation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines = append(lines, string(data))
+	}
+	if err := os.WriteFile(filepath.Join(aoDir, "citations.jsonl"), []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	total, rewarded, skipped := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 1 || skipped != 0 {
+		t.Fatalf("expected applied evidence to win, got (%d,%d,%d)", total, rewarded, skipped)
 	}
 }
 

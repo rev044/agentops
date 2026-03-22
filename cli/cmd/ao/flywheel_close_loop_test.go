@@ -285,7 +285,7 @@ func TestCloseLoop_IntegrationEndToEnd(t *testing.T) {
 	citation := types.CitationEvent{
 		SessionID:     "e2e-test-session",
 		ArtifactPath:  ".agents/learnings/e2e-test-learning.md",
-		CitationType:  "retrieved",
+		CitationType:  "applied",
 		CitedAt:       time.Date(2026, 2, 24, 12, 0, 0, 0, time.UTC),
 		FeedbackGiven: false,
 	}
@@ -402,7 +402,7 @@ func TestCloseLoop_CitationFeedbackWithMaturityTransition(t *testing.T) {
 	citation := types.CitationEvent{
 		SessionID:     "transition-test-session",
 		ArtifactPath:  ".agents/learnings/transition-test-learning.md",
-		CitationType:  "retrieved",
+		CitationType:  "applied",
 		CitedAt:       time.Date(2026, 2, 24, 12, 0, 0, 0, time.UTC),
 		FeedbackGiven: false,
 	}
@@ -498,7 +498,7 @@ func TestCloseLoop_CitationFeedbackBeforeMaturity(t *testing.T) {
 	citation := types.CitationEvent{
 		SessionID:     "order-test-session",
 		ArtifactPath:  ".agents/learnings/order-test.md",
-		CitationType:  "retrieved",
+		CitationType:  "applied",
 		CitedAt:       time.Date(2026, 3, 3, 12, 0, 0, 0, time.UTC),
 		FeedbackGiven: false,
 	}

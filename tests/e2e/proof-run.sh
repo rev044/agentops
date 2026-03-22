@@ -1,374 +1,179 @@
 #!/usr/bin/env bash
-# proof-run.sh — Flywheel proof harness
-#
-# Demonstrates 3-session compounding of the AgentOps knowledge flywheel:
-#   Session 1: Discovery  — research + learn → learnings created
-#   Session 2: Compound   — lookup/signpost → learnings surfaced and applied
-#   Session 3: Mature     — lookup/signpost again → maturation visible
-#
-# Fully automated, no interactive prompts, CI-runnable.
-# Exit 0 = proof passes. Exit 1 = proof fails (with reason).
-
 set -euo pipefail
-
-# ============================================================================
-# Configuration
-# ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-FIXTURE_DIR="$REPO_ROOT/tests/fixtures/proof-repo"
-WORK_DIR="$(mktemp -d /tmp/flywheel-proof-XXXXXX)"
-trap 'rm -rf "$WORK_DIR"' EXIT
-
+FIXTURE_DIR="$REPO_ROOT/tests/fixtures/flywheel-proof"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/flywheel-proof-XXXXXX")"
+BUILD_DIR="$WORK_DIR/bin"
+HOME_DIR="$WORK_DIR/home"
+REPO_DIR="$WORK_DIR/repo"
+AO_BIN="$BUILD_DIR/ao"
+LOG_FILE="$WORK_DIR/proof-run.log"
 PASS_COUNT=0
-FAIL_COUNT=0
-SESSION_LOG="$WORK_DIR/proof-run.log"
+LOOKUP_QUERY="task-scoped lookup queries"
 
-# ============================================================================
-# Helpers
-# ============================================================================
+cleanup() {
+  rm -rf "$WORK_DIR"
+}
+trap cleanup EXIT
 
-log() { echo "[proof-run] $*" | tee -a "$SESSION_LOG"; }
-pass() { PASS_COUNT=$((PASS_COUNT + 1)); log "  PASS: $*"; }
-fail() { FAIL_COUNT=$((FAIL_COUNT + 1)); log "  FAIL: $*"; }
+log() {
+  printf '[proof-run] %s\n' "$*" | tee -a "$LOG_FILE"
+}
+
+pass() {
+  PASS_COUNT=$((PASS_COUNT + 1))
+  log "PASS: $*"
+}
+
+fail() {
+  log "FAIL: $*"
+  exit 1
+}
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    fail "missing required command: $1"
+  fi
+}
 
 assert_file_exists() {
-  local label="$1" path="$2"
+  local label="$1"
+  local path="$2"
   if [[ -f "$path" ]]; then
-    pass "$label — file exists: $(basename "$path")"
-  else
-    fail "$label — missing file: $path"
+    pass "$label"
+    return
   fi
+  fail "$label (missing $path)"
 }
 
-assert_frontmatter_field() {
-  local label="$1" path="$2" field="$3"
-  if grep -q "^${field}:" "$path" 2>/dev/null; then
-    pass "$label — frontmatter has '$field'"
-  else
-    fail "$label — missing frontmatter field '$field' in $(basename "$path")"
+assert_json_match() {
+  local label="$1"
+  local file="$2"
+  local filter="$3"
+  if jq -e "$filter" "$file" >/dev/null 2>&1; then
+    pass "$label"
+    return
   fi
+  log "jq filter failed: $filter"
+  sed -n '1,200p' "$file" | tee -a "$LOG_FILE" >/dev/null
+  fail "$label"
 }
 
-assert_content_contains() {
-  local label="$1" path="$2" pattern="$3"
-  if grep -qi "$pattern" "$path" 2>/dev/null; then
-    pass "$label — output contains '$pattern'"
-  else
-    fail "$label — output does not contain '$pattern' in $(basename "$path")"
+count_files() {
+  local dir="$1"
+  local pattern="$2"
+  if [[ ! -d "$dir" ]]; then
+    echo 0
+    return
   fi
+  find "$dir" -maxdepth 1 -type f -name "$pattern" | wc -l | tr -d ' '
 }
 
-assert_count_ge() {
-  local label="$1" actual="$2" min="$3"
-  if [[ "$actual" -ge "$min" ]]; then
-    pass "$label — count $actual >= $min"
-  else
-    fail "$label — count $actual < $min (expected >= $min)"
-  fi
+run_ao() {
+  (
+    cd "$REPO_DIR"
+    "$AO_BIN" "$@"
+  )
 }
 
-# ============================================================================
-# Setup: copy fixture into isolated work dir (preserve .agents/)
-# ============================================================================
+require_cmd git
+require_cmd go
+require_cmd jq
 
-log "=== SETUP ==="
-log "Fixture:  $FIXTURE_DIR"
-log "Work dir: $WORK_DIR"
+mkdir -p "$BUILD_DIR" "$HOME_DIR" "$REPO_DIR"
+export HOME="$HOME_DIR"
+export PATH="$BUILD_DIR:$PATH"
 
-cp -r "$FIXTURE_DIR/." "$WORK_DIR/"
-mkdir -p "$WORK_DIR/.agents/learnings"
-mkdir -p "$WORK_DIR/.agents/patterns"
-mkdir -p "$WORK_DIR/.agents/research"
+log "Building local ao binary"
+(
+  cd "$REPO_ROOT/cli"
+  go build -o "$AO_BIN" ./cmd/ao
+) >/dev/null
+pass "built local ao binary"
 
-# Initialize as a minimal git repo so ao inject can find root
-cd "$WORK_DIR"
-git init -q
-git config user.email "proof-run@agentops.test"
-git config user.name "Proof Run"
-git add -A
-git commit -q -m "initial: proof-repo fixture"
+log "Creating isolated proof repo"
+(
+  cd "$REPO_DIR"
+  git init -q
+  git config user.email "proof-run@agentops.test"
+  git config user.name "Proof Run"
+  printf '# Flywheel Proof Repo\n' > README.md
+  git add README.md
+  git commit -q -m "init"
+)
+pass "initialized isolated repo"
 
-log "Work dir initialized"
+TRANSCRIPT="$REPO_DIR/seed-session.jsonl"
+cp "$FIXTURE_DIR/seed-session.jsonl" "$TRANSCRIPT"
+pass "copied raw transcript fixture"
 
-# ============================================================================
-# Utilities: create a valid learning file
-# ============================================================================
-
-new_learning_id() {
-  printf "learn-%s-%04d" "$(date -u +%Y%m%d)" "$((RANDOM % 9999))"
-}
-
-write_learning() {
-  local id="$1" title="$2" body="$3" type="${4:-pattern}"
-  local created_at
-  created_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  local path="$WORK_DIR/.agents/learnings/${id}.md"
-  cat > "$path" <<LEARNING
----
-id: ${id}
-title: ${title}
-type: ${type}
-created_at: ${created_at}
-confidence: 0.9
-retrieval_count: 0
-tags: [proof, go, agentops]
-session: session-1
----
-
-${body}
-LEARNING
-  echo "$path"
-}
-
-# ============================================================================
-# SESSION 1: Discovery
-# ============================================================================
-
-log ""
-log "==================================================================="
-log "SESSION 1: Discovery"
-log "  Simulate /research + /learn on the proof-repo codebase."
-log "  Assert: learnings exist with valid frontmatter."
-log "==================================================================="
-
-# Simulate /research: create a research artifact
-RESEARCH_FILE="$WORK_DIR/.agents/research/initial-scan.md"
-cat > "$RESEARCH_FILE" <<'RESEARCH'
-# Research: proof-repo initial scan
-
-## Summary
-
-Scanned `main.go`. Found 4 known issues:
-
-1. `openFile` — ignores error from `os.Open` (missing error handling)
-2. `processData` — `tmp` variable declared but never meaningfully used
-3. `computeSum` / `parseConfig` — no associated `*_test.go` file
-4. `parseConfig` — no input validation
-
-## Patterns Observed
-
-- Functions return zero values silently instead of propagating errors
-- Tests directory absent; coverage is 0%
-- Documentation comments sparse on non-main functions
-
-## Recommended Actions
-
-- Wrap errors with `fmt.Errorf` + `%w`
-- Delete unused variables or refactor to use them
-- Add `main_test.go` with at least smoke tests for `computeSum` and `parseConfig`
-RESEARCH
-
-log "Session 1: research artifact created"
-
-# Simulate /learn: capture 2 learnings
-L1_ID="$(new_learning_id)"
-L1_PATH="$(write_learning "$L1_ID" \
-  "Go error handling: always propagate, never discard" \
-  "In this codebase, os.Open errors are silently dropped. Use fmt.Errorf(\"open %s: %w\", path, err) to preserve context. This is the single most common Go error pattern violation found in proof-repo." \
-  "pattern")"
-
-L2_ID="$(new_learning_id)"
-L2_PATH="$(write_learning "$L2_ID" \
-  "proof-repo: missing test coverage" \
-  "proof-repo has zero test files. computeSum and parseConfig are testable with table-driven tests. Adding main_test.go with basic coverage unblocks CI gating." \
-  "observation")"
-
-log "Session 1: learnings written — $L1_ID, $L2_ID"
-
-# Assertions: Session 1
-log "Session 1: running assertions..."
-assert_file_exists "S1-research" "$RESEARCH_FILE"
-assert_file_exists "S1-learning-1" "$L1_PATH"
-assert_file_exists "S1-learning-2" "$L2_PATH"
-
-for lpath in "$L1_PATH" "$L2_PATH"; do
-  assert_frontmatter_field "S1 frontmatter" "$lpath" "id"
-  assert_frontmatter_field "S1 frontmatter" "$lpath" "type"
-  assert_frontmatter_field "S1 frontmatter" "$lpath" "created_at"
-  assert_frontmatter_field "S1 frontmatter" "$lpath" "confidence"
-done
-
-LEARNING_COUNT="$(ls "$WORK_DIR/.agents/learnings/"*.md 2>/dev/null | wc -l | tr -d ' ')"
-assert_count_ge "S1 learning count" "$LEARNING_COUNT" 2
-
-log "Session 1: complete. Learnings on disk: $LEARNING_COUNT"
-
-# ============================================================================
-# SESSION 2: Compounding
-# ============================================================================
-
-log ""
-log "==================================================================="
-log "SESSION 2: Compounding"
-log "  Simulate knowledge lookup loading learnings from Session 1."
-log "  Assert: lookup surfaces prior learnings."
-log "  Assert: output references prior learning content."
-log "==================================================================="
-
-INJECT_OUTPUT="$WORK_DIR/session-2-inject.md"
-
-# Run ao inject if available; otherwise simulate from files on disk
-if command -v ao >/dev/null 2>&1; then
-  log "Session 2: running ao inject (real CLI)"
-  ao inject --format markdown --max-tokens 2000 > "$INJECT_OUTPUT" 2>/dev/null || {
-    log "Session 2: ao inject returned non-zero; checking output anyway"
-  }
-else
-  log "Session 2: ao CLI not found; simulating inject from on-disk learnings"
-  {
-    echo "# Injected Knowledge (simulated)"
-    echo ""
-    echo "## Prior Learnings"
-    echo ""
-    for lf in "$WORK_DIR/.agents/learnings/"*.md; do
-      echo "### $(basename "$lf")"
-      grep -A5 "^---$" "$lf" | tail -n +2 | head -5 || true
-      echo ""
-      # Body after second ---
-      awk '/^---$/{n++; if(n==2){found=1; next}} found{print}' "$lf"
-      echo ""
-    done
-  } > "$INJECT_OUTPUT"
+log "Phase 1: forge transcript into pending learnings"
+run_ao forge transcript "$TRANSCRIPT" --quiet >/dev/null
+PENDING_DIR="$REPO_DIR/.agents/knowledge/pending"
+PENDING_COUNT="$(count_files "$PENDING_DIR" '*.md')"
+if [[ "$PENDING_COUNT" -lt 1 ]]; then
+  fail "expected pending learnings after forge, found $PENDING_COUNT"
 fi
+pass "forge produced $PENDING_COUNT pending learning(s)"
 
-log "Session 2: inject output written to $(basename "$INJECT_OUTPUT")"
+log "Phase 2: close-loop ingests pending learnings into the pool"
+CLOSE1_JSON="$WORK_DIR/close-loop-1.json"
+run_ao flywheel close-loop --threshold 0h --json > "$CLOSE1_JSON"
+assert_json_match "close-loop ingested pending learnings" "$CLOSE1_JSON" '.ingest.added >= 1'
 
-# Simulate a second learning that explicitly references Session 1 knowledge
-L3_ID="$(new_learning_id)"
-L3_PATH="$(write_learning "$L3_ID" \
-  "Error handling fix applied to openFile" \
-  "Applied the pattern from session-1 learning (Go error handling: always propagate). Updated openFile to return (file, error). This directly compounds the prior learning — pattern → concrete fix." \
-  "fix")"
-
-# Simulate retrieval_count bump on Session 1 learnings (maturity signal)
-# Increment retrieval_count in L1_PATH
-sed -i.bak "s/^retrieval_count: 0/retrieval_count: 1/" "$L1_PATH" && rm -f "${L1_PATH}.bak"
-
-log "Session 2: added compound learning $L3_ID, bumped retrieval count on $L1_ID"
-
-# Assertions: Session 2
-log "Session 2: running assertions..."
-assert_file_exists "S2-inject-output" "$INJECT_OUTPUT"
-assert_content_contains "S2-inject references learnings" "$INJECT_OUTPUT" "learn\|inject\|prior\|pattern\|knowledge\|session"
-
-# Injection should have surfaced at least the content we wrote
-assert_content_contains "S2-inject has error-handling content" "$INJECT_OUTPUT" "error"
-
-# New compound learning exists
-assert_file_exists "S2-compound-learning" "$L3_PATH"
-assert_frontmatter_field "S2 compound frontmatter" "$L3_PATH" "id"
-
-# Retrieval count incremented on prior learning
-RETRIEVAL="$(grep '^retrieval_count:' "$L1_PATH" | awk '{print $2}')"
-if [[ "$RETRIEVAL" -ge 1 ]]; then
-  pass "S2 retrieval_count bumped (now $RETRIEVAL)"
-else
-  fail "S2 retrieval_count not bumped (still $RETRIEVAL)"
+POOL_PENDING_DIR="$REPO_DIR/.agents/pool/pending"
+CANDIDATE_PATH="$(find "$POOL_PENDING_DIR" -maxdepth 1 -type f -name '*.json' | head -n 1)"
+if [[ -z "$CANDIDATE_PATH" ]]; then
+  fail "expected a pool candidate after ingest"
 fi
+assert_file_exists "pool candidate exists after ingest" "$CANDIDATE_PATH"
 
-LEARNING_COUNT2="$(ls "$WORK_DIR/.agents/learnings/"*.md 2>/dev/null | wc -l | tr -d ' ')"
-assert_count_ge "S2 learning count grows" "$LEARNING_COUNT2" 3
+log "Phase 3: cite the pool candidate and promote it into a retrievable artifact"
+run_ao metrics cite "$CANDIDATE_PATH" --type reference --session proof-promotion --query "$LOOKUP_QUERY" >/dev/null
+CLOSE2_JSON="$WORK_DIR/close-loop-2.json"
+run_ao flywheel close-loop --threshold 0h --json > "$CLOSE2_JSON"
+assert_json_match "close-loop promoted a cited candidate" "$CLOSE2_JSON" '.auto_promote.promoted >= 1'
 
-log "Session 2: complete. Learnings on disk: $LEARNING_COUNT2"
-
-# ============================================================================
-# SESSION 3: Maturation
-# ============================================================================
-
-log ""
-log "==================================================================="
-log "SESSION 3: Maturation"
-log "  Simulate continued lookup and knowledge compounding."
-log "  Assert: maturation is visible (retrieval_count, new builds-on)."
-log "  Assert: new learnings reference prior session learnings."
-log "==================================================================="
-
-INJECT_OUTPUT3="$WORK_DIR/session-3-inject.md"
-
-if command -v ao >/dev/null 2>&1; then
-  log "Session 3: running ao inject (real CLI)"
-  ao inject --apply-decay --format markdown --max-tokens 2000 > "$INJECT_OUTPUT3" 2>/dev/null || {
-    log "Session 3: ao inject returned non-zero; checking output anyway"
-  }
-else
-  log "Session 3: simulating inject (ao CLI not available)"
-  {
-    echo "# Injected Knowledge (simulated — Session 3)"
-    echo ""
-    echo "## Retrieved Learnings (by freshness + retrieval score)"
-    echo ""
-    # Sort by retrieval_count descending (mature learnings surface first)
-    for lf in "$WORK_DIR/.agents/learnings/"*.md; do
-      rc="$(grep '^retrieval_count:' "$lf" 2>/dev/null | awk '{print $2}' || echo 0)"
-      echo "retrieval_count=$rc $lf"
-    done | sort -rn | while read -r _rc lf; do
-      echo "### $(basename "$lf")"
-      awk '/^---$/{n++; if(n==2){found=1; next}} found{print}' "$lf"
-      echo ""
-    done
-    echo "## Maturity Signals"
-    echo "- Learnings with retrieval_count >= 1 surface first"
-    echo "- High-confidence patterns promoted"
-  } > "$INJECT_OUTPUT3"
+ARTIFACT_PATH="$(jq -r '.auto_promote.artifacts[0] // empty' "$CLOSE2_JSON")"
+if [[ -z "$ARTIFACT_PATH" ]]; then
+  fail "expected promoted artifact path in close-loop output"
 fi
+assert_file_exists "promoted artifact exists on disk" "$ARTIFACT_PATH"
+ARTIFACT_JSON="$(printf '%s' "$ARTIFACT_PATH" | jq -R '.')"
 
-log "Session 3: inject output written to $(basename "$INJECT_OUTPUT3")"
+log "Phase 4: lookup retrieves the promoted artifact and records retrieved evidence"
+LOOKUP_JSON="$WORK_DIR/lookup.json"
+run_ao lookup --query "$LOOKUP_QUERY" --json > "$LOOKUP_JSON"
+assert_json_match "lookup surfaces promoted knowledge" "$LOOKUP_JSON" '((.learnings | length) + (.patterns | length)) >= 1'
 
-# Session 3 learning: builds explicitly on L1 and L3
-L4_ID="$(new_learning_id)"
-L4_PATH="$(write_learning "$L4_ID" \
-  "proof-repo: tests added, coverage gate now unblocked" \
-  "Added main_test.go covering computeSum (3 cases) and parseConfig (2 cases). This completes the recommendation from session-1 observation (proof-repo: missing test coverage, id: ${L2_ID}). Knowledge chain: S1-observe → S2-fix → S3-validate." \
-  "milestone")"
+CITATIONS_PATH="$REPO_DIR/.agents/ao/citations.jsonl"
+assert_file_exists "citations log exists" "$CITATIONS_PATH"
+assert_json_match \
+  "lookup recorded a retrieved citation for the promoted artifact" \
+  "$CITATIONS_PATH" \
+  "select(.artifact_path == $ARTIFACT_JSON and .citation_type == \"retrieved\")"
 
-# Bump retrieval_count again on mature learnings
-sed -i.bak "s/^retrieval_count: 1/retrieval_count: 2/" "$L1_PATH" && rm -f "${L1_PATH}.bak"
-sed -i.bak "s/^retrieval_count: 0/retrieval_count: 1/" "$L2_PATH" && rm -f "${L2_PATH}.bak"
-sed -i.bak "s/^retrieval_count: 0/retrieval_count: 1/" "$L3_PATH" && rm -f "${L3_PATH}.bak"
+log "Phase 5: record applied evidence and close the feedback loop"
+run_ao metrics cite "$ARTIFACT_PATH" --type applied --session proof-apply --query "$LOOKUP_QUERY" >/dev/null
+mkdir -p "$REPO_DIR/.agents/ao"
+cp "$FIXTURE_DIR/last-session-outcome.success.json" "$REPO_DIR/.agents/ao/last-session-outcome.json"
+pass "seeded deterministic success outcome"
 
-log "Session 3: added milestone learning $L4_ID, bumped retrieval counts"
+CLOSE3_JSON="$WORK_DIR/close-loop-3.json"
+run_ao flywheel close-loop --threshold 0h --json > "$CLOSE3_JSON"
+assert_json_match "close-loop rewarded applied artifact feedback" "$CLOSE3_JSON" '.citation_feedback.rewarded >= 1'
 
-# Assertions: Session 3
-log "Session 3: running assertions..."
-assert_file_exists "S3-inject-output" "$INJECT_OUTPUT3"
-assert_content_contains "S3-inject references sessions" "$INJECT_OUTPUT3" "session\|learn\|prior\|retriev\|mature\|inject\|knowledge"
+FEEDBACK_PATH="$REPO_DIR/.agents/ao/feedback.jsonl"
+assert_file_exists "feedback log exists" "$FEEDBACK_PATH"
+assert_json_match \
+  "feedback log records rewarded applied evidence" \
+  "$FEEDBACK_PATH" \
+  "select(.artifact_path == $ARTIFACT_JSON and .decision == \"rewarded\" and .reason == \"artifact-applied\" and .utility_after > .utility_before)"
+assert_json_match \
+  "applied citation is marked feedback-given" \
+  "$CITATIONS_PATH" \
+  "select(.artifact_path == $ARTIFACT_JSON and .citation_type == \"applied\" and .feedback_given == true)"
 
-# New S3 learning exists and chains back to prior session IDs
-assert_file_exists "S3-milestone-learning" "$L4_PATH"
-assert_content_contains "S3-learning references S1 learning" "$L4_PATH" "$L2_ID"
-
-# Maturity: L1 should now have retrieval_count >= 2
-RETRIEVAL3="$(grep '^retrieval_count:' "$L1_PATH" | awk '{print $2}')"
-if [[ "$RETRIEVAL3" -ge 2 ]]; then
-  pass "S3 maturation visible — retrieval_count=$RETRIEVAL3 on mature learning"
-else
-  fail "S3 maturation not visible — retrieval_count=$RETRIEVAL3 on $L1_ID"
-fi
-
-# Total learning count should be >= 4
-LEARNING_COUNT3="$(ls "$WORK_DIR/.agents/learnings/"*.md 2>/dev/null | wc -l | tr -d ' ')"
-assert_count_ge "S3 total learning count" "$LEARNING_COUNT3" 4
-
-log "Session 3: complete. Learnings on disk: $LEARNING_COUNT3"
-
-# ============================================================================
-# Summary
-# ============================================================================
-
-log ""
-log "==================================================================="
-log "PROOF RUN SUMMARY"
-log "==================================================================="
-log "Sessions:   3 (Discovery → Compounding → Maturation)"
-log "Assertions: PASS=$PASS_COUNT  FAIL=$FAIL_COUNT"
-log ""
-
-if [[ "$FAIL_COUNT" -eq 0 ]]; then
-  log "RESULT: PASS — flywheel proof demonstrates 3-session compounding"
-  exit 0
-else
-  log "RESULT: FAIL — $FAIL_COUNT assertion(s) failed. See log above."
-  exit 1
-fi
+log "FLYWHEEL PROOF: PASS ($PASS_COUNT checks)"

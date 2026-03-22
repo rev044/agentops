@@ -23,30 +23,14 @@ func processCitationFeedback(cwd string) (int, int, int) {
 		return 0, 0, 0
 	}
 
-	// Deduplicate: one feedback event per artifact (most recent citation wins)
-	seen := make(map[string]bool)
-	var unique []types.CitationEvent
-	for i := len(citations) - 1; i >= 0; i-- {
-		c := citations[i]
-		if c.FeedbackGiven {
-			continue // Already processed
-		}
-		key := c.ArtifactPath
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		unique = append(unique, c)
-	}
-
+	unique := deduplicateCitationFeedbackTargets(cwd, citations)
 	if len(unique) == 0 {
 		return 0, 0, 0
 	}
 
-	// Compute adaptive reward from most recent transcript
 	reward, err := computeSessionRewardForCloseLoop(cwd)
 	if err != nil {
-		reward = types.InitialUtility // Fallback to 0.5 (neutral), NOT 1.0
+		reward = types.InitialUtility
 	}
 
 	res := resolver.NewFileResolver(cwd)
@@ -55,7 +39,14 @@ func processCitationFeedback(cwd string) (int, int, int) {
 	var feedbackEvents []FeedbackEvent
 
 	for _, c := range unique {
+		citationType := effectiveCitationFeedbackType(c.CitationType)
+		decision, reason, rewardable := classifyCitationFeedback(citationType)
+
 		if isFindingArtifactPath(cwd, c.ArtifactPath) {
+			if !rewardable {
+				skipped++
+				continue
+			}
 			path := normalizeArtifactPath(cwd, c.ArtifactPath)
 			citedAt := c.CitedAt
 			if citedAt.IsZero() {
@@ -69,33 +60,67 @@ func processCitationFeedback(cwd string) (int, int, int) {
 			continue
 		}
 
-		// Resolve the artifact to a file path
 		learningID := extractLearningID(c.ArtifactPath)
 		path, err := res.Resolve(learningID)
 		if err != nil {
+			feedbackEvents = append(feedbackEvents, FeedbackEvent{
+				SessionID:    sessionID,
+				ArtifactPath: canonicalArtifactPath(cwd, c.ArtifactPath),
+				CitationType: citationType,
+				Decision:     "skipped",
+				Reason:       "artifact-not-resolved",
+				RecordedAt:   time.Now(),
+			})
 			skipped++
 			continue
 		}
 
-		// Compute annealed alpha based on citation count
+		if !rewardable {
+			currentUtility := parseUtilityFromFile(path)
+			feedbackEvents = append(feedbackEvents, FeedbackEvent{
+				SessionID:     sessionID,
+				ArtifactPath:  path,
+				CitationType:  citationType,
+				Decision:      decision,
+				Reason:        reason,
+				Reward:        0,
+				UtilityBefore: currentUtility,
+				UtilityAfter:  currentUtility,
+				Alpha:         0,
+				RecordedAt:    time.Now(),
+			})
+			skipped++
+			continue
+		}
+
 		rewardCount := getLearningRewardCount(path)
 		alpha := annealedAlpha(types.DefaultAlpha, rewardCount)
 
-		// Apply adaptive reward (transcript-derived or fallback)
 		oldUtility, newUtility, err := updateLearningUtility(path, reward, alpha)
 		if err != nil {
+			currentUtility := parseUtilityFromFile(path)
+			feedbackEvents = append(feedbackEvents, FeedbackEvent{
+				SessionID:     sessionID,
+				ArtifactPath:  path,
+				CitationType:  citationType,
+				Decision:      "skipped",
+				Reason:        "utility-update-failed",
+				Reward:        0,
+				UtilityBefore: currentUtility,
+				UtilityAfter:  currentUtility,
+				Alpha:         0,
+				RecordedAt:    time.Now(),
+			})
 			skipped++
 			continue
-		}
-
-		// Upgrade citation_type from "retrieved" to "applied" on positive feedback
-		if reward >= 0.6 {
-			upgradeCitationType(citations, c.ArtifactPath)
 		}
 
 		feedbackEvents = append(feedbackEvents, FeedbackEvent{
 			SessionID:     sessionID,
 			ArtifactPath:  path,
+			CitationType:  citationType,
+			Decision:      decision,
+			Reason:        reason,
 			Reward:        reward,
 			UtilityBefore: oldUtility,
 			UtilityAfter:  newUtility,
@@ -105,15 +130,95 @@ func processCitationFeedback(cwd string) (int, int, int) {
 		rewarded++
 	}
 
-	// Write audit trail
 	if len(feedbackEvents) > 0 {
 		_ = writeFeedbackEvents(cwd, feedbackEvents)
 	}
 
-	// Mark all citations as feedback-given by rewriting the file
-	markCitationsFeedbackGiven(citationsPath, citations)
+	markCitationsFeedbackGiven(cwd, citationsPath, citations, feedbackEvents)
 
 	return len(unique), rewarded, skipped
+}
+
+func deduplicateCitationFeedbackTargets(cwd string, citations []types.CitationEvent) []types.CitationEvent {
+	type indexedCitation struct {
+		order int
+		event types.CitationEvent
+	}
+
+	byKey := make(map[string]indexedCitation)
+	order := make([]string, 0, len(citations))
+	for _, citation := range citations {
+		if citation.FeedbackGiven {
+			continue
+		}
+		citation.ArtifactPath = canonicalArtifactPath(cwd, citation.ArtifactPath)
+		citation.CitationType = canonicalCitationType(citation.CitationType)
+		key := canonicalArtifactKey(cwd, citation.ArtifactPath)
+		current, exists := byKey[key]
+		if !exists {
+			byKey[key] = indexedCitation{order: len(order), event: citation}
+			order = append(order, key)
+			continue
+		}
+		if preferCitationFeedbackEvidence(current.event, citation) {
+			byKey[key] = indexedCitation{order: current.order, event: citation}
+		}
+	}
+
+	unique := make([]types.CitationEvent, 0, len(byKey))
+	for _, key := range order {
+		unique = append(unique, byKey[key].event)
+	}
+	return unique
+}
+
+func preferCitationFeedbackEvidence(current, candidate types.CitationEvent) bool {
+	currentRank := citationFeedbackEvidenceRank(effectiveCitationFeedbackType(current.CitationType))
+	candidateRank := citationFeedbackEvidenceRank(effectiveCitationFeedbackType(candidate.CitationType))
+	if candidateRank != currentRank {
+		return candidateRank > currentRank
+	}
+	if current.CitedAt.IsZero() {
+		return true
+	}
+	if candidate.CitedAt.IsZero() {
+		return false
+	}
+	return candidate.CitedAt.After(current.CitedAt)
+}
+
+func citationFeedbackEvidenceRank(citationType string) int {
+	switch citationType {
+	case "applied":
+		return 3
+	case "reference":
+		return 2
+	case "retrieved":
+		return 1
+	default:
+		return 0
+	}
+}
+
+func effectiveCitationFeedbackType(citationType string) string {
+	citationType = canonicalCitationType(citationType)
+	if citationType == "" {
+		return "reference"
+	}
+	return citationType
+}
+
+func classifyCitationFeedback(citationType string) (decision, reason string, rewardable bool) {
+	switch citationType {
+	case "applied":
+		return "rewarded", "artifact-applied", true
+	case "reference":
+		return "rewarded", "manual-reference", true
+	case "retrieved":
+		return "skipped", "retrieved-no-artifact-evidence", false
+	default:
+		return "skipped", "unsupported-citation-type", false
+	}
 }
 
 func updateFindingCitationFields(path string, citedAt time.Time) error {
@@ -140,25 +245,28 @@ func extractLearningID(artifactPath string) string {
 	return filepath.Base(artifactPath)
 }
 
-// upgradeCitationType marks citations for the given artifact as "applied"
-// when the session provided positive feedback (reward >= 0.6).
-func upgradeCitationType(citations []types.CitationEvent, artifactPath string) {
-	for i := range citations {
-		if citations[i].ArtifactPath == artifactPath && citations[i].CitationType == "retrieved" {
-			citations[i].CitationType = "applied"
-		}
-	}
-}
-
 // markCitationsFeedbackGiven rewrites citations.jsonl with FeedbackGiven=true for all entries.
-func markCitationsFeedbackGiven(citationsPath string, citations []types.CitationEvent) {
+func markCitationsFeedbackGiven(cwd, citationsPath string, citations []types.CitationEvent, feedbackEvents []FeedbackEvent) {
 	if GetDryRun() {
 		return
 	}
 
+	feedbackByPath := make(map[string]FeedbackEvent, len(feedbackEvents))
+	for _, event := range feedbackEvents {
+		feedbackByPath[canonicalArtifactKey(cwd, event.ArtifactPath)] = event
+	}
+
 	var lines []string
 	for _, c := range citations {
+		c.ArtifactPath = canonicalArtifactPath(cwd, c.ArtifactPath)
+		c.CitationType = canonicalCitationType(c.CitationType)
 		c.FeedbackGiven = true
+		if event, ok := feedbackByPath[canonicalArtifactKey(cwd, c.ArtifactPath)]; ok {
+			c.FeedbackReward = event.Reward
+			c.UtilityBefore = event.UtilityBefore
+			c.UtilityAfter = event.UtilityAfter
+			c.FeedbackAt = event.RecordedAt
+		}
 		data, err := json.Marshal(c)
 		if err != nil {
 			continue
@@ -175,7 +283,6 @@ func markCitationsFeedbackGiven(citationsPath string, citations []types.Citation
 // computeSessionRewardForCloseLoop checks for a binary session outcome file first,
 // then falls back to transcript analysis.
 func computeSessionRewardForCloseLoop(cwd string) (float64, error) {
-	// Try session outcome file first (binary, reliable)
 	outcomePath := filepath.Join(cwd, ".agents", "ao", "last-session-outcome.json")
 	if data, err := os.ReadFile(outcomePath); err == nil {
 		var outcome struct {
@@ -192,7 +299,7 @@ func computeSessionRewardForCloseLoop(cwd string) (float64, error) {
 			}
 		}
 	}
-	// Fallback to transcript analysis (existing behavior)
+
 	homeDir, _ := os.UserHomeDir()
 	if homeDir == "" {
 		return types.InitialUtility, nil
@@ -225,7 +332,6 @@ func promoteCitedLearnings(cwd string, quiet bool) int {
 		return 0
 	}
 
-	// Collect unique artifact paths from recent feedback events
 	seen := make(map[string]bool)
 	var paths []string
 	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
@@ -234,6 +340,9 @@ func promoteCitedLearnings(cwd string, quiet bool) int {
 		}
 		var evt FeedbackEvent
 		if err := json.Unmarshal([]byte(line), &evt); err != nil {
+			continue
+		}
+		if evt.Decision != "" && evt.Decision != "rewarded" {
 			continue
 		}
 		if evt.ArtifactPath == "" || seen[evt.ArtifactPath] {
