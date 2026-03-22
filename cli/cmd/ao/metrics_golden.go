@@ -8,12 +8,27 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/types"
 )
+
+// canonicalCitationType normalises citation type strings to "applied" or "retrieved".
+func canonicalCitationType(ct string) string {
+	switch strings.ToLower(strings.TrimSpace(ct)) {
+	case "applied", "apply":
+		return "applied"
+	case "retrieved", "retrieve", "pulled", "pull":
+		return "retrieved"
+	default:
+		return strings.ToLower(strings.TrimSpace(ct))
+	}
+}
+
+var researchRefPattern = regexp.MustCompile(`(?:/[^ \n\t"'\\]]*\.agents/research/[A-Za-z0-9._/-]+\.md|\.agents/research/[A-Za-z0-9._/-]+\.md)`)
 
 // computeGoldenSignals calculates the four golden signals that distinguish
 // knowledge compounding from noise accumulation.
@@ -160,7 +175,7 @@ func computeCitationPipeline(baseDir string, days int) (highPct, medianDelta, ap
 		if json.Unmarshal(raw, &c) != nil || c.CitedAt.Before(cutoff) {
 			continue
 		}
-		switch c.CitationType {
+		switch canonicalCitationType(c.CitationType) {
 		case "applied":
 			applied++
 		case "retrieved":
@@ -219,39 +234,21 @@ func computeCitationPipeline(baseDir string, days int) (highPct, medianDelta, ap
 }
 
 // computeResearchClosure measures whether research is being mined into learnings.
-// A research file is "closed" if any learning's YAML frontmatter source field
-// references the research file path, or if there's date+keyword overlap.
+// A research file is "closed" if any learning or finding references the exact
+// research file path anywhere in its content or frontmatter.
 func computeResearchClosure(baseDir string) (orphanCount int, orphanPct float64, avgAgeDays float64, verdict string) {
 	researchDir := filepath.Join(baseDir, ".agents", "research")
 	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
+	findingsDir := filepath.Join(baseDir, ".agents", SectionFindings)
 
 	researchFiles, err := os.ReadDir(researchDir)
 	if err != nil || len(researchFiles) == 0 {
 		return 0, 0, 0, "starved" // no research at all
 	}
 
-	// Build set of learning source references
-	learningSourceRefs := make(map[string]bool)
-	learningEntries, _ := os.ReadDir(learningsDir)
-	for _, le := range learningEntries {
-		if le.IsDir() || !strings.HasSuffix(le.Name(), ".md") {
-			continue
-		}
-		path := filepath.Join(learningsDir, le.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		content := string(data)
-		// Extract source field from frontmatter
-		if idx := strings.Index(content, "source:"); idx != -1 {
-			line := content[idx:]
-			if nl := strings.IndexByte(line, '\n'); nl != -1 {
-				line = line[:nl]
-			}
-			learningSourceRefs[line] = true
-		}
-	}
+	researchRefs := make(map[string]bool)
+	collectResearchRefsFromDir(learningsDir, researchRefs)
+	collectResearchRefsFromDir(findingsDir, researchRefs)
 
 	// Check each research file for closure
 	now := time.Now()
@@ -267,7 +264,7 @@ func computeResearchClosure(baseDir string) (orphanCount int, orphanPct float64,
 		// Check if any learning references this research file
 		closed := false
 		researchName := re.Name()
-		for ref := range learningSourceRefs {
+		for ref := range researchRefs {
 			if strings.Contains(ref, researchName) || strings.Contains(ref, strings.TrimSuffix(researchName, ".md")) {
 				closed = true
 				break
@@ -302,6 +299,44 @@ func computeResearchClosure(baseDir string) (orphanCount int, orphanPct float64,
 	}
 
 	return orphanCount, orphanPct, avgAgeDays, verdict
+}
+
+func collectResearchRefsFromDir(dir string, refs map[string]bool) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for _, ref := range extractResearchRefsFromText(string(data)) {
+			refs[ref] = true
+		}
+	}
+}
+
+func extractResearchRefsFromText(content string) []string {
+	matches := researchRefPattern.FindAllString(content, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	refs := make([]string, 0, len(matches))
+	seen := make(map[string]bool, len(matches))
+	for _, match := range matches {
+		ref := strings.Trim(match, `"'[]()`)
+		if ref == "" || seen[ref] {
+			continue
+		}
+		seen[ref] = true
+		refs = append(refs, ref)
+	}
+	return refs
 }
 
 // countCitationsInPeriod reads a JSONL citations file and returns per-artifact
