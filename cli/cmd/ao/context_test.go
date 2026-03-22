@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1853,9 +1854,11 @@ func TestRunContextGuard_AutoRestart(t *testing.T) {
 	contextSessionID = sessionID; contextMaxTokens = contextbudget.DefaultMaxTokens; contextWatchdogMinute = defaultWatchdogMinutes
 	contextAutoRestart = true; contextWriteHandoff = false; output = "json"
 	defer func() { contextSessionID = old1; contextMaxTokens = old2; contextWatchdogMinute = old3; contextAutoRestart = old4; contextWriteHandoff = old5; output = old6 }()
-	oldStdout := os.Stdout; _, w, _ := os.Pipe(); os.Stdout = w
+	oldStdout := os.Stdout; r, w, _ := os.Pipe(); os.Stdout = w
 	err := runContextGuard(&cobra.Command{}, nil)
 	w.Close(); os.Stdout = oldStdout
+	_, _ = io.ReadAll(r)
+	_ = r.Close()
 	if err != nil { t.Fatalf("error: %v", err) }
 }
 
