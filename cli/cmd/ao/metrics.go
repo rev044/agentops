@@ -464,7 +464,8 @@ func printMetricsDerived(m *types.FlywheelMetrics) {
 	fmt.Printf("  σ × ρ = %.3f\n", m.SigmaRho)
 	fmt.Printf("  δ     = %.3f\n", m.Delta)
 	fmt.Println("  ────────────────")
-	fmt.Printf("  VELOCITY: %s%.3f/week (%s %s)\n", velocitySign, m.Velocity, m.EscapeVelocityStatus(), statusIndicator)
+	fmt.Printf("  VELOCITY: %s%.3f/week (escape=%s %s)\n", velocitySign, m.Velocity, m.EscapeVelocityStatus(), statusIndicator)
+	fmt.Printf("  HEALTH:   %s\n", m.HealthStatus())
 	fmt.Println()
 }
 
@@ -542,7 +543,10 @@ func printMetricsTable(m *types.FlywheelMetrics) {
 	printMetricsParameters(m)
 	printMetricsDerived(m)
 	printMetricsCounts(m)
-	fmt.Printf("STATUS: %s\n", m.EscapeVelocityStatus())
+	fmt.Printf("STATUS: %s\n", m.HealthStatus())
+	if m.HealthStatus() != m.EscapeVelocityStatus() {
+		fmt.Printf("ESCAPE: %s\n", m.EscapeVelocityStatus())
+	}
 	printMetricsLoopClosure(m)
 	printMetricsUtility(m)
 }

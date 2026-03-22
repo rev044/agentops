@@ -110,8 +110,9 @@ func loadFlywheelBrief(cwd string) *flywheelBrief {
 	if err != nil {
 		return nil
 	}
+	populateGoldenSignals(cwd, 7, metrics)
 	brief := &flywheelBrief{
-		Status:         metrics.EscapeVelocityStatus(),
+		Status:         metrics.HealthStatus(),
 		TotalArtifacts: metrics.TotalArtifacts,
 		Velocity:       metrics.Velocity,
 		NewArtifacts:   metrics.NewArtifacts,

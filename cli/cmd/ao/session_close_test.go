@@ -333,14 +333,25 @@ func TestSessionClose_classifyFlywheelStatus(t *testing.T) {
 			want: "compounding",
 		},
 		{
-			name: "near zero velocity returns near-escape",
-			post: &types.FlywheelMetrics{AboveEscapeVelocity: false, Velocity: -0.04},
-			want: "near-escape",
+			name: "golden signals override escape velocity",
+			post: &types.FlywheelMetrics{
+				AboveEscapeVelocity: true,
+				Velocity:            0.5,
+				GoldenSignals: &types.GoldenSignals{
+					OverallVerdict: "accumulating",
+				},
+			},
+			want: "accumulating",
 		},
 		{
-			name: "zero velocity returns near-escape",
+			name: "near zero velocity returns accumulating",
+			post: &types.FlywheelMetrics{AboveEscapeVelocity: false, Velocity: -0.04},
+			want: "accumulating",
+		},
+		{
+			name: "zero velocity returns accumulating",
 			post: &types.FlywheelMetrics{AboveEscapeVelocity: false, Velocity: 0.0},
-			want: "near-escape",
+			want: "accumulating",
 		},
 		{
 			name: "deeply negative velocity returns decaying",
@@ -426,14 +437,14 @@ func TestSessionClose_printCloseTable(t *testing.T) {
 		{
 			name: "learnings rejected shown when nonzero",
 			result: SessionCloseResult{
-				SessionID:          "sess-reject-test",
-				Transcript:         "/tmp/rej.jsonl",
-				Decisions:          2,
-				Knowledge:          1,
-				LearningsRejected:  4,
-				VelocityDelta:      0.01,
-				Status:             "compounding",
-				Message:            "done",
+				SessionID:         "sess-reject-test",
+				Transcript:        "/tmp/rej.jsonl",
+				Decisions:         2,
+				Knowledge:         1,
+				LearningsRejected: 4,
+				VelocityDelta:     0.01,
+				Status:            "compounding",
+				Message:           "done",
 			},
 			checks: []string{
 				"Rejected:      4",
@@ -597,6 +608,39 @@ func TestSessionClose_AutoExtract_ProducesLearnings(t *testing.T) {
 	// Verify category field is present
 	if !strings.Contains(content, "category: decision") && !strings.Contains(content, "category: knowledge") {
 		t.Errorf("expected learning to contain a category field, got:\n%s", content)
+	}
+}
+
+func TestSessionClose_AutoExtract_PreservesResearchSources(t *testing.T) {
+	tmpDir := t.TempDir()
+	decision := "We validated the fix in .agents/research/2026-03-22-task-scoped-lookup.md and should keep citing that exact artifact. The research file captures the failure mode, the deterministic harness, and the retrieval correction. Future sessions should reuse it instead of rediscovering the gap."
+
+	result, err := writeAutoExtractedLearnings(tmpDir, []string{decision}, nil)
+	if err != nil {
+		t.Fatalf("writeAutoExtractedLearnings: %v", err)
+	}
+	if result.written != 1 {
+		t.Fatalf("expected 1 learning written, got %d", result.written)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmpDir, ".agents", "learnings"))
+	if err != nil {
+		t.Fatalf("read learnings dir: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 learning file, got %d", len(entries))
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpDir, ".agents", "learnings", entries[0].Name()))
+	if err != nil {
+		t.Fatalf("read learning: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "research_sources:") {
+		t.Fatalf("expected research_sources frontmatter, got:\n%s", content)
+	}
+	if !strings.Contains(content, ".agents/research/2026-03-22-task-scoped-lookup.md") {
+		t.Fatalf("expected exact research path to be preserved, got:\n%s", content)
 	}
 }
 

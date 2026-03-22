@@ -87,10 +87,8 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Always compute golden signals — they provide the honest health assessment
-	if gs, err := computeGoldenSignals(cwd, metricsDays); err == nil {
-		metrics.GoldenSignals = gs
-	}
+	// Always compute golden signals — they provide the honest health assessment.
+	populateGoldenSignals(cwd, metricsDays, metrics)
 
 	w := cmd.OutOrStdout()
 	switch GetOutput() {
@@ -98,31 +96,35 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(map[string]any{
-			"status":         metrics.EscapeVelocityStatus(),
-			"delta":          metrics.Delta,
-			"sigma":          metrics.Sigma,
-			"rho":            metrics.Rho,
-			"sigma_rho":      metrics.SigmaRho,
-			"velocity":       metrics.Velocity,
-			"compounding":    metrics.AboveEscapeVelocity,
-			"scorecard":      metrics.StigmergicScorecard,
-			"golden_signals": metrics.GoldenSignals,
-			"metrics":        metrics,
+			"status":                      metrics.HealthStatus(),
+			"delta":                       metrics.Delta,
+			"sigma":                       metrics.Sigma,
+			"rho":                         metrics.Rho,
+			"sigma_rho":                   metrics.SigmaRho,
+			"velocity":                    metrics.Velocity,
+			"compounding":                 metrics.HealthCompounding(),
+			"escape_velocity_status":      metrics.EscapeVelocityStatus(),
+			"escape_velocity_compounding": metrics.AboveEscapeVelocity,
+			"scorecard":                   metrics.StigmergicScorecard,
+			"golden_signals":              metrics.GoldenSignals,
+			"metrics":                     metrics,
 		})
 
 	case "yaml":
 		enc := yaml.NewEncoder(w)
 		defer enc.Close()
 		return enc.Encode(map[string]any{
-			"status":         metrics.EscapeVelocityStatus(),
-			"delta":          metrics.Delta,
-			"sigma":          metrics.Sigma,
-			"rho":            metrics.Rho,
-			"sigma_rho":      metrics.SigmaRho,
-			"velocity":       metrics.Velocity,
-			"compounding":    metrics.AboveEscapeVelocity,
-			"scorecard":      metrics.StigmergicScorecard,
-			"golden_signals": metrics.GoldenSignals,
+			"status":                      metrics.HealthStatus(),
+			"delta":                       metrics.Delta,
+			"sigma":                       metrics.Sigma,
+			"rho":                         metrics.Rho,
+			"sigma_rho":                   metrics.SigmaRho,
+			"velocity":                    metrics.Velocity,
+			"compounding":                 metrics.HealthCompounding(),
+			"escape_velocity_status":      metrics.EscapeVelocityStatus(),
+			"escape_velocity_compounding": metrics.AboveEscapeVelocity,
+			"scorecard":                   metrics.StigmergicScorecard,
+			"golden_signals":              metrics.GoldenSignals,
 		})
 
 	default:
@@ -135,13 +137,16 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 
 // printFlywheelStatus prints a focused flywheel status display.
 func printFlywheelStatus(w io.Writer, m *types.FlywheelMetrics) {
-	status := m.EscapeVelocityStatus()
+	status := m.HealthStatus()
+	escapeStatus := m.EscapeVelocityStatus()
 
 	// Status indicator (ASCII for accessibility)
 	var statusIcon string
 	switch status {
 	case "COMPOUNDING":
 		statusIcon = "[COMPOUNDING]"
+	case "ACCUMULATING":
+		statusIcon = "[ACCUMULATING]"
 	case "NEAR ESCAPE":
 		statusIcon = "[NEAR_ESCAPE]"
 	default:
@@ -149,7 +154,10 @@ func printFlywheelStatus(w io.Writer, m *types.FlywheelMetrics) {
 	}
 
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  Flywheel Status: %s\n", statusIcon)
+	fmt.Fprintf(w, "  Flywheel Health: %s\n", statusIcon)
+	if escapeStatus != status {
+		fmt.Fprintf(w, "  Escape Velocity: [%s]\n", escapeStatus)
+	}
 	fmt.Fprintln(w, "  ═══════════════════════════════")
 	fmt.Fprintln(w)
 
@@ -172,13 +180,13 @@ func printFlywheelStatus(w io.Writer, m *types.FlywheelMetrics) {
 	switch {
 	case m.AboveEscapeVelocity:
 		fmt.Fprintf(w, "    σρ > δ ✓ (velocity: +%.3f/week)\n", m.Velocity)
-		fmt.Fprintln(w, "    → Knowledge is COMPOUNDING")
+		fmt.Fprintln(w, "    → Escape velocity is above threshold")
 	case m.Velocity > -0.05:
 		fmt.Fprintf(w, "    σρ ≈ δ (velocity: %.3f/week)\n", m.Velocity)
-		fmt.Fprintln(w, "    → NEAR escape velocity, keep building!")
+		fmt.Fprintln(w, "    → Escape velocity is near threshold")
 	default:
 		fmt.Fprintf(w, "    σρ < δ ✗ (velocity: %.3f/week)\n", m.Velocity)
-		fmt.Fprintln(w, "    → Knowledge is DECAYING")
+		fmt.Fprintln(w, "    → Escape velocity is below threshold")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "  RECOMMENDATIONS:")
 		if m.Sigma < 0.3 {
@@ -210,5 +218,9 @@ func printFlywheelStatus(w io.Writer, m *types.FlywheelMetrics) {
 			m.StigmergicScorecard.UnconsumedBatches)
 	}
 	fmt.Fprintln(w)
+	if m.GoldenSignals != nil && escapeStatus != status {
+		fmt.Fprintf(w, "  Note: escape velocity is a necessary condition; overall health is %s.\n", status)
+		fmt.Fprintln(w)
+	}
 	fmt.Fprintln(w, "  Tip: 'ao status' shows flywheel health alongside session info.")
 }

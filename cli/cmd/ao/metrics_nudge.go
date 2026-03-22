@@ -68,6 +68,7 @@ func runNudge(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("compute metrics: %w", err)
 	}
+	populateGoldenSignals(cwd, metricsDays, metrics)
 
 	// Load ratchet chain state
 	chain, err := ratchet.LoadChain(cwd)
@@ -103,7 +104,7 @@ func runNudge(cmd *cobra.Command, args []string) error {
 
 	// Build result
 	result := NudgeResult{
-		Status:          metrics.EscapeVelocityStatus(),
+		Status:          metrics.HealthStatus(),
 		Velocity:        metrics.Velocity,
 		EscapeVelocity:  metrics.AboveEscapeVelocity,
 		SessionsCount:   metrics.TotalArtifacts, // Approximation - actual sessions are in storage
@@ -218,7 +219,21 @@ func buildSuggestion(metrics *types.FlywheelMetrics, rpiState RPIState, poolPend
 	}
 
 	// Priority 4: Flywheel health
-	if !metrics.AboveEscapeVelocity {
+	if !metrics.HealthCompounding() {
+		if metrics.GoldenSignals != nil {
+			switch metrics.GoldenSignals.ClosureVerdict {
+			case "unmined", "hoarding":
+				return "Mine research into learnings before calling the flywheel healthy"
+			}
+			switch metrics.GoldenSignals.PipelineVerdict {
+			case "degrading":
+				return "Favor applied citations over retrieved-only references"
+			}
+			switch metrics.GoldenSignals.ConcentrationVerdict {
+			case "dormant":
+				return "Broaden reuse: retrieve and apply more than the same few artifacts"
+			}
+		}
 		if metrics.Sigma < 0.3 {
 			return "Improve retrieval: use 'ao lookup' for on-demand knowledge"
 		}

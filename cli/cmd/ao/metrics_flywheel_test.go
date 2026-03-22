@@ -38,8 +38,8 @@ func TestPrintFlywheelStatus_Compounding(t *testing.T) {
 	if !strings.Contains(got, "[COMPOUNDING]") {
 		t.Errorf("expected [COMPOUNDING] in output, got: %q", got)
 	}
-	if !strings.Contains(got, "Knowledge is COMPOUNDING") {
-		t.Errorf("expected 'Knowledge is COMPOUNDING' in output, got: %q", got)
+	if !strings.Contains(got, "Escape velocity is above threshold") {
+		t.Errorf("expected escape velocity success text in output, got: %q", got)
 	}
 }
 
@@ -65,11 +65,14 @@ func TestPrintFlywheelStatus_NearEscape(t *testing.T) {
 	printFlywheelStatus(&buf, m)
 
 	got := buf.String()
-	if !strings.Contains(got, "[NEAR_ESCAPE]") {
-		t.Errorf("expected [NEAR_ESCAPE] in output, got: %q", got)
+	if !strings.Contains(got, "Flywheel Health: [ACCUMULATING]") {
+		t.Errorf("expected ACCUMULATING health in output, got: %q", got)
 	}
-	if !strings.Contains(got, "NEAR escape velocity") {
-		t.Errorf("expected 'NEAR escape velocity' in output, got: %q", got)
+	if !strings.Contains(got, "Escape Velocity: [NEAR ESCAPE]") {
+		t.Errorf("expected raw near-escape verdict in output, got: %q", got)
+	}
+	if !strings.Contains(got, "Escape velocity is near threshold") {
+		t.Errorf("expected near-threshold text in output, got: %q", got)
 	}
 }
 
@@ -99,11 +102,47 @@ func TestPrintFlywheelStatus_Decaying(t *testing.T) {
 	if !strings.Contains(got, "[DECAYING]") {
 		t.Errorf("expected [DECAYING] in output, got: %q", got)
 	}
-	if !strings.Contains(got, "Knowledge is DECAYING") {
-		t.Errorf("expected 'Knowledge is DECAYING' in output, got: %q", got)
+	if !strings.Contains(got, "Escape velocity is below threshold") {
+		t.Errorf("expected decay text in output, got: %q", got)
 	}
 	if !strings.Contains(got, "RECOMMENDATIONS:") {
 		t.Errorf("expected RECOMMENDATIONS section, got: %q", got)
+	}
+}
+
+func TestPrintFlywheelStatus_SeparatesHealthFromEscapeVelocity(t *testing.T) {
+	var buf bytes.Buffer
+	m := &types.FlywheelMetrics{
+		Timestamp:           time.Now(),
+		PeriodStart:         time.Now().AddDate(0, 0, -7),
+		PeriodEnd:           time.Now(),
+		Delta:               0.17,
+		Sigma:               0.8,
+		Rho:                 1.5,
+		SigmaRho:            1.2,
+		Velocity:            1.03,
+		AboveEscapeVelocity: true,
+		GoldenSignals: &types.GoldenSignals{
+			OverallVerdict: "accumulating",
+		},
+		TierCounts: map[string]int{},
+	}
+
+	oldDays := metricsDays
+	metricsDays = 7
+	defer func() { metricsDays = oldDays }()
+
+	printFlywheelStatus(&buf, m)
+
+	got := buf.String()
+	if !strings.Contains(got, "Flywheel Health: [ACCUMULATING]") {
+		t.Fatalf("expected health verdict in output, got: %q", got)
+	}
+	if !strings.Contains(got, "Escape Velocity: [COMPOUNDING]") {
+		t.Fatalf("expected escape velocity verdict in output, got: %q", got)
+	}
+	if !strings.Contains(got, "necessary condition") {
+		t.Fatalf("expected note separating health from escape velocity, got: %q", got)
 	}
 }
 
@@ -294,7 +333,19 @@ func TestRunFlywheelStatus_JSONOutput(t *testing.T) {
 	}
 
 	// Verify expected fields
-	for _, field := range []string{"status", "delta", "sigma", "rho", "sigma_rho", "velocity", "compounding", "scorecard", "metrics"} {
+	for _, field := range []string{
+		"status",
+		"delta",
+		"sigma",
+		"rho",
+		"sigma_rho",
+		"velocity",
+		"compounding",
+		"escape_velocity_status",
+		"escape_velocity_compounding",
+		"scorecard",
+		"metrics",
+	} {
 		if _, ok := parsed[field]; !ok {
 			t.Errorf("expected field %q in JSON output", field)
 		}

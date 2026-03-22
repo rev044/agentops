@@ -30,6 +30,18 @@ func canonicalCitationType(ct string) string {
 
 var researchRefPattern = regexp.MustCompile(`(?:/[^ \n\t"'\\]]*\.agents/research/[A-Za-z0-9._/-]+\.md|\.agents/research/[A-Za-z0-9._/-]+\.md)`)
 
+// populateGoldenSignals fills metrics with the derived health verdicts when
+// they are available. Callers can safely use HealthStatus/HealthCompounding
+// after this without duplicating the computeGoldenSignals error handling.
+func populateGoldenSignals(baseDir string, days int, metrics *types.FlywheelMetrics) {
+	if metrics == nil || metrics.GoldenSignals != nil {
+		return
+	}
+	if gs, err := computeGoldenSignals(baseDir, days); err == nil {
+		metrics.GoldenSignals = gs
+	}
+}
+
 // computeGoldenSignals calculates the four golden signals that distinguish
 // knowledge compounding from noise accumulation.
 func computeGoldenSignals(baseDir string, days int) (*types.GoldenSignals, error) {

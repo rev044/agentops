@@ -146,7 +146,7 @@ else
 fi
 
 cat > "$WORK_REPO/.agents/ao/citations.jsonl" <<'EOF'
-{"artifact_path":".agents/findings/f-end-to-end.md","session_id":"session-e2e","cited_at":"2026-03-10T01:00:00Z","citation_type":"retrieved","feedback_given":false}
+{"artifact_path":".agents/findings/f-end-to-end.md","session_id":"session-e2e","cited_at":"2026-03-10T01:00:00Z","citation_type":"applied","feedback_given":false}
 EOF
 
 cat > "$WORK_REPO/.agents/ao/last-session-outcome.json" <<'EOF'

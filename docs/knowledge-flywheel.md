@@ -79,7 +79,11 @@ Maintenance runs automatically: deduplication, contradiction detection, stalenes
 
 ### Stage 6: Inject
 
-At session start and during work, `ao inject` or `ao lookup` retrieves the most relevant learnings for the current task. Each retrieval creates a **citation** — the signal that drives the feedback loop.
+At session start and during work, `ao inject` or `ao lookup` retrieves the
+most relevant learnings for the current task. Startup retrieval prefers
+task-scoped context such as handoff goals and active beads instead of generic
+commit-subject fallbacks. Each retrieval creates a **citation** — the signal
+that drives the feedback loop.
 
 Citations with positive feedback increase the learning's utility score → higher utility → ranked higher in next injection → cited more → utility increases more → **compounding**.
 
@@ -94,11 +98,12 @@ dK/dt = I(t) - δ·K + σ·ρ·K
 - **δ** — Knowledge decay rate (0.17/week baseline)
 - **σ** — Retrieval effectiveness (what fraction of relevant knowledge is surfaced)
 - **ρ** — Citation rate (how often retrieved knowledge is actually used)
-- **Escape velocity:** When σρ > δ, knowledge compounds faster than it decays
+- **Escape velocity:** When σρ > δ, knowledge is above the minimum reinforcement threshold
 
 ### Golden Signals
 
-Four signals measure whether the flywheel is actually compounding:
+Escape velocity is necessary, but not sufficient. Four golden signals measure
+whether the flywheel is actually compounding:
 
 ```bash
 ao flywheel status
