@@ -181,12 +181,14 @@ func TestRunSearch_JSONNoResultsAfterTypeFilter(t *testing.T) {
 	prevSearchLimit := searchLimit
 	prevSearchUseSC := searchUseSC
 	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
 	output = "json"
 	dryRun = false
 	searchType = "decisions"
 	searchLimit = 10
 	searchUseSC = false
 	searchUseCASS = false
+	searchUseLocal = false
 	t.Cleanup(func() {
 		output = prevOutput
 		dryRun = prevDryRun
@@ -194,6 +196,7 @@ func TestRunSearch_JSONNoResultsAfterTypeFilter(t *testing.T) {
 		searchLimit = prevSearchLimit
 		searchUseSC = prevSearchUseSC
 		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
 	})
 
 	out := captureJSONStdout(t, func() {
@@ -216,6 +219,7 @@ func TestRunSearch_JSONNoDataDirReturnsEmptyArray(t *testing.T) {
 	tmp := t.TempDir()
 
 	chdirTempWorkspace(t, tmp)
+	t.Setenv("PATH", t.TempDir())
 
 	prevOutput := output
 	prevDryRun := dryRun
@@ -223,12 +227,14 @@ func TestRunSearch_JSONNoDataDirReturnsEmptyArray(t *testing.T) {
 	prevSearchLimit := searchLimit
 	prevSearchUseSC := searchUseSC
 	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
 	output = "json"
 	dryRun = false
 	searchType = ""
 	searchLimit = 10
 	searchUseSC = false
 	searchUseCASS = false
+	searchUseLocal = false
 	t.Cleanup(func() {
 		output = prevOutput
 		dryRun = prevDryRun
@@ -236,6 +242,7 @@ func TestRunSearch_JSONNoDataDirReturnsEmptyArray(t *testing.T) {
 		searchLimit = prevSearchLimit
 		searchUseSC = prevSearchUseSC
 		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
 	})
 
 	out := captureJSONStdout(t, func() {
@@ -284,12 +291,14 @@ func TestRunSearch_AutoUsesCassWithoutRepoLocalData(t *testing.T) {
 	prevSearchLimit := searchLimit
 	prevSearchUseSC := searchUseSC
 	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
 	output = "json"
 	dryRun = false
 	searchType = ""
 	searchLimit = 10
 	searchUseSC = false
 	searchUseCASS = false
+	searchUseLocal = false
 	t.Cleanup(func() {
 		output = prevOutput
 		dryRun = prevDryRun
@@ -297,6 +306,7 @@ func TestRunSearch_AutoUsesCassWithoutRepoLocalData(t *testing.T) {
 		searchLimit = prevSearchLimit
 		searchUseSC = prevSearchUseSC
 		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
 	})
 
 	out := captureJSONStdout(t, func() {
@@ -805,11 +815,14 @@ func TestSelectAndSearch_DefaultsToCASS(t *testing.T) {
 
 	prevSearchUseSC := searchUseSC
 	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
 	searchUseSC = false
 	searchUseCASS = false
+	searchUseLocal = false
 	t.Cleanup(func() {
 		searchUseSC = prevSearchUseSC
 		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
 	})
 
 	results, err := selectAndSearch("Shield AI recruiter", sessionsDir, 10)
@@ -850,11 +863,14 @@ func TestSelectAndSearch_CassFlagRequiresWorkingCass(t *testing.T) {
 
 	prevSearchUseSC := searchUseSC
 	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
 	searchUseSC = false
 	searchUseCASS = true
+	searchUseLocal = false
 	t.Cleanup(func() {
 		searchUseSC = prevSearchUseSC
 		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
 	})
 
 	_, err := selectAndSearch("Shield AI recruiter", sessionsDir, 10)
@@ -863,6 +879,34 @@ func TestSelectAndSearch_CassFlagRequiresWorkingCass(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(err.Error()), "cass") {
 		t.Fatalf("expected cass error, got %v", err)
+	}
+}
+
+func TestSelectAndSearch_AutoReturnsEmptyWhenCassUnavailableAndNoLocalData(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTempWorkspace(t, tmp)
+	t.Setenv("PATH", t.TempDir())
+
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
+	searchUseSC = false
+	searchUseCASS = false
+	searchUseLocal = false
+	t.Cleanup(func() {
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
+	})
+
+	results, err := selectAndSearch("Shield AI recruiter", sessionsDir, 10)
+	if err != nil {
+		t.Fatalf("selectAndSearch() error = %v", err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results when no backends are available, got %d: %+v", len(results), results)
 	}
 }
 
@@ -1497,11 +1541,14 @@ func TestSelectAndSearch_FileBased(t *testing.T) {
 	// Reset search flags
 	origUseSC := searchUseSC
 	origUseCASS := searchUseCASS
+	origUseLocal := searchUseLocal
 	searchUseSC = false
 	searchUseCASS = false
+	searchUseLocal = false
 	t.Cleanup(func() {
 		searchUseSC = origUseSC
 		searchUseCASS = origUseCASS
+		searchUseLocal = origUseLocal
 	})
 
 	results, err := selectAndSearch("searchable", tmp, 10)
@@ -1534,11 +1581,14 @@ func TestSelectAndSearch_IncludesResearchDir(t *testing.T) {
 	// Reset search flags to use file-based (non-CASS) path
 	origUseSC := searchUseSC
 	origUseCASS := searchUseCASS
+	origUseLocal := searchUseLocal
 	searchUseSC = false
 	searchUseCASS = false
+	searchUseLocal = false
 	t.Cleanup(func() {
 		searchUseSC = origUseSC
 		searchUseCASS = origUseCASS
+		searchUseLocal = origUseLocal
 	})
 
 	results, err := selectAndSearch("flywheel", sessionsDir, 10)

@@ -32,10 +32,10 @@ const (
 )
 
 var (
-	searchLimit   int
-	searchType    string
-	searchUseSC   bool
-	searchUseCASS bool
+	searchLimit    int
+	searchType     string
+	searchUseSC    bool
+	searchUseCASS  bool
 	searchUseLocal bool
 )
 
@@ -183,6 +183,7 @@ func selectAndSearch(query, sessionsDir string, limit int) ([]searchResult, erro
 
 func searchAuto(query, sessionsDir string, limit int) ([]searchResult, error) {
 	results := make([]searchResult, 0)
+	hasLocalData := searchDataExists(sessionsDir)
 	var cassErr error
 
 	cassResults, err := searchUpstreamCASS(query, limit)
@@ -193,7 +194,7 @@ func searchAuto(query, sessionsDir string, limit int) ([]searchResult, error) {
 		results = append(results, cassResults...)
 	}
 
-	if searchDataExists(sessionsDir) {
+	if hasLocalData {
 		localResults, err := searchRepoLocalKnowledge(query, sessionsDir, limit)
 		if err != nil {
 			if cassErr != nil {
@@ -204,8 +205,13 @@ func searchAuto(query, sessionsDir string, limit int) ([]searchResult, error) {
 		results = append(results, localResults...)
 	}
 
-	if len(results) == 0 && cassErr != nil && !searchDataExists(sessionsDir) {
-		return nil, cassErr
+	if len(results) == 0 && !hasLocalData {
+		if errors.Is(cassErr, exec.ErrNotFound) {
+			return []searchResult{}, nil
+		}
+		if cassErr != nil {
+			return nil, cassErr
+		}
 	}
 
 	return normalizeSearchResults(results, limit), nil
