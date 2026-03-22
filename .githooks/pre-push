@@ -9,10 +9,28 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HOOK_STDIN_FILE="$(mktemp)"
+
+cleanup() {
+    rm -f "$HOOK_STDIN_FILE"
+}
+trap cleanup EXIT
+
+cat >"$HOOK_STDIN_FILE"
+
+run_without_git_env() {
+    local var_name
+    local -a env_args=(env)
+    while IFS='=' read -r var_name _; do
+        [[ "$var_name" == GIT_* ]] || continue
+        env_args+=("-u" "$var_name")
+    done < <(env)
+    "${env_args[@]}" "$@"
+}
 
 # --- Pre-push validation gate ---
 if [[ -x "$REPO_ROOT/scripts/pre-push-gate.sh" ]]; then
-    if ! "$REPO_ROOT/scripts/pre-push-gate.sh" --scope upstream; then
+    if ! run_without_git_env "$REPO_ROOT/scripts/pre-push-gate.sh" --scope upstream </dev/null; then
         echo "pre-push: blocked by validation gate. Fix issues before pushing."
         exit 1
     fi
@@ -20,5 +38,5 @@ fi
 
 # --- bd issue tracking (existing behavior) ---
 if command -v bd >/dev/null 2>&1; then
-    bd hooks run pre-push "$@"
+    bd hooks run pre-push "$@" <"$HOOK_STDIN_FILE"
 fi

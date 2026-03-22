@@ -54,6 +54,10 @@ run_without_git_env() {
     "${env_args[@]}" "$@"
 }
 
+run_without_git_env_and_stdin() {
+    run_without_git_env "$@" </dev/null
+}
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -285,7 +289,7 @@ fi
 # --- 4b. Per-package coverage ratchet (default mode only, not --fast) ---
 if [[ "$FAST_MODE" != "true" ]] && needs_check go; then
     if [[ -x scripts/coverage-ratchet.sh ]] && [[ -f .coverage-baseline.json ]]; then
-        if ratchet_output="$(scripts/coverage-ratchet.sh --check 2>&1)"; then
+        if ratchet_output="$(run_without_git_env_and_stdin scripts/coverage-ratchet.sh --check 2>&1)"; then
             pass "coverage ratchet (per-package)"
         else
             fail "coverage ratchet (per-package)"
