@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -n "${GIT_DIR:-}" && -z "${GIT_WORK_TREE:-}" ]]; then
+    export GIT_WORK_TREE="$(pwd -P)"
+fi
+
 repo_root="$(git rev-parse --show-toplevel)"
 current_branch="$(git branch --show-current)"
 common_dir="$(git rev-parse --git-common-dir)"

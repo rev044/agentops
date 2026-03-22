@@ -40,6 +40,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
+if [[ -n "${GIT_DIR:-}" && -z "${GIT_WORK_TREE:-}" ]]; then
+    export GIT_WORK_TREE="$REPO_ROOT"
+fi
+
+run_without_git_env() {
+    local var_name
+    local -a env_args=(env)
+    while IFS='=' read -r var_name _; do
+        [[ "$var_name" == GIT_* ]] || continue
+        env_args+=("-u" "$var_name")
+    done < <(env)
+    "${env_args[@]}" "$@"
+}
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -507,7 +521,7 @@ fi
 # --- 21. Skill CLI snippets ---
 if needs_check skill; then
     if [[ -x scripts/validate-skill-cli-snippets.sh ]]; then
-        if skill_cli_output="$(scripts/validate-skill-cli-snippets.sh 2>&1)"; then
+        if skill_cli_output="$(run_without_git_env scripts/validate-skill-cli-snippets.sh 2>&1)"; then
             pass "skill CLI snippets"
         else
             fail "skill CLI snippets"
@@ -541,7 +555,7 @@ fi
 # --- 23. CLI docs parity (generate-cli-reference.sh --check) ---
 if needs_check go; then
     if [[ -x scripts/generate-cli-reference.sh ]]; then
-        if cli_docs_output="$(scripts/generate-cli-reference.sh --check 2>&1)"; then
+        if cli_docs_output="$(run_without_git_env scripts/generate-cli-reference.sh --check 2>&1)"; then
             pass "CLI docs parity"
         else
             fail "CLI docs parity (run: scripts/generate-cli-reference.sh)"

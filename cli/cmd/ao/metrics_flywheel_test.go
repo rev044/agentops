@@ -451,8 +451,8 @@ func TestRunFlywheelStatus_TableOutput(t *testing.T) {
 	}
 
 	got := buf.String()
-	if !strings.Contains(got, "Flywheel Status:") {
-		t.Errorf("expected 'Flywheel Status:' in output, got: %q", got)
+	if !strings.Contains(got, "Flywheel Health:") {
+		t.Errorf("expected 'Flywheel Health:' in output, got: %q", got)
 	}
 	if !strings.Contains(got, "EQUATION:") {
 		t.Errorf("expected 'EQUATION:' in output, got: %q", got)
