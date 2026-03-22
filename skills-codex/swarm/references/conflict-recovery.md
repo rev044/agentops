@@ -61,23 +61,17 @@ git merge --abort
 
 For the evicted task, re-queue with conflict context:
 
+Re-queue via `spawn_agent` with the original description plus conflict context:
+
 ```
-TaskCreate(
-  subject="RETRY: ${TASK_SUBJECT}",
-  description="${ORIGINAL_DESCRIPTION}\n\n---\n
-CONFLICT CONTEXT (from wave ${wave}):
-Your prior attempt conflicted with ${CONFLICTING_WITH} on files: ${CONFLICT_FILES}.
-
-The other worker's changes have been merged. Your changes were evicted.
-
-When re-implementing:
-1. Read the current state of ${CONFLICT_FILES} (they now contain the other worker's changes)
-2. Integrate your changes without overwriting theirs
-3. If you need a utility they already created, use it instead of duplicating
-
-Prior diff summary of your work:
-${WORKER_DIFF_SUMMARY}"
-)
+# Worker retry prompt includes:
+# RETRY: ${TASK_SUBJECT}
+# ${ORIGINAL_DESCRIPTION}
+# ---
+# CONFLICT CONTEXT (from wave ${wave}):
+# Conflicted with ${CONFLICTING_WITH} on files: ${CONFLICT_FILES}.
+# Other worker's changes are merged. Read current state before re-implementing.
+# Prior diff summary: ${WORKER_DIFF_SUMMARY}
 ```
 
 ## Integration with Swarm

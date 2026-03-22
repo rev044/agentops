@@ -14,7 +14,7 @@ Workers that lack context produce code that doesn't match existing patterns, dup
 
 ## Solution: Self-Contained Worker Briefings
 
-Every worker's TaskCreate description must include a **cold-start context block** that makes the worker fully autonomous.
+Every worker's prompt (via `spawn_agent`) must include a **cold-start context block** that makes the worker fully autonomous.
 
 ### Required Sections
 
@@ -93,7 +93,7 @@ If shared notes exceed budget, summarize to top 3 most relevant entries.
 Crank's Step 3b.1 (Build Context Briefing) should use this format. The `ao context assemble` command produces a similar briefing — this reference standardizes the format for environments where `ao` is unavailable.
 
 ### With /swarm
-Swarm's worker dispatch should include the cold-start block in every TaskCreate. The swarm lead reads this reference and assembles the briefing before spawning.
+Swarm's worker dispatch should include the cold-start block in every worker prompt. The swarm lead reads this reference and assembles the briefing before spawning.
 
 ### With /implement
 Individual `/implement` calls benefit from the same cold-start pattern when invoked by a fresh agent (e.g., from crank or via slash command in a new session).

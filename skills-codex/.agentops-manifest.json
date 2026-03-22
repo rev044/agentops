@@ -568,7 +568,7 @@
       "name": "crank",
       "source_skill": "skills/crank",
       "source_hash": "f32e6f124674b821063d558f9392d352c044be5c6ad45651be60267abfe3807f",
-      "generated_hash": "95b0a68b7a9107aff3818f8bbfb8a5e17df72200175af9f1f1a91da569feb81b"
+      "generated_hash": "2d534c02675f341058e4ea117d051c56c501ae1af3157e7742b79ed4f68ea710"
     },
     {
       "name": "discovery",
@@ -808,7 +808,7 @@
       "name": "swarm",
       "source_skill": "skills/swarm",
       "source_hash": "264189ff117608a9184c13f4e8221c07bcf94728b3683dc34951988231878bd6",
-      "generated_hash": "368ee57713d73a195adcad2c9df93eb32e745ed6aee76f0f6276265084d603d5"
+      "generated_hash": "aa92ee7435d8f93cde6ef8825a19716ac5b7d710517a0b0cd3ceb3c5e668afa7"
     },
     {
       "name": "trace",
