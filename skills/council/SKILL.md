@@ -475,7 +475,7 @@ See [references/finding-extraction.md](references/finding-extraction.md) for the
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
 | `--technique=<name>` | Brainstorm technique (scamper, six-hats, reverse). Case-insensitive. Only applicable to brainstorm mode — error if combined with validate/research. If omitted, unstructured brainstorm (current behavior). See `references/brainstorm-techniques.md`. |
-| `--profile=<name>` | Model quality profile (thorough, balanced, fast). Error if unrecognized name. Overridden by `COUNCIL_CLAUDE_MODEL` env var (highest priority), then by explicit `--count`/`--deep`/`--mixed`. See `references/model-profiles.md`. |
+| `--profile=<name>` | Model quality profile (balanced, budget, fast, inherit, quality, thorough). Error if unrecognized name. Overridden by `COUNCIL_CLAUDE_MODEL` env var (highest priority), then by explicit `--count`/`--deep`/`--mixed`. See `references/model-profiles.md`. |
 | `--tier=<name>` | Cost tier alias for --profile (quality, balanced, budget). Maps to profile names. See `references/model-profiles.md`. |
 
 ---

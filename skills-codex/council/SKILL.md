@@ -29,6 +29,8 @@ $council --preset=security-audit validate the auth system      # preset personas
 
 **Note:** `--mixed` (cross-vendor) is not applicable in Codex — all judges use the same runtime-native agent surface.
 
+**Note:** `--profile=<name>` follows the shared model-profile contract: `balanced`, `budget`, `fast`, `inherit`, `quality`, `thorough`. See `references/model-profiles.md`.
+
 ## Task Types
 
 | Type | Trigger Words | Focus |

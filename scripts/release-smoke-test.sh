@@ -317,7 +317,7 @@ test_exec_tolerant "ao doctor" "$AO" doctor
 
 # Search
 test_exec "ao search 'test'" "$AO" search "test"
-test_exec_exact "ao search --json nonexistent => []" "[]" "$AO" search --json "nonexistent-xyz-12345"
+test_exec_exact "ao search --json --local nonexistent => []" "[]" "$AO" search --json --local "nonexistent-xyz-12345"
 
 # Knowledge injection
 test_exec_tolerant "ao inject" "$AO" inject
