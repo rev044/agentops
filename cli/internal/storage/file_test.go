@@ -2211,41 +2211,34 @@ func TestScanJSONLFile_DeferCloseError(t *testing.T) {
 	}
 }
 
-// TestWithLockedFile_DeferCloseError exercises the deferred f.Close() error
-// branch in withLockedFile (line 373-375). The callback spawns a goroutine
-// that races to close the fd via syscall. If the close lands between
-// unlockFile (which succeeds) and f.Close() in the defer, f.Close() fails
-// with EBADF while err is still nil, covering the branch.
+// TestWithLockedFile_DeferCloseError exercises the deferred close error branch
+// deterministically by stubbing the close helper after performing a real close.
 func TestWithLockedFile_DeferCloseError(t *testing.T) {
-	if runtime.GOOS != "darwin" {
-		t.Skip("fd-race test unreliable on Linux; causes TempDir cleanup failures")
-	}
 	tmp := t.TempDir()
 	fs := NewFileStorage(WithBaseDir(tmp))
 
-	hit := false
-	for i := 0; i < 20000 && !hit; i++ {
-		path := filepath.Join(tmp, fmt.Sprintf("close-err-%d.jsonl", i))
-		err := fs.withLockedFile(path, func(f *os.File) error {
-			fd := int(f.Fd())
-			// Spawn goroutine that races to close fd between unlock and close.
-			go func() {
-				for j := 0; j < 200; j++ {
-					syscall.Close(fd)
-				}
-			}()
-			return nil
-		})
-		if err != nil && strings.Contains(err.Error(), "close file") {
-			// Verify the wrapped error is EBADF.
-			if !strings.Contains(err.Error(), "bad file descriptor") {
-				t.Fatalf("expected 'bad file descriptor' in close error, got: %v", err)
-			}
-			hit = true
+	origCloseLockedFile := closeLockedFile
+	closeLockedFile = func(f *os.File) error {
+		if err := f.Close(); err != nil {
+			return err
 		}
+		return syscall.EBADF
 	}
-	if !hit {
-		t.Skip("unable to trigger deferred close error via fd race (platform-dependent)")
+	t.Cleanup(func() {
+		closeLockedFile = origCloseLockedFile
+	})
+
+	path := filepath.Join(tmp, "close-err.jsonl")
+	err := fs.withLockedFile(path, func(f *os.File) error {
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected close file error, got nil")
+	}
+	if !strings.Contains(err.Error(), "close file") {
+		t.Fatalf("expected close file wrapper, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "bad file descriptor") {
+		t.Fatalf("expected bad file descriptor close error, got: %v", err)
 	}
 }
-

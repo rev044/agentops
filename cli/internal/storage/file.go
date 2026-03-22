@@ -11,6 +11,10 @@ import (
 	"sync"
 )
 
+var closeLockedFile = func(f *os.File) error {
+	return f.Close()
+}
+
 const (
 	// DefaultBaseDir is the default storage directory.
 	DefaultBaseDir = ".agents/ao"
@@ -370,7 +374,7 @@ func (fs *FileStorage) withLockedFile(path string, fn func(f *os.File) error) (e
 				err = fmt.Errorf("unlock file: %w", unlockErr)
 			}
 		}
-		if closeErr := f.Close(); closeErr != nil && err == nil {
+		if closeErr := closeLockedFile(f); closeErr != nil && err == nil {
 			err = fmt.Errorf("close file: %w", closeErr)
 		}
 	}()
