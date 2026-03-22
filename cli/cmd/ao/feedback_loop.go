@@ -22,12 +22,15 @@ import (
 type FeedbackEvent struct {
 	SessionID      string    `json:"session_id"`
 	ArtifactPath   string    `json:"artifact_path"`
+	CitationType   string    `json:"citation_type,omitempty"`
 	Reward         float64   `json:"reward"`
 	UtilityBefore  float64   `json:"utility_before"`
 	UtilityAfter   float64   `json:"utility_after"`
 	Alpha          float64   `json:"alpha"`
 	RecordedAt     time.Time `json:"recorded_at"`
 	TranscriptPath string    `json:"transcript_path,omitempty"`
+	Decision       string    `json:"decision,omitempty"`
+	Reason         string    `json:"reason,omitempty"`
 }
 
 // FeedbackFilePath is the relative path to the feedback log.
@@ -130,6 +133,7 @@ func loadSessionCitations(cwd, sessionID, citationType string) ([]types.Citation
 	for _, c := range allCitations {
 		c.SessionID = canonicalSessionID(c.SessionID)
 		c.ArtifactPath = canonicalArtifactPath(cwd, c.ArtifactPath)
+		c.CitationType = canonicalCitationType(c.CitationType)
 		if !targetAliases[c.SessionID] {
 			continue
 		}
@@ -205,6 +209,9 @@ func processUniqueCitations(cwd, sessionID, transcriptPath string, citations []t
 		event := FeedbackEvent{
 			SessionID:      canonicalSessionID(sessionID),
 			ArtifactPath:   learningPath,
+			CitationType:   canonicalCitationType(citation.CitationType),
+			Decision:       "rewarded",
+			Reason:         "feedback-loop-manual",
 			Reward:         reward,
 			UtilityBefore:  oldUtility,
 			UtilityAfter:   newUtility,

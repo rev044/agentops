@@ -1866,7 +1866,7 @@ ao mine [flags]
 
 ### `ao search`
 
-Search AgentOps knowledge using file-based search.
+Search repo-local AgentOps knowledge and forged session history.
 
 ```
 ao search <query> [flags]
@@ -1875,11 +1875,11 @@ ao search <query> [flags]
 **Flags:**
 
 ```
-      --cass          Enable CASS session-aware search with maturity weighting
+      --cass          Force built-in CASS session-aware search with maturity weighting (default)
   -h, --help          help for search
       --limit int     Maximum results to return (default 10)
       --type string   Filter by type: decisions, knowledge, sessions
-      --use-sc        Enable Smart Connections semantic search (requires Obsidian)
+      --use-sc        Try Smart Connections semantic search first (requires Obsidian)
 ```
 
 ---

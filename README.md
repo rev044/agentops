@@ -472,7 +472,7 @@ ao rpi status --watch                          # Monitor active/terminal runs
 Walk away, come back to committed code + extracted learnings.
 
 ```bash
-ao search "query"              # Search knowledge across files and chat history
+ao search "query"              # Search repo-local knowledge and forged session history
 ao lookup --query "topic"      # Retrieve specific knowledge artifacts by ID or relevance
 ao notebook update             # Merge latest session insights into MEMORY.md
 ao memory sync                 # Sync session history to MEMORY.md (cross-runtime: Codex, OpenCode)
@@ -484,7 +484,7 @@ ao contradict                  # Detect potentially contradictory learnings
 ao demo                        # Interactive demo
 ```
 
-`ao search` (built on [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)) indexes every chat session from every runtime that writes to `.agents/ao/sessions/`.
+`ao search` (built on [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)) searches the current repo's `.agents/ao/sessions/` plus adjacent `.agents/` knowledge surfaces such as learnings, patterns, findings, and research. Raw global Claude or Codex archives are not searched directly until they are forged into the repo.
 
 <details>
 <summary><b>Second Brain + Obsidian vault</b> — semantic search over all your sessions</summary>

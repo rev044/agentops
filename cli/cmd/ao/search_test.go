@@ -589,6 +589,76 @@ func TestParseGrepResults(t *testing.T) {
 	}
 }
 
+func TestSearchCASS_ResolvesAgentsRoot(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	researchDir := filepath.Join(tmp, ".agents", "research")
+
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(researchDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	researchPath := filepath.Join(researchDir, "shield-ai.md")
+	if err := os.WriteFile(researchPath, []byte("Shield AI recruiter reached out about a role."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := searchCASS("Shield AI recruiter", sessionsDir, 10)
+	if err != nil {
+		t.Fatalf("searchCASS() error = %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d: %+v", len(results), results)
+	}
+	if results[0].Path != researchPath {
+		t.Fatalf("result path = %q, want %q", results[0].Path, researchPath)
+	}
+	if results[0].Type != "research" {
+		t.Fatalf("result type = %q, want research", results[0].Type)
+	}
+}
+
+func TestSelectAndSearch_DefaultsToCASS(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	researchDir := filepath.Join(tmp, ".agents", "research")
+
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(researchDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	researchPath := filepath.Join(researchDir, "history.md")
+	if err := os.WriteFile(researchPath, []byte("Known Shield AI recruiter chat history."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	searchUseSC = false
+	searchUseCASS = false
+	t.Cleanup(func() {
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+	})
+
+	results, err := selectAndSearch("Shield AI recruiter", sessionsDir, 10)
+	if err != nil {
+		t.Fatalf("selectAndSearch() error = %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d: %+v", len(results), results)
+	}
+	if results[0].Path != researchPath {
+		t.Fatalf("result path = %q, want %q", results[0].Path, researchPath)
+	}
+}
+
 func TestSearchFilesCombinedLimitEnforcement(t *testing.T) {
 	tmp := t.TempDir()
 	sessDir := filepath.Join(tmp, "sessions")

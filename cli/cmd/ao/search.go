@@ -39,20 +39,28 @@ var (
 
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
-	Short: "Search knowledge base",
-	Long: `Search AgentOps knowledge using file-based search.
+	Short: "Search repo-local knowledge and session history",
+	Long: `Search repo-local AgentOps knowledge and forged session history.
 
-By default, searches markdown and JSONL files in .agents/ao/sessions/.
-Optionally use Smart Connections for semantic search if Obsidian is running.
-Use --cass to enable CASS (Contextual Agent Session Search) which includes
-session context and maturity-weighted ranking.
+By default, uses CASS (Contextual Agent Session Search) over the current repo's
+AgentOps artifacts. This includes forged session files in .agents/ao/sessions/
+plus adjacent .agents/ knowledge surfaces such as learnings, patterns,
+findings, and research when present.
+
+This command does not search raw global chat archives directly. Global Claude
+or Codex history must be forged or indexed into the repo before it becomes
+discoverable here.
+
+Use --use-sc to try Smart Connections semantic search first when Obsidian is
+available. If Smart Connections is unavailable or fails, ao search falls back
+to the built-in CASS search path.
 
 Examples:
   ao search "mutex pattern"
   ao search "authentication" --limit 20
   ao search "database migration" --type decisions
-  ao search "config" --use-sc   # Enable Smart Connections semantic search
-  ao search "auth" --cass       # Enable CASS session-aware search`,
+  ao search "config" --use-sc   # Try Smart Connections, then fall back to CASS
+  ao search "auth" --cass       # Force built-in CASS search (default)`,
 	Args: cobra.ExactArgs(1),
 	RunE: runSearch,
 }
@@ -62,8 +70,8 @@ func init() {
 	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().IntVar(&searchLimit, "limit", 10, "Maximum results to return")
 	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: decisions, knowledge, sessions")
-	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Enable Smart Connections semantic search (requires Obsidian)")
-	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Enable CASS session-aware search with maturity weighting")
+	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Try Smart Connections semantic search first (requires Obsidian)")
+	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Force built-in CASS session-aware search with maturity weighting (default)")
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
@@ -82,13 +90,12 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	baseDir := filepath.Join(cwd, storage.DefaultBaseDir)
 	sessionsDir := filepath.Join(baseDir, storage.SessionsDir)
 
-	// Check if sessions directory exists
-	if _, err := os.Stat(sessionsDir); os.IsNotExist(err) {
+	if !searchDataExists(sessionsDir) {
 		if GetOutput() == "json" {
 			return outputSearchResults(query, []searchResult{})
 		}
-		fmt.Println("No AgentOps data found.")
-		fmt.Println("Run 'ao init' and 'ao forge transcript <path>' first.")
+		fmt.Println("No repo-local AgentOps search data found.")
+		fmt.Println("Run 'ao init' and forge transcripts or knowledge into this repo first.")
 		return nil
 	}
 
@@ -132,63 +139,52 @@ func outputSearchResults(query string, results []searchResult) error {
 }
 
 // selectAndSearch chooses the search backend and executes the search.
-// Default: file-based search. Optional: Smart Connections with --use-sc flag.
-// CASS mode (--cass) adds session context and maturity-weighted ranking.
+// Default: repo-local CASS. Optional: Smart Connections with --use-sc flag.
 func selectAndSearch(query, sessionsDir string, limit int) ([]searchResult, error) {
-	// CASS mode: search with session context and maturity weighting
-	if searchUseCASS {
-		VerbosePrintf("Using CASS session-aware search...\n")
-		return searchCASS(query, sessionsDir, limit)
-	}
-
-	// Only use Smart Connections if explicitly requested with --use-sc
 	if searchUseSC {
 		vaultPath := vault.DetectVault("")
 		if vaultPath != "" && vault.HasSmartConnections(vaultPath) {
 			VerbosePrintf("Using Smart Connections for semantic search...\n")
 			results, err := searchSmartConnections(query, sessionsDir, limit)
 			if err != nil {
-				// Fall back to file search
-				VerbosePrintf("Smart Connections failed, falling back to file search: %v\n", err)
-				return searchFiles(query, sessionsDir, limit)
+				VerbosePrintf("Smart Connections failed, falling back to CASS: %v\n", err)
+				return searchCASS(query, sessionsDir, limit)
 			}
 			return results, nil
 		}
-		VerbosePrintf("Smart Connections not available, using file-based search...\n")
+		VerbosePrintf("Smart Connections not available, using CASS...\n")
 	}
 
-	VerbosePrintf("Using file-based search...\n")
-	results, err := searchFiles(query, sessionsDir, limit)
-	if err != nil {
-		return nil, err
+	if searchUseCASS {
+		VerbosePrintf("Using CASS session-aware search...\n")
+	} else {
+		VerbosePrintf("Using default CASS repo-local search...\n")
+	}
+	return searchCASS(query, sessionsDir, limit)
+}
+
+func searchDataExists(sessionsDir string) bool {
+	if _, err := os.Stat(sessionsDir); err == nil {
+		return true
 	}
 
-	// Also search research directory (reduces orphaned research files)
-	researchDir := filepath.Join(filepath.Dir(sessionsDir), "research")
-	if _, statErr := os.Stat(researchDir); statErr == nil {
-		researchResults, researchErr := grepFiles(query, researchDir, "*.md", limit)
-		if researchErr == nil {
-			for i := range researchResults {
-				researchResults[i].Type = "research"
-			}
-			results = append(results, researchResults...)
+	root := knowledgeRootFromSessions(sessionsDir)
+	for _, name := range []string{"learnings", "patterns", "findings", "research"} {
+		if _, err := os.Stat(filepath.Join(root, name)); err == nil {
+			return true
 		}
 	}
 
-	// Dedupe and limit
-	seen := make(map[string]bool)
-	unique := make([]searchResult, 0, len(results))
-	for _, r := range results {
-		if !seen[r.Path] {
-			seen[r.Path] = true
-			unique = append(unique, r)
-		}
-	}
-	if limit > 0 && len(unique) > limit {
-		unique = unique[:limit]
-	}
+	return false
+}
 
-	return unique, nil
+func knowledgeRootFromSessions(sessionsDir string) string {
+	sessionsDir = filepath.Clean(sessionsDir)
+	aoRoot := filepath.Dir(sessionsDir)
+	if filepath.Base(aoRoot) == "ao" && filepath.Base(filepath.Dir(aoRoot)) == ".agents" {
+		return filepath.Dir(aoRoot)
+	}
+	return filepath.Dir(sessionsDir)
 }
 
 // displaySearchResults formats and prints search results to stdout.
@@ -537,9 +533,10 @@ func classifyResultType(path string) string {
 // 3. Confidence decay (older untested learnings rank lower)
 func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 	var results []searchResult
+	knowledgeRoot := knowledgeRootFromSessions(dir)
 
 	// Search learnings with maturity weighting
-	learningsDir := filepath.Join(filepath.Dir(dir), "learnings")
+	learningsDir := filepath.Join(knowledgeRoot, "learnings")
 	if _, err := os.Stat(learningsDir); err == nil {
 		learningResults, err := searchLearningsWithMaturity(query, learningsDir, limit)
 		if err != nil {
@@ -549,7 +546,7 @@ func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 	}
 
 	// Search patterns (established knowledge)
-	patternsDir := filepath.Join(filepath.Dir(dir), "patterns")
+	patternsDir := filepath.Join(knowledgeRoot, "patterns")
 	if _, err := os.Stat(patternsDir); err == nil {
 		patternResults, err := grepFiles(query, patternsDir, "*.md", limit)
 		if err != nil {
@@ -562,7 +559,7 @@ func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 		results = append(results, patternResults...)
 	}
 
-	findingsDir := filepath.Join(filepath.Dir(dir), "findings")
+	findingsDir := filepath.Join(knowledgeRoot, "findings")
 	if _, err := os.Stat(findingsDir); err == nil {
 		findingResults, err := grepFiles(query, findingsDir, "*.md", limit)
 		if err != nil {
@@ -575,7 +572,7 @@ func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 	}
 
 	// Search research files (orphaned research becomes discoverable)
-	researchDir := filepath.Join(filepath.Dir(dir), "research")
+	researchDir := filepath.Join(knowledgeRoot, "research")
 	if _, err := os.Stat(researchDir); err == nil {
 		researchResults, err := grepFiles(query, researchDir, "*.md", limit)
 		if err != nil {
@@ -588,23 +585,36 @@ func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 	}
 
 	// Also search sessions for context
-	sessionResults, err := searchFiles(query, dir, limit)
-	if err != nil {
-		VerbosePrintf("CASS sessions search error: %v\n", err)
+	if _, err := os.Stat(dir); err == nil {
+		sessionResults, err := searchFiles(query, dir, limit)
+		if err != nil {
+			VerbosePrintf("CASS sessions search error: %v\n", err)
+		} else {
+			results = append(results, sessionResults...)
+		}
 	}
-	results = append(results, sessionResults...)
 
 	// Sort by score (maturity-weighted)
 	slices.SortFunc(results, func(a, b searchResult) int {
 		return cmp.Compare(b.Score, a.Score)
 	})
 
-	// Limit results
-	if len(results) > limit {
-		results = results[:limit]
+	seen := make(map[string]bool, len(results))
+	unique := make([]searchResult, 0, len(results))
+	for _, result := range results {
+		if seen[result.Path] {
+			continue
+		}
+		seen[result.Path] = true
+		unique = append(unique, result)
 	}
 
-	return results, nil
+	// Limit results
+	if limit > 0 && len(unique) > limit {
+		unique = unique[:limit]
+	}
+
+	return unique, nil
 }
 
 // searchLearningsWithMaturity searches learnings and weights by maturity and confidence.

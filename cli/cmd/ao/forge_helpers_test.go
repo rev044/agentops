@@ -863,13 +863,20 @@ func TestForge_InitSession(t *testing.T) {
 		}
 	})
 
-	t.Run("ID and Date are zero values", func(t *testing.T) {
+	t.Run("ID and Date are zero values without an embedded session ID", func(t *testing.T) {
 		s := initSession("test.jsonl")
 		if s.ID != "" {
 			t.Errorf("ID should be empty, got %q", s.ID)
 		}
 		if !s.Date.IsZero() {
 			t.Errorf("Date should be zero, got %v", s.Date)
+		}
+	})
+
+	t.Run("seeds ID from transcript path when present", func(t *testing.T) {
+		s := initSession("/tmp/rollout-2026-03-05T15-20-21-019cbfa8-9155-7121-b18a-dfa3783cdd9e.jsonl")
+		if s.ID != "019cbfa8-9155-7121-b18a-dfa3783cdd9e" {
+			t.Errorf("ID = %q, want embedded session ID", s.ID)
 		}
 	})
 }
@@ -1661,12 +1668,72 @@ func TestForge_ProcessTranscript(t *testing.T) {
 
 		var buf bytes.Buffer
 		session, err := processTranscript(path, p, extractor, true, &buf)
-		// Empty file should produce a session with no data (parser sends no messages)
+		if !errors.Is(err, errTranscriptHasNoChatMessages) {
+			t.Fatalf("expected errTranscriptHasNoChatMessages, got session=%+v err=%v", session, err)
+		}
+	})
+
+	t.Run("metadata-only transcript skips cleanly", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "10aecfbe-2d34-4955-bae8-fbc0492bd19c.jsonl")
+		content := strings.Join([]string{
+			`{"type":"progress","sessionId":"10aecfbe-2d34-4955-bae8-fbc0492bd19c","timestamp":"2026-03-02T01:20:03.146Z","data":{"type":"hook_progress"}}`,
+			`{"type":"file-history-snapshot","messageId":"36e8695c-ab17-40a5-8279-09d553ec34f3","snapshot":{"timestamp":"2026-03-02T01:20:26.523Z"}}`,
+		}, "\n") + "\n"
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		var buf bytes.Buffer
+		session, err := processTranscript(path, p, extractor, true, &buf)
+		if !errors.Is(err, errTranscriptHasNoChatMessages) {
+			t.Fatalf("expected errTranscriptHasNoChatMessages, got session=%+v err=%v", session, err)
+		}
+	})
+
+	t.Run("codex archived session is forgeable", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "rollout-2026-03-05T15-20-21-019cbfa8-9155-7121-b18a-dfa3783cdd9e.jsonl")
+		content := strings.Join([]string{
+			`{"timestamp":"2026-03-05T20:20:42.160Z","type":"session_meta","payload":{"id":"019cbfa8-9155-7121-b18a-dfa3783cdd9e","timestamp":"2026-03-05T20:20:21.464Z"}}`,
+			`{"timestamp":"2026-03-05T20:20:42.163Z","type":"event_msg","payload":{"type":"user_message","message":"Shield AI recruiter reached out to me"}}`,
+			`{"timestamp":"2026-03-05T20:20:54.239Z","type":"event_msg","payload":{"type":"agent_message","message":"I can audit the repo and search your history."}}`,
+			`{"timestamp":"2026-03-05T20:20:54.282Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"pwd\"}"}}`,
+			`{"timestamp":"2026-03-05T20:20:54.381Z","type":"response_item","payload":{"type":"function_call_output","output":"Chunk ID: abc\nOutput:\n/worktree\n"}}`,
+		}, "\n") + "\n"
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		var buf bytes.Buffer
+		session, err := processTranscript(path, p, extractor, true, &buf)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if session == nil {
-			t.Fatal("session should not be nil even for empty file")
+		if session.ID != "019cbfa8-9155-7121-b18a-dfa3783cdd9e" {
+			t.Fatalf("session ID = %q, want codex session ID", session.ID)
+		}
+		if session.Date.IsZero() {
+			t.Fatal("session date should be populated")
+		}
+	})
+
+	t.Run("oversized Claude transcript line parses successfully", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "ses_large.jsonl")
+		hugeContent := strings.Repeat("x", 2*1024*1024)
+		line := fmt.Sprintf(`{"type":"user","sessionId":"ses_large","timestamp":"2026-03-02T01:20:03.146Z","content":"%s"}`, hugeContent)
+		if err := os.WriteFile(path, []byte(line+"\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		var buf bytes.Buffer
+		session, err := processTranscript(path, p, extractor, true, &buf)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if session.ID != "ses_large" {
+			t.Fatalf("session ID = %q, want ses_large", session.ID)
 		}
 	})
 }

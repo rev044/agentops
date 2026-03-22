@@ -105,6 +105,66 @@ func TestParser_SkipNonMessageTypes(t *testing.T) {
 	}
 }
 
+func TestParser_Parse_ClaudeTranscriptShape(t *testing.T) {
+	jsonl := `{"type":"user","timestamp":"2026-02-22T03:56:39.705Z","content":"find shield ai recruiter chat"}
+{"type":"tool_use","timestamp":"2026-02-22T03:56:47.577Z","tool_name":"skill","tool_input":{"name":"retro"}}
+{"type":"tool_result","timestamp":"2026-02-22T03:56:47.647Z","tool_name":"skill","tool_input":{"name":"retro"},"tool_output":{"truncated":false}}
+`
+
+	p := NewParser()
+	result, err := p.Parse(strings.NewReader(jsonl))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(result.Messages) != 3 {
+		t.Fatalf("Messages count = %d, want 3", len(result.Messages))
+	}
+	if result.Messages[0].Type != "user" || result.Messages[0].Content != "find shield ai recruiter chat" {
+		t.Fatalf("unexpected first message: %+v", result.Messages[0])
+	}
+	if len(result.Messages[1].Tools) != 1 || result.Messages[1].Tools[0].Name != "skill" {
+		t.Fatalf("unexpected tool_use message: %+v", result.Messages[1])
+	}
+	if len(result.Messages[2].Tools) != 1 || !strings.Contains(result.Messages[2].Tools[0].Output, `"truncated":false`) {
+		t.Fatalf("unexpected tool_result message: %+v", result.Messages[2])
+	}
+}
+
+func TestParser_Parse_CodexArchivedSessionShape(t *testing.T) {
+	jsonl := `{"timestamp":"2026-03-05T20:20:42.160Z","type":"session_meta","payload":{"id":"019cbfa8-9155-7121-b18a-dfa3783cdd9e","timestamp":"2026-03-05T20:20:21.464Z"}}
+{"timestamp":"2026-03-05T20:20:42.163Z","type":"event_msg","payload":{"type":"user_message","message":"find recruiter chat"}}
+{"timestamp":"2026-03-05T20:20:54.239Z","type":"event_msg","payload":{"type":"agent_message","message":"I am auditing the repo."}}
+{"timestamp":"2026-03-05T20:20:54.282Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"pwd\"}"}}
+{"timestamp":"2026-03-05T20:20:54.381Z","type":"response_item","payload":{"type":"function_call_output","output":"Chunk ID: abc\\nOutput:\\n/worktree\\n"}}
+`
+
+	p := NewParser()
+	result, err := p.Parse(strings.NewReader(jsonl))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(result.Messages) != 5 {
+		t.Fatalf("Messages count = %d, want 5", len(result.Messages))
+	}
+	if result.Messages[0].SessionID != "019cbfa8-9155-7121-b18a-dfa3783cdd9e" {
+		t.Fatalf("session_meta did not capture session ID: %+v", result.Messages[0])
+	}
+	if result.Messages[1].Type != "user" || result.Messages[1].Content != "find recruiter chat" {
+		t.Fatalf("unexpected user event message: %+v", result.Messages[1])
+	}
+	if result.Messages[2].Type != "assistant" || result.Messages[2].Content != "I am auditing the repo." {
+		t.Fatalf("unexpected agent event message: %+v", result.Messages[2])
+	}
+	if len(result.Messages[3].Tools) != 1 || result.Messages[3].Tools[0].Name != "exec_command" {
+		t.Fatalf("unexpected function_call message: %+v", result.Messages[3])
+	}
+	if len(result.Messages[4].Tools) != 1 || !strings.Contains(result.Messages[4].Tools[0].Output, "/worktree") {
+		t.Fatalf("unexpected function_call_output message: %+v", result.Messages[4])
+	}
+}
+
 func TestParser_ParseFile_Fixtures(t *testing.T) {
 	fixtures := []struct {
 		name        string
@@ -1015,39 +1075,39 @@ func TestExtractBest_HigherScoreLaterInSlice(t *testing.T) {
 	}
 }
 
-func TestParse_ScannerError(t *testing.T) {
-	// Feed a line longer than the 1MB buffer to trigger scanner error
-	hugeLine := strings.Repeat("x", 2*1024*1024) // 2MB line
+func TestParse_LargeLine(t *testing.T) {
+	hugeLine := strings.Repeat("x", 2*1024*1024)
+	jsonl := fmt.Sprintf(`{"type":"user","sessionId":"big-session","timestamp":"2026-01-24T10:00:00.000Z","message":{"role":"user","content":"%s"}}`, hugeLine)
 	p := NewParser()
-	result, err := p.Parse(strings.NewReader(hugeLine))
-	if err == nil {
-		t.Fatal("expected scanner error for line exceeding buffer")
+	result, err := p.Parse(strings.NewReader(jsonl))
+	if err != nil {
+		t.Fatalf("expected large line to parse successfully, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "scanner error") {
-		t.Errorf("expected 'scanner error', got: %v", err)
+	if len(result.Messages) != 1 {
+		t.Fatalf("Messages count = %d, want 1", len(result.Messages))
 	}
-	// Result should still be returned (partial)
-	if result == nil {
-		t.Error("expected non-nil result even on scanner error")
+	if result.Messages[0].SessionID != "big-session" {
+		t.Fatalf("session ID = %q, want big-session", result.Messages[0].SessionID)
 	}
 }
 
-func TestParseChannel_ScannerError(t *testing.T) {
-	// Feed a line longer than the 1MB buffer to trigger scanner error in ParseChannel
-	hugeLine := strings.Repeat("x", 2*1024*1024) // 2MB line
+func TestParseChannel_LargeLine(t *testing.T) {
+	hugeLine := strings.Repeat("x", 2*1024*1024)
+	jsonl := fmt.Sprintf(`{"type":"user","sessionId":"big-session","timestamp":"2026-01-24T10:00:00.000Z","message":{"role":"user","content":"%s"}}`, hugeLine)
 	p := NewParser()
-	msgCh, errCh := p.ParseChannel(strings.NewReader(hugeLine))
+	msgCh, errCh := p.ParseChannel(strings.NewReader(jsonl))
 
-	// Drain messages
+	count := 0
 	for range msgCh {
+		count++
 	}
 
 	err := <-errCh
-	if err == nil {
-		t.Fatal("expected scanner error for line exceeding buffer")
+	if err != nil {
+		t.Fatalf("expected large line to parse successfully, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "scanner error") {
-		t.Errorf("expected 'scanner error', got: %v", err)
+	if count != 1 {
+		t.Fatalf("message count = %d, want 1", count)
 	}
 }
 

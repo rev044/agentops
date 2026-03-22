@@ -503,7 +503,27 @@ func TestForge_initSession(t *testing.T) {
 		t.Error("ToolCalls map should be initialized")
 	}
 	if session.ID != "" {
-		t.Errorf("ID should be empty initially, got %q", session.ID)
+		t.Errorf("ID should be empty when path has no embedded session identifier, got %q", session.ID)
+	}
+}
+
+func TestForge_inferSessionIDFromPath(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{path: "/tmp/ses_37c81fcb6ffeurJmCkdLL1k2qZ.jsonl", want: "ses_37c81fcb6ffeurJmCkdLL1k2qZ"},
+		{path: "/tmp/10aecfbe-2d34-4955-bae8-fbc0492bd19c.jsonl", want: "10aecfbe-2d34-4955-bae8-fbc0492bd19c"},
+		{path: "/tmp/rollout-2026-03-05T15-20-21-019cbfa8-9155-7121-b18a-dfa3783cdd9e.jsonl", want: "019cbfa8-9155-7121-b18a-dfa3783cdd9e"},
+		{path: "/tmp/no-session-id.jsonl", want: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(filepath.Base(tc.path), func(t *testing.T) {
+			if got := inferSessionIDFromPath(tc.path); got != tc.want {
+				t.Fatalf("inferSessionIDFromPath(%q) = %q, want %q", tc.path, got, tc.want)
+			}
+		})
 	}
 }
 
@@ -584,6 +604,20 @@ func TestForge_extractFilePathsFromTool(t *testing.T) {
 		extractFilePathsFromTool(tool, state)
 		if len(state.filesChanged) != 1 {
 			t.Errorf("expected 1 file, got %d", len(state.filesChanged))
+		}
+	})
+
+	t.Run("filePath input", func(t *testing.T) {
+		state := &transcriptState{
+			seenFiles: make(map[string]bool),
+		}
+		tool := types.ToolCall{
+			Name:  "Edit",
+			Input: map[string]any{"filePath": "/src/camel.go"},
+		}
+		extractFilePathsFromTool(tool, state)
+		if len(state.filesChanged) != 1 || state.filesChanged[0] != "/src/camel.go" {
+			t.Errorf("expected [/src/camel.go], got %v", state.filesChanged)
 		}
 	})
 
@@ -1543,6 +1577,13 @@ func TestForgeCoverage_extractFilePathsFromTool(t *testing.T) {
 			name: "path key",
 			tool: types.ToolCall{
 				Input: map[string]any{"path": "/test.go"},
+			},
+			wantFiles: 1,
+		},
+		{
+			name: "filePath key",
+			tool: types.ToolCall{
+				Input: map[string]any{"filePath": "/camel.go"},
 			},
 			wantFiles: 1,
 		},

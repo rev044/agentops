@@ -45,6 +45,12 @@ const (
 // issueIDPattern matches beads issue IDs like "ol-0001", "at-v123", "gt-abc-def".
 var issueIDPattern = regexp.MustCompile(`\b([a-z]{2,3})-([a-z0-9]{3,7}(?:-[a-z0-9]+)?)\b`)
 
+var (
+	sessionUUIDPattern             = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+	sessionClaudeTranscriptPattern = regexp.MustCompile(`(ses_[A-Za-z0-9]+)`)
+	errTranscriptHasNoChatMessages = errors.New("transcript has no chat messages")
+)
+
 var forgeCmd = &cobra.Command{
 	Use:   "forge",
 	Short: "Extract knowledge from sources",
@@ -295,6 +301,10 @@ func runForgeTranscript(cmd *cobra.Command, args []string) error {
 	for _, filePath := range files {
 		session, err := processTranscript(filePath, p, extractor, forgeQuiet, w)
 		if err != nil {
+			if errors.Is(err, errTranscriptHasNoChatMessages) {
+				VerbosePrintf("  - skipped %s (no chat messages)\n", filepath.Base(filePath))
+				continue
+			}
 			forgeWarnf(forgeQuiet, "Warning: failed to process %s: %v\n", filePath, err)
 			continue
 		}
@@ -381,7 +391,13 @@ func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extr
 		return nil, err
 	}
 
+	if session.Date.IsZero() {
+		session.Date = info.ModTime().UTC()
+	}
 	finalizeTranscriptSession(session, state, fileSize)
+	if state.chatMessages == 0 {
+		return nil, errTranscriptHasNoChatMessages
+	}
 
 	return session, nil
 }
@@ -394,6 +410,9 @@ func consumeTranscriptMessages(msgCh <-chan types.TranscriptMessage, session *st
 		lineCount++
 		reportProgress(quiet, w, lineCount, totalLines, &lastProgress)
 		updateSessionMeta(session, msg)
+		if isConversationMessage(msg) {
+			state.chatMessages++
+		}
 		extractMessageKnowledge(msg, extractor, state)
 		extractMessageRefs(msg, session, state)
 	}
@@ -474,11 +493,13 @@ type transcriptState struct {
 	issues       []string
 	seenFiles    map[string]bool
 	seenIssues   map[string]bool
+	chatMessages int
 }
 
 // initSession creates a new session with default values.
 func initSession(filePath string) *storage.Session {
 	return &storage.Session{
+		ID:             inferSessionIDFromPath(filePath),
 		TranscriptPath: filePath,
 		ToolCalls:      make(map[string]int),
 	}
@@ -541,6 +562,27 @@ func extractFilePathsFromTool(tool types.ToolCall, state *transcriptState) {
 		state.filesChanged = append(state.filesChanged, fp)
 		state.seenFiles[fp] = true
 	}
+	if fp, ok := tool.Input["filePath"].(string); ok && !state.seenFiles[fp] {
+		state.filesChanged = append(state.filesChanged, fp)
+		state.seenFiles[fp] = true
+	}
+}
+
+func isConversationMessage(msg types.TranscriptMessage) bool {
+	return msg.Type == "user" || msg.Type == "assistant" || msg.Role == "user" || msg.Role == "assistant"
+}
+
+func inferSessionIDFromPath(filePath string) string {
+	base := filepath.Base(filePath)
+	if match := sessionClaudeTranscriptPattern.FindStringSubmatch(base); len(match) > 1 {
+		return match[1]
+	}
+
+	matches := sessionUUIDPattern.FindAllString(base, -1)
+	if len(matches) == 0 {
+		return ""
+	}
+	return matches[len(matches)-1]
 }
 
 // extractIssueRefs extracts issue IDs from message content.

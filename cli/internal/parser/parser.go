@@ -1,11 +1,13 @@
-// Package parser provides streaming JSONL parsing for Claude Code transcripts.
+// Package parser provides streaming JSONL parsing for Claude and Codex transcripts.
 package parser
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -53,19 +55,53 @@ func NewParser() *Parser {
 	}
 }
 
-// rawMessage represents the raw JSON structure from Claude Code transcripts.
+// rawMessage represents the raw JSON structure from supported transcript surfaces.
 type rawMessage struct {
-	Type       string `json:"type"`
-	SessionID  string `json:"sessionId"`
-	Timestamp  string `json:"timestamp"`
-	UUID       string `json:"uuid"`
-	ParentUUID string `json:"parentUuid,omitempty"`
+	Type       string          `json:"type"`
+	SessionID  string          `json:"sessionId"`
+	Timestamp  string          `json:"timestamp"`
+	UUID       string          `json:"uuid"`
+	ParentUUID string          `json:"parentUuid,omitempty"`
+	Role       string          `json:"role,omitempty"`
+	Content    any             `json:"content,omitempty"`
+	ToolName   string          `json:"tool_name,omitempty"`
+	ToolInput  map[string]any  `json:"tool_input,omitempty"`
+	ToolOutput any             `json:"tool_output,omitempty"`
+	Payload    json.RawMessage `json:"payload,omitempty"`
 	Message    *struct {
+		Type    string `json:"type,omitempty"`
 		Role    string `json:"role"`
 		Content any    `json:"content"` // Can be string or array
+		Tools   []struct {
+			Name   string         `json:"name"`
+			Input  map[string]any `json:"input"`
+			Output any            `json:"output"`
+		} `json:"tools,omitempty"`
 	} `json:"message,omitempty"`
 	// ToolUseResult contains structured tool output (e.g., for TodoWrite)
 	ToolUseResult any `json:"toolUseResult,omitempty"`
+}
+
+type codexSessionMeta struct {
+	ID        string `json:"id"`
+	Timestamp string `json:"timestamp"`
+}
+
+type codexEventPayload struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+type codexResponseItem struct {
+	Type      string `json:"type"`
+	Role      string `json:"role"`
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+	Output    string `json:"output"`
+	Content   []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	} `json:"content"`
 }
 
 // ParseResult contains the result of parsing a JSONL stream.
@@ -109,18 +145,11 @@ func (p *Parser) Parse(r io.Reader) (*ParseResult, error) {
 	}
 
 	hasher := sha256.New()
-	scanner := bufio.NewScanner(r)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024) // 1MB max line size
-
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
+	if err := readJSONLLines(r, func(line []byte, lineNum int) error {
 		result.TotalLines = lineNum
 
-		line := scanner.Bytes()
 		if len(line) == 0 {
-			continue
+			return nil
 		}
 
 		_, _ = hasher.Write(line)
@@ -131,10 +160,9 @@ func (p *Parser) Parse(r io.Reader) (*ParseResult, error) {
 		if p.OnProgress != nil && lineNum%100 == 0 {
 			p.OnProgress(lineNum, 0)
 		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return result, fmt.Errorf("scanner error: %w", err)
+		return nil
+	}); err != nil {
+		return result, fmt.Errorf("read jsonl: %w", err)
 	}
 
 	hash := hasher.Sum(nil)
@@ -285,25 +313,210 @@ func (p *Parser) parseLine(line []byte, lineNum int) (*types.TranscriptMessage, 
 		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	// Skip non-message types
-	if !isValidMessageType(raw.Type) {
+	switch raw.Type {
+	case msgTypeUser, msgTypeAssistant:
+		return p.parseClaudeMessage(raw, lineNum), nil
+	case msgTypeToolUse:
+		return p.parseClaudeToolUse(raw, lineNum), nil
+	case msgTypeToolResult:
+		return p.parseClaudeToolResult(raw, lineNum), nil
+	case "session_meta":
+		return p.parseCodexSessionMeta(raw, lineNum)
+	case "event_msg":
+		return p.parseCodexEvent(raw, lineNum)
+	case "response_item":
+		return p.parseCodexResponseItem(raw, lineNum)
+	default:
 		return nil, nil
 	}
+}
 
+func (p *Parser) parseClaudeMessage(raw rawMessage, lineNum int) *types.TranscriptMessage {
 	msg := &types.TranscriptMessage{
 		Type:         raw.Type,
 		Timestamp:    parseTimestamp(raw.Timestamp),
 		SessionID:    raw.SessionID,
 		MessageIndex: lineNum,
+		Role:         raw.Role,
 	}
 
-	// Extract content from message
 	if raw.Message != nil {
 		msg.Role = raw.Message.Role
 		p.extractMessageContent(raw.Message.Content, msg)
 	}
+	if raw.Content != nil {
+		p.extractMessageContent(raw.Content, msg)
+	}
+	if msg.Role == "" {
+		msg.Role = raw.Type
+	}
 
-	return msg, nil
+	return msg
+}
+
+func (p *Parser) parseClaudeToolUse(raw rawMessage, lineNum int) *types.TranscriptMessage {
+	var tools []types.ToolCall
+	if raw.ToolName != "" {
+		tools = append(tools, types.ToolCall{
+			Name:  raw.ToolName,
+			Input: raw.ToolInput,
+		})
+	}
+	if raw.Message != nil {
+		for _, tool := range raw.Message.Tools {
+			if tool.Name == "" {
+				continue
+			}
+			tools = append(tools, types.ToolCall{
+				Name:   tool.Name,
+				Input:  tool.Input,
+				Output: p.extractTopLevelToolOutput(tool.Output),
+			})
+		}
+	}
+	if len(tools) == 0 && raw.Message != nil {
+		msg := &types.TranscriptMessage{
+			Type:         msgTypeToolUse,
+			Role:         raw.Message.Role,
+			Timestamp:    parseTimestamp(raw.Timestamp),
+			SessionID:    raw.SessionID,
+			MessageIndex: lineNum,
+		}
+		p.extractMessageContent(raw.Message.Content, msg)
+		return msg
+	}
+	if len(tools) == 0 {
+		return nil
+	}
+	return &types.TranscriptMessage{
+		Type:         msgTypeToolUse,
+		Role:         msgTypeAssistant,
+		Timestamp:    parseTimestamp(raw.Timestamp),
+		SessionID:    raw.SessionID,
+		MessageIndex: lineNum,
+		Tools:        tools,
+	}
+}
+
+func (p *Parser) parseClaudeToolResult(raw rawMessage, lineNum int) *types.TranscriptMessage {
+	output := p.extractTopLevelToolOutput(raw.ToolOutput)
+	if output == "" && raw.ToolUseResult != nil {
+		output = p.extractTopLevelToolOutput(raw.ToolUseResult)
+	}
+	if output == "" && raw.Message != nil && raw.Message.Content != nil {
+		output = p.extractTopLevelToolOutput(raw.Message.Content)
+	}
+	return &types.TranscriptMessage{
+		Type:         msgTypeToolResult,
+		Role:         coalesce(raw.Role, msgTypeAssistant),
+		Timestamp:    parseTimestamp(raw.Timestamp),
+		SessionID:    raw.SessionID,
+		MessageIndex: lineNum,
+		Tools: []types.ToolCall{{
+			Name:   coalesce(raw.ToolName, msgTypeToolResult),
+			Input:  raw.ToolInput,
+			Output: output,
+		}},
+	}
+}
+
+func (p *Parser) parseCodexSessionMeta(raw rawMessage, lineNum int) (*types.TranscriptMessage, error) {
+	var meta codexSessionMeta
+	if err := json.Unmarshal(raw.Payload, &meta); err != nil {
+		return nil, fmt.Errorf("invalid session_meta payload: %w", err)
+	}
+	return &types.TranscriptMessage{
+		Type:         "session_meta",
+		Timestamp:    parseTimestamp(coalesce(meta.Timestamp, raw.Timestamp)),
+		SessionID:    coalesce(meta.ID, raw.SessionID),
+		MessageIndex: lineNum,
+	}, nil
+}
+
+func (p *Parser) parseCodexEvent(raw rawMessage, lineNum int) (*types.TranscriptMessage, error) {
+	var payload codexEventPayload
+	if err := json.Unmarshal(raw.Payload, &payload); err != nil {
+		return nil, fmt.Errorf("invalid event payload: %w", err)
+	}
+
+	var (
+		msgType string
+		role    string
+	)
+	switch payload.Type {
+	case "user_message":
+		msgType = msgTypeUser
+		role = msgTypeUser
+	case "agent_message":
+		msgType = msgTypeAssistant
+		role = msgTypeAssistant
+	default:
+		return nil, nil
+	}
+
+	return &types.TranscriptMessage{
+		Type:         msgType,
+		Role:         role,
+		Content:      p.truncate(payload.Message),
+		Timestamp:    parseTimestamp(raw.Timestamp),
+		SessionID:    raw.SessionID,
+		MessageIndex: lineNum,
+	}, nil
+}
+
+func (p *Parser) parseCodexResponseItem(raw rawMessage, lineNum int) (*types.TranscriptMessage, error) {
+	var item codexResponseItem
+	if err := json.Unmarshal(raw.Payload, &item); err != nil {
+		return nil, fmt.Errorf("invalid response_item payload: %w", err)
+	}
+
+	switch item.Type {
+	case "message":
+		if item.Role != msgTypeUser && item.Role != msgTypeAssistant {
+			return nil, nil
+		}
+		var content strings.Builder
+		for _, block := range item.Content {
+			switch block.Type {
+			case "input_text", "output_text", "text":
+				content.WriteString(block.Text)
+			}
+		}
+		return &types.TranscriptMessage{
+			Type:         item.Role,
+			Role:         item.Role,
+			Content:      p.truncate(content.String()),
+			Timestamp:    parseTimestamp(raw.Timestamp),
+			SessionID:    raw.SessionID,
+			MessageIndex: lineNum,
+		}, nil
+	case "function_call", "custom_tool_call":
+		return &types.TranscriptMessage{
+			Type:         msgTypeToolUse,
+			Role:         msgTypeAssistant,
+			Timestamp:    parseTimestamp(raw.Timestamp),
+			SessionID:    raw.SessionID,
+			MessageIndex: lineNum,
+			Tools: []types.ToolCall{{
+				Name:  coalesce(item.Name, item.Type),
+				Input: parseCodexToolInput(item.Arguments),
+			}},
+		}, nil
+	case "function_call_output", "custom_tool_call_output":
+		return &types.TranscriptMessage{
+			Type:         msgTypeToolResult,
+			Role:         msgTypeAssistant,
+			Timestamp:    parseTimestamp(raw.Timestamp),
+			SessionID:    raw.SessionID,
+			MessageIndex: lineNum,
+			Tools: []types.ToolCall{{
+				Name:   msgTypeToolResult,
+				Output: p.truncate(item.Output),
+			}},
+		}, nil
+	default:
+		return nil, nil
+	}
 }
 
 // extractMessageContent populates msg.Content and msg.Tools from raw content.
@@ -371,6 +584,23 @@ func (p *Parser) extractToolResultContent(content any) string {
 	}
 }
 
+func (p *Parser) extractTopLevelToolOutput(content any) string {
+	switch c := content.(type) {
+	case nil:
+		return ""
+	case string:
+		return p.truncate(c)
+	case []any:
+		return p.extractToolResultContent(c)
+	default:
+		data, err := json.Marshal(c)
+		if err != nil {
+			return ""
+		}
+		return p.truncate(string(data))
+	}
+}
+
 // truncate limits content to MaxContentLength characters.
 // Slices at rune boundaries to avoid splitting multi-byte UTF-8 sequences.
 func (p *Parser) truncate(s string) string {
@@ -421,19 +651,62 @@ func (p *Parser) processChannelLine(line []byte, lineNum int, msgCh chan<- types
 
 // channelScanner scans r line by line, sending parsed messages to msgCh and errors to errCh.
 func (p *Parser) channelScanner(r io.Reader, msgCh chan<- types.TranscriptMessage, errCh chan<- error) {
-	scanner := bufio.NewScanner(r)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
+	if err := readJSONLLines(r, func(line []byte, lineNum int) error {
+		if !p.processChannelLine(line, lineNum, msgCh, errCh) {
+			return errStopChannelScan
+		}
+		return nil
+	}); err != nil && !errors.Is(err, errStopChannelScan) {
+		errCh <- fmt.Errorf("read jsonl: %w", err)
+	}
+}
 
+var errStopChannelScan = errors.New("stop channel scan")
+
+func readJSONLLines(r io.Reader, fn func([]byte, int) error) error {
+	reader := bufio.NewReader(r)
 	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		if !p.processChannelLine(scanner.Bytes(), lineNum, msgCh, errCh) {
-			return
+
+	for {
+		line, err := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			lineNum++
+			line = bytes.TrimSuffix(line, []byte("\n"))
+			line = bytes.TrimSuffix(line, []byte("\r"))
+			if callErr := fn(line, lineNum); callErr != nil {
+				return callErr
+			}
+		}
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
 		}
 	}
+}
 
-	if err := scanner.Err(); err != nil {
-		errCh <- fmt.Errorf("scanner error: %w", err)
+func parseCodexToolInput(raw string) map[string]any {
+	if strings.TrimSpace(raw) == "" {
+		return nil
 	}
+
+	var data any
+	if err := json.Unmarshal([]byte(raw), &data); err != nil {
+		return map[string]any{"raw": raw}
+	}
+	if obj, ok := data.(map[string]any); ok {
+		return obj
+	}
+	return map[string]any{"value": data}
+}
+
+func coalesce(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
