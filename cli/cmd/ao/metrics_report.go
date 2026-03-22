@@ -21,6 +21,7 @@ func runMetricsReport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("compute metrics: %w", err)
 	}
+	populateGoldenSignals(cwd, metricsDays, metrics)
 
 	switch GetOutput() {
 	case "json":

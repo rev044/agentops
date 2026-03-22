@@ -176,3 +176,38 @@ func TestBridgeHandoffToLearnings_SessionType(t *testing.T) {
 		})
 	}
 }
+
+func TestBridgeHandoffToLearnings_PreservesResearchSources(t *testing.T) {
+	tmp := t.TempDir()
+	artifact := &handoffArtifact{
+		ID:            "handoff-test-004",
+		Type:          "manual",
+		Goal:          "Close the gap documented in .agents/research/2026-03-22-flywheel-gap.md",
+		Summary:       "Use the research artifact directly instead of generic provenance labels",
+		DecisionsMade: []string{"Adopt task-scoped startup retrieval"},
+	}
+
+	if err := bridgeHandoffToLearnings(tmp, artifact); err != nil {
+		t.Fatalf("bridgeHandoffToLearnings returned error: %v", err)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".agents", "learnings"))
+	if err != nil {
+		t.Fatalf("read learnings dir: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(entries))
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmp, ".agents", "learnings", entries[0].Name()))
+	if err != nil {
+		t.Fatalf("read learning: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "research_sources:") {
+		t.Fatalf("expected research_sources frontmatter, got:\n%s", content)
+	}
+	if !strings.Contains(content, ".agents/research/2026-03-22-flywheel-gap.md") {
+		t.Fatalf("expected exact research path, got:\n%s", content)
+	}
+}

@@ -26,6 +26,36 @@ log_hook_fail() {
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: $1" >> "$HOOK_ERROR_LOG" 2>/dev/null || true
 }
 
+trim_lookup_text() {
+    printf '%s' "${1:-}" \
+        | tr '\n' ' ' \
+        | tr -s '[:space:]' ' ' \
+        | sed 's/^ //; s/ $//'
+}
+
+derive_lookup_query() {
+    if [ -n "${AGENTOPS_SESSION_LOOKUP_QUERY:-}" ]; then
+        trim_lookup_text "$AGENTOPS_SESSION_LOOKUP_QUERY"
+        return 0
+    fi
+    if [ -n "${H_GOAL:-}" ]; then
+        trim_lookup_text "$H_GOAL"
+        return 0
+    fi
+    if [ -n "${H_SUMMARY:-}" ]; then
+        trim_lookup_text "$H_SUMMARY"
+        return 0
+    fi
+    return 0
+}
+
+detect_lookup_bead() {
+    if ! command -v bd >/dev/null 2>&1; then
+        return 0
+    fi
+    timeout 1 bd current 2>/dev/null | head -1 | tr -d '\r' | sed 's/^ //; s/ $//'
+}
+
 write_environment_manifest() {
     local env_file="$AO_DIR/environment.json"
     local tmp_file git_branch head_sha git_dirty tools_json manifest_json
@@ -215,12 +245,33 @@ fi
 
 # Auto-retrieve and cite top learnings for this session (closes citation gap)
 if command -v ao &>/dev/null; then
-    LOOKUP_QUERY=$(git -C "$ROOT" log -1 --format='%s' 2>/dev/null || echo "session context")
-    FLYWHEEL_KNOWLEDGE=$(timeout 5 ao lookup --query "$LOOKUP_QUERY" --limit 5 2>/dev/null || true)
+    LOOKUP_QUERY="$(derive_lookup_query)"
+    LOOKUP_BEAD="$(detect_lookup_bead)"
+    LOOKUP_CONTEXT=""
+    LOOKUP_ARGS=(lookup --limit 5)
+    if [ -n "$LOOKUP_QUERY" ]; then
+        LOOKUP_ARGS+=(--query "$LOOKUP_QUERY")
+        LOOKUP_CONTEXT="query=\"$LOOKUP_QUERY\""
+    fi
+    if [ -n "$LOOKUP_BEAD" ]; then
+        LOOKUP_ARGS+=(--bead "$LOOKUP_BEAD")
+        if [ -n "$LOOKUP_CONTEXT" ]; then
+            LOOKUP_CONTEXT="${LOOKUP_CONTEXT}, "
+        fi
+        LOOKUP_CONTEXT="${LOOKUP_CONTEXT}bead=${LOOKUP_BEAD}"
+    fi
+    if [ -z "$LOOKUP_CONTEXT" ]; then
+        LOOKUP_CONTEXT="task context unavailable"
+    fi
+    if [ -n "$LOOKUP_QUERY" ] || [ -n "$LOOKUP_BEAD" ]; then
+        FLYWHEEL_KNOWLEDGE=$(timeout 5 ao "${LOOKUP_ARGS[@]}" 2>/dev/null || true)
+    else
+        FLYWHEEL_KNOWLEDGE=""
+    fi
     if [ -n "$FLYWHEEL_KNOWLEDGE" ]; then
         INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
 
-### Prior Learnings (auto-retrieved)
+### Prior Learnings (auto-retrieved: ${LOOKUP_CONTEXT})
 ${FLYWHEEL_KNOWLEDGE}"
     fi
 fi

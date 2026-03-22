@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -167,6 +168,7 @@ func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
 	if err != nil {
 		VerbosePrintf("Warning: post-forge metrics: %v\n", err)
 	}
+	populateGoldenSignals(cwd, 7, postMetrics)
 
 	velocityDelta := computeVelocityDelta(preMetrics, postMetrics)
 	status := classifyFlywheelStatus(postMetrics)
@@ -226,13 +228,7 @@ func classifyFlywheelStatus(post *types.FlywheelMetrics) string {
 	if post == nil {
 		return "unknown"
 	}
-	if post.AboveEscapeVelocity {
-		return "compounding"
-	}
-	if post.Velocity > -0.05 {
-		return "near-escape"
-	}
-	return "decaying"
+	return strings.ToLower(strings.ReplaceAll(post.HealthStatus(), " ", "-"))
 }
 
 // resolveTranscript finds the transcript path from a session ID or fallback.
@@ -524,7 +520,8 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 
 		// Escape bare "---" lines in body to prevent YAML multi-document parsing issues.
 		safeBody := strings.ReplaceAll(it.content, "\n---\n", "\n- - -\n")
-		content := fmt.Sprintf("---\ntype: learning\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\ncategory: %s\n---\n\n%s\n", it.category, safeBody)
+		researchSources := renderResearchSourcesFrontmatter(gatherResearchSources(it.content))
+		content := fmt.Sprintf("---\ntype: learning\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\n%scategory: %s\n---\n\n%s\n", researchSources, it.category, safeBody)
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
 			return result, fmt.Errorf("write learning %s: %w", filename, err)
 		}
@@ -544,6 +541,34 @@ func extractBodyAfterFrontmatter(content string) string {
 		return content
 	}
 	return strings.TrimSpace(content[4+end+5:])
+}
+
+func gatherResearchSources(texts ...string) []string {
+	seen := make(map[string]bool)
+	var refs []string
+	for _, text := range texts {
+		for _, ref := range extractResearchRefsFromText(text) {
+			if seen[ref] {
+				continue
+			}
+			seen[ref] = true
+			refs = append(refs, ref)
+		}
+	}
+	sort.Strings(refs)
+	return refs
+}
+
+func renderResearchSourcesFrontmatter(refs []string) string {
+	if len(refs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("research_sources:\n")
+	for _, ref := range refs {
+		fmt.Fprintf(&b, "  - %q\n", ref)
+	}
+	return b.String()
 }
 
 // minInt returns the smaller of two ints.

@@ -28,6 +28,7 @@ func runMetricsBaseline(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("compute metrics: %w", err)
 	}
+	populateGoldenSignals(cwd, metricsDays, metrics)
 
 	// Save baseline
 	baselinePath, err := saveBaseline(cwd, metrics)

@@ -548,13 +548,15 @@ func TestJSONValidity_FlywheelStatus(t *testing.T) {
 
 	// Build a synthetic flywheel metrics map matching what the command produces.
 	payload := map[string]any{
-		"status":      "DECAYING",
-		"delta":       0.1,
-		"sigma":       0.2,
-		"rho":         0.3,
-		"sigma_rho":   0.06,
-		"velocity":    -0.04,
-		"compounding": false,
+		"status":                      "DECAYING",
+		"delta":                       0.1,
+		"sigma":                       0.2,
+		"rho":                         0.3,
+		"sigma_rho":                   0.06,
+		"velocity":                    -0.04,
+		"compounding":                 false,
+		"escape_velocity_status":      "DECAYING",
+		"escape_velocity_compounding": false,
 	}
 
 	out := captureJSONStdout(t, func() {

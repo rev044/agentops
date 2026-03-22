@@ -115,6 +115,62 @@ else
     fail "session-start writes .agents to repo root"
 fi
 
+# Test 14b: session-start lookup uses handoff goal + active bead, not commit subject
+MOCK_LOOKUP="$TMPDIR/mock-session-lookup"
+mkdir -p "$MOCK_LOOKUP/.agents/handoff" "$MOCK_LOOKUP/bin"
+git -C "$MOCK_LOOKUP" init -q >/dev/null 2>&1
+git -C "$MOCK_LOOKUP" config user.email "test@example.com" >/dev/null 2>&1
+git -C "$MOCK_LOOKUP" config user.name "Test User" >/dev/null 2>&1
+touch "$MOCK_LOOKUP/README.md"
+git -C "$MOCK_LOOKUP" add README.md >/dev/null 2>&1
+git -C "$MOCK_LOOKUP" commit -q -m "commit subject should not drive lookup" >/dev/null 2>&1
+cat > "$MOCK_LOOKUP/.agents/handoff/handoff-20260322T160000Z.json" <<'EOF'
+{
+  "schema_version": 1,
+  "id": "handoff-test",
+  "created_at": "2026-03-22T16:00:00Z",
+  "type": "manual",
+  "goal": "task-scoped lookup queries",
+  "summary": "use the handoff goal for retrieval"
+}
+EOF
+cat > "$MOCK_LOOKUP/bin/ao" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${AO_ARGS_FILE:-}" ]; then
+    printf '%s\n' "$*" >> "$AO_ARGS_FILE"
+fi
+if [ "${1:-}" = "lookup" ]; then
+    printf '[lookup] stub result\n'
+fi
+exit 0
+EOF
+cat > "$MOCK_LOOKUP/bin/bd" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = "current" ]; then
+    printf 'ag-73u.5\n'
+fi
+exit 0
+EOF
+chmod +x "$MOCK_LOOKUP/bin/ao" "$MOCK_LOOKUP/bin/bd"
+AO_ARGS_FILE="$MOCK_LOOKUP/ao-args.log"
+LOOKUP_OUTPUT=$(cd "$MOCK_LOOKUP" && PATH="$MOCK_LOOKUP/bin:$PATH" AO_ARGS_FILE="$AO_ARGS_FILE" bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
+if grep -q '^lookup --limit 5 --query task-scoped lookup queries --bead ag-73u.5$' "$AO_ARGS_FILE"; then
+    pass "session-start lookup is scoped by handoff goal and bead"
+else
+    fail "session-start lookup is scoped by handoff goal and bead"
+fi
+if ! grep -q 'commit subject should not drive lookup' "$AO_ARGS_FILE"; then
+    pass "session-start no longer falls back to commit subject when task context exists"
+else
+    fail "session-start no longer falls back to commit subject when task context exists"
+fi
+LOOKUP_CONTEXT=$(echo "$LOOKUP_OUTPUT" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)
+if echo "$LOOKUP_CONTEXT" | grep -q 'auto-retrieved: query="task-scoped lookup queries", bead=ag-73u.5'; then
+    pass "session-start reports lookup scope in injected context"
+else
+    fail "session-start reports lookup scope in injected context"
+fi
+
 # Test 15: precompact emits JSON when data exists
 MOCK_PRECOMPACT="$TMPDIR/mock-precompact"
 mkdir -p "$MOCK_PRECOMPACT/.agents"

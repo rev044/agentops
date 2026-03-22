@@ -174,7 +174,10 @@ Each session automatically extracts knowledge and feeds it back — making the n
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
-Session 50 starts with 50 sessions of accumulated wisdom — not from scratch. Stale insights [decay automatically](docs/the-science.md). Useful ones compound. Measure it: `ao flywheel status`.
+Session 50 starts with 50 sessions of accumulated wisdom — not from scratch.
+Stale insights [decay automatically](docs/the-science.md). Useful ones
+compound. Measure it with `ao flywheel status`, which separates raw escape
+velocity from actual flywheel health.
 
 Deep dive: [The Knowledge Flywheel](docs/knowledge-flywheel.md)
 
