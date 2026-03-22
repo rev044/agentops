@@ -124,7 +124,7 @@ log_plan_mutation() {
     if [[ "$mutation_type" == "task_added" ]]; then
         MUTATION_TASK_ADDED=$((MUTATION_TASK_ADDED + 1))
         if [[ $MUTATION_TASK_ADDED -gt $MUTATION_TASK_ADDED_LIMIT ]]; then
-            echo "WARN: task_added budget exceeded ($MUTATION_TASK_ADDED/$MUTATION_TASK_ADDED_LIMIT). Consider re-running /plan."
+            echo "WARN: task_added budget exceeded ($MUTATION_TASK_ADDED/$MUTATION_TASK_ADDED_LIMIT). Consider re-running $plan."
         fi
     elif [[ "$mutation_type" == "task_reordered" ]]; then
         MUTATION_TASK_REORDERED=$((MUTATION_TASK_REORDERED + 1))
@@ -385,7 +385,7 @@ log_plan_mutation "scope_changed" "$task_id" \
     "{\"files\":$UPDATED_FILES,\"reason\":\"$REASON\"}"
 ```
 
-Mutations are append-only to `.agents/rpi/plan-mutations.jsonl`. Read by `/post-mortem` for drift analysis.
+Mutations are append-only to `.agents/rpi/plan-mutations.jsonl`. Read by `$post-mortem` for drift analysis.
 
 ### Step 6: Commit Wave Results
 
