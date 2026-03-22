@@ -406,9 +406,13 @@ func (p *Parser) parseClaudeToolResult(raw rawMessage, lineNum int) *types.Trans
 	if output == "" && raw.Message != nil && raw.Message.Content != nil {
 		output = p.extractTopLevelToolOutput(raw.Message.Content)
 	}
+	role := raw.Role
+	if role == "" && raw.Message != nil {
+		role = raw.Message.Role
+	}
 	return &types.TranscriptMessage{
 		Type:         msgTypeToolResult,
-		Role:         coalesce(raw.Role, msgTypeAssistant),
+		Role:         coalesce(role, msgTypeAssistant),
 		Timestamp:    parseTimestamp(raw.Timestamp),
 		SessionID:    raw.SessionID,
 		MessageIndex: lineNum,

@@ -684,6 +684,13 @@ func TestGetTierBehaviors(t *testing.T) {
 }
 
 func TestEscapeVelocityStatus(t *testing.T) {
+	t.Run("nil metrics", func(t *testing.T) {
+		var m *FlywheelMetrics
+		if got := m.EscapeVelocityStatus(); got != "UNKNOWN" {
+			t.Fatalf("EscapeVelocityStatus() = %q, want UNKNOWN", got)
+		}
+	})
+
 	tests := []struct {
 		name                string
 		aboveEscapeVelocity bool
@@ -705,6 +712,99 @@ func TestEscapeVelocityStatus(t *testing.T) {
 			}
 			if got := m.EscapeVelocityStatus(); got != tt.want {
 				t.Errorf("EscapeVelocityStatus() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHealthStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		m    *FlywheelMetrics
+		want string
+	}{
+		{
+			name: "nil metrics",
+			m:    nil,
+			want: "UNKNOWN",
+		},
+		{
+			name: "golden signal verdict wins",
+			m: &FlywheelMetrics{
+				AboveEscapeVelocity: true,
+				Velocity:            0.4,
+				GoldenSignals: &GoldenSignals{
+					OverallVerdict: "accumulating",
+				},
+			},
+			want: "ACCUMULATING",
+		},
+		{
+			name: "near escape falls back to accumulating",
+			m: &FlywheelMetrics{
+				Velocity: -0.01,
+			},
+			want: "ACCUMULATING",
+		},
+		{
+			name: "escape velocity compounding fallback",
+			m: &FlywheelMetrics{
+				AboveEscapeVelocity: true,
+				Velocity:            0.1,
+			},
+			want: "COMPOUNDING",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.HealthStatus(); got != tt.want {
+				t.Errorf("HealthStatus() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHealthCompounding(t *testing.T) {
+	tests := []struct {
+		name string
+		m    *FlywheelMetrics
+		want bool
+	}{
+		{name: "nil metrics", m: nil, want: false},
+		{
+			name: "golden signal compounding",
+			m: &FlywheelMetrics{
+				AboveEscapeVelocity: false,
+				GoldenSignals: &GoldenSignals{
+					OverallVerdict: "compounding",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "golden signal non-compounding wins",
+			m: &FlywheelMetrics{
+				AboveEscapeVelocity: true,
+				GoldenSignals: &GoldenSignals{
+					OverallVerdict: "decaying",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "falls back to escape velocity",
+			m: &FlywheelMetrics{
+				AboveEscapeVelocity: true,
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.HealthCompounding(); got != tt.want {
+				t.Fatalf("HealthCompounding() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -1240,3 +1240,276 @@ func TestClassifyBlock_NoType(t *testing.T) {
 		t.Error("expected nil tool")
 	}
 }
+
+func TestParser_ParseClaudeLegacyToolArray(t *testing.T) {
+	jsonl := `{"type":"tool_use","sessionId":"test","timestamp":"2026-01-24T10:00:00.000Z","message":{"role":"assistant","tools":[{"name":"Read","input":{"file_path":"/tmp/a.txt"},"output":"hello"}]}}`
+	p := NewParser()
+	result, err := p.Parse(strings.NewReader(jsonl))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(result.Messages) != 1 {
+		t.Fatalf("Messages count = %d, want 1", len(result.Messages))
+	}
+	if len(result.Messages[0].Tools) != 1 || result.Messages[0].Tools[0].Name != "Read" {
+		t.Fatalf("unexpected tools: %+v", result.Messages[0].Tools)
+	}
+	if result.Messages[0].Tools[0].Output != "hello" {
+		t.Fatalf("tool output = %q, want hello", result.Messages[0].Tools[0].Output)
+	}
+}
+
+func TestParser_ParseClaudeLegacyToolArray_SkipsUnnamedTools(t *testing.T) {
+	jsonl := `{"type":"tool_use","sessionId":"test","timestamp":"2026-01-24T10:00:00.000Z","message":{"role":"assistant","tools":[{"input":{"file_path":"/tmp/ignored.txt"}},{"name":"Read","input":{"file_path":"/tmp/a.txt"}}]}}`
+	p := NewParser()
+	result, err := p.Parse(strings.NewReader(jsonl))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(result.Messages) != 1 {
+		t.Fatalf("Messages count = %d, want 1", len(result.Messages))
+	}
+	if len(result.Messages[0].Tools) != 1 || result.Messages[0].Tools[0].Name != "Read" {
+		t.Fatalf("unexpected tools: %+v", result.Messages[0].Tools)
+	}
+}
+
+func TestParser_ParseClaudeToolUseFallbackMessage(t *testing.T) {
+	jsonl := `{"type":"tool_use","sessionId":"test","timestamp":"2026-01-24T10:00:00.000Z","message":{"role":"assistant","content":"tool completed"}}`
+	p := NewParser()
+	result, err := p.Parse(strings.NewReader(jsonl))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(result.Messages) != 1 {
+		t.Fatalf("Messages count = %d, want 1", len(result.Messages))
+	}
+	if result.Messages[0].Content != "tool completed" {
+		t.Fatalf("content = %q, want tool completed", result.Messages[0].Content)
+	}
+}
+
+func TestParser_ParseClaudeToolResultFallbacks(t *testing.T) {
+	t.Run("toolUseResult fallback", func(t *testing.T) {
+		jsonl := `{"type":"tool_result","sessionId":"test","timestamp":"2026-01-24T10:00:00.000Z","toolUseResult":{"status":"ok"}}`
+		p := NewParser()
+		result, err := p.Parse(strings.NewReader(jsonl))
+		if err != nil {
+			t.Fatalf("Parse failed: %v", err)
+		}
+		if got := result.Messages[0].Tools[0].Output; !strings.Contains(got, `"status":"ok"`) {
+			t.Fatalf("tool output = %q, want JSON fallback", got)
+		}
+	})
+
+	t.Run("message content fallback", func(t *testing.T) {
+		jsonl := `{"type":"tool_result","sessionId":"test","timestamp":"2026-01-24T10:00:00.000Z","message":{"role":"user","content":"result body"}}`
+		p := NewParser()
+		result, err := p.Parse(strings.NewReader(jsonl))
+		if err != nil {
+			t.Fatalf("Parse failed: %v", err)
+		}
+		if got := result.Messages[0].Tools[0].Output; got != "result body" {
+			t.Fatalf("tool output = %q, want result body", got)
+		}
+		if result.Messages[0].Role != "user" {
+			t.Fatalf("role = %q, want user", result.Messages[0].Role)
+		}
+	})
+}
+
+func TestParser_ParseCodexEventAndResponseItemEdges(t *testing.T) {
+	p := NewParser()
+
+	t.Run("unsupported event type is skipped", func(t *testing.T) {
+		msg, err := p.parseLine([]byte(`{"type":"event_msg","payload":{"type":"task_started","message":"ignore"}}`), 1)
+		if err != nil {
+			t.Fatalf("parseLine failed: %v", err)
+		}
+		if msg != nil {
+			t.Fatalf("expected nil message, got %+v", msg)
+		}
+	})
+
+	t.Run("invalid event payload returns error", func(t *testing.T) {
+		_, err := p.parseLine([]byte(`{"type":"event_msg","payload":"bad"}`), 1)
+		if err == nil {
+			t.Fatal("expected error for invalid event payload")
+		}
+	})
+
+	t.Run("assistant response_item message parses", func(t *testing.T) {
+		msg, err := p.parseLine([]byte(`{"type":"response_item","timestamp":"2026-03-05T20:20:54.239Z","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"done"}]}}`), 1)
+		if err != nil {
+			t.Fatalf("parseLine failed: %v", err)
+		}
+		if msg == nil || msg.Content != "done" || msg.Role != "assistant" {
+			t.Fatalf("unexpected message: %+v", msg)
+		}
+	})
+
+	t.Run("developer response_item message is skipped", func(t *testing.T) {
+		msg, err := p.parseLine([]byte(`{"type":"response_item","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"ignore"}]}}`), 1)
+		if err != nil {
+			t.Fatalf("parseLine failed: %v", err)
+		}
+		if msg != nil {
+			t.Fatalf("expected nil message, got %+v", msg)
+		}
+	})
+
+	t.Run("custom tool call parses invalid arguments as raw", func(t *testing.T) {
+		msg, err := p.parseLine([]byte(`{"type":"response_item","timestamp":"2026-03-05T20:20:54.282Z","payload":{"type":"custom_tool_call","name":"my_tool","arguments":"not-json"}}`), 1)
+		if err != nil {
+			t.Fatalf("parseLine failed: %v", err)
+		}
+		if msg == nil || len(msg.Tools) != 1 || msg.Tools[0].Input["raw"] != "not-json" {
+			t.Fatalf("unexpected tool call: %+v", msg)
+		}
+	})
+
+	t.Run("custom tool call output parses", func(t *testing.T) {
+		msg, err := p.parseLine([]byte(`{"type":"response_item","timestamp":"2026-03-05T20:20:54.381Z","payload":{"type":"custom_tool_call_output","output":"tool output"}}`), 1)
+		if err != nil {
+			t.Fatalf("parseLine failed: %v", err)
+		}
+		if msg == nil || len(msg.Tools) != 1 || msg.Tools[0].Output != "tool output" {
+			t.Fatalf("unexpected tool output message: %+v", msg)
+		}
+	})
+
+	t.Run("invalid response_item payload returns error", func(t *testing.T) {
+		_, err := p.parseLine([]byte(`{"type":"response_item","payload":"bad"}`), 1)
+		if err == nil {
+			t.Fatal("expected error for invalid response_item payload")
+		}
+	})
+
+	t.Run("invalid session_meta payload returns error", func(t *testing.T) {
+		_, err := p.parseLine([]byte(`{"type":"session_meta","payload":"bad"}`), 1)
+		if err == nil {
+			t.Fatal("expected error for invalid session_meta payload")
+		}
+	})
+
+	t.Run("unsupported response_item type is skipped", func(t *testing.T) {
+		msg, err := p.parseLine([]byte(`{"type":"response_item","payload":{"type":"reasoning"}}`), 1)
+		if err != nil {
+			t.Fatalf("parseLine failed: %v", err)
+		}
+		if msg != nil {
+			t.Fatalf("expected nil message, got %+v", msg)
+		}
+	})
+}
+
+func TestParser_HelperCoverage(t *testing.T) {
+	p := NewParser()
+
+	t.Run("extractTopLevelToolOutput", func(t *testing.T) {
+		if got := p.extractTopLevelToolOutput(nil); got != "" {
+			t.Fatalf("nil output = %q, want empty", got)
+		}
+		if got := p.extractTopLevelToolOutput("plain"); got != "plain" {
+			t.Fatalf("string output = %q, want plain", got)
+		}
+		arr := []any{map[string]any{"text": "hello"}}
+		if got := p.extractTopLevelToolOutput(arr); got != "hello" {
+			t.Fatalf("array output = %q, want hello", got)
+		}
+		if got := p.extractTopLevelToolOutput(map[string]any{"ok": true}); !strings.Contains(got, `"ok":true`) {
+			t.Fatalf("object output = %q, want JSON", got)
+		}
+		if got := p.extractTopLevelToolOutput(map[string]any{"bad": make(chan int)}); got != "" {
+			t.Fatalf("marshal error output = %q, want empty", got)
+		}
+	})
+
+	t.Run("parseCodexToolInput", func(t *testing.T) {
+		if got := parseCodexToolInput(""); got != nil {
+			t.Fatalf("empty input = %#v, want nil", got)
+		}
+		if got := parseCodexToolInput(`{"cmd":"pwd"}`); got["cmd"] != "pwd" {
+			t.Fatalf("object input = %#v, want cmd", got)
+		}
+		if got := parseCodexToolInput(`[1,2]`); fmt.Sprint(got["value"]) != "[1 2]" {
+			t.Fatalf("array input = %#v, want wrapped value", got)
+		}
+		if got := parseCodexToolInput(`oops`); got["raw"] != "oops" {
+			t.Fatalf("invalid input = %#v, want raw fallback", got)
+		}
+	})
+
+	t.Run("coalesce", func(t *testing.T) {
+		if got := coalesce("", " ", "value"); got != "value" {
+			t.Fatalf("coalesce = %q, want value", got)
+		}
+		if got := coalesce("", " "); got != "" {
+			t.Fatalf("coalesce = %q, want empty", got)
+		}
+	})
+}
+
+type errorReader struct{}
+
+func (errorReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("boom")
+}
+
+func TestParse_ReadError(t *testing.T) {
+	p := NewParser()
+	result, err := p.Parse(errorReader{})
+	if err == nil {
+		t.Fatal("expected read error")
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if !strings.Contains(err.Error(), "read jsonl") {
+		t.Fatalf("error = %v, want read jsonl wrapper", err)
+	}
+}
+
+func TestParseChannel_StrictMalformedStops(t *testing.T) {
+	p := NewParser()
+	p.SkipMalformed = false
+
+	msgCh, errCh := p.ParseChannel(strings.NewReader("{bad json\n"))
+	for range msgCh {
+	}
+
+	err := <-errCh
+	if err == nil {
+		t.Fatal("expected parse channel error")
+	}
+	if !strings.Contains(err.Error(), "line 1") {
+		t.Fatalf("error = %v, want line number", err)
+	}
+}
+
+func TestParseChannel_ReadError(t *testing.T) {
+	p := NewParser()
+
+	msgCh, errCh := p.ParseChannel(errorReader{})
+	for range msgCh {
+	}
+
+	err := <-errCh
+	if err == nil {
+		t.Fatal("expected read error")
+	}
+	if !strings.Contains(err.Error(), "read jsonl") {
+		t.Fatalf("error = %v, want read jsonl wrapper", err)
+	}
+}
+
+func TestParser_ParseClaudeToolUseWithoutToolDataReturnsNil(t *testing.T) {
+	p := NewParser()
+	msg, err := p.parseLine([]byte(`{"type":"tool_use","sessionId":"test","timestamp":"2026-01-24T10:00:00.000Z"}`), 1)
+	if err != nil {
+		t.Fatalf("parseLine failed: %v", err)
+	}
+	if msg != nil {
+		t.Fatalf("expected nil message, got %+v", msg)
+	}
+}
