@@ -168,9 +168,8 @@ AgentOps has three runtime modes. Do not assume hook automation exists everywher
 
 | Mode | When it applies | Start path | Closeout path | Guarantees |
 |------|-----------------|------------|---------------|------------|
-| `hook-capable` | Claude/OpenCode with lifecycle hooks installed | Runtime hook or `ao inject` / `ao lookup` | Runtime hook or `ao forge transcript` + `ao flywheel close-loop` | Automatic startup/context injection and session-end maintenance when hooks are installed |
 | `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces | `ao codex start` | `ao codex stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
-| `manual` | No hooks and no Codex-native runtime detection | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Works everywhere, but lifecycle actions are operator-driven |
+| `manual` | Codex cannot resolve repo/runtime state automatically | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Works everywhere, but lifecycle actions are operator-driven |
 
 ## Issue Tracking
 
@@ -187,20 +186,13 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 
 ### Startup Context Loading
 
-**Hook-capable runtimes**
-1. `session-start.sh` (or equivalent) can run at session start.
-2. In `manual` mode, MEMORY.md is auto-loaded and the hook points to on-demand retrieval (`ao search`, `ao lookup`).
-3. In `lean` mode, the hook extracts pending knowledge and injects prior learnings with a reduced token budget.
-4. This skill can be injected automatically into session context.
-
-**Codex hookless fallback**
-1. Run `ao codex start`.
+1. Run `ao codex start` when Codex is detected without hooks.
 2. AgentOps inspects `.agents/`, runs safe close-loop maintenance, syncs MEMORY.md, and writes `.agents/ao/codex/startup-context.md`.
 3. Surfaced learnings, patterns, and findings are cited as `retrieved`.
-4. Use `ao lookup` for automatic citations during work, or `ao search --cite retrieved|reference|applied` when a search result is actually adopted.
+4. Use `ao lookup` for automatic citations during work, or `ao search --cite retrieved|reference|applied` when a search result is adopted.
 5. End the session with `ao codex stop`, then verify loop health with `ao codex status`.
 
-**Result:** The agent gets the RPI workflow, prior context, and a citation path in both modes. The difference is whether lifecycle work is hook-driven or command-driven.
+**Result:** In hookless Codex mode, the agent still gets prior context, citations, and closeout without hidden hooks.
 
 ### Workflow Reference During Planning
 
@@ -229,4 +221,3 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 ### scripts/
 
 - `scripts/validate.sh`
-

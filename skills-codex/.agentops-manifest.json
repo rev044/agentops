@@ -658,7 +658,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "fbbedf5eb3b7883680a8a538748816756c7daa1d6d80b450dc2830af3fa9da17",
-      "generated_hash": "3d1b1850b2d8d15ecc129f7438a1d809bb97c989e9d47da1d84926c2515f40c1"
+      "generated_hash": "530bb54713d3b06576418e4c74630e71e886b97299ffa9d10d0a0247cb50647d"
     },
     {
       "name": "pr-implement",
@@ -826,7 +826,7 @@
       "name": "using-agentops",
       "source_skill": "skills/using-agentops",
       "source_hash": "4416cf30a11c6486e3962e9ed2e44067fab2b17bcc498b759d15beb6f1ae504c",
-      "generated_hash": "ac7744194ca5f75d2b34bc83bc9e5dec25b5c64893b74e9501724a1134616919"
+      "generated_hash": "a3466b4aaa05e2c126783bc26156d7fdaf0876a6493cad2c9dd058f770da1c21"
     },
     {
       "name": "validation",

@@ -43,8 +43,6 @@ Six phases:
 /post-mortem --skip-activate    # extract + process but don't write MEMORY.md
 /post-mortem --deep recent      # thorough council review
 /post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
-/post-mortem --explorers=2 epic-123  # deep investigation before judging
-/post-mortem --debate epic-123      # two-round adversarial review
 /post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 ```
 
@@ -57,7 +55,7 @@ ao codex stop
 ao codex status
 ```
 
-`ao codex stop` resolves the latest Codex transcript or history fallback, queues/persists learnings safely, and runs close-loop maintenance without depending on runtime hooks.
+`ao codex stop` uses the latest transcript or history fallback to queue/persist learnings and run close-loop maintenance without runtime hooks.
 
 ---
 
@@ -980,27 +978,19 @@ Ship it
 **User says:** `/post-mortem`
 
 **What happens:**
-1. Agent scans recent commits (last 7 days)
-2. Runs `/council --deep --preset=retrospective validate recent`
-3. 3 judges (plan-compliance, tech-debt, learnings) review
-4. Extracts learnings inline (Phase 2: context gathering, classification, writing)
-5. Processes backlog (Phase 3: scores, deduplicates, flags stale)
-6. Activates high-value learnings (Phase 4: promotes to MEMORY.md)
-7. Retires stale knowledge (Phase 5)
-8. Synthesizes process improvement proposals
-9. Harvests next-work items to `.agents/rpi/next-work.jsonl`
-10. Feeds learnings to knowledge flywheel via `ao forge`
+1. Agent scans recent commits.
+2. Runs `/council --deep validate recent`.
+3. Extracts learnings, processes backlog, and promotes items.
+4. Harvests next-work to `.agents/rpi/next-work.jsonl`.
 
-**Result:** Post-mortem report with learnings, tech debt identified, knowledge lifecycle stats, and suggested next `/rpi` command.
+**Result:** Report with learnings, stats, and a suggested `/rpi` command.
 
 ### Other Modes
 
-- **Epic-specific:** `/post-mortem ag-5k2` — loads plan, council reviews vs plan, full Phase 2-6 lifecycle
-- **Quick capture:** `/post-mortem --quick "insight"` — writes directly to `.agents/learnings/`, no council
-- **Process-only:** `/post-mortem --process-only` — skip council/extraction, run Phase 3-5 on backlog
-- **Cross-vendor:** `/post-mortem --mixed ag-3b7` — 3 Claude + 3 Codex judges for broader coverage
-
-**Result:** Higher confidence validation with cross-vendor review before closing epic.
+- **Epic-specific:** `/post-mortem ag-5k2` — review against the target plan
+- **Quick capture:** `/post-mortem --quick "insight"` — write a learning without council
+- **Process-only:** `/post-mortem --process-only` — run backlog processing only
+- **Cross-vendor:** `/post-mortem --mixed ag-3b7` — broaden judgment coverage
 
 ## Troubleshooting
 
@@ -1008,12 +998,8 @@ Ship it
 |---------|-------|----------|
 | Council times out | Epic too large or too many files changed | Split post-mortem into smaller reviews or increase timeout |
 | No next-work items harvested | Council found no tech debt or improvements | Flywheel stable — write entry with empty items array to next-work.jsonl |
-| Schema validation failed | Harvested item missing required field or has invalid enum value | Drop invalid item, log error, proceed with valid items only |
 | Checkpoint-policy preflight blocks | Prior FAIL verdict in ratchet chain without fix | Resolve prior failure (fix + re-vibe) or skip checkpoint-policy via `--skip-checkpoint-policy` |
 | Metadata verification fails | Plan vs actual files mismatch or missing cross-references | Include failures in council packet as `context.metadata_failures` — judges assess severity |
-| Phase 3 finds zero learnings | last-processed marker is very recent or no learnings exist | Reset marker: `date -v-30d +%Y-%m-%dT%H:%M:%S > .agents/ao/last-processed` |
-| Phase 4 promotion duplicates | MEMORY.md already has the insight | Grep-based dedup should catch this; if not, manually deduplicate MEMORY.md |
-| Phase 5 archives too aggressively | 30-day window too short for slow-cadence projects | Adjust the staleness threshold in `references/backlog-processing.md` |
 
 ---
 
