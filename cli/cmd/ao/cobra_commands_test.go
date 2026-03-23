@@ -47,6 +47,22 @@ func executeCommand(args ...string) (string, error) {
 	origHooksFull := hooksFull
 	origHooksDryRun := hooksDryRun
 	origHooksForce := hooksForce
+	origSearchLimit := searchLimit
+	origSearchType := searchType
+	origSearchCiteType := searchCiteType
+	origSearchSession := searchSession
+	origSearchUseSC := searchUseSC
+	origSearchUseCASS := searchUseCASS
+	origSearchUseLocal := searchUseLocal
+	origCodexStartLimit := codexStartLimit
+	origCodexStartQuery := codexStartQuery
+	origCodexStartNoMaintenance := codexStartNoMaintenance
+	origCodexStopSessionID := codexStopSessionID
+	origCodexStopTranscriptPath := codexStopTranscriptPath
+	origCodexStopAutoExtract := codexStopAutoExtract
+	origCodexStopNoHistoryFallback := codexStopNoHistoryFallback
+	origCodexStopNoCloseLoop := codexStopNoCloseLoop
+	origCodexStatusDays := codexStatusDays
 	origAutodevFile := autodevFile
 	origAutodevForce := autodevForce
 	origFindingsListLimit := findingsListLimit
@@ -75,6 +91,22 @@ func executeCommand(args ...string) (string, error) {
 		hooksFull = origHooksFull
 		hooksDryRun = origHooksDryRun
 		hooksForce = origHooksForce
+		searchLimit = origSearchLimit
+		searchType = origSearchType
+		searchCiteType = origSearchCiteType
+		searchSession = origSearchSession
+		searchUseSC = origSearchUseSC
+		searchUseCASS = origSearchUseCASS
+		searchUseLocal = origSearchUseLocal
+		codexStartLimit = origCodexStartLimit
+		codexStartQuery = origCodexStartQuery
+		codexStartNoMaintenance = origCodexStartNoMaintenance
+		codexStopSessionID = origCodexStopSessionID
+		codexStopTranscriptPath = origCodexStopTranscriptPath
+		codexStopAutoExtract = origCodexStopAutoExtract
+		codexStopNoHistoryFallback = origCodexStopNoHistoryFallback
+		codexStopNoCloseLoop = origCodexStopNoCloseLoop
+		codexStatusDays = origCodexStatusDays
 		autodevFile = origAutodevFile
 		autodevForce = origAutodevForce
 		findingsListLimit = origFindingsListLimit
@@ -102,6 +134,22 @@ func executeCommand(args ...string) (string, error) {
 	hooksFull = false
 	hooksDryRun = false
 	hooksForce = false
+	searchLimit = 10
+	searchType = ""
+	searchCiteType = ""
+	searchSession = ""
+	searchUseSC = false
+	searchUseCASS = false
+	searchUseLocal = false
+	codexStartLimit = 3
+	codexStartQuery = ""
+	codexStartNoMaintenance = false
+	codexStopSessionID = ""
+	codexStopTranscriptPath = ""
+	codexStopAutoExtract = true
+	codexStopNoHistoryFallback = false
+	codexStopNoCloseLoop = false
+	codexStatusDays = 7
 	autodevFile = ""
 	autodevForce = false
 	findingsListLimit = 20
@@ -183,7 +231,7 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 	// Verify all top-level commands are registered (flat namespace)
 	expectedCmds := []string{
 		"anti-patterns", "autodev", "badge", "batch-feedback", "completion", "config",
-		"constraint", "context", "contradict", "curate", "dedup",
+		"constraint", "context", "codex", "contradict", "curate", "dedup",
 		"defrag", "demo", "doctor", "extract", "feedback", "feedback-loop",
 		"findings", "flywheel", "forge", "gate", "goals", "handoff", "hooks",
 		"index", "init", "inject", "lookup", "maturity",
@@ -236,7 +284,7 @@ func TestCobraExpectedCmdsMatchRegistration(t *testing.T) {
 	// Same list as TestCobraCommandTreeRegistration
 	expectedCmds := []string{
 		"anti-patterns", "autodev", "badge", "batch-feedback", "completion", "config",
-		"constraint", "context", "contradict", "curate", "dedup",
+		"constraint", "context", "codex", "contradict", "curate", "dedup",
 		"defrag", "demo", "doctor", "extract", "feedback", "feedback-loop",
 		"findings", "flywheel", "forge", "gate", "goals", "handoff", "hooks",
 		"index", "init", "inject", "lookup", "maturity",

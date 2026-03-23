@@ -205,7 +205,7 @@ func runInject(cmd *cobra.Command, args []string) error {
 	cfg := loadInjectConfig()
 	beadCtx := resolveInjectBeadContext(cwd)
 
-	sessionID := canonicalSessionID(injectSessionID)
+	sessionID := resolveSessionID(injectSessionID)
 	knowledge := gatherKnowledge(cwd, query, sessionID, cfg)
 	knowledge.BeadID = injectBead
 

@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -990,32 +989,4 @@ func collectTranscriptCandidates(projectsDir string) ([]fileWithTime, error) {
 	})
 
 	return candidates, err
-}
-
-// findLastSession finds the most recently modified transcript file.
-func findLastSession() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("get home directory: %w", err)
-	}
-
-	projectsDir := filepath.Join(homeDir, ".claude", "projects")
-	if _, err := os.Stat(projectsDir); os.IsNotExist(err) {
-		return "", fmt.Errorf("no Claude projects directory found at %s", projectsDir)
-	}
-
-	candidates, err := collectTranscriptCandidates(projectsDir)
-	if err != nil {
-		return "", fmt.Errorf("walk projects directory: %w", err)
-	}
-
-	if len(candidates) == 0 {
-		return "", fmt.Errorf("no transcript files found in %s", projectsDir)
-	}
-
-	slices.SortFunc(candidates, func(a, b fileWithTime) int {
-		return b.modTime.Compare(a.modTime)
-	})
-
-	return candidates[0].path, nil
 }

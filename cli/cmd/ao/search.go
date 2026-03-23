@@ -19,7 +19,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/storage"
+	"github.com/boshu2/agentops/cli/internal/types"
 	"github.com/boshu2/agentops/cli/pkg/vault"
 )
 
@@ -34,6 +36,8 @@ const (
 var (
 	searchLimit    int
 	searchType     string
+	searchCiteType string
+	searchSession  string
 	searchUseSC    bool
 	searchUseCASS  bool
 	searchUseLocal bool
@@ -72,6 +76,8 @@ func init() {
 	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().IntVar(&searchLimit, "limit", 10, "Maximum results to return")
 	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: session(s), learning(s), pattern(s), finding(s), research, decision(s), knowledge")
+	searchCmd.Flags().StringVar(&searchCiteType, "cite", "", "Optional citation type to record for matching repo-local artifacts: retrieved, reference, applied")
+	searchCmd.Flags().StringVar(&searchSession, "session", "", "Session ID for citation tracking (defaults to the active runtime session)")
 	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Try Smart Connections semantic search first (requires Obsidian)")
 	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Require upstream cass session-history search")
 	searchCmd.Flags().BoolVar(&searchUseLocal, "local", false, "Force repo-local AgentOps search only")
@@ -129,6 +135,10 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		results = results[:searchLimit]
 	}
 
+	if citationType := canonicalCitationType(searchCiteType); citationType != "" {
+		recordSearchCitations(cwd, results, resolveSessionID(searchSession), query, citationType)
+	}
+
 	return outputSearchResults(query, results)
 }
 
@@ -143,6 +153,24 @@ func outputSearchResults(query string, results []searchResult) error {
 	}
 	displaySearchResults(query, results)
 	return nil
+}
+
+func recordSearchCitations(cwd string, results []searchResult, sessionID, query, citationType string) {
+	for _, result := range results {
+		if !isRetrievableArtifactPath(cwd, result.Path) {
+			continue
+		}
+		event := types.CitationEvent{
+			ArtifactPath: canonicalArtifactPath(cwd, result.Path),
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: citationType,
+			Query:        query,
+		}
+		if err := ratchet.RecordCitation(cwd, event); err != nil {
+			VerbosePrintf("Warning: record citation for %s: %v\n", result.Path, err)
+		}
+	}
 }
 
 // selectAndSearch chooses the search backend and executes the search.

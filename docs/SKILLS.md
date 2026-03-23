@@ -435,7 +435,7 @@ These fire automatically and are not directly invoked:
 | `standards` | Language-specific coding standards (auto-loaded by /vibe, /implement) |
 | `shared` | Shared reference documents for multi-agent backends |
 | `beads` | Issue tracking reference |
-| `using-agentops` | Workflow guide (auto-injected on session start) |
+| `using-agentops` | Workflow guide (hook-capable auto-injection, explicit Codex startup fallback) |
 
 ---
 

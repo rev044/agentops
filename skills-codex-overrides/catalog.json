@@ -226,9 +226,11 @@
           "## Guardrails"
         ],
         "required_markers": [
-          "write learnings and harvested work to disk",
-          ".agents/rpi/next-work.jsonl",
-          "claim/release/consume through the queue lifecycle"
+          "Treat `skills/post-mortem/SKILL.md` as the canonical close-out contract and `skills-codex/post-mortem/SKILL.md` as the Codex-facing artifact.",
+          "Keep the council/validation summary concise, then write learnings and harvested work to disk.",
+          "Prefer concrete follow-up items that can flow directly into `.agents/rpi/next-work.jsonl` for the next Codex loop.",
+          "Finish Codex closeout with `ao codex stop`, and recommend `ao codex status` when the user needs to confirm lifecycle health.",
+          "Keep harvested work machine-checkable: available on write, then claim/release/consume through the queue lifecycle."
         ]
       }
     },
@@ -334,8 +336,10 @@
           "## Guardrails"
         ],
         "required_markers": [
+          "Treat `skills/recover/SKILL.md` as the canonical recovery contract and `skills-codex/recover/SKILL.md` as the Codex-facing artifact.",
           "Rebuild state from files, issues, generated artifacts, and git state before trusting chat memory.",
           "Return recovery output in this order: `Resume Target`, `Evidence`, `Gaps or Conflicts`, `Next Step`.",
+          "Prefer `ao codex status` to inspect lifecycle health, then `ao codex start` to rebuild startup context when the session is hookless.",
           "Make the `Next Step` directly executable by the current Codex session."
         ]
       }

@@ -7,6 +7,8 @@ description: 'Wrap up completed work. Council validates the implementation, then
 # Post-Mortem Skill
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
+>
+> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex sessions should finish closeout with `ao codex stop`.
 
 Six phases:
 1. **Council** — Did we implement it correctly?
@@ -32,6 +34,17 @@ $post-mortem --explorers=2 epic-123  # deep investigation before judging
 $post-mortem --debate epic-123      # two-round adversarial review
 $post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 ```
+
+### Codex Closeout
+
+In Codex hookless mode, run these after the post-mortem workflow writes learnings and next work:
+
+```bash
+ao codex stop
+ao codex status
+```
+
+`ao codex stop` resolves the latest Codex transcript or history fallback, queues/persists learnings safely, and runs close-loop maintenance without depending on runtime hooks.
 
 ---
 
@@ -1061,5 +1074,4 @@ $rpi "<highest-priority enhancement>"
 - `scripts/preflight-refs.sh`
 - `scripts/validate.sh`
 - `scripts/write-evidence-only-closure.sh`
-
 

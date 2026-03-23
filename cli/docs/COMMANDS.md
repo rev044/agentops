@@ -699,6 +699,69 @@ ao autodev validate [flags]
 
 ---
 
+### `ao codex`
+
+Codex-native lifecycle commands for runtimes without Claude/OpenCode lifecycle hooks.
+
+```
+ao codex [command]
+```
+
+**Subcommands:**
+
+#### `ao codex start`
+
+Start a Codex session with explicit flywheel maintenance
+
+```
+ao codex start [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help             help for start
+      --limit int        Maximum artifacts to surface per category (default 3)
+      --no-maintenance   Skip safe close-loop maintenance on start
+      --query string     Optional startup query (defaults to the current Codex thread name)
+```
+
+#### `ao codex status`
+
+Show Codex hookless lifecycle health
+
+```
+ao codex status [flags]
+```
+
+**Flags:**
+
+```
+      --days int   Citation window in days for Codex lifecycle health (default 7)
+  -h, --help       help for status
+```
+
+#### `ao codex stop`
+
+Close a Codex session without relying on runtime hooks
+
+```
+ao codex stop [flags]
+```
+
+**Flags:**
+
+```
+      --auto-extract          Write lightweight learnings and handoff artifacts during closeout (default true)
+  -h, --help                  help for stop
+      --no-close-loop         Skip flywheel close-loop maintenance after forging
+      --no-history-fallback   Disable history.jsonl fallback when no archived Codex transcript exists
+      --session string        Codex session ID to close (defaults to the active thread)
+      --transcript string     Explicit transcript path to forge instead of runtime discovery
+```
+
+---
+
 ### `ao feedback-loop`
 
 Automatically close the MemRL feedback loop by updating utilities of cited learnings.
@@ -1823,6 +1886,7 @@ ao lookup [id] [flags]
 
 ```
       --bead string      Filter by source bead ID
+      --cite string      Citation type to record for returned artifacts: retrieved, reference, applied (default "retrieved")
   -h, --help             help for lookup
       --json             JSON output
       --limit int        Maximum results to return (default 3)
@@ -1925,12 +1989,14 @@ ao search <query> [flags]
 **Flags:**
 
 ```
-      --cass          Require upstream cass session-history search
-  -h, --help          help for search
-      --limit int     Maximum results to return (default 10)
-      --local         Force repo-local AgentOps search only
-      --type string   Filter by type: session(s), learning(s), pattern(s), finding(s), research, decision(s), knowledge
-      --use-sc        Try Smart Connections semantic search first (requires Obsidian)
+      --cass             Require upstream cass session-history search
+      --cite string      Optional citation type to record for matching repo-local artifacts: retrieved, reference, applied
+  -h, --help             help for search
+      --limit int        Maximum results to return (default 10)
+      --local            Force repo-local AgentOps search only
+      --session string   Session ID for citation tracking (defaults to the active runtime session)
+      --type string      Filter by type: session(s), learning(s), pattern(s), finding(s), research, decision(s), knowledge
+      --use-sc           Try Smart Connections semantic search first (requires Obsidian)
 ```
 
 ---

@@ -69,7 +69,7 @@ func init() {
 }
 
 func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
+	cwd, err := resolveProjectDir()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
 	}
@@ -79,23 +79,32 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	result := flywheelCloseLoopResult{}
-
-	// 1) pool ingest (pending markdown → pool candidates)
-	ingestFiles, err := resolveIngestFiles(cwd, flywheelCloseLoopPendingDir, nil)
+	result, err := performFlywheelCloseLoop(cwd, flywheelCloseLoopPendingDir, threshold, flywheelCloseLoopQuiet)
 	if err != nil {
 		return err
 	}
+
+	return outputFlywheelCloseLoopResult(result)
+}
+
+func performFlywheelCloseLoop(cwd, pendingDir string, threshold time.Duration, quiet bool) (flywheelCloseLoopResult, error) {
+	result := flywheelCloseLoopResult{}
+
+	// 1) pool ingest (pending markdown → pool candidates)
+	ingestFiles, err := resolveIngestFiles(cwd, pendingDir, nil)
+	if err != nil {
+		return result, err
+	}
 	result.Ingest, err = ingestPendingFilesToPool(cwd, ingestFiles)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	// 2) auto-promote + promote
 	p := pool.NewPool(cwd)
 	result.AutoPromote, err = autoPromoteAndPromoteToArtifacts(p, threshold, true)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	// 3) citation-to-utility feedback: process unprocessed citations
@@ -107,12 +116,12 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 	result.CitationFeedback.Skipped = skipped
 
 	// 4) auto-promote learnings whose utility was bumped by citation feedback
-	promoteCitedLearnings(cwd, flywheelCloseLoopQuiet)
+	promoteCitedLearnings(cwd, quiet)
 
 	// 5) apply ALL maturity transitions (not just anti-patterns)
 	maturityResult, err := applyAllMaturityTransitions(cwd)
 	if err != nil {
-		return err
+		return result, err
 	}
 	result.AntiPattern.Eligible = maturityResult.Total
 	result.AntiPattern.Promoted = maturityResult.Applied
@@ -124,19 +133,19 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 	result.Store.Categorize = true
 	indexed, indexPath, err := storeIndexUpsert(cwd, pathsToIndex, true)
 	if err != nil {
-		return err
+		return result, err
 	}
 	result.Store.Indexed = indexed
 	result.Store.IndexPath = indexPath
 
 	// 7) promote high-value learnings to MEMORY.md
 	memoryPromoted, memErr := promoteToMemory(cwd)
-	if memErr != nil && !flywheelCloseLoopQuiet {
+	if memErr != nil && !quiet {
 		fmt.Fprintf(os.Stderr, "warn: memory promotion: %v\n", memErr)
 	}
 	result.MemoryPromoted = memoryPromoted
 
-	return outputFlywheelCloseLoopResult(result)
+	return result, nil
 }
 
 func outputFlywheelCloseLoopResult(res flywheelCloseLoopResult) error {

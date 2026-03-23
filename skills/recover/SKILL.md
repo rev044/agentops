@@ -1,6 +1,6 @@
 ---
 name: recover
-description: 'Post-compaction context recovery. Detects in-progress RPI and evolve sessions, loads knowledge, shows recent work and pending tasks. Triggers: "recover", "lost context", "where was I", "what was I working on".'
+description: 'Post-compaction context recovery. Detects in-progress RPI and evolve sessions, loads knowledge, shows recent work and pending tasks. In Codex, it also prefers the explicit hookless lifecycle path. Triggers: "recover", "lost context", "where was I", "what was I working on".'
 skill_api_version: 1
 context:
   window: inherit
@@ -14,7 +14,7 @@ metadata:
 
 # /recover — Context Recovery After Compaction
 
-> **Purpose:** Help you get back up to speed after Claude Code context compaction. Automatically detects in-progress work (RPI runs, evolve cycles), loads relevant knowledge, and summarizes what you were doing and what's next.
+> **Purpose:** Help you get back up to speed after context compaction. Automatically detects in-progress work (RPI runs, evolve cycles), loads relevant knowledge, summarizes what you were doing and what's next, and prefers the Codex hookless lifecycle path when applicable.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -27,6 +27,8 @@ metadata:
 ```bash
 /recover              # Full recovery dashboard
 /recover --json       # Machine-readable JSON output
+ao codex status       # Codex hookless lifecycle health
+ao codex start        # Rebuild startup context explicitly in Codex
 ```
 
 ---
@@ -97,12 +99,30 @@ else
 fi
 ```
 
+**Call 6 — Codex Lifecycle (if available):**
+```bash
+if command -v ao &>/dev/null; then
+  echo "=== CODEX_STATUS ==="
+  ao codex status --json 2>/dev/null || echo "CODEX_STATUS=UNAVAILABLE"
+else
+  echo "AO_UNAVAILABLE"
+fi
+```
+
 ### Step 2: Load Context from Knowledge Base
 
 If RPI state detected, run:
 ```bash
 if command -v ao &>/dev/null; then
   ao lookup --query "rpi recovery context" --limit 5 2>/dev/null || true
+fi
+```
+
+If Codex hookless mode is detected, also run:
+
+```bash
+if command -v ao &>/dev/null && { [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; }; then
+  ao codex start --no-maintenance 2>/dev/null || true
 fi
 ```
 

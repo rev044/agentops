@@ -139,11 +139,22 @@ func runSessionClose(cmd *cobra.Command, args []string) error {
 // forgeExtractAndReport runs the forge/extract/measure pipeline and outputs
 // the session close result. Extracted from runSessionClose to reduce CC.
 func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
-	cwd, err := os.Getwd()
+	cwd, err := resolveProjectDir()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
 	}
+	result, err := forgeExtractReportWithOptions(transcriptPath, cwd, autoExtract, true)
+	if err != nil {
+		return err
+	}
+	return outputCloseResult(result)
+}
 
+func forgeExtractReport(transcriptPath, cwd string, autoExtract bool) (SessionCloseResult, error) {
+	return forgeExtractReportWithOptions(transcriptPath, cwd, autoExtract, true)
+}
+
+func forgeExtractReportWithOptions(transcriptPath, cwd string, autoExtract, processPending bool) (SessionCloseResult, error) {
 	preMetrics, err := computeMetrics(cwd, 7)
 	if err != nil {
 		VerbosePrintf("Warning: pre-forge metrics: %v\n", err)
@@ -151,13 +162,13 @@ func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
 
 	session, err := forgeTranscriptForClose(transcriptPath, cwd)
 	if err != nil {
-		return fmt.Errorf("forge transcript: %w", err)
+		return SessionCloseResult{}, fmt.Errorf("forge transcript: %w", err)
 	}
 
 	VerbosePrintf("Forged session %s: %d decisions, %d knowledge items\n",
 		session.ID, len(session.Decisions), len(session.Knowledge))
 
-	extractCount, err := extractForClose(session, transcriptPath, cwd)
+	extractCount, err := extractForClose(session, transcriptPath, cwd, processPending)
 	if err != nil {
 		VerbosePrintf("Warning: extraction: %v\n", err)
 	} else {
@@ -196,7 +207,7 @@ func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
 		}
 	}
 
-	result := SessionCloseResult{
+	return SessionCloseResult{
 		SessionID:          session.ID,
 		Transcript:         transcriptPath,
 		Decisions:          len(session.Decisions),
@@ -209,9 +220,7 @@ func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
 		LearningsExtracted: extractResult.written,
 		LearningsRejected:  extractResult.rejected,
 		HandoffWritten:     handoffPath,
-	}
-
-	return outputCloseResult(result)
+	}, nil
 }
 
 // computeVelocityDelta returns the velocity change between pre and post metrics.
@@ -248,30 +257,6 @@ func resolveTranscript(sessionID string) (string, bool, error) {
 		return "", false, fmt.Errorf("no transcript found: %w", err)
 	}
 	return path, true, nil
-}
-
-// findTranscriptBySessionID searches for a transcript file matching the session ID.
-func findTranscriptBySessionID(sessionID string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("get home directory: %w", err)
-	}
-
-	// Search in ~/.claude/projects/*/conversations/<id>.jsonl
-	conversationsPattern := filepath.Join(homeDir, ".claude", "projects", "*", "conversations", sessionID+".jsonl")
-	matches, err := filepath.Glob(conversationsPattern)
-	if err == nil && len(matches) > 0 {
-		return matches[0], nil
-	}
-
-	// Also try direct match in project dirs (older layout)
-	directPattern := filepath.Join(homeDir, ".claude", "projects", "*", sessionID+".jsonl")
-	matches, err = filepath.Glob(directPattern)
-	if err == nil && len(matches) > 0 {
-		return matches[0], nil
-	}
-
-	return "", fmt.Errorf("no transcript found for session %s", sessionID)
 }
 
 // forgeTranscriptForClose runs the forge pipeline on a transcript.
@@ -333,10 +318,14 @@ func forgeTranscriptForClose(transcriptPath, cwd string) (*storage.Session, erro
 }
 
 // extractForClose queues the session for extraction and processes it.
-func extractForClose(session *storage.Session, transcriptPath, cwd string) (int, error) {
+func extractForClose(session *storage.Session, transcriptPath, cwd string, processPending bool) (int, error) {
 	// Queue session for extraction
 	if err := queueForExtraction(session, "", transcriptPath, cwd); err != nil {
 		return 0, fmt.Errorf("queue for extraction: %w", err)
+	}
+
+	if !processPending {
+		return 0, nil
 	}
 
 	// Read and process pending extractions

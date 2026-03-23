@@ -37,7 +37,7 @@ func runMetricsCite(cmd *cobra.Command, args []string) error {
 	if citeSession == "" {
 		citeSession = detectSessionID()
 	}
-	citeSession = canonicalSessionID(citeSession)
+	citeSession = resolveSessionID(citeSession)
 
 	event := types.CitationEvent{
 		ArtifactPath: artifactPath,
@@ -65,12 +65,5 @@ func runMetricsCite(cmd *cobra.Command, args []string) error {
 
 // detectSessionID tries to detect the current session ID.
 func detectSessionID() string {
-	// Check CLAUDE_SESSION_ID env var
-	if id := os.Getenv("CLAUDE_SESSION_ID"); id != "" {
-		return canonicalSessionID(id)
-	}
-
-	// Check for session file in current dir
-	// This is a fallback - real session ID should come from Claude
-	return canonicalSessionID("")
+	return resolveSessionID("")
 }

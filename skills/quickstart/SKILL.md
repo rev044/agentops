@@ -27,6 +27,7 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo "GIT=true" || echo "
 command -v ao >/dev/null && echo "AO=true" || echo "AO=false"
 command -v bd >/dev/null && echo "BD=true" || echo "BD=false"
 [ -d .agents ] && echo "AGENTS=true" || echo "AGENTS=false"
+[ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ] && echo "CODEX=true" || echo "CODEX=false"
 ```
 
 ### Step 2: Show what AgentOps does
@@ -36,7 +37,7 @@ Output exactly this (no additions, no diagrams):
 ```
 AgentOps gives your coding agent three things it doesn't have by default:
 
-  Memory    — sessions accumulate learnings in .agents/ and inject them back
+  Memory    — sessions accumulate learnings in .agents/ and surface them back
   Judgment  — /council spawns independent judges to validate plans and code
   Workflow  — /rpi chains research → plan → implement → validate in one command
 
@@ -51,9 +52,13 @@ Match the first row that applies. Output only that message — nothing else.
 | Condition | Message |
 |-----------|---------|
 | GIT=false | "⚠ Not in a git repo. Run `git init` first." |
+| AO=false + CODEX=true | "📦 Install ao CLI first:\n  brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops\n  brew install agentops\n  ao init && ao seed\n  ao codex start\nThen: `/rpi \"a small goal\"` to run your first cycle." |
 | AO=false | "📦 Install ao CLI first:\n  brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops\n  brew install agentops\n  ao init --hooks && ao seed\nThen: `/rpi \"a small goal\"` to run your first cycle." |
+| AGENTS=false + CODEX=true | "🌱 ao is installed but not initialized here.\n  ao init && ao seed\n  ao codex start\nThen: `/rpi \"a small goal\"` to run your first cycle." |
 | AGENTS=false | "🌱 ao is installed but not initialized here.\n  ao init --hooks && ao seed\nThen: `/rpi \"a small goal\"` to run your first cycle." |
+| BD=false + CODEX=true | "✅ Codex fallback ready.\n  `ao codex start` — surface prior context and run safe maintenance\n  `/rpi \"your goal\"` — full research → plan → implement pipeline\n  `ao codex stop` — close out the session and queue learnings\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
 | BD=false | "✅ Flywheel active. Start now:\n  `/rpi \"your goal\"` — full research → plan → implement pipeline\n  `/vibe recent` — validate recent changes\n  `/research <topic>` — explore the codebase\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
+| BD=true + CODEX=true | "✅ Codex full stack ready.\n  `ao codex start` — start with prior context\n  `bd ready` — see open work\n  `/rpi \"your goal\"` — start a new goal from scratch\n  `ao codex stop` — close out the session cleanly" |
 | BD=true | "✅ Full stack ready.\n  `bd ready` — see open work\n  `/rpi \"your goal\"` — start a new goal from scratch\n  `/status` — see current session state" |
 
 ---
@@ -77,6 +82,7 @@ Match the first row that applies. Output only that message — nothing else.
 | Problem | Solution |
 |---------|----------|
 | Skills not installed | `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)` |
+| Codex has no startup/session-end hooks | Use `ao codex start` to begin and `ao codex stop` to close out; `ao codex status` shows hookless lifecycle health |
 | Flywheel count is 0 | First session — run `/rpi "a small goal"` to start it |
 | Want the full skill catalog | Ask: "show me all the skills" or see `references/full-catalog.md` |
 

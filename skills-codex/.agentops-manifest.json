@@ -658,7 +658,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "fbbedf5eb3b7883680a8a538748816756c7daa1d6d80b450dc2830af3fa9da17",
-      "generated_hash": "61159fb3b70a38308f68911a70d5f2b34e42dc741e824020da62b34e8314ddae"
+      "generated_hash": "3d1b1850b2d8d15ecc129f7438a1d809bb97c989e9d47da1d84926c2515f40c1"
     },
     {
       "name": "pr-implement",
@@ -724,7 +724,7 @@
       "name": "quickstart",
       "source_skill": "skills/quickstart",
       "source_hash": "5dfbfeba8d39fe8b44f92b1cc705f278cfaea6c853d0b5ede6db292cb8b25816",
-      "generated_hash": "976d7c0126f1257b23bd2b436101e4647f6453b358e88c85bbf83b084649976e"
+      "generated_hash": "d1a17f7c1c4fb01d2834189e0f58867f7b7e0f9a4ed0ec8b1039eff05e2be11c"
     },
     {
       "name": "ratchet",
@@ -742,7 +742,7 @@
       "name": "recover",
       "source_skill": "skills/recover",
       "source_hash": "b81d186f9a50c3131f4f1bc203cd4765feaa545bb23878316d9bf3549bf0e07e",
-      "generated_hash": "558a1e3f8a12b6c15830f2ea88c15c354445540f2d58ec34fd73fa502784fde0"
+      "generated_hash": "db6f415c853365c8fa88e4d7df92254898d8aafc1633045c585e3429cb3b2ee0"
     },
     {
       "name": "release",
@@ -826,13 +826,13 @@
       "name": "using-agentops",
       "source_skill": "skills/using-agentops",
       "source_hash": "4416cf30a11c6486e3962e9ed2e44067fab2b17bcc498b759d15beb6f1ae504c",
-      "generated_hash": "f54fabbfe09443239c4913b383a89a9243088e75bf24cd24e27a5d87851ca91e"
+      "generated_hash": "ac7744194ca5f75d2b34bc83bc9e5dec25b5c64893b74e9501724a1134616919"
     },
     {
       "name": "validation",
       "source_skill": "skills/validation",
       "source_hash": "73c520360d95c007c1f251d8fe6ae55c7a8ef20889d973a2ff0fbd988d075a1e",
-      "generated_hash": "53fab36783ee83d834ffb1b33e9d35b3d86d854b7b026303e1bde00de7eb6551"
+      "generated_hash": "58a853c9226028b3796ac32f5aee4cc97101e70f3f84c72fe4978f0096343036"
     },
     {
       "name": "vibe",

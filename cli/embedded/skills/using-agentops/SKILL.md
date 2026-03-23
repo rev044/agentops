@@ -1,6 +1,6 @@
 ---
 name: using-agentops
-description: 'Meta skill explaining the RPI workflow. Auto-injected on session start. Covers Research-Plan-Implement workflow, Knowledge Flywheel, and skill catalog.'
+description: 'Meta skill explaining the RPI workflow. Hook-capable runtimes inject it at session start; Codex uses it through the explicit startup fallback. Covers Research-Plan-Implement workflow, Knowledge Flywheel, and skill catalog.'
 skill_api_version: 1
 user-invocable: false
 context:
@@ -33,6 +33,7 @@ Research → Plan → Implement → Validate
 ```bash
 /research <topic>      # Deep codebase exploration
 ao search "<query>"    # Search existing knowledge
+ao search "<query>" --cite retrieved  # Record adoption when a search result is reused
 ao lookup <id>         # Pull full content of specific learning
 ao lookup --query "x"  # Search knowledge by relevance
 ```
@@ -174,6 +175,16 @@ Every `/post-mortem` feeds back to `/research`:
 2. **Patterns** discovered → `.agents/patterns/`
 3. **Research** enriched → Future sessions benefit
 
+## Runtime Modes
+
+AgentOps has three runtime modes. Do not assume hook automation exists everywhere.
+
+| Mode | When it applies | Start path | Closeout path | Guarantees |
+|------|-----------------|------------|---------------|------------|
+| `hook-capable` | Claude/OpenCode with lifecycle hooks installed | Runtime hook or `ao inject` / `ao lookup` | Runtime hook or `ao forge transcript` + `ao flywheel close-loop` | Automatic startup/context injection and session-end maintenance when hooks are installed |
+| `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces | `ao codex start` | `ao codex stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
+| `manual` | No hooks and no Codex-native runtime detection | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Works everywhere, but lifecycle actions are operator-driven |
+
 ## Issue Tracking
 
 This workflow uses beads for git-native issue tracking:
@@ -187,18 +198,22 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 
 ## Examples
 
-### SessionStart Context Loading
+### Startup Context Loading
 
-**Hook triggers:** `session-start.sh` runs at session start
+**Hook-capable runtimes**
+1. `session-start.sh` (or equivalent) can run at session start.
+2. In `manual` mode, MEMORY.md is auto-loaded and the hook points to on-demand retrieval (`ao search`, `ao lookup`).
+3. In `lean` mode, the hook extracts pending knowledge and injects prior learnings with a reduced token budget.
+4. This skill can be injected automatically into session context.
 
-**What happens:**
-1. In `manual` mode (default): MEMORY.md is auto-loaded by Claude Code; hook emits a pointer to on-demand retrieval (`ao search`, `ao lookup`)
-2. In `lean` mode: hook extracts pending knowledge and injects prior learnings with a reduced token budget
-3. Hook injects this skill automatically into session context
-4. Agent loads RPI workflow overview, phase-to-skill mapping, trigger patterns
-5. User says "check my code" → agent recognizes `/vibe` trigger naturally
+**Codex hookless fallback**
+1. Run `ao codex start`.
+2. AgentOps inspects `.agents/`, runs safe close-loop maintenance, syncs MEMORY.md, and writes `.agents/ao/codex/startup-context.md`.
+3. Surfaced learnings, patterns, and findings are cited as `retrieved`.
+4. Use `ao lookup` for automatic citations during work, or `ao search --cite retrieved|reference|applied` when a search result is actually adopted.
+5. End the session with `ao codex stop`, then verify loop health with `ao codex status`.
 
-**Result:** Agent knows the full skill catalog and workflow from session start. MEMORY.md is auto-loaded by default (`manual` mode). Set `AGENTOPS_STARTUP_CONTEXT_MODE=lean` for automatic knowledge injection alongside MEMORY.md.
+**Result:** The agent gets the RPI workflow, prior context, and a citation path in both modes. The difference is whether lifecycle work is hook-driven or command-driven.
 
 ### Workflow Reference During Planning
 
@@ -217,7 +232,7 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Skill not auto-loaded | Hook not configured or SessionStart disabled | Verify hooks/session-start.sh exists; check hook enable flags |
+| Skill not auto-loaded | Hook runtime unavailable or startup path not run | Hook-capable runtimes: verify `hooks/session-start.sh` exists and is enabled. Codex: run `ao codex start` explicitly |
 | Outdated skill catalog | This file not synced with actual skills/ directory | Update skill list in this file after adding/removing skills |
 | Wrong skill suggested | Natural language trigger ambiguous | User explicitly calls skill with `/skill-name` syntax |
 | Workflow unclear | RPI phases not well-documented here | Read full workflow guide in README.md or docs/ARCHITECTURE.md |

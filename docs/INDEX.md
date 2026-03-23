@@ -17,6 +17,7 @@
 - [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Wiggum Pattern, agent backends, hooks, context windowing
 - [Architecture](ARCHITECTURE.md) — System design and component overview
 - [Architecture Folder Index](architecture/README.md) — Architecture subdocs overview
+- [Codex Hookless Lifecycle](architecture/codex-hookless-lifecycle.md) — Runtime-aware lifecycle fallback for Codex when hooks are unavailable
 - [Primitive Chains](architecture/primitive-chains.md) — Audited primitive set, lifecycle chains, and terminology drift ledger
 - [AO-Olympus Ownership Matrix](architecture/ao-olympus-ownership-matrix.md) — Responsibility split for skills, runtime, and bridge contracts
 - [PDC Framework](architecture/pdc-framework.md) — Prevent, Detect, Correct quality control approach
@@ -34,7 +35,7 @@
 
 - [Workflow Guide](workflows/README.md) — Decision matrix for choosing the right workflow
 - [Complete Cycle](workflows/complete-cycle.md) — Full Research, Plan, Implement, Validate, Learn workflow
-- [Session Lifecycle](workflows/session-lifecycle.md) — Complete guide to working with Claude across sessions
+- [Session Lifecycle](workflows/session-lifecycle.md) — Runtime-aware session start and closeout across hook-capable and Codex hookless runtimes
 - [Quick Fix](workflows/quick-fix.md) — Fast implementation for simple, low-risk changes
 - [Debug Cycle](workflows/debug-cycle.md) — Systematic debugging from symptoms to root cause to fix
 - [Knowledge Synthesis](workflows/knowledge-synthesis.md) — Extract and synthesize knowledge from multiple sources

@@ -675,7 +675,7 @@ func TestRecordLookupCitations(t *testing.T) {
 		{Source: filepath.Join(dir, ".agents", "findings", "f1.md")},
 	}
 
-	recordLookupCitations(dir, learnings, patterns, findings, "test-session", "test query")
+	recordLookupCitations(dir, learnings, patterns, findings, "test-session", "test query", "retrieved")
 
 	citPath := filepath.Join(aoDir, "citations.jsonl")
 	data, err := os.ReadFile(citPath)

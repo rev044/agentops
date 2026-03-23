@@ -8,11 +8,13 @@ Close out completed work in a Codex-native way: validate outcomes, extract durab
 
 ## Codex Execution Profile
 
-1. write learnings and harvested work to disk
-2. .agents/rpi/next-work.jsonl
+1. Treat `skills/post-mortem/SKILL.md` as the canonical close-out contract and `skills-codex/post-mortem/SKILL.md` as the Codex-facing artifact.
+2. Keep the council/validation summary concise, then write learnings and harvested work to disk.
+3. Prefer concrete follow-up items that can flow directly into `.agents/rpi/next-work.jsonl` for the next Codex loop.
+4. Finish Codex closeout with `ao codex stop`, and recommend `ao codex status` when the user needs to confirm lifecycle health.
 
 ## Guardrails
 
-1. claim/release/consume through the queue lifecycle
+1. Keep harvested work machine-checkable: available on write, then claim/release/consume through the queue lifecycle.
 
 <!-- END AGENTOPS OPERATOR CONTRACT -->

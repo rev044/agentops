@@ -1,26 +1,43 @@
 # Session Lifecycle Workflow
 
-**Purpose:** Complete guide to working with Claude across sessions
+**Purpose:** Runtime-aware guide to working across sessions with hook-capable runtimes and Codex hookless fallback
 
-**Philosophy:** Just talk naturally. Commands are optional.
+**Philosophy:** Talk naturally when lifecycle hooks exist. In Codex, use the explicit lifecycle commands instead of assuming hidden automation.
 
 ---
 
 ## Quick Start
 
-### Option 1: Natural Language (Recommended)
+### Option 1: Natural Language (Hook-Capable Runtimes)
 
 Just describe what you want:
 
 | Say This | What Happens |
 |----------|--------------|
-| "Continue working on X" | Loads context, shows progress, finds next task |
+| "Continue working on X" | Loads context, shows progress, finds next task when runtime hooks are available |
 | "I need to add Y" | Checks for plan, guides you if needed |
 | "I'm done for today" | Saves progress, offers retrospective |
 | "What should I work on?" | Shows status, suggests next task |
 | "Where was I?" | Shows last session, current state, blockers |
 
-### Option 2: Slash Commands (Power Users)
+### Option 2: Codex Explicit Lifecycle (Recommended in Codex)
+
+```bash
+# Start session
+ao codex start
+
+# During work
+ao lookup --query "topic"
+ao search "topic" --cite retrieved
+
+# End session
+ao codex stop
+
+# Inspect lifecycle + flywheel health
+ao codex status
+```
+
+### Option 3: Slash Commands (Hook-Capable Power Users)
 
 ```bash
 # Start session
@@ -33,11 +50,21 @@ Just describe what you want:
 /session-end
 ```
 
-**Both approaches work.** Use whichever fits your style.
+**Use the mode your runtime actually supports.** Claude/OpenCode can drive lifecycle via hooks. Codex uses `ao codex start` / `ao codex stop` / `ao codex status`.
 
 ---
 
-## The Session Lifecycle
+## Runtime Modes
+
+| Mode | Start | Closeout | Notes |
+|------|-------|----------|-------|
+| Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed |
+| Codex hookless fallback | `ao codex start` | `ao codex stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit |
+| Manual fallback | `ao inject`, `ao lookup` | `ao forge transcript`, `ao flywheel close-loop` | Lowest-level portable path |
+
+---
+
+## Hook-Capable Lifecycle
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -75,6 +102,41 @@ Just describe what you want:
 │  • Update claude-progress.json                              │
 │  • Offer to save bundle                                     │
 │  • Suggest /retro for learning extraction                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Codex Hookless Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CODEX SESSION START                       │
+│  ao codex start                                             │
+├─────────────────────────────────────────────────────────────┤
+│  • Inspect .agents/ and surfaced learnings                  │
+│  • Run safe close-loop maintenance                          │
+│  • Sync MEMORY.md and write startup context                 │
+│  • Record retrieved citations for adopted startup artifacts │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                           WORK                              │
+│  ao lookup / ao search --cite / skills                      │
+├─────────────────────────────────────────────────────────────┤
+│  • Retrieve learnings and findings on demand                │
+│  • Record citations when search results are actually used   │
+│  • Build, debug, research, plan, validate                   │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    CODEX SESSION END                         │
+│  ao codex stop                                              │
+├─────────────────────────────────────────────────────────────┤
+│  • Resolve archived transcript or history fallback          │
+│  • Forge/queue learnings safely                             │
+│  • Run close-loop maintenance and sync MEMORY.md            │
+│  • Persist lifecycle state for status/recovery              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -216,8 +278,11 @@ Next time, just say "continue the caching work" and I'll pick up where you left 
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `/session-start` | Initialize session, load context | Start of work |
-| `/session-end` | Save progress, close gracefully | End of work |
+| `ao codex start` | Start an explicit Codex hookless session | Start of work in Codex |
+| `ao codex stop` | Close out a Codex session without runtime hooks | End of work in Codex |
+| `ao codex status` | Inspect Codex lifecycle and flywheel health | Any time in Codex |
+| `/session-start` | Initialize session, load context | Start of work in hook-capable runtimes |
+| `/session-end` | Save progress, close gracefully | End of work in hook-capable runtimes |
 | `/progress-update` | Update progress files | During work |
 
 ### Workflow Commands

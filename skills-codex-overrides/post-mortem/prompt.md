@@ -13,4 +13,5 @@ Close out completed work in a Codex-native way: validate outcomes, extract durab
 1. Keep harvested work machine-checkable: available on write, then claim/release/consume through the queue lifecycle.
 2. Count resolution per item, not per batch entry, when reporting prior findings.
 3. Preserve evidence and source links so the next Codex cycle can act without re-deriving context.
-4. If a Codex-native override and the source skill diverge, keep behavior aligned with the source contract and then update the override.
+4. Finish Codex closeout with `ao codex stop`, and recommend `ao codex status` when the user needs to confirm lifecycle health.
+5. If a Codex-native override and the source skill diverge, keep behavior aligned with the source contract and then update the override.

@@ -8,7 +8,15 @@ Coding agents forget everything between sessions. Notes alone do not fix that. I
 
 ## The Solution
 
-AgentOps turns session output into durable environment state. Every session automatically extracts knowledge, scores it, and feeds the best back into future sessions — making each one smarter than the last.
+AgentOps turns session output into durable environment state. The automation path depends on the runtime: hook-capable runtimes can drive startup and closeout automatically, while Codex uses explicit lifecycle commands that provide the same flywheel stages without pretending hooks exist.
+
+## Runtime Modes
+
+| Mode | Start path | Closeout path | What is automatic |
+|------|------------|---------------|-------------------|
+| Hook-capable runtime | SessionStart hook or `ao inject` | SessionEnd/Stop hooks or `ao forge transcript` + `ao flywheel close-loop` | Startup retrieval, transcript forging, pool maintenance when hooks are installed |
+| Codex hookless fallback | `ao codex start` | `ao codex stop` | Startup context assembly, transcript discovery fallback, citation capture, and close-loop status through explicit commands |
+| Manual fallback | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Nothing hidden; operator runs the lifecycle directly |
 
 ## The Flywheel
 
@@ -39,11 +47,11 @@ AgentOps turns session output into durable environment state. Every session auto
 
 ### Stage 1: Work
 
-You use Claude to build, debug, research, or plan. A transcript (JSONL) is created automatically.
+You build, debug, research, or plan. In hook-capable runtimes, transcripts are typically available directly from the runtime. In Codex, AgentOps prefers archived session transcripts and can fall back to `~/.codex/history.jsonl` when no archived transcript exists.
 
 ### Stage 2: Forge
 
-At session end, `ao forge transcript` parses the transcript and extracts structured knowledge — decisions, solutions, learnings, failures, and references. Each becomes a markdown file in `.agents/knowledge/pending/`.
+At closeout, `ao forge transcript` or `ao codex stop` parses the transcript and extracts structured knowledge — decisions, solutions, learnings, failures, and references. Each becomes a markdown file in `.agents/knowledge/pending/`.
 
 ### Stage 3: Pool
 
@@ -75,15 +83,18 @@ Promoted knowledge lives in `.agents/learnings/` and `.agents/patterns/`. The ma
 provisional → established → archived
 ```
 
-Maintenance runs automatically: deduplication, contradiction detection, staleness archival.
+Maintenance runs through the active lifecycle path: hook-capable runtimes can run it from hooks, while Codex runs the same hygiene from `ao codex start` / `ao codex stop`.
 
 ### Stage 6: Inject
 
-At session start and during work, `ao inject` or `ao lookup` retrieves the
-most relevant learnings for the current task. Startup retrieval prefers
-task-scoped context such as handoff goals and active beads instead of generic
-commit-subject fallbacks. Each retrieval creates a **citation** — the signal
-that drives the feedback loop.
+At session start and during work, `ao inject`, `ao lookup`, or `ao codex start`
+retrieves the most relevant learnings for the current task. Startup retrieval
+prefers task-scoped context such as handoff goals and active beads instead of
+generic commit-subject fallbacks. `ao lookup` records citations automatically.
+When `ao search` results are actually adopted, use `ao search --cite
+retrieved|reference|applied` to record that decision in-band instead of relying
+on tribal workflow knowledge. Each citation is the signal that drives the
+feedback loop.
 
 Citations with positive feedback increase the learning's utility score → higher utility → ranked higher in next injection → cited more → utility increases more → **compounding**.
 
@@ -120,15 +131,18 @@ ao flywheel status
 
 | Store | Content | Updated By |
 |------|---------|------------|
-| `.agents/knowledge/pending/` | Forge output awaiting pool ingestion | `ao forge` (automatic at session end) |
+| `.agents/knowledge/pending/` | Forge output awaiting pool ingestion | `ao forge`, `ao codex stop` |
+| `.agents/knowledge/pending/.quarantine/` | Low-quality or unsafe pending extracts held out of promotion | Pool hygiene, promotion gates, and close-loop maintenance |
 | `.agents/pool/` | Scored candidates awaiting promotion | `ao flywheel close-loop` |
 | `.agents/learnings/` | Promoted, permanent knowledge | Pool promotion pipeline |
 | `.agents/patterns/` | Promoted decision patterns | Pool promotion pipeline |
 | `.agents/research/` | Scoped investigations | `/research` |
 | `.agents/findings/registry.jsonl` | Reusable findings | `/pre-mortem`, `/vibe`, `/post-mortem` |
-| `.agents/ao/citations.jsonl` | Citation trail | `ao inject`, `ao lookup` |
+| `.agents/ao/citations.jsonl` | Citation trail | `ao inject`, `ao lookup`, `ao search --cite`, `ao codex start` |
 | `.agents/ao/feedback.jsonl` | Utility feedback | `ao flywheel close-loop` |
 | `.agents/ao/metrics/` | Baseline snapshots for trend tracking | `ao metrics baseline` |
+| `.agents/ao/codex/startup-context.md` | Explicit startup context assembled for hookless Codex sessions | `ao codex start` |
+| `.agents/ao/codex/state.json` | Last Codex start/stop lifecycle state | `ao codex start`, `ao codex stop` |
 
 ## The Compounding Effect
 
@@ -144,6 +158,7 @@ ao flywheel status
 
 - [Context Lifecycle Contract](context-lifecycle.md)
 - [How It Works](how-it-works.md)
+- [Codex Hookless Lifecycle](architecture/codex-hookless-lifecycle.md)
 - [Primitive Chains](architecture/primitive-chains.md)
 - [Brownian Ratchet](brownian-ratchet.md)
 - [The Science](the-science.md)
