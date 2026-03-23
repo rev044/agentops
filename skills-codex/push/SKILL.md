@@ -85,30 +85,16 @@ Output a summary:
 - Commit hash
 - Branch pushed to
 
-### Step 9: Ensure Codex Closeout
-
-If this push is ending a Codex hookless thread, inspect
-`.agents/ao/codex/state.json` when it exists. If the file is missing,
-unreadable, or `last_stop.session_id` does not match the current
-`CODEX_THREAD_ID`, run:
-
-```bash
-ao codex stop --auto-extract 2>/dev/null || true
-```
-
-If `last_stop.session_id` already matches the current thread, do not rerun
-closeout. Use `ao codex status` only when you need to confirm lifecycle health.
-
 ## Guardrails
 
 - NEVER push to `main` or `master` without explicit user confirmation
 - NEVER stage files matching: `.env*`, `*credentials*`, `*secret*`, `*.key`, `*.pem`
 - If tests were not run (no test suite found), WARN the user before committing
 - If `git pull --rebase` fails, do NOT force push — ask the user
+- Do NOT run `ao codex stop` after the remote push. If session closeout is needed, finish it through `$validation`, `$post-mortem`, or `$handoff` before entering `$push`
 
 ## Local Resources
 
 ### scripts/
 
 - `scripts/validate.sh`
-

@@ -173,8 +173,8 @@ AgentOps has three runtime modes. Do not assume hook automation exists everywher
 
 In Codex hookless mode, entry skills such as `$rpi`, `$research`, `$implement`,
 `$status`, `$recover`, and `$discovery` should ensure the start path once per
-thread. Closeout skills such as `$validation`, `$post-mortem`, `$handoff`,
-`$push`, and `$release` should ensure the stop path once per thread.
+thread. Dedicated closeout skills such as `$validation`, `$post-mortem`, and
+`$handoff` should ensure the stop path once per thread.
 
 ## Issue Tracking
 
@@ -195,7 +195,7 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 2. AgentOps inspects `.agents/`, runs safe close-loop maintenance, syncs MEMORY.md, and writes `.agents/ao/codex/startup-context.md`.
 3. Surfaced learnings, patterns, and findings are cited as `retrieved`.
 4. Use `ao lookup` for automatic citations during work, or `ao search --cite retrieved|reference|applied` when a search result is adopted.
-5. End the session through a closeout skill that ensures `ao codex stop` once for the current thread, then verify loop health with `ao codex status` when needed.
+5. End the session through `$validation`, `$post-mortem`, or `$handoff`, which ensure `ao codex stop` once for the current thread, then verify loop health with `ao codex status` when needed.
 
 **Result:** In hookless Codex mode, the agent still gets prior context, citations, and closeout without hidden hooks.
 

@@ -36,11 +36,14 @@ STEP 3  ──  if not --no-retro:
 
 STEP 4  ──  if not --no-forge AND ao available:
               if Codex hookless mode:
-                inspect .agents/ao/codex/state.json when present
-                if the state is missing, unreadable, or last_stop.session_id != CODEX_THREAD_ID:
-                  ao codex stop --auto-extract 2>/dev/null || true
+                if epic_id:
+                  $post-mortem owns Codex closeout for this run; skip duplicate ao codex stop here
                 else:
-                  skip duplicate Codex closeout for this thread
+                  inspect .agents/ao/codex/state.json when present
+                  if the state is missing, unreadable, or last_stop.session_id != CODEX_THREAD_ID:
+                    ao codex stop --auto-extract 2>/dev/null || true
+                  else:
+                    skip duplicate Codex closeout for this thread
               else:
                 ao forge transcript --last-session --queue --quiet 2>/dev/null || true
 
@@ -136,7 +139,7 @@ $validation --no-forge ag-5k2             # skip forge only
 |---------|-------|----------|
 | Vibe FAIL on first run | Implementation has quality issues | Fix findings via `$crank`, then re-run `$validation` |
 | Post-mortem skipped unexpectedly | No epic-id provided | Pass epic-id: `$validation ag-5k2` |
-| Codex closeout missing | Codex has no session-end hook surface | Let `$validation` ensure `ao codex stop` once per thread by checking `.agents/ao/codex/state.json`, or use `ao codex status` to confirm the closeout state manually |
+| Codex closeout missing | Codex has no session-end hook surface | Standalone `$validation` ensures `ao codex stop` once per thread; epic validation defers Codex closeout to `$post-mortem`. Use `ao codex status` to confirm lifecycle state manually |
 | Forge produces no output | No ao CLI or no transcript content | Install ao CLI or run `$retro` manually |
 | Stale execution-packet | Packet from a previous RPI cycle | Delete `.agents/rpi/execution-packet.json` and pass `--complexity` explicitly |
 

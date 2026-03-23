@@ -48,9 +48,9 @@ Match the first row that applies. Output only that message — nothing else.
 | AO=false | "📦 Install ao CLI first:\n  brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops\n  brew install agentops\n  ao init --hooks && ao seed\nThen: `$rpi \"a small goal\"` to run your first cycle." |
 | AGENTS=false + CODEX=true | "🌱 ao is installed but not initialized here.\n  ao init && ao seed\nThen: `$rpi \"a small goal\"` to run your first cycle.\nCodex entry skills will auto-run `ao codex start` once per thread." |
 | AGENTS=false | "🌱 ao is installed but not initialized here.\n  ao init --hooks && ao seed\nThen: `$rpi \"a small goal\"` to run your first cycle." |
-| BD=false + CODEX=true | "✅ Codex fallback ready.\n  Start with `$rpi \"your goal\"`, `$research <topic>`, or `$status` — entry skills auto-run `ao codex start` once per thread\n  Finish with `$validation`, `$post-mortem`, `$handoff`, `$push`, or `$release` — closeout skills auto-run `ao codex stop`\n  Manual escape hatch: `ao codex status`\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
+| BD=false + CODEX=true | "✅ Codex fallback ready.\n  Start with `$rpi \"your goal\"`, `$research <topic>`, or `$status` — entry skills auto-run `ao codex start` once per thread\n  Finish with `$validation`, `$post-mortem`, or `$handoff` — dedicated closeout skills auto-run `ao codex stop`\n  Manual escape hatch: `ao codex status`\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
 | BD=false | "✅ Flywheel active. Start now:\n  `$rpi \"your goal\"` — full research → plan → implement pipeline\n  `$vibe recent` — validate recent changes\n  `$research <topic>` — explore the codebase\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
-| BD=true + CODEX=true | "✅ Codex full stack ready.\n  `bd ready` — see open work\n  Start with `$rpi \"your goal\"`, `$research <topic>`, or `$status` — entry skills auto-run `ao codex start` once per thread\n  Finish with `$validation`, `$post-mortem`, `$handoff`, `$push`, or `$release` — closeout skills auto-run `ao codex stop`\n  Manual escape hatch: `ao codex status`" |
+| BD=true + CODEX=true | "✅ Codex full stack ready.\n  `bd ready` — see open work\n  Start with `$rpi \"your goal\"`, `$research <topic>`, or `$status` — entry skills auto-run `ao codex start` once per thread\n  Finish with `$validation`, `$post-mortem`, or `$handoff` — dedicated closeout skills auto-run `ao codex stop`\n  Manual escape hatch: `ao codex status`" |
 | BD=true | "✅ Full stack ready.\n  `bd ready` — see open work\n  `$rpi \"your goal\"` — start a new goal from scratch\n  `$status` — see current session state" |
 
 ---
@@ -74,7 +74,7 @@ Match the first row that applies. Output only that message — nothing else.
 | Problem | Solution |
 |---------|----------|
 | Skills not installed | `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)` |
-| Codex has no startup/session-end hooks | Entry skills auto-run `ao codex start` once per thread and closeout skills auto-run `ao codex stop`; `ao codex status` is the manual escape hatch |
+| Codex has no startup/session-end hooks | Entry skills auto-run `ao codex start` once per thread and dedicated closeout skills auto-run `ao codex stop`; `ao codex status` is the manual escape hatch |
 | Flywheel count is 0 | First session — run `$rpi "a small goal"` to start it |
 | Want the full skill catalog | Ask: "show me all the skills" or see `references/full-catalog.md` |
 

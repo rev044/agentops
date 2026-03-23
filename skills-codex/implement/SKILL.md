@@ -28,8 +28,8 @@ before claiming or implementing the issue:
 
 3. If `last_start.session_id` already matches the current thread, do not rerun
    startup.
-4. Leave `ao codex stop` to closeout skills such as `$validation`,
-   `$post-mortem`, `$handoff`, `$push`, or `$release`.
+4. Leave `ao codex stop` to dedicated closeout skills such as `$validation`,
+   `$post-mortem`, or `$handoff`.
 
 ## Execution Steps
 
@@ -530,4 +530,3 @@ If bd CLI not available:
 ### scripts/
 
 - `scripts/validate.sh`
-

@@ -8,7 +8,7 @@ description: 'Wrap up completed work. Council validates the implementation, then
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
 >
-> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex closeout skills must ensure `ao codex stop` once per thread by checking `.agents/ao/codex/state.json`.
+> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so `$post-mortem` must own the Codex-native closeout once per thread inside its flywheel phase by checking `.agents/ao/codex/state.json`.
 
 Six phases:
 1. **Council** — Did we implement it correctly?
@@ -35,22 +35,18 @@ $post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 
 ### Codex Closeout
 
-In Codex hookless mode, finish the post-mortem workflow before closing the loop:
+In Codex hookless mode, `$post-mortem` owns closeout during Step 6:
 
 1. Inspect `.agents/ao/codex/state.json` if it exists.
 2. If the file is missing, unreadable, or `last_stop.session_id` does not match
-   the current `CODEX_THREAD_ID`, run:
-
-   ```bash
-   ao codex stop --auto-extract 2>/dev/null || true
-   ```
-
-3. If `last_stop.session_id` already matches the current thread, do not rerun
+   the current `CODEX_THREAD_ID`, run `ao codex stop --auto-extract`.
+3. If `last_stop.session_id` already matches the current thread, skip duplicate
    closeout.
 4. Use `ao codex status` only when you need to report or verify lifecycle health.
 
 `ao codex stop` uses the latest transcript or history fallback to queue/persist
-learnings and run close-loop maintenance without runtime hooks.
+learnings and run close-loop maintenance without runtime hooks. Do not stack the
+generic `ao session close` + `ao flywheel close-loop` path on top of it in Codex.
 
 ---
 
@@ -885,10 +881,25 @@ if command -v ao &>/dev/null; then
   ao temper validate --min-feedback 0 .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
   echo "Artifacts validated for tempering"
 
-  # Close session and trigger full flywheel close-loop (includes adaptive feedback)
-  ao session close 2>/dev/null || true
-  ao flywheel close-loop --quiet 2>/dev/null || true
-  echo "Session closed, flywheel loop triggered"
+  if [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
+    # Codex owns closeout through ao codex stop, not the generic session-close path.
+    STATE_FILE=".agents/ao/codex/state.json"
+    LAST_STOP=""
+    if [ -f "$STATE_FILE" ] && command -v jq &>/dev/null; then
+      LAST_STOP="$(jq -r '.last_stop.session_id // empty' "$STATE_FILE" 2>/dev/null || true)"
+    fi
+    if [ "$LAST_STOP" != "${CODEX_THREAD_ID:-}" ]; then
+      ao codex stop --auto-extract 2>/dev/null || true
+      echo "Codex closeout ensured for the current thread"
+    else
+      echo "Codex closeout already recorded for this thread"
+    fi
+  else
+    # Close session and trigger full flywheel close-loop (includes adaptive feedback)
+    ao session close 2>/dev/null || true
+    ao flywheel close-loop --quiet 2>/dev/null || true
+    echo "Session closed, flywheel loop triggered"
+  fi
 else
   # Learnings are already in .agents/learnings/ from Phase 2.
   # Without ao CLI, grep-based search in $research and $inject
@@ -946,19 +957,6 @@ $rpi "<title>"
 
 Or see all N harvested items in `.agents/rpi/next-work.jsonl`.
 ```
-
-### Step 7.5: Ensure Codex Closeout
-
-If Codex hookless mode is active, inspect `.agents/ao/codex/state.json` when it
-exists. If the file is missing, unreadable, or `last_stop.session_id` does not
-match the current `CODEX_THREAD_ID`, run:
-
-```bash
-ao codex stop --auto-extract 2>/dev/null || true
-```
-
-If `last_stop.session_id` already matches the current thread, do not rerun
-closeout. Use `ao codex status` only when you need to confirm lifecycle health.
 
 If no items were harvested, write: "Flywheel stable — no follow-up items identified."
 

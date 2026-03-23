@@ -39,8 +39,8 @@ before gathering the dashboard:
 
 3. If `last_start.session_id` already matches the current thread, do not rerun
    startup.
-4. Leave `ao codex stop` to closeout skills such as `$validation`,
-   `$post-mortem`, `$handoff`, `$push`, or `$release`.
+4. Leave `ao codex stop` to dedicated closeout skills such as `$validation`,
+   `$post-mortem`, or `$handoff`.
 
 ---
 
@@ -304,4 +304,3 @@ Render this with a single code block. No visual dashboard when `--json` is activ
 ### scripts/
 
 - `scripts/validate.sh`
-

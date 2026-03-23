@@ -27,8 +27,8 @@ before phase orchestration:
 
 3. If `last_start.session_id` already matches the current thread, do not rerun
    startup.
-4. Let `$validation`, `$post-mortem`, `$handoff`, `$push`, or `$release` own the
-   hookless closeout path.
+4. Let `$validation`, `$post-mortem`, or `$handoff` own the hookless closeout
+   path.
 
 ## DAG — Execute This Sequentially
 

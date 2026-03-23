@@ -10,7 +10,7 @@ Run push as an atomic Codex workflow: validate, commit, push, then verify remote
 
 1. relevant tests first, commit second, push third, remote verification last
 2. branch is synced with origin at the end
-3. If this push ends a Codex hookless thread, inspect `.agents/ao/codex/state.json` and run `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.
+3. Do not run `ao codex stop` after the remote push; finish session closeout before `$push` if the session is ending.
 
 ## Guardrails
 

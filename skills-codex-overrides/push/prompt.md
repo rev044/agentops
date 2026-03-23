@@ -12,4 +12,5 @@ Run push as an atomic Codex workflow: validate, commit, push, then verify remote
 
 1. Do not skip failing gates just to get a push out.
 2. Keep commit scope aligned with the actual change set.
-3. If push fails, stay in recovery mode until it succeeds or a real blocker is identified.
+3. Do not run `ao codex stop` after the remote push; finish session closeout before `$push` if the session is ending.
+4. If push fails, stay in recovery mode until it succeeds or a real blocker is identified.

@@ -12,4 +12,5 @@ Prepare releases for Codex with explicit boundaries: preflight gates, versioning
 
 1. Do not blur preparation work with post-tag publishing tasks.
 2. Keep version bumps, changelog generation, and release commits auditable.
-3. Surface release blockers immediately when gates fail.
+3. Do not run `ao codex stop` after the release commit/tag boundary; finish closeout before `$release` if those artifacts must be part of the release boundary.
+4. Surface release blockers immediately when gates fail.

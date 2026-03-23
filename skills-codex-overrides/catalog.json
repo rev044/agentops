@@ -231,7 +231,7 @@
           "Treat `skills/post-mortem/SKILL.md` as the canonical close-out contract and `skills-codex/post-mortem/SKILL.md` as the Codex-facing artifact.",
           "Keep the council/validation summary concise, then write learnings and harvested work to disk.",
           "Prefer concrete follow-up items that can flow directly into `.agents/rpi/next-work.jsonl` for the next Codex loop.",
-          "Finish Codex closeout by inspecting `.agents/ao/codex/state.json` and running `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread; use `ao codex status` only to report lifecycle health.",
+          "Own Codex closeout during the post-mortem flywheel phase by inspecting `.agents/ao/codex/state.json` and running `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.",
           "Keep harvested work machine-checkable: available on write, then claim/release/consume through the queue lifecycle."
         ]
       }
@@ -304,7 +304,7 @@
         "required_markers": [
           "relevant tests first, commit second, push third, remote verification last",
           "branch is synced with origin at the end",
-          "If this push ends a Codex hookless thread, inspect `.agents/ao/codex/state.json` and run `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.",
+          "Do not run `ao codex stop` after the remote push; finish session closeout before `$push` if the session is ending.",
           "If push fails, stay in recovery mode until it succeeds or a real blocker is identified"
         ]
       }
@@ -361,7 +361,7 @@
         "required_markers": [
           "Keep the release boundary explicit: everything up to the tag, with validations and changelog evidence called out.",
           "Prefer deterministic command sequences and clear rollback points over narrative release notes during execution.",
-          "If this release ends a Codex hookless thread, inspect `.agents/ao/codex/state.json` and run `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.",
+          "Do not run `ao codex stop` after the release commit/tag boundary; finish Codex closeout before `$release` if those artifacts must be part of the release boundary.",
           "Do not blur preparation work with post-tag publishing tasks."
         ]
       }
