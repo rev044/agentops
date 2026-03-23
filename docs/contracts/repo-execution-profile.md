@@ -15,7 +15,7 @@ The profile reduces giant repo-specific prompts by moving stable operating polic
 - tracker command wrappers and shell policy
 - concrete definition_of_done predicates
 
-`/evolve` uses the profile for repo bootstrap before queue or goal selection. `/rpi` carries the relevant fields forward inside a normalized `execution_packet` so later phases do not fall back to loose prompt prose.
+`/evolve` uses the profile for repo bootstrap before queue or goal selection. When a repo-local `PROGRAM.md` contract exists, `/evolve` composes both: the execution profile governs bootstrap and session-level policy, while the program contract governs mutable scope and per-cycle keep/revert criteria. `/rpi` carries the relevant fields forward inside a normalized `execution_packet` so later phases do not fall back to loose prompt prose.
 
 ## Field Semantics
 

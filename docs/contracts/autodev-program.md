@@ -109,6 +109,14 @@ If the required change crosses skill contracts or hook semantics, open a bead in
 - `docs/contracts/repo-execution-profile.md` remains the repo bootstrap and landing-policy contract.
 - The RPI execution packet may include the resolved program contract as an additive phase-stable surface.
 
+## Evolve Integration
+
+`/evolve` should consume the program contract before cycle 1 and compose it with the repo execution profile:
+- use the repo execution profile for repo bootstrap, tracker wrappers, and session-level landing policy
+- use the program contract for mutable scope, immutable scope, per-cycle validation, keep/revert rules, and stop conditions
+- prefer work that fits mutable scope and escalate work that clearly requires immutable-scope edits
+- do not consume queue items or mark a cycle productive until the program validation bundle and stop conditions pass
+
 ## Design Notes
 
 - Keep this contract human-editable first. Manual clarity matters more than early schema complexity.

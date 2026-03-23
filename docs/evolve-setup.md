@@ -30,6 +30,7 @@ Use `GOALS.md` for strategic fitness and `PROGRAM.md` for operational control.
 
 - `GOALS.md` answers what good looks like.
 - `PROGRAM.md` answers what the autonomous loop may touch, how one experiment is bounded, which validations decide success, and when to stop or escalate.
+- `/evolve` now loads `PROGRAM.md` before cycle 1, filters out-of-scope work, and uses the program's validation and decision policy in its cycle keep/revert gate.
 
 Initialize the operational contract with:
 

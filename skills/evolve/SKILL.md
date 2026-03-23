@@ -91,6 +91,13 @@ Before cycle recovery, load the repo execution profile contract when it exists. 
 - Cache repo `validation_commands`, `tracker_commands`, and `definition_of_done` into session state.
 - If the repo execution profile is present but missing required fields, stop or downgrade with an explicit warning before cycle 1. Do not silently invent repo policy.
 
+Then load the repo-local autodev program contract when it exists. The execution profile remains the repo bootstrap and landing-policy layer; `PROGRAM.md` or `AUTODEV.md` is the repo-local execution layer for the current improvement loop.
+
+- Locate `PROGRAM.md` and `AUTODEV.md`. `PROGRAM.md` takes precedence.
+- Read the resolved program before cycle recovery and cache `program_path`, `mutable_scope`, `immutable_scope`, `validation_commands`, `decision_policy`, and `stop_conditions` into session state.
+- If the program file exists but is structurally invalid, stop or downgrade with an explicit warning before cycle 1. Do not silently ignore a broken operator contract.
+- When a program contract exists, prefer work that can land wholly inside mutable scope. Do not silently widen scope around immutable files.
+
 Recover cycle number, queue/generator streaks, and the last claimed work item from disk (survives context compaction). Initialize `CYCLE` from `cycle-history.jsonl`, recover `IDLE_STREAK`, `GENERATOR_EMPTY_STREAK`, `LAST_SELECTED_SOURCE`, and `CLAIMED_WORK_REF` from `session-state.json`.
 
 **Circuit breakers:** Time-based (60 min no productive work) and consecutive failure (5 in queue mode). See `references/roadmap-queue-patterns.md` for queue-specific circuit breakers.
@@ -115,6 +122,12 @@ evolve_state = {
   validation_commands: <ordered repo validation bundle>,
   tracker_commands: <repo tracker shell wrappers>,
   definition_of_done: <repo stop predicates>,
+  program_path: <PROGRAM.md|AUTODEV.md or null>,
+  program_mutable_scope: <declared mutable paths/globs>,
+  program_immutable_scope: <declared immutable paths/globs>,
+  program_validation_commands: <ordered program validation bundle>,
+  program_decision_policy: <ordered keep/revert rules>,
+  program_stop_conditions: <ordered cycle done criteria>,
   generator_empty_streak: <consecutive passes where all generator layers returned nothing>,
   last_selected_source: <harvested|beads|goal|directive|testing|validation|bug-hunt|drift|feature>,
   claimed_work: <null or queue reference being worked>,
@@ -157,6 +170,11 @@ Skip if `--beads-only`. Run `scripts/evolve-measure-fitness.sh` to produce a rol
 ### Step 3: Select Work
 
 Selection is a ladder, not a one-shot check. After every productive cycle, return to the TOP of this step and re-read the queue before considering dormancy.
+
+When a repo-local program contract exists, apply a scope filter before Step 4:
+- candidate work that clearly requires immutable-scope edits is not eligible for direct execution
+- prefer harvested, beads, goals, and generated work that can plausibly land within mutable scope
+- if the selected item is inherently out of scope, escalate it or convert it into durable follow-up work instead of invoking `/rpi` and hoping discovery widens scope
 
 **Step 3.0: Pinned work queue** (only when `--queue` is set)
 
@@ -288,6 +306,11 @@ If `UNBLOCK_TARGET` is set (from Step 3.0), enter the blocker resolution sub-loo
 
 Primary engine: `/rpi` for implementation-quality work (all 3 phases mandatory). `/implement` or `/crank` only when a bead has execution-ready scope.
 
+If a repo-local `PROGRAM.md` contract is active, `/rpi` will load it automatically. `/evolve` must compose with that behavior, not bypass it:
+- Do not select work that is obviously outside mutable scope.
+- If a queue item, bead, or goal would require edits under immutable scope, escalate it or convert it into durable follow-up work instead of launching `/rpi`.
+- When work is plausibly in scope but still uncertain, let `/rpi` discovery validate the fit and surface a scope escape explicitly.
+
 For a **harvested item, failing goal, directive gap, testing improvement, validation tightening task, bug-hunt result, drift finding, or feature suggestion**:
 ```
 Invoke /rpi "{normalized work title}" --auto --max-cycles=1
@@ -304,7 +327,14 @@ If Step 3 created durable work instead of executing it immediately, re-enter Ste
 
 ### Step 5: Regression Gate
 
-After execution, detect and run the project build+test (Makefile, package.json, go.mod, Cargo.toml, pyproject.toml). Also check `if [ -f scripts/check-wiring-closure.sh ]; then bash scripts/check-wiring-closure.sh; fi`.
+After execution, run the project build+test bundle. If the repo execution profile declared `validation_commands`, run them. If a repo-local program contract exists, run its `validation_commands` too, de-duplicated and in declared order after the repo bootstrap checks. Also check `if [ -f scripts/check-wiring-closure.sh ]; then bash scripts/check-wiring-closure.sh; fi`.
+
+Use the program contract's `decision_policy` as the first keep/revert rule set for the cycle:
+- if the cycle breached immutable scope, treat it as regressed
+- if program validation commands fail, treat it as regressed
+- if the decision policy declares a revert rule that fired, revert before consuming claimed work or advancing the queue
+
+Treat program `stop_conditions` as per-cycle done criteria. Do not mark claimed work consumed, completed, or productive until both the stop conditions and the regression gate pass.
 
 If not `--beads-only`, re-measure fitness to `fitness-latest-post.json` and detect regressions. The AgentOps CLI is required for fitness measurement. Read `references/fitness-scoring.md` for the full measurement, regression detection, and revert procedure.
 
@@ -396,6 +426,7 @@ See `references/cycle-history.md` for advanced troubleshooting.
 
 - `skills/rpi/SKILL.md` — Full lifecycle orchestrator (called per cycle)
 - `skills/crank/SKILL.md` — Epic execution (called for beads epics)
+- `docs/contracts/autodev-program.md` — Repo-local operational contract for bounded autonomous development
 - `GOALS.yaml` — Fitness goals for this repo
 
 ## Reference Documents

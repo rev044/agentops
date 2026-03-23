@@ -12,6 +12,14 @@ All 3 phases (discovery → implementation → validation). Never invoke a parti
 
 When work selection identifies a massive task (7+ issues, multi-subsystem scope), decompose it during `/rpi`'s discovery phase into an epic with waves. One evolve cycle = one `/rpi` run = one complete lifecycle. If the epic is too large for a single session, `/rpi`'s built-in retry and `--from=` resume handle continuation.
 
+## Respect Repo-Local Program Contracts
+
+When `PROGRAM.md` or `AUTODEV.md` exists, treat it as a hard operational constraint for cycle selection and keep/revert decisions:
+- prefer work that can plausibly land inside mutable scope
+- do not intentionally select work that requires immutable-scope edits
+- treat out-of-scope work as escalation or backlog material, not permission to widen scope in place
+- let `/rpi` enforce the active program contract during execution, then use its validation and decision policy during the evolve regression gate
+
 ## Anti-Patterns (DO NOT)
 
 | Anti-Pattern | Why It's Wrong | Correct Behavior |
@@ -22,3 +30,4 @@ When work selection identifies a massive task (7+ issues, multi-subsystem scope)
 | Run partial `/rpi` (skip validation) | Each cycle must be a complete 3-phase lifecycle | Let `/rpi` run all 3 phases autonomously |
 | Pause between cycles to explain progress | The user wants results, not narration | Log cycle results, immediately start next cycle |
 | Treat "no queued work" as "stop" | Generator layers (testing, validation, drift, features) produce work | Run all generator layers before considering dormancy |
+| Select work that obviously violates `PROGRAM.md` | Scope escape is a tracked outcome, not a license to widen the loop | Escalate or re-queue out-of-scope work and keep selection inside mutable scope |

@@ -8,6 +8,7 @@ Run `$evolve` as an always-on Codex loop over `$rpi`: keep selecting productive 
 2. Use Codex commentary updates to show cycle boundaries, selection source, queue refreshes, and stop reasons.
 3. Prefer Codex sub-agents for generator layers and sidecar audits when they can run in parallel without blocking the main loop.
 4. Persist loop state under `.agents/evolve/` and recover from disk instead of relying on live context.
+5. When `PROGRAM.md` or `AUTODEV.md` exists, treat it as the active execution layer: keep selection inside mutable scope, escalate immutable-scope work, and use its validation and decision policy in the cycle gate.
 
 ## Guardrails
 
