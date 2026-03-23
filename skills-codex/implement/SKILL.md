@@ -12,6 +12,24 @@ description: 'Execute a single issue with full lifecycle. Triggers: "implement",
 
 Execute a single issue from start to finish.
 
+## Codex Lifecycle Guard
+
+When this skill runs in Codex hookless mode (`CODEX_THREAD_ID` is set or
+`CODEX_INTERNAL_ORIGINATOR_OVERRIDE` is `Codex Desktop`), ensure startup context
+before claiming or implementing the issue:
+
+1. Inspect `.agents/ao/codex/state.json` if it exists.
+2. If the file is missing, unreadable, or `last_start.session_id` does not match
+   the current `CODEX_THREAD_ID`, run:
+
+   ```bash
+   ao codex start 2>/dev/null || true
+   ```
+
+3. If `last_start.session_id` already matches the current thread, do not rerun
+   startup.
+4. Leave `ao codex stop` to closeout skills such as `$validation`,
+   `$post-mortem`, `$handoff`, `$push`, or `$release`.
 
 ## Execution Steps
 
@@ -512,5 +530,4 @@ If bd CLI not available:
 ### scripts/
 
 - `scripts/validate.sh`
-
 

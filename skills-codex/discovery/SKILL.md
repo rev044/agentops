@@ -7,6 +7,24 @@ description: 'Full discovery phase orchestrator. Brainstorm + ao search + resear
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
+## Codex Lifecycle Guard
+
+When this skill runs in Codex hookless mode (`CODEX_THREAD_ID` is set or
+`CODEX_INTERNAL_ORIGINATOR_OVERRIDE` is `Codex Desktop`), ensure startup context
+before entering the discovery DAG:
+
+1. Inspect `.agents/ao/codex/state.json` if it exists.
+2. If the file is missing, unreadable, or `last_start.session_id` does not match
+   the current `CODEX_THREAD_ID`, run:
+
+   ```bash
+   ao codex start 2>/dev/null || true
+   ```
+
+3. If `last_start.session_id` already matches the current thread, do not rerun
+   startup.
+4. Leave `ao codex stop` to closeout skills; discovery owns the startup path.
+
 ## DAG — Execute This Sequentially
 
 ```

@@ -2,8 +2,18 @@
 
 Full validation phase orchestrator. Vibe + post-mortem + retro + forge. Reviews implementation quality, extracts learnings, feeds the knowledge flywheel. Triggers: "validation", "validate", "validate work", "review and learn", "validation phase", "post-implementation review".
 
-## Instructions
+## Codex Execution Profile
 
-Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
-Then read local files in `references/` and `scripts/` when needed.
+1. Load and follow the skill instructions from the sibling `SKILL.md` file for
+   this skill.
+2. In Codex hookless mode, finish by inspecting `.agents/ao/codex/state.json`
+   and ensuring `ao codex stop --auto-extract` once per thread when closeout has
+   not already run.
+3. Keep closeout idempotent: if `last_stop.session_id` already matches the
+   current `CODEX_THREAD_ID`, do not rerun `ao codex stop`.
 
+## Guardrails
+
+1. Do not assume session-end hooks exist under `~/.codex`.
+2. Let `$validation` own Codex closeout when it is the terminal phase skill.
+3. Read local files in `references/` and `scripts/` only when needed.

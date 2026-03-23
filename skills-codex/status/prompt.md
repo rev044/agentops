@@ -8,8 +8,9 @@ Render repo status for Codex as a terse operator dashboard: active work, latest 
 
 ## Codex Execution Profile
 
-1. Default to a one-screen layout with three blocks in this order: `Current Work`, `Latest Gates`, `Next Action`.
-2. Use exact issue ids, branch/worktree state, and file-backed artifacts instead of conversational summaries.
+1. In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before gathering dashboard state.
+2. Default to a one-screen layout with three blocks in this order: `Current Work`, `Latest Gates`, `Next Action`.
+3. Use exact issue ids, branch/worktree state, and file-backed artifacts instead of conversational summaries.
 
 ## Guardrails
 

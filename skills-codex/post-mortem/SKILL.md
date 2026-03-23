@@ -8,7 +8,7 @@ description: 'Wrap up completed work. Council validates the implementation, then
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
 >
-> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex sessions should finish closeout with `ao codex stop`.
+> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex closeout skills must ensure `ao codex stop` once per thread by checking `.agents/ao/codex/state.json`.
 
 Six phases:
 1. **Council** — Did we implement it correctly?
@@ -35,14 +35,22 @@ $post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 
 ### Codex Closeout
 
-In Codex hookless mode, run these after the post-mortem workflow writes learnings and next work:
+In Codex hookless mode, finish the post-mortem workflow before closing the loop:
 
-```bash
-ao codex stop
-ao codex status
-```
+1. Inspect `.agents/ao/codex/state.json` if it exists.
+2. If the file is missing, unreadable, or `last_stop.session_id` does not match
+   the current `CODEX_THREAD_ID`, run:
 
-`ao codex stop` uses the latest transcript or history fallback to queue/persist learnings and run close-loop maintenance without runtime hooks.
+   ```bash
+   ao codex stop --auto-extract 2>/dev/null || true
+   ```
+
+3. If `last_stop.session_id` already matches the current thread, do not rerun
+   closeout.
+4. Use `ao codex status` only when you need to report or verify lifecycle health.
+
+`ao codex stop` uses the latest transcript or history fallback to queue/persist
+learnings and run close-loop maintenance without runtime hooks.
 
 ---
 
@@ -938,6 +946,19 @@ $rpi "<title>"
 
 Or see all N harvested items in `.agents/rpi/next-work.jsonl`.
 ```
+
+### Step 7.5: Ensure Codex Closeout
+
+If Codex hookless mode is active, inspect `.agents/ao/codex/state.json` when it
+exists. If the file is missing, unreadable, or `last_stop.session_id` does not
+match the current `CODEX_THREAD_ID`, run:
+
+```bash
+ao codex stop --auto-extract 2>/dev/null || true
+```
+
+If `last_stop.session_id` already matches the current thread, do not rerun
+closeout. Use `ao codex status` only when you need to confirm lifecycle health.
 
 If no items were harvested, write: "Flywheel stable — no follow-up items identified."
 

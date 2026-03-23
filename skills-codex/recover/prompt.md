@@ -11,7 +11,7 @@ Recover context for Codex from disk-first evidence: active issues, recent artifa
 1. Treat `skills/recover/SKILL.md` as the canonical recovery contract and `skills-codex/recover/SKILL.md` as the Codex-facing artifact.
 2. Rebuild state from files, issues, generated artifacts, and git state before trusting chat memory.
 3. Return recovery output in this order: `Resume Target`, `Evidence`, `Gaps or Conflicts`, `Next Step`.
-4. Prefer `ao codex status` to inspect lifecycle health, then `ao codex start` to rebuild startup context when the session is hookless.
+4. In Codex hookless mode, inspect `.agents/ao/codex/state.json` and run `ao codex start` only when `last_start.session_id` does not match the current thread.
 
 ## Guardrails
 

@@ -110,12 +110,13 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-If Codex hookless mode is detected, also run:
+If Codex hookless mode is detected, also ensure startup context once for the current thread:
 
 ```bash
-if command -v ao &>/dev/null && { [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; }; then
-  ao codex start --no-maintenance 2>/dev/null || true
-fi
+Inspect .agents/ao/codex/state.json when it exists.
+If the file is missing, unreadable, or last_start.session_id does not match the current CODEX_THREAD_ID,
+run: ao codex start 2>/dev/null || true
+If last_start.session_id already matches the current thread, do not rerun ao codex start.
 ```
 
 ### Step 3: Parse and Summarize Session State
@@ -347,4 +348,3 @@ Render this with a single code block. No visual dashboard when `--json` is activ
 ### scripts/
 
 - `scripts/validate.sh`
-

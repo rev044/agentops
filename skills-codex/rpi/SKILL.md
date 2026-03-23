@@ -11,6 +11,25 @@ description: 'Full RPI lifecycle orchestrator. Delegates to $discovery, $crank, 
 
 **THREE-PHASE RULE + FULLY AUTONOMOUS.** Read `references/autonomous-execution.md` — it defines the mandatory 3-phase lifecycle, autonomous execution rules, anti-patterns, and phase completion logging. Unless `--interactive` is set, RPI runs hands-free. Do NOT stop after Phase 2. Do NOT ask the user anything between phases.
 
+## Codex Lifecycle Guard
+
+When this skill runs in Codex hookless mode (`CODEX_THREAD_ID` is set or
+`CODEX_INTERNAL_ORIGINATOR_OVERRIDE` is `Codex Desktop`), ensure startup context
+before phase orchestration:
+
+1. Inspect `.agents/ao/codex/state.json` if it exists.
+2. If the file is missing, unreadable, or `last_start.session_id` does not match
+   the current `CODEX_THREAD_ID`, run:
+
+   ```bash
+   ao codex start 2>/dev/null || true
+   ```
+
+3. If `last_start.session_id` already matches the current thread, do not rerun
+   startup.
+4. Let `$validation`, `$post-mortem`, `$handoff`, `$push`, or `$release` own the
+   hookless closeout path.
+
 ## DAG — Execute This Sequentially
 
 ```text

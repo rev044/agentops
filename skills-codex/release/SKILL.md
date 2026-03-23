@@ -394,6 +394,20 @@ This is an **internal** record for the knowledge flywheel. It does NOT go on the
 | `*-notes.md` | GitHub feed readers | Highlights, What's New, All Changes |
 | `*-audit.md` | Internal/flywheel | Version bumps, pre-flight results |
 
+### Step 16: Ensure Codex Closeout
+
+If this release workflow is ending a Codex hookless thread, inspect
+`.agents/ao/codex/state.json` when it exists. If the file is missing,
+unreadable, or `last_stop.session_id` does not match the current
+`CODEX_THREAD_ID`, run:
+
+```bash
+ao codex stop --auto-extract 2>/dev/null || true
+```
+
+If `last_stop.session_id` already matches the current thread, do not rerun
+closeout. Use `ao codex status` only when you need to confirm lifecycle health.
+
 ---
 
 ## New Changelog Template
@@ -528,4 +542,3 @@ Everything this skill does is local and reversible:
 ### scripts/
 
 - `scripts/validate.sh`
-

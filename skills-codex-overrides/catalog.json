@@ -150,6 +150,7 @@
         "required_markers": [
           "Capture the current objective, completed work, unresolved blockers, and the next command or file to inspect.",
           "Prefer durable paths, issue ids, and validation evidence over conversational summaries.",
+          "Finish handoff-driven session closeout by inspecting `.agents/ao/codex/state.json` and running `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.",
           "Do not leave the next session guessing what to do first."
         ]
       }
@@ -172,6 +173,7 @@
           "## Guardrails"
         ],
         "required_markers": [
+          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before implementation begins.",
           "Work one claimed issue to completion with acceptance criteria, touched files, and validation steps kept explicit.",
           "Prefer TDD or the smallest proving test first when behavior changes, then widen validation only as needed.",
           "Do not widen scope beyond the claimed issue without creating a beads follow-up."
@@ -229,7 +231,7 @@
           "Treat `skills/post-mortem/SKILL.md` as the canonical close-out contract and `skills-codex/post-mortem/SKILL.md` as the Codex-facing artifact.",
           "Keep the council/validation summary concise, then write learnings and harvested work to disk.",
           "Prefer concrete follow-up items that can flow directly into `.agents/rpi/next-work.jsonl` for the next Codex loop.",
-          "Finish Codex closeout with `ao codex stop`, and recommend `ao codex status` when the user needs to confirm lifecycle health.",
+          "Finish Codex closeout by inspecting `.agents/ao/codex/state.json` and running `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread; use `ao codex status` only to report lifecycle health.",
           "Keep harvested work machine-checkable: available on write, then claim/release/consume through the queue lifecycle."
         ]
       }
@@ -302,6 +304,7 @@
         "required_markers": [
           "relevant tests first, commit second, push third, remote verification last",
           "branch is synced with origin at the end",
+          "If this push ends a Codex hookless thread, inspect `.agents/ao/codex/state.json` and run `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.",
           "If push fails, stay in recovery mode until it succeeds or a real blocker is identified"
         ]
       }
@@ -339,7 +342,7 @@
           "Treat `skills/recover/SKILL.md` as the canonical recovery contract and `skills-codex/recover/SKILL.md` as the Codex-facing artifact.",
           "Rebuild state from files, issues, generated artifacts, and git state before trusting chat memory.",
           "Return recovery output in this order: `Resume Target`, `Evidence`, `Gaps or Conflicts`, `Next Step`.",
-          "Prefer `ao codex status` to inspect lifecycle health, then `ao codex start` to rebuild startup context when the session is hookless.",
+          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and run `ao codex start` only when `last_start.session_id` does not match the current thread.",
           "Make the `Next Step` directly executable by the current Codex session."
         ]
       }
@@ -358,6 +361,7 @@
         "required_markers": [
           "Keep the release boundary explicit: everything up to the tag, with validations and changelog evidence called out.",
           "Prefer deterministic command sequences and clear rollback points over narrative release notes during execution.",
+          "If this release ends a Codex hookless thread, inspect `.agents/ao/codex/state.json` and run `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.",
           "Do not blur preparation work with post-tag publishing tasks."
         ]
       }
@@ -374,6 +378,7 @@
           "## Guardrails"
         ],
         "required_markers": [
+          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before research.",
           "Prefer `spawn_agent` / `send_input` / `wait` for parallel exploration.",
           "Write findings to `.agents/research/` with file-level references and concrete evidence.",
           "Keep backend fallback logic explicit: codex sub-agents, then inline."
@@ -404,6 +409,7 @@
           "## Guardrails"
         ],
         "required_markers": [
+          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before phase orchestration.",
           "Orchestrate phases directly in the current session; do not hand RPI orchestration to wrapper commands.",
           "claim, release, and consume semantics exactly",
           "claim before work, consume on success, release on failure or interruption"
@@ -446,6 +452,7 @@
           "## Guardrails"
         ],
         "required_markers": [
+          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before gathering dashboard state.",
           "Default to a one-screen layout with three blocks in this order: `Current Work`, `Latest Gates`, `Next Action`.",
           "Use exact issue ids, branch/worktree state, and file-backed artifacts instead of conversational summaries.",
           "Keep the output resumable after compaction."

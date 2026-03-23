@@ -35,11 +35,14 @@ STEP 3  ──  if not --no-retro:
               $retro
 
 STEP 4  ──  if not --no-forge AND ao available:
-              if [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
-                ao codex stop --auto-extract 2>/dev/null || true
-              else
+              if Codex hookless mode:
+                inspect .agents/ao/codex/state.json when present
+                if the state is missing, unreadable, or last_stop.session_id != CODEX_THREAD_ID:
+                  ao codex stop --auto-extract 2>/dev/null || true
+                else:
+                  skip duplicate Codex closeout for this thread
+              else:
                 ao forge transcript --last-session --queue --quiet 2>/dev/null || true
-              fi
 
 STEP 5  ──  write phase summary to .agents/rpi/phase-3-summary-YYYY-MM-DD-<slug>.md
               ao ratchet record vibe 2>/dev/null || true
@@ -133,7 +136,7 @@ $validation --no-forge ag-5k2             # skip forge only
 |---------|-------|----------|
 | Vibe FAIL on first run | Implementation has quality issues | Fix findings via `$crank`, then re-run `$validation` |
 | Post-mortem skipped unexpectedly | No epic-id provided | Pass epic-id: `$validation ag-5k2` |
-| Codex closeout missing | Codex has no session-end hook surface | Let `$validation` run `ao codex stop`, or run `ao codex stop` manually before leaving the session |
+| Codex closeout missing | Codex has no session-end hook surface | Let `$validation` ensure `ao codex stop` once per thread by checking `.agents/ao/codex/state.json`, or use `ao codex status` to confirm the closeout state manually |
 | Forge produces no output | No ao CLI or no transcript content | Install ao CLI or run `$retro` manually |
 | Stale execution-packet | Packet from a previous RPI cycle | Delete `.agents/rpi/execution-packet.json` and pass `--complexity` explicitly |
 

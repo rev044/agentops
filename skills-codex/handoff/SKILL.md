@@ -218,6 +218,20 @@ Tell the user:
 4. Suggestion: Copy the continuation prompt for next session
 5. If learnings detected, suggest `$post-mortem --quick`
 
+### Step 10: Ensure Codex Closeout
+
+If this handoff is ending a Codex hookless thread, inspect
+`.agents/ao/codex/state.json` when it exists. If the file is missing,
+unreadable, or `last_stop.session_id` does not match the current
+`CODEX_THREAD_ID`, run:
+
+```bash
+ao codex stop --auto-extract 2>/dev/null || true
+```
+
+If `last_stop.session_id` already matches the current thread, do not rerun
+closeout. Use `ao codex status` only when you need to confirm lifecycle health.
+
 **Output completion marker:**
 ```
 <promise>DONE</promise>
@@ -344,5 +358,4 @@ If ao CLI not available:
 ### scripts/
 
 - `scripts/validate.sh`
-
 

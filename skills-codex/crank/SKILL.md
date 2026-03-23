@@ -35,6 +35,24 @@ Crank (lead agent)
 4. Use `close_agent` for stalled or unnecessary agents.
 5. Never depend on legacy CSV fan-out or host-task result polling. Use `spawn_agent`, `wait_agent`, `send_input`, and `close_agent` instead.
 
+## Codex Lifecycle Guard
+
+When this skill runs in Codex hookless mode (`CODEX_THREAD_ID` is set or
+`CODEX_INTERNAL_ORIGINATOR_OVERRIDE` is `Codex Desktop`), ensure startup context
+before the first wave:
+
+1. Inspect `.agents/ao/codex/state.json` if it exists.
+2. If the file is missing, unreadable, or `last_start.session_id` does not match
+   the current `CODEX_THREAD_ID`, run:
+
+   ```bash
+   ao codex start 2>/dev/null || true
+   ```
+
+3. If `last_start.session_id` already matches the current thread, do not rerun
+   startup.
+4. Leave `ao codex stop` to closeout skills after the implementation wave ends.
+
 ## Flags
 
 | Flag | Default | Description |

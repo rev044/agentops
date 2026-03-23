@@ -85,6 +85,20 @@ Output a summary:
 - Commit hash
 - Branch pushed to
 
+### Step 9: Ensure Codex Closeout
+
+If this push is ending a Codex hookless thread, inspect
+`.agents/ao/codex/state.json` when it exists. If the file is missing,
+unreadable, or `last_stop.session_id` does not match the current
+`CODEX_THREAD_ID`, run:
+
+```bash
+ao codex stop --auto-extract 2>/dev/null || true
+```
+
+If `last_stop.session_id` already matches the current thread, do not rerun
+closeout. Use `ao codex status` only when you need to confirm lifecycle health.
+
 ## Guardrails
 
 - NEVER push to `main` or `master` without explicit user confirmation
@@ -97,5 +111,4 @@ Output a summary:
 ### scripts/
 
 - `scripts/validate.sh`
-
 
