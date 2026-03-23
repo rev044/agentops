@@ -97,6 +97,7 @@ type phasedState struct {
 	TestFirst       bool                `json:"test_first"`
 	SwarmFirst      bool                `json:"swarm_first"`
 	Complexity      ComplexityLevel     `json:"complexity,omitempty"` // fast, standard, full
+	ProgramPath     string              `json:"program_path,omitempty"`
 	Verdicts        map[string]string   `json:"verdicts"`
 	Attempts        map[string]int      `json:"attempts"`
 	StartedAt       string              `json:"started_at"`
@@ -140,6 +141,10 @@ const contextDisciplineInstruction = `CONTEXT DISCIPLINE: You are running inside
 - If you notice context degradation (forgetting earlier instructions, repeating yourself, losing track of the goal), IMMEDIATELY write a handoff to .agents/rpi/phase-{{.PhaseNum}}-handoff.md with: (1) what you accomplished, (2) what remains, (3) key context. Then finish cleanly.
 {{.ContextBudget}}
 `
+
+const autodevProgramInstruction = `{{if .ProgramPath}}AUTODEV PROGRAM CONTRACT: Read {{.ProgramPath}} before any other repo exploration. Treat it as the repo-local operational contract. Stay within its mutable scope, respect immutable scope, run its validation commands before claiming success, use its decision policy for keep vs revert, escalate out-of-scope work, and obey its stop conditions.
+
+{{end}}`
 
 // phaseContextBudgets provides phase-specific context guidance.
 var phaseContextBudgets = map[int]string{
@@ -389,6 +394,12 @@ func renderPreambleInstructions(prompt *strings.Builder, data any) {
 			VerbosePrintf("Warning: could not render context discipline instruction: %v\n", execErr)
 		}
 	}
+	programTmpl, err := template.New("program").Parse(autodevProgramInstruction)
+	if err == nil {
+		if execErr := programTmpl.Execute(prompt, data); execErr != nil {
+			VerbosePrintf("Warning: could not render autodev program instruction: %v\n", execErr)
+		}
+	}
 	summaryTmpl, err := template.New("summary").Parse(phaseSummaryInstruction)
 	if err == nil {
 		if execErr := summaryTmpl.Execute(prompt, data); execErr != nil {
@@ -418,6 +429,7 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 		Interactive   bool
 		PhaseNum      int
 		ContextBudget string
+		ProgramPath   string
 		PlanFileMode  bool
 		PlanFilePath  string
 	}{
@@ -429,6 +441,7 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 		Interactive:   state.Opts.Interactive,
 		PhaseNum:      phaseNum,
 		ContextBudget: phaseContextBudgets[phaseNum],
+		ProgramPath:   state.ProgramPath,
 		PlanFileMode:  isPlanFileEpic(state.EpicID),
 		PlanFilePath:  planFileFromEpic(state.EpicID),
 	}
@@ -555,6 +568,7 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 		Findings      []finding
 		PhaseNum      int
 		ContextBudget string
+		ProgramPath   string
 		PlanFileMode  bool
 		PlanFilePath  string
 	}{
@@ -567,6 +581,7 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 		Findings:      retryCtx.Findings,
 		PhaseNum:      phaseNum,
 		ContextBudget: phaseContextBudgets[phaseNum],
+		ProgramPath:   state.ProgramPath,
 		PlanFileMode:  isPlanFileEpic(state.EpicID),
 		PlanFilePath:  planFileFromEpic(state.EpicID),
 	}

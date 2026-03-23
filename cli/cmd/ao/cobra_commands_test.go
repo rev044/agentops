@@ -47,6 +47,8 @@ func executeCommand(args ...string) (string, error) {
 	origHooksFull := hooksFull
 	origHooksDryRun := hooksDryRun
 	origHooksForce := hooksForce
+	origAutodevFile := autodevFile
+	origAutodevForce := autodevForce
 	origFindingsListLimit := findingsListLimit
 	origFindingsListAll := findingsListAll
 	origFindingsExportTo := findingsExportTo
@@ -73,6 +75,8 @@ func executeCommand(args ...string) (string, error) {
 		hooksFull = origHooksFull
 		hooksDryRun = origHooksDryRun
 		hooksForce = origHooksForce
+		autodevFile = origAutodevFile
+		autodevForce = origAutodevForce
 		findingsListLimit = origFindingsListLimit
 		findingsListAll = origFindingsListAll
 		findingsExportTo = origFindingsExportTo
@@ -98,6 +102,8 @@ func executeCommand(args ...string) (string, error) {
 	hooksFull = false
 	hooksDryRun = false
 	hooksForce = false
+	autodevFile = ""
+	autodevForce = false
 	findingsListLimit = 20
 	findingsListAll = false
 	findingsExportTo = ""
@@ -176,7 +182,7 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 
 	// Verify all top-level commands are registered (flat namespace)
 	expectedCmds := []string{
-		"anti-patterns", "badge", "batch-feedback", "completion", "config",
+		"anti-patterns", "autodev", "badge", "batch-feedback", "completion", "config",
 		"constraint", "context", "contradict", "curate", "dedup",
 		"defrag", "demo", "doctor", "extract", "feedback", "feedback-loop",
 		"findings", "flywheel", "forge", "gate", "goals", "handoff", "hooks",
@@ -199,6 +205,7 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 
 	// Verify parent commands have subcommands
 	parentExpectations := map[string][]string{
+		"autodev":    {"init", "validate", "show"},
 		"goals":      {"validate", "measure", "drift"},
 		"ratchet":    {"status", "check", "next"},
 		"metrics":    {"baseline", "report"},
@@ -228,7 +235,7 @@ func TestCobraExpectedCmdsMatchRegistration(t *testing.T) {
 
 	// Same list as TestCobraCommandTreeRegistration
 	expectedCmds := []string{
-		"anti-patterns", "badge", "batch-feedback", "completion", "config",
+		"anti-patterns", "autodev", "badge", "batch-feedback", "completion", "config",
 		"constraint", "context", "contradict", "curate", "dedup",
 		"defrag", "demo", "doctor", "extract", "feedback", "feedback-loop",
 		"findings", "flywheel", "forge", "gate", "goals", "handoff", "hooks",

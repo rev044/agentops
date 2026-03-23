@@ -24,6 +24,22 @@ Migrating from GOALS.yaml? Run `ao goals migrate --to-md`. Manage goals with `ao
 
 Maintain over time: `/goals` shows pass/fail status, `/goals prune` finds stale or broken checks.
 
+## Pairing GOALS.md with PROGRAM.md
+
+Use `GOALS.md` for strategic fitness and `PROGRAM.md` for operational control.
+
+- `GOALS.md` answers what good looks like.
+- `PROGRAM.md` answers what the autonomous loop may touch, how one experiment is bounded, which validations decide success, and when to stop or escalate.
+
+Initialize the operational contract with:
+
+```bash
+ao autodev init
+ao autodev validate
+```
+
+This split keeps repo goals stable while allowing the autonomous runtime policy to evolve independently. See [Autodev Program Contract](contracts/autodev-program.md) for the required sections and semantics.
+
 ## See Also
 
 - [README.md](../README.md) — repo overview and `/evolve` demo

@@ -55,6 +55,8 @@ Recommended packet fields for the first slice:
 - `tracker_mode`
 - `done_criteria`
 
+When a repo-local `PROGRAM.md` contract exists, `/rpi` may also carry an additive `autodev_program` block derived from that file. This keeps runtime operating policy phase-stable without forcing `GOALS.md` to absorb mutable execution details.
+
 This keeps repo policy additive and phase-stable without replacing the current goal/epic flow in one step.
 
 ## Minimal Example

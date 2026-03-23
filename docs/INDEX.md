@@ -187,6 +187,7 @@
 - [MemRL Policy Schema](contracts/memrl-policy.schema.json) — Machine-readable schema for MemRL policy package
 - [MemRL Policy Example Profile](contracts/memrl-policy.profile.example.json) — Example deterministic policy profile
 - [Repo Execution Profile](contracts/repo-execution-profile.md) — Repo-local bootstrap, validation, tracker, and done-criteria contract for autonomous orchestration
+- [Autodev Program Contract](contracts/autodev-program.md) — Repo-local operational contract for bounded autonomous development
 - [Repo Execution Profile Schema](contracts/repo-execution-profile.schema.json) — Machine-readable schema for repo execution profiles
 - [RPI Run Registry](contracts/rpi-run-registry.md) — RPI run registry specification
 - [RPI Phase Result Schema](contracts/rpi-phase-result.schema.json) — Machine-readable schema for RPI phase results

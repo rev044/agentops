@@ -649,6 +649,56 @@ ao vibe-check [flags]
 
 ---
 
+### `ao autodev`
+
+Define, inspect, and validate the repo-local PROGRAM.md contract.
+
+```
+ao autodev [command]
+```
+
+**Flags:**
+
+```
+      --file string   Path to PROGRAM.md or AUTODEV.md (auto-detects PROGRAM.md then AUTODEV.md)
+  -h, --help          help for autodev
+```
+
+**Subcommands:**
+
+#### `ao autodev init`
+
+Create a PROGRAM.md template
+
+```
+ao autodev init [objective] [flags]
+```
+
+**Flags:**
+
+```
+      --force   Overwrite an existing program file
+  -h, --help    help for init
+```
+
+#### `ao autodev show`
+
+Show the parsed PROGRAM.md contract
+
+```
+ao autodev show [flags]
+```
+
+#### `ao autodev validate`
+
+Validate PROGRAM.md structure
+
+```
+ao autodev validate [flags]
+```
+
+---
+
 ### `ao feedback-loop`
 
 Automatically close the MemRL feedback loop by updating utilities of cited learnings.

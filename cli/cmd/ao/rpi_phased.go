@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/autodev"
 	cliRPI "github.com/boshu2/agentops/cli/internal/rpi"
 )
 
@@ -275,6 +276,9 @@ func initPhasedState(cwd string, opts phasedEngineOptions, args []string) (*phas
 	if err != nil {
 		return nil, 0, "", err
 	}
+	if err := attachAutodevProgram(spawnCwd, state); err != nil {
+		return nil, 0, "", err
+	}
 	return state, startPhase, spawnCwd, nil
 }
 
@@ -322,6 +326,9 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 		return err
 	}
 	logPath = runLogPath
+	if err := writeExecutionPacketSeed(spawnCwd, state); err != nil {
+		return err
+	}
 
 	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s complexity=%s fast_path=%v", state.Goal, opts.From, state.Complexity, state.FastPath))
 
@@ -369,6 +376,27 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 
 	writeFinalPhasedReport(state, logPath)
 
+	return nil
+}
+
+func attachAutodevProgram(cwd string, state *phasedState) error {
+	rel := autodev.ResolveProgramPath(cwd)
+	if rel == "" {
+		state.ProgramPath = ""
+		return nil
+	}
+	prog, _, err := autodev.LoadProgram(filepath.Join(cwd, rel))
+	if err != nil {
+		return fmt.Errorf("loading %s: %w", rel, err)
+	}
+	if errs := autodev.ValidateProgram(prog); len(errs) > 0 {
+		var details []string
+		for _, err := range errs {
+			details = append(details, err.Error())
+		}
+		return fmt.Errorf("invalid %s: %s", rel, strings.Join(details, "; "))
+	}
+	state.ProgramPath = rel
 	return nil
 }
 
