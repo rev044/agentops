@@ -92,6 +92,13 @@ The Codex fallback reuses the existing pool and close-loop hygiene instead of in
 - Search citation is assisted rather than inferred from every result automatically; the user or skill must choose `--cite` when adoption is known.
 - Poor extracted artifacts are not promoted automatically just because they were generated in Codex.
 
+## Verification
+
+Use these non-release checks to verify the Codex fallback from the current worktree:
+
+- `bash scripts/test-codex-hookless-lifecycle.sh` builds the local `ao` binary, seeds a temp Codex home and temp repo, then verifies `ao codex start`, retrieval/citation, `ao codex stop`, and `ao codex status`.
+- `bash scripts/test-codex-native-install.sh --skip-lint` verifies the checked-in Codex plugin bundle and public installer flow in a temp home without cutting a tag.
+
 ## See Also
 
 - [Knowledge Flywheel](../knowledge-flywheel.md)
