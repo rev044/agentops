@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -103,6 +104,33 @@ func TestBuildPromptForPhase_IncludesProgramContract(t *testing.T) {
 	}
 }
 
+func TestBuildPromptForPhase_IncludesProgramContractForAllPhases(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "PROGRAM.md"), []byte(rpiProgramMarkdown), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &phasedState{
+		Goal:        "build the loop",
+		EpicID:      "ag-123",
+		ProgramPath: "PROGRAM.md",
+		Opts:        defaultPhasedEngineOptions(),
+	}
+
+	for _, phaseNum := range []int{1, 2, 3} {
+		prompt, err := buildPromptForPhase(tmp, phaseNum, state, nil)
+		if err != nil {
+			t.Fatalf("buildPromptForPhase(%d) error = %v", phaseNum, err)
+		}
+		if !strings.Contains(prompt, "AUTODEV PROGRAM CONTRACT") {
+			t.Fatalf("phase %d prompt missing program contract:\n%s", phaseNum, prompt)
+		}
+		if !strings.Contains(prompt, "Read PROGRAM.md before any other repo exploration") {
+			t.Fatalf("phase %d prompt missing read instruction:\n%s", phaseNum, prompt)
+		}
+	}
+}
+
 func TestWriteExecutionPacketSeed_UsesProgramContract(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmp, "PROGRAM.md"), []byte(rpiProgramMarkdown), 0o644); err != nil {
@@ -148,4 +176,132 @@ func TestWriteExecutionPacketSeed_UsesProgramContract(t *testing.T) {
 	if len(doneCriteria) < 2 {
 		t.Fatalf("done_criteria = %#v, want >= 2", packet["done_criteria"])
 	}
+}
+
+func TestRunPhasedEngine_DryRunUsesResolvedProgramContract(t *testing.T) {
+	cases := []struct {
+		name         string
+		setupFiles   func(t *testing.T, dir string)
+		wantPath     string
+		wantContains string
+	}{
+		{
+			name: "PROGRAM preferred when both exist",
+			setupFiles: func(t *testing.T, dir string) {
+				t.Helper()
+				programText := strings.Replace(rpiProgramMarkdown, "cd cli && go test ./cmd/ao/... ./internal/autodev/...", "echo program-preferred", 1)
+				autodevText := strings.Replace(rpiProgramMarkdown, "cd cli && go test ./cmd/ao/... ./internal/autodev/...", "echo autodev-fallback", 1)
+				if err := os.WriteFile(filepath.Join(dir, "PROGRAM.md"), []byte(programText), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "AUTODEV.md"), []byte(autodevText), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantPath:     "PROGRAM.md",
+			wantContains: "echo program-preferred",
+		},
+		{
+			name: "AUTODEV fallback when PROGRAM missing",
+			setupFiles: func(t *testing.T, dir string) {
+				t.Helper()
+				autodevText := strings.Replace(rpiProgramMarkdown, "cd cli && go test ./cmd/ao/... ./internal/autodev/...", "echo autodev-fallback", 1)
+				if err := os.WriteFile(filepath.Join(dir, "AUTODEV.md"), []byte(autodevText), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantPath:     "AUTODEV.md",
+			wantContains: "echo autodev-fallback",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(tmpDir, "docs", "contracts"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(tmpDir, "docs", "contracts", "repo-execution-profile.md"), []byte("# Repo Execution Profile\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			tc.setupFiles(t, tmpDir)
+
+			prevDryRun := dryRun
+			dryRun = true
+			t.Cleanup(func() { dryRun = prevDryRun })
+
+			opts := defaultPhasedEngineOptions()
+			opts.NoWorktree = true
+			opts.SwarmFirst = false
+
+			if err := runPhasedEngine(context.Background(), tmpDir, "drive bounded autodev experiments", opts); err != nil {
+				t.Fatalf("runPhasedEngine() error = %v", err)
+			}
+
+			statePath := filepath.Join(tmpDir, ".agents", "rpi", phasedStateFile)
+			stateData, err := os.ReadFile(statePath)
+			if err != nil {
+				t.Fatalf("read phased state: %v", err)
+			}
+			var state phasedState
+			if err := json.Unmarshal(stateData, &state); err != nil {
+				t.Fatalf("unmarshal phased state: %v", err)
+			}
+			if state.ProgramPath != tc.wantPath {
+				t.Fatalf("ProgramPath = %q, want %q", state.ProgramPath, tc.wantPath)
+			}
+
+			packetPath := filepath.Join(tmpDir, ".agents", "rpi", "execution-packet.json")
+			packetData, err := os.ReadFile(packetPath)
+			if err != nil {
+				t.Fatalf("read execution packet: %v", err)
+			}
+			var packet struct {
+				ContractSurfaces []string `json:"contract_surfaces"`
+				AutodevProgram   struct {
+					Path               string   `json:"path"`
+					ValidationCommands []string `json:"validation_commands"`
+				} `json:"autodev_program"`
+			}
+			if err := json.Unmarshal(packetData, &packet); err != nil {
+				t.Fatalf("unmarshal execution packet: %v", err)
+			}
+			if packet.AutodevProgram.Path != tc.wantPath {
+				t.Fatalf("packet autodev_program.path = %q, want %q", packet.AutodevProgram.Path, tc.wantPath)
+			}
+			if len(packet.AutodevProgram.ValidationCommands) == 0 {
+				t.Fatalf("packet validation_commands empty: %+v", packet.AutodevProgram)
+			}
+			if packet.AutodevProgram.ValidationCommands[0] != tc.wantContains {
+				t.Fatalf("packet validation command = %q, want %q", packet.AutodevProgram.ValidationCommands[0], tc.wantContains)
+			}
+			if !containsProgramContract(packet.ContractSurfaces, "docs/contracts/repo-execution-profile.md") {
+				t.Fatalf("contract_surfaces = %#v, want repo execution profile", packet.ContractSurfaces)
+			}
+			if !containsProgramContract(packet.ContractSurfaces, tc.wantPath) {
+				t.Fatalf("contract_surfaces = %#v, want %s", packet.ContractSurfaces, tc.wantPath)
+			}
+
+			logPath := filepath.Join(tmpDir, ".agents", "rpi", "phased-orchestration.log")
+			logData, err := os.ReadFile(logPath)
+			if err != nil {
+				t.Fatalf("read orchestration log: %v", err)
+			}
+			logText := string(logData)
+			for _, phaseName := range []string{"discovery", "implementation", "validation"} {
+				if !strings.Contains(logText, phaseName) {
+					t.Fatalf("expected orchestration log to mention %s, got: %s", phaseName, logText)
+				}
+			}
+		})
+	}
+}
+
+func containsProgramContract(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }

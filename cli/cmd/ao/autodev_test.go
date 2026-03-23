@@ -120,3 +120,55 @@ func TestCobraAutodevShowJSON(t *testing.T) {
 		t.Fatalf("objective = %q", objective)
 	}
 }
+
+func TestCobraAutodevValidateFallsBackToAUTODEVJSON(t *testing.T) {
+	tmp := chdirTemp(t)
+	t.Setenv("HOME", tmp)
+	if err := os.WriteFile(filepath.Join(tmp, "AUTODEV.md"), []byte(sampleProgramMarkdown), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := executeCommand("autodev", "validate", "--json")
+	if err != nil {
+		t.Fatalf("ao autodev validate --json failed: %v\noutput: %s", err, out)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, out)
+	}
+	if valid, _ := result["valid"].(bool); !valid {
+		t.Fatalf("validate JSON valid=false: %#v", result)
+	}
+	if path, _ := result["path"].(string); path != "AUTODEV.md" {
+		t.Fatalf("validate JSON path = %q, want AUTODEV.md", path)
+	}
+}
+
+func TestCobraAutodevShowPrefersPROGRAMOverAUTODEV(t *testing.T) {
+	tmp := chdirTemp(t)
+	t.Setenv("HOME", tmp)
+
+	autodevText := strings.Replace(sampleProgramMarkdown, "PROGRAM.md-driven autodev loop", "AUTODEV fallback contract", 1)
+	if err := os.WriteFile(filepath.Join(tmp, "AUTODEV.md"), []byte(autodevText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	programText := strings.Replace(sampleProgramMarkdown, "PROGRAM.md-driven autodev loop", "PROGRAM preferred contract", 1)
+	if err := os.WriteFile(filepath.Join(tmp, "PROGRAM.md"), []byte(programText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := executeCommand("autodev", "show", "--json")
+	if err != nil {
+		t.Fatalf("ao autodev show --json failed: %v\noutput: %s", err, out)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, out)
+	}
+	if objective, _ := result["objective"].(string); !strings.Contains(objective, "PROGRAM preferred contract") {
+		t.Fatalf("objective = %q, want PROGRAM preferred contract", objective)
+	}
+}
