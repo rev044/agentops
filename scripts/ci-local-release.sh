@@ -24,6 +24,7 @@ SECURITY_TMP_BASE="${TMPDIR:-/tmp}/agentops-security-local-ci/$RUN_ID"
 
 SECURITY_MODE="full"
 FAST_MODE=false
+RELEASE_VERSION_OVERRIDE=""
 
 USER_MAX_JOBS=""
 
@@ -33,6 +34,7 @@ Usage: scripts/ci-local-release.sh [options]
 
 Options:
   --fast               Skip heavy checks (race tests, security gate, SBOM, hook integration)
+  --release-version V  Record artifacts against the target release version (for release audits)
   --security-mode      quick|full (default: full)
   --jobs N             Max parallel jobs (default: half CPU cores, min 4)
   -h, --help           Show this help
@@ -44,6 +46,10 @@ while [[ $# -gt 0 ]]; do
         --fast)
             FAST_MODE=true
             shift
+            ;;
+        --release-version)
+            RELEASE_VERSION_OVERRIDE="${2:-}"
+            shift 2
             ;;
         --security-mode)
             SECURITY_MODE="${2:-}"
@@ -70,6 +76,14 @@ if [[ "$SECURITY_MODE" != "quick" && "$SECURITY_MODE" != "full" ]]; then
     exit 1
 fi
 
+if [[ -n "$RELEASE_VERSION_OVERRIDE" ]]; then
+    RELEASE_VERSION_OVERRIDE="${RELEASE_VERSION_OVERRIDE#v}"
+    if [[ ! "$RELEASE_VERSION_OVERRIDE" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+        echo "Invalid --release-version: $RELEASE_VERSION_OVERRIDE" >&2
+        exit 1
+    fi
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -92,6 +106,19 @@ run_step() {
     else
         fail "$name"
     fi
+}
+
+release_version() {
+    if [[ -n "$RELEASE_VERSION_OVERRIDE" ]]; then
+        printf '%s\n' "$RELEASE_VERSION_OVERRIDE"
+        return 0
+    fi
+
+    jq -r '.version' .claude-plugin/plugin.json
+}
+
+artifact_dir_rel() {
+    printf '.agents/releases/local-ci/%s\n' "$RUN_ID"
 }
 
 # --- Parallel step infrastructure ---
@@ -385,12 +412,72 @@ run_release_binary_validation() {
     ./scripts/validate-release.sh "$REPO_ROOT/cli/bin/ao" "$version"
 }
 
+write_release_artifact_manifest() {
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "Skipping release artifact manifest: jq unavailable"
+        return 0
+    fi
+
+    local version
+    local repo_version
+    local generated_at
+    local manifest_file
+    local sbom_cyclonedx=""
+    local sbom_spdx=""
+    local security_report=""
+    local fast_mode_json=false
+
+    version="$(release_version)"
+    repo_version="$(jq -r '.version' .claude-plugin/plugin.json)"
+    generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    manifest_file="$ARTIFACT_DIR/release-artifacts.json"
+
+    [[ "$FAST_MODE" == "true" ]] && fast_mode_json=true
+
+    if [[ -f "$ARTIFACT_DIR/sbom-v${version}.cyclonedx.json" ]]; then
+        sbom_cyclonedx="sbom-v${version}.cyclonedx.json"
+    fi
+    if [[ -f "$ARTIFACT_DIR/sbom-v${version}.spdx.json" ]]; then
+        sbom_spdx="sbom-v${version}.spdx.json"
+    fi
+    if [[ -f "$ARTIFACT_DIR/security-gate-${SECURITY_MODE}.json" ]]; then
+        security_report="security-gate-${SECURITY_MODE}.json"
+    fi
+
+    jq -n \
+        --arg run_id "$RUN_ID" \
+        --arg generated_at "$generated_at" \
+        --arg artifact_dir "$(artifact_dir_rel)" \
+        --arg release_version "$version" \
+        --arg repo_version "$repo_version" \
+        --arg security_mode "$SECURITY_MODE" \
+        --arg sbom_cyclonedx "$sbom_cyclonedx" \
+        --arg sbom_spdx "$sbom_spdx" \
+        --arg security_report "$security_report" \
+        --argjson fast_mode "$fast_mode_json" \
+        '{
+          schema_version: 1,
+          run_id: $run_id,
+          generated_at: $generated_at,
+          artifact_dir: $artifact_dir,
+          release_version: $release_version,
+          repo_version: $repo_version,
+          fast_mode: $fast_mode,
+          security_mode: $security_mode,
+          sbom_cyclonedx: (if $sbom_cyclonedx == "" then null else $sbom_cyclonedx end),
+          sbom_spdx: (if $sbom_spdx == "" then null else $sbom_spdx end),
+          security_report: (if $security_report == "" then null else $security_report end)
+        }' > "$manifest_file"
+
+    echo "Release artifact manifest: $manifest_file"
+}
+
 generate_sbom_artifacts() {
     local version
     local cdx_file
     local spdx_file
 
-    version="$(jq -r '.version' .claude-plugin/plugin.json)"
+    version="$(release_version)"
     cdx_file="$ARTIFACT_DIR/sbom-v${version}.cyclonedx.json"
     spdx_file="$ARTIFACT_DIR/sbom-v${version}.spdx.json"
 
@@ -593,6 +680,8 @@ collect_parallel
 
 END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
+
+write_release_artifact_manifest
 
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"

@@ -32,7 +32,7 @@ git tag vX.Y.Z
 
 ### 1. Pre-release Checklist
 
-- [ ] Local CI release gate passes (`./scripts/ci-local-release.sh`)
+- [ ] Local CI release gate passes (`./scripts/ci-local-release.sh`; once the target version is known, rerun as `./scripts/ci-local-release.sh --release-version X.Y.Z`)
 - [ ] Local gate artifacts generated (`.agents/releases/local-ci/<timestamp>/` includes SBOM + security report)
 - [ ] All tests pass locally (`cd cli && make test`)
 - [ ] CI green on main (check Actions tab)
@@ -180,6 +180,7 @@ If publisher CI fails after a local gate pass, the release may be in a partial s
 3. If the original tag-push workflow is still running for that tag, wait for it to finish before starting anything else
 4. For post-tag commits, use `scripts/retag-release.sh vX.Y.Z`
 5. Use `workflow_dispatch` only to rerun an existing tag after the original tag-triggered workflow has already finished and you are not pushing a new tag in parallel
+6. `scripts/retag-release.sh` already waits on the tag-push workflow. It should not launch a second manual publish run for the same tag.
 
 Why this matters: a second publish for the same tag can collide on release assets and fail with GitHub `422 already_exists` errors if the first publish already created or uploaded assets.
 
@@ -220,11 +221,16 @@ Before tagging, you can test the build locally:
 # Run CI-equivalent local release gate (required)
 ./scripts/ci-local-release.sh
 
+# Once the target version is known, bind the artifacts to that version for the audit
+./scripts/ci-local-release.sh --release-version X.Y.Z
+./scripts/resolve-release-artifacts.sh X.Y.Z
+
 # Publishable local artifacts will be written to:
 # .agents/releases/local-ci/<timestamp>/
 #   - sbom-vX.Y.Z.cyclonedx.json
 #   - sbom-vX.Y.Z.spdx.json
 #   - security-gate-full.json
+#   - release-artifacts.json
 
 # Install goreleaser
 brew install goreleaser

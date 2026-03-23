@@ -12,17 +12,17 @@
 #
 # What it does:
 #   1. Validates preconditions (clean tree, tag exists, commits after tag)
-#   2. Moves the tag to HEAD
-#   3. Pushes main + updated tag to origin
-#   4. Deletes stale GitHub release (if any)
-#   5. Triggers the release workflow
-#   6. Waits for workflow completion
-#   7. Upgrades Homebrew formula
+#   2. Rewrites the tag at HEAD as an annotated tag, preserving the prior message
+#   3. Deletes the stale GitHub release before the new tag push
+#   4. Pushes main + updated tag to origin
+#   5. Waits for the tag-push release workflow to complete
+#   6. Upgrades Homebrew formula
 
 set -euo pipefail
 
 TAG="${1:-}"
 REPO="${2:-boshu2/agentops}"
+WAIT_START=""
 
 # --- Validation ---
 
@@ -61,10 +61,31 @@ echo "  $COMMITS_AFTER commit(s) after $TAG will be included."
 
 # --- Move tag ---
 
-OLD_SHA=$(git rev-parse --short "$TAG")
-git tag -f "$TAG" HEAD
-NEW_SHA=$(git rev-parse --short "$TAG")
-echo "==> Tag moved: $OLD_SHA -> $NEW_SHA"
+OLD_SHA=$(git rev-parse --short "$TAG^{commit}")
+TAG_TYPE=$(git cat-file -t "$TAG")
+TAG_MESSAGE="$(git tag -l "$TAG" --format='%(contents)')"
+TAGGER_DATE="$(git for-each-ref --format='%(taggerdate:iso-strict)' "refs/tags/$TAG")"
+
+if [[ -z "$TAG_MESSAGE" ]]; then
+  TAG_MESSAGE="Release $TAG"
+fi
+
+if [[ "$TAG_TYPE" == "tag" && -n "$TAGGER_DATE" ]]; then
+  GIT_COMMITTER_DATE="$TAGGER_DATE" git tag -a -f "$TAG" -F - HEAD <<<"$TAG_MESSAGE"
+else
+  git tag -a -f "$TAG" -F - HEAD <<<"$TAG_MESSAGE"
+fi
+
+NEW_SHA=$(git rev-parse --short "$TAG^{commit}")
+echo "==> Tag moved: $OLD_SHA -> $NEW_SHA (annotated)"
+
+# --- GitHub release cleanup ---
+
+echo "==> Deleting stale GitHub release (if any)..."
+gh release delete "$TAG" --repo "$REPO" --yes 2>/dev/null || true
+
+echo "==> Removing remote tag before republish..."
+git push origin ":refs/tags/$TAG" 2>/dev/null || true
 
 # --- Push ---
 
@@ -72,23 +93,45 @@ echo "==> Pushing main..."
 git push origin main
 
 echo "==> Updating remote tag..."
-git push origin ":refs/tags/$TAG" 2>/dev/null || true
+WAIT_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 git push origin "$TAG"
 
-# --- GitHub release ---
+# --- GitHub Actions ---
 
-echo "==> Deleting stale GitHub release (if any)..."
-gh release delete "$TAG" --repo "$REPO" --yes 2>/dev/null || true
+echo "==> Waiting for tag-push release workflow..."
+RUN_ID=""
+RUN_URL=""
+HEAD_SHA="$(git rev-parse HEAD)"
+for _ in {1..24}; do
+  RUN_ID="$(gh run list \
+    --repo "$REPO" \
+    --workflow=release.yml \
+    --event push \
+    --limit 20 \
+    --json databaseId,headSha,createdAt,url \
+    --jq ".[] | select(.headSha == \"$HEAD_SHA\" and .createdAt >= \"$WAIT_START\") | .databaseId" \
+    | head -n1)"
+  if [[ -n "$RUN_ID" ]]; then
+    RUN_URL="$(gh run list \
+      --repo "$REPO" \
+      --workflow=release.yml \
+      --event push \
+      --limit 20 \
+      --json databaseId,headSha,createdAt,url \
+      --jq ".[] | select(.databaseId == $RUN_ID) | .url" \
+      | head -n1)"
+    break
+  fi
+  sleep 5
+done
 
-echo "==> Triggering release workflow..."
-RUN_URL=$(gh workflow run release.yml --repo "$REPO" -f "tag=$TAG" 2>&1)
-echo "  $RUN_URL"
+if [[ -z "$RUN_ID" ]]; then
+  echo "ERROR: Timed out waiting for the tag-push release workflow for $TAG"
+  exit 1
+fi
 
-# Wait for the run to appear
-sleep 5
-
-RUN_ID=$(gh run list --repo "$REPO" --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')
 echo "==> Watching workflow run $RUN_ID..."
+[[ -n "$RUN_URL" ]] && echo "  $RUN_URL"
 if gh run watch "$RUN_ID" --repo "$REPO" --exit-status; then
   echo "==> Release workflow succeeded."
 else

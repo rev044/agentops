@@ -82,7 +82,8 @@ git branch --show-current         # show current branch
 ```
 
 `/release` MUST run the repo-root `ci-local-release.sh` gate first. If it fails, stop the release workflow and report the failing checks.
-The local CI gate writes publishable artifacts to `.agents/releases/local-ci/<timestamp>/`, including SBOM files and a full security scan report.
+The local CI gate writes publishable artifacts to `.agents/releases/local-ci/<timestamp>/`, including SBOM files, a full security scan report, and `release-artifacts.json`.
+Once the target version is known, rerun the gate as `./scripts/ci-local-release.sh --release-version <version>` so the artifact manifest matches the final release version. Use `./scripts/resolve-release-artifacts.sh <version>` when writing the audit trail.
 
 **Checks:**
 
@@ -309,7 +310,12 @@ Read `references/release-notes.md` for the full release notes format, quality ba
 
 ### Step 11: Write audit trail
 
-Write the internal release audit record to `.agents/releases/YYYY-MM-DD-v<version>-audit.md` (see Step 15 format). Stage it alongside the release notes.
+Resolve the full local-CI artifact set that backs this release, then write the internal release audit record to `.agents/releases/YYYY-MM-DD-v<version>-audit.md` (see Step 16 format). Stage it alongside the release notes.
+
+```bash
+ARTIFACT_JSON="$(./scripts/resolve-release-artifacts.sh <version>)"
+ARTIFACT_DIR="$(echo "$ARTIFACT_JSON" | jq -r '.artifact_dir')"
+```
 
 ### Step 12: Release commit
 
@@ -379,6 +385,7 @@ Write to `.agents/releases/YYYY-MM-DD-v<version>-audit.md`:
 **Date:** YYYY-MM-DD
 **Previous:** v<previous-version>
 **Commits:** N commits in range
+**Local CI Artifacts:** `<artifact_dir>/`
 
 ## Version Bumps
 
