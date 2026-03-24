@@ -6,13 +6,11 @@ Full discovery phase orchestrator. Brainstorm + ao search + research + plan + pr
 
 1. Load and follow the skill instructions from the sibling `SKILL.md` file for
    this skill.
-2. In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure
-   `ao codex start` once per thread before discovery begins.
-3. Keep startup idempotent: if `last_start.session_id` already matches the
-   current `CODEX_THREAD_ID`, do not rerun `ao codex start`.
+2. In Codex hookless mode, run `ao codex ensure-start` before discovery begins;
+   the CLI records startup once per thread and skips duplicates automatically.
 
 ## Guardrails
 
 1. Do not assume startup hooks exist under `~/.codex`.
-2. Let closeout skills own `ao codex stop`; `$discovery` is a start-path skill.
+2. Let closeout skills own `ao codex ensure-stop`; `$discovery` is a start-path skill.
 3. Read local files in `references/` and `scripts/` only when needed.

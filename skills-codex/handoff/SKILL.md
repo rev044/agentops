@@ -223,10 +223,10 @@ Tell the user:
 If this handoff is ending a Codex hookless thread, run:
 
 ```bash
-ao codex stop --auto-extract 2>/dev/null || true
+ao codex ensure-stop --auto-extract 2>/dev/null || true
 ```
 
-`ao codex stop` is idempotent for the same Codex thread, so duplicate handoff
+`ao codex ensure-stop` is idempotent for the same Codex thread, so duplicate handoff
 invocations are safe. Use `ao codex status` only when you need to confirm
 lifecycle health.
 

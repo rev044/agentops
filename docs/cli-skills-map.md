@@ -2,7 +2,7 @@
 
 > Which `ao` commands are called by which skills and hooks — and vice versa.
 
-Auto-audited 2026-03-23. 53 CLI commands, 52 source skills, 7 runtime hook event sections.
+Auto-audited 2026-03-24. 53 CLI commands, 52 source skills, 7 runtime hook event sections.
 
 Source-of-truth note: `hooks/hooks.json` currently declares 7 runtime hook event sections. Repository hook scripts such as `worktree-setup.sh` are support/setup scripts and are listed separately when relevant.
 
@@ -34,7 +34,7 @@ Every `ao` command that is actively called by at least one skill or hook.
 | `ao pool` | crank, status | session-end-maintenance.sh |
 | `ao lookup` | crank, implement, inject, plan, research, using-agentops | session-start.sh |
 | `ao context` | crank, implement, swarm | context-guard.sh |
-| `ao codex` | post-mortem, quickstart, recover, using-agentops, validation | — |
+| `ao codex` | brainstorm, crank, discovery, handoff, implement, post-mortem, quickstart, recover, research, rpi, status, using-agentops, validation | — |
 | `ao maturity` | flywheel | session-end-maintenance.sh |
 | `ao constraint` | flywheel, post-mortem, retro | — |
 | `ao badge` | flywheel, status | — |
@@ -63,28 +63,30 @@ Which `ao` commands each skill invokes.
 
 | Skill | ao Commands Used |
 |-------|-----------------|
-| **crank** | `context assemble`, `flywheel close-loop`, `flywheel status`, `forge transcript`, `inject`, `lookup`, `pool list`, `ratchet record`, `ratchet status`, `rpi phased`, `search` |
+| **brainstorm** | `codex ensure-start` |
+| **crank** | `codex ensure-start`, `context assemble`, `flywheel close-loop`, `flywheel status`, `forge transcript`, `inject`, `lookup`, `pool list`, `ratchet record`, `ratchet status`, `rpi phased`, `search` |
+| **discovery** | `codex ensure-start` |
 | **evolve** | `forge`, `goals measure`, `inject` |
 | **flywheel** | `badge`, `constraint review`, `contradict`, `curate status`, `dedup`, `maturity`, `metrics cite-report`, `metrics health`, `anti-patterns`, `status` |
 | **forge** | `forge markdown`, `forge transcript` |
 | **goals** | `goals add`, `goals drift`, `goals export`, `goals history`, `goals init`, `goals measure`, `goals meta`, `goals migrate`, `goals prune`, `goals steer`, `goals validate` |
-| **handoff** | `ratchet status` |
-| **implement** | `context assemble`, `lookup`, `ratchet record`, `ratchet skip`, `ratchet spec`, `ratchet status` |
+| **handoff** | `codex ensure-stop`, `ratchet status` |
+| **implement** | `codex ensure-start`, `context assemble`, `lookup`, `ratchet record`, `ratchet skip`, `ratchet spec`, `ratchet status` |
 | **inject** | `inject`, `lookup`, `search` |
 | **plan** | `ratchet record`, `rpi cleanup`, `rpi status`, `search` |
-| **post-mortem** | `codex stop`, `constraint activate`, `flywheel close-loop`, `forge`, `forge markdown`, `session close`, `temper validate` |
+| **post-mortem** | `codex ensure-stop`, `constraint activate`, `flywheel close-loop`, `forge`, `forge markdown`, `session close`, `temper validate` |
 | **pre-mortem** | `ratchet record`, `search` |
 | **provenance** | `search` |
-| **quickstart** | `codex start`, `codex status`, `codex stop`, `flywheel status`, `hooks install`, `hooks test`, `init`, `rpi phased`, `seed`, `status` |
+| **quickstart** | `codex ensure-start`, `codex ensure-stop`, `codex status`, `flywheel status`, `hooks install`, `hooks test`, `init`, `rpi phased`, `seed`, `status` |
 | **ratchet** | `ratchet check`, `ratchet record`, `ratchet skip`, `ratchet status` |
-| **recover** | `codex start`, `codex status`, `lookup` |
-| **research** | `inject`, `lookup`, `rpi phased`, `search` |
+| **recover** | `codex ensure-start`, `codex status`, `lookup` |
+| **research** | `codex ensure-start`, `inject`, `lookup`, `rpi phased`, `search` |
 | **retro** | `constraint activate`, `constraint review`, `flywheel close-loop`, `forge`, `forge markdown`, `notebook update`, `session close`, `task-feedback` |
-| **rpi** | `ratchet record`, `rpi cancel`, `rpi cleanup` |
-| **status** | `badge`, `flywheel status`, `pool list`, `pool promote`, `pool stage`, `ratchet status`, `task-status` |
+| **rpi** | `codex ensure-start`, `ratchet record`, `rpi cancel`, `rpi cleanup` |
+| **status** | `badge`, `codex ensure-start`, `flywheel status`, `pool list`, `pool promote`, `pool stage`, `ratchet status`, `task-status` |
 | **swarm** | `context assemble`, `rpi phased` |
-| **using-agentops** | `codex start`, `codex status`, `codex stop`, `lookup`, `search` |
-| **validation** | `codex stop`, `forge transcript` |
+| **using-agentops** | `codex ensure-start`, `codex ensure-stop`, `codex status`, `lookup`, `search` |
+| **validation** | `codex ensure-stop`, `forge transcript` |
 | **vibe** | `forge markdown`, `ratchet record`, `search` |
 | council | `rpi phased` |
 | shared | `rpi phased` |
@@ -211,8 +213,10 @@ Pre-Compaction
 How Codex sessions replace missing runtime hooks with explicit lifecycle commands:
 
 ```
-Codex Session Start
-  → ao codex start
+Codex Thread Entry
+  → entry skill runs ao codex ensure-start
+      → first call performs ao codex start semantics once per thread
+      → later calls no-op for the same thread
       → ao flywheel close-loop (safe maintenance)
       → ao lookup citation writes for surfaced artifacts
 
@@ -222,8 +226,10 @@ During Session
   → ao search --cite <type>
       → appends citations to .agents/ao/citations.jsonl when search results are adopted
 
-Codex Session End
-  → ao codex stop
+Codex Thread Closeout
+  → closeout-owner skill runs ao codex ensure-stop
+      → first call performs ao codex stop semantics once per thread
+      → later calls no-op for the same thread
       → ao forge transcript (archived transcript or history fallback)
       → ao flywheel close-loop
 

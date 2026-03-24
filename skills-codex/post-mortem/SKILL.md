@@ -8,7 +8,7 @@ description: 'Wrap up completed work. Council validates the implementation, then
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
 >
-> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so `$post-mortem` must own the Codex-native closeout once per thread inside its flywheel phase by checking `.agents/ao/codex/state.json`.
+> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so `$post-mortem` must own the Codex-native closeout once per thread through `ao codex ensure-stop --auto-extract`.
 
 Six phases:
 1. **Council** — Did we implement it correctly?
@@ -37,12 +37,12 @@ $post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 
 In Codex hookless mode, `$post-mortem` owns closeout during Step 6:
 
-1. Run `ao codex stop --auto-extract`.
-2. Rely on the CLI's same-thread dedupe instead of parsing
-   `.agents/ao/codex/state.json` in the skill layer.
+1. Run `ao codex ensure-stop --auto-extract`.
+2. Rely on the CLI's same-thread dedupe instead of parsing lifecycle state in
+   the skill layer.
 3. Use `ao codex status` only when you need to report or verify lifecycle health.
 
-`ao codex stop` uses the latest transcript or history fallback to queue/persist
+`ao codex ensure-stop` uses the latest transcript or history fallback to queue/persist
 learnings and run close-loop maintenance without runtime hooks. Do not stack the
 generic `ao session close` + `ao flywheel close-loop` path on top of it in Codex.
 
@@ -880,9 +880,9 @@ if command -v ao &>/dev/null; then
   echo "Artifacts validated for tempering"
 
   if [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
-    # Codex owns closeout through ao codex stop, not the generic session-close path.
+    # Codex owns closeout through ao codex ensure-stop, not the generic session-close path.
     # The CLI itself is idempotent for the same thread, so no jq/state parsing is required here.
-    ao codex stop --auto-extract 2>/dev/null || true
+    ao codex ensure-stop --auto-extract 2>/dev/null || true
     echo "Codex closeout ensured for the current thread"
   else
     # Close session and trigger full flywheel close-loop (includes adaptive feedback)

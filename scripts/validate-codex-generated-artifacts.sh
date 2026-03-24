@@ -199,6 +199,7 @@ if [[ "$warnings" -gt 0 ]]; then
 fi
 
 if [[ "$failures" -gt 0 ]]; then
+  echo "Repair flow: bash scripts/refresh-codex-artifacts.sh --scope $SCOPE" >&2
   echo "Codex generated artifact validation FAILED ($failures finding(s))." >&2
   exit 1
 fi

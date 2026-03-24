@@ -51,28 +51,50 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 // processDiscoveryPhase handles post-processing for the discovery phase.
 // It extracts the epic ID, detects fast path, and checks the pre-mortem verdict.
 func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error {
-	epicID, err := extractEpicID(state.Opts.BDCommand)
-	if err != nil {
-		// Fallback 1: discover plan file when bd has no epic
+	tracker := detectTrackerHealth(state.Opts.BDCommand)
+	state.TrackerMode = tracker.Mode
+	state.TrackerReason = tracker.Reason
+
+	var epicID string
+	var err error
+	if tracker.Healthy {
+		epicID, err = extractEpicID(state.Opts.BDCommand)
+	}
+	if !tracker.Healthy || err != nil {
+		if !tracker.Healthy {
+			fmt.Printf("Tracker degraded: %s (%s)\n", tracker.Reason, tracker.Error)
+			logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("tracker degraded: mode=%s reason=%s error=%s", tracker.Mode, tracker.Reason, tracker.Error))
+		}
+		// Fallback 1: discovery should preserve a file-backed objective when tracker health is degraded.
 		planPath, planErr := discoverPlanFile(cwd)
 		if planErr == nil {
-			epicID = planFileEpicPrefix + planPath
-			fmt.Printf("Plan-file fallback: using %s as epic ID\n", planPath)
-		} else {
-			// Fallback 2: any open issue (handles small-scope tasks that aren't epics)
+			epicID = ""
+			fmt.Printf("Tasklist fallback: using execution packet + plan %s\n", planPath)
+		} else if tracker.Healthy {
+			// Fallback 2: any open issue (handles small-scope tasks that aren't epics) only when tracker probes passed.
 			issueID, issueErr := extractAnyOpenIssueID(state.Opts.BDCommand)
 			if issueErr != nil {
 				return fmt.Errorf("discovery phase: could not find epic, plan file, or open issue: %w", err)
 			}
 			epicID = issueID
 			fmt.Printf("Single-issue fallback: using %s (not an epic)\n", epicID)
+		} else {
+			return fmt.Errorf("discovery phase: tracker degraded and no plan file found: %w", planErr)
 		}
 	}
 	state.EpicID = epicID
-	fmt.Printf("Epic ID: %s\n", epicID)
-	logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("extracted epic: %s", epicID))
+	if epicID != "" {
+		fmt.Printf("Epic ID: %s\n", epicID)
+		logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("extracted epic: %s", epicID))
+	} else {
+		fmt.Println("Epic ID: none (tasklist fallback)")
+		logPhaseTransition(logPath, state.RunID, "discovery", "extracted objective: tasklist fallback via execution packet")
+	}
+	if err := writeExecutionPacketSeed(cwd, state); err != nil {
+		return fmt.Errorf("refresh execution packet after discovery: %w", err)
+	}
 
-	if !state.Opts.FastPath && !isPlanFileEpic(epicID) {
+	if !state.Opts.FastPath && epicID != "" && !isPlanFileEpic(epicID) {
 		fast, err := detectFastPath(state.EpicID, state.Opts.BDCommand)
 		if err != nil {
 			VerbosePrintf("Warning: fast-path detection failed (continuing without): %v\n", err)

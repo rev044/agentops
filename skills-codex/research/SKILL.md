@@ -24,17 +24,13 @@ When this skill runs in Codex hookless mode (`CODEX_THREAD_ID` is set or
 `CODEX_INTERNAL_ORIGINATOR_OVERRIDE` is `Codex Desktop`), ensure startup context
 before the research workflow:
 
-1. Inspect `.agents/ao/codex/state.json` if it exists.
-2. If the file is missing, unreadable, or `last_start.session_id` does not match
-   the current `CODEX_THREAD_ID`, run:
+```bash
+ao codex ensure-start 2>/dev/null || true
+```
 
-   ```bash
-   ao codex start 2>/dev/null || true
-   ```
-
-3. If `last_start.session_id` already matches the current thread, do not rerun
-   startup.
-4. Leave `ao codex stop` to closeout skills; `$research` is a start-path skill.
+`ao codex ensure-start` is the single startup guard for Codex skills. It records
+startup once per thread and skips duplicate startup automatically. Leave
+`ao codex ensure-stop` to closeout skills; `$research` is a start-path skill.
 
 ## Execution Steps
 

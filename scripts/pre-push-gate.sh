@@ -27,8 +27,9 @@
 #  19. Next-work contract parity
 #  20. Skill runtime formats
 #  21. Codex RPI contract validation
-#  22. Skill CLI snippets
-#  23. Headless runtime skill smoke
+#  22. Codex lifecycle guard validation
+#  23. Skill CLI snippets
+#  24. Headless runtime skill smoke
 #
 # Usage:
 #   scripts/pre-push-gate.sh [--scope auto|upstream|staged|worktree|head]
@@ -539,7 +540,23 @@ else
     skip "codex RPI contract"
 fi
 
-# --- 22. Skill CLI snippets ---
+# --- 22. Codex lifecycle guard validation ---
+if needs_check skill; then
+    if [[ -x scripts/validate-codex-lifecycle-guards.sh ]]; then
+        if codex_lifecycle_output="$(bash scripts/validate-codex-lifecycle-guards.sh 2>&1)"; then
+            pass "codex lifecycle guards"
+        else
+            fail "codex lifecycle guards"
+            indent_output "$codex_lifecycle_output"
+        fi
+    else
+        fail "missing executable: scripts/validate-codex-lifecycle-guards.sh"
+    fi
+else
+    skip "codex lifecycle guards"
+fi
+
+# --- 23. Skill CLI snippets ---
 if needs_check skill; then
     if [[ -x scripts/validate-skill-cli-snippets.sh ]]; then
         if skill_cli_output="$(run_without_git_env scripts/validate-skill-cli-snippets.sh 2>&1)"; then
@@ -555,7 +572,7 @@ else
     skip "skill CLI snippets"
 fi
 
-# --- 23. Headless runtime skill smoke ---
+# --- 24. Headless runtime skill smoke ---
 # Skip in fast mode — requires nested Claude/Codex which fails inside Claude sessions
 if needs_check always && [[ "$FAST_MODE" != "true" ]]; then
     if [[ -x scripts/validate-headless-runtime-skills.sh ]]; then

@@ -247,6 +247,45 @@ func TestCtx_BuildPromptForPhase_Phase3(t *testing.T) {
 	}
 }
 
+func TestCtx_BuildPromptForPhase_TasklistModeUsesExecutionPacket(t *testing.T) {
+	state := &phasedState{
+		Goal:        "run Codex no-beads lifecycle",
+		TrackerMode: "tasklist",
+		Opts:        defaultPhasedEngineOptions(),
+	}
+
+	prompt, err := buildPromptForPhase("", 2, state, nil)
+	if err != nil {
+		t.Fatalf("buildPromptForPhase(2): %v", err)
+	}
+	if !strings.Contains(prompt, "TASKLIST MODE") {
+		t.Fatalf("tasklist phase 2 prompt missing tasklist marker:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "/crank .agents/rpi/execution-packet.json") {
+		t.Fatalf("tasklist phase 2 prompt missing execution-packet handoff:\n%s", prompt)
+	}
+}
+
+func TestBuildRetryPrompt_TasklistModeUsesExecutionPacket(t *testing.T) {
+	state := &phasedState{
+		Goal:        "run Codex no-beads lifecycle",
+		TrackerMode: "tasklist",
+		Opts:        phasedEngineOptions{MaxRetries: 3},
+	}
+	retryCtx := &retryContext{
+		Attempt: 1,
+		Verdict: "FAIL",
+	}
+
+	prompt, err := buildRetryPrompt("", 3, state, retryCtx)
+	if err != nil {
+		t.Fatalf("buildRetryPrompt(3): %v", err)
+	}
+	if !strings.Contains(prompt, "/crank .agents/rpi/execution-packet.json") {
+		t.Fatalf("tasklist retry prompt missing execution-packet handoff:\n%s", prompt)
+	}
+}
+
 func TestCtx_BuildPromptForPhase_PreambleSurvival(t *testing.T) {
 	state := &phasedState{
 		Goal:     "preamble test",

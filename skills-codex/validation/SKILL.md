@@ -37,10 +37,10 @@ STEP 3  ──  if not --no-retro:
 STEP 4  ──  if not --no-forge AND ao available:
               if Codex hookless mode:
                 if epic_id:
-                  $post-mortem owns Codex closeout for this run; skip duplicate ao codex stop here
+                  $post-mortem owns Codex closeout for this run; skip duplicate ao codex ensure-stop here
                 else:
-                  ao codex stop --auto-extract 2>/dev/null || true
-                  # ao codex stop is thread-idempotent; duplicate standalone validation calls are safe
+                  ao codex ensure-stop --auto-extract 2>/dev/null || true
+                  # ao codex ensure-stop is thread-idempotent; duplicate standalone validation calls are safe
               else:
                 ao forge transcript --last-session --queue --quiet 2>/dev/null || true
 
@@ -136,7 +136,7 @@ $validation --no-forge ag-5k2             # skip forge only
 |---------|-------|----------|
 | Vibe FAIL on first run | Implementation has quality issues | Fix findings via `$crank`, then re-run `$validation` |
 | Post-mortem skipped unexpectedly | No epic-id provided | Pass epic-id: `$validation ag-5k2` |
-| Codex closeout missing | Codex has no session-end hook surface | Standalone `$validation` ensures `ao codex stop` once per thread; epic validation defers Codex closeout to `$post-mortem`. Use `ao codex status` to confirm lifecycle state manually |
+| Codex closeout missing | Codex has no session-end hook surface | Standalone `$validation` ensures `ao codex ensure-stop` once per thread; epic validation defers Codex closeout to `$post-mortem`. Use `ao codex status` to confirm lifecycle state manually |
 | Forge produces no output | No ao CLI or no transcript content | Install ao CLI or run `$retro` manually |
 | Stale execution-packet | Packet from a previous RPI cycle | Delete `.agents/rpi/execution-packet.json` and pass `--complexity` explicitly |
 

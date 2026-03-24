@@ -7,9 +7,9 @@ Full validation phase orchestrator. Vibe + post-mortem + retro + forge. Reviews 
 1. Load and follow the skill instructions from the sibling `SKILL.md` file for
    this skill.
 2. In Codex hookless mode, standalone validation should run
-   `ao codex stop --auto-extract` after its own forge step.
+   `ao codex ensure-stop --auto-extract` after its own forge step.
 3. Keep closeout idempotent by relying on the CLI's same-thread dedupe instead
-   of parsing `.agents/ao/codex/state.json` in the skill layer.
+   of parsing lifecycle state in the skill layer.
 
 ## Guardrails
 

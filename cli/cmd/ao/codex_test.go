@@ -222,6 +222,91 @@ Use ao codex start and ao codex stop when runtime hooks are unavailable.
 	}
 }
 
+func TestCodexEnsureStartJSONSkipsDuplicateStartupForSameSession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CODEX_THREAD_ID", "019d1bf7-58ea-79e1-9f5d-02109d930081")
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex Desktop")
+
+	indexPath := filepath.Join(home, ".codex", "session_index.jsonl")
+	if err := os.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(indexPath, []byte(`{"id":"019d1bf7-58ea-79e1-9f5d-02109d930081","thread_name":"explicit lifecycle","updated_at":"2026-03-23T12:00:00Z"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".agents", "learnings"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, ".agents", "learnings", "codex-lifecycle.md"), []byte(`---
+id: codex-lifecycle
+type: learning
+date: 2026-03-23
+source: codex-test
+maturity: provisional
+utility: 0.9
+---
+
+# Explicit Codex lifecycle
+
+Use ao codex ensure-start and ao codex ensure-stop when runtime hooks are unavailable.
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	firstOut, err := executeCommand("codex", "ensure-start", "--json", "--query", "explicit codex lifecycle")
+	if err != nil {
+		t.Fatalf("first codex ensure-start --json: %v\noutput: %s", err, firstOut)
+	}
+	var first codexEnsureStartResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(firstOut)), &first); err != nil {
+		t.Fatalf("parse first codex ensure-start json: %v\noutput: %s", err, firstOut)
+	}
+	if !first.Performed {
+		t.Fatalf("first ensure-start performed = false, want true: %+v", first)
+	}
+
+	statePath := filepath.Join(repo, ".agents", "ao", "codex", "state.json")
+	before, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read state before second ensure-start: %v", err)
+	}
+
+	secondOut, err := executeCommand("codex", "ensure-start", "--json", "--query", "explicit codex lifecycle")
+	if err != nil {
+		t.Fatalf("second codex ensure-start --json: %v\noutput: %s", err, secondOut)
+	}
+	var second codexEnsureStartResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(secondOut)), &second); err != nil {
+		t.Fatalf("parse second codex ensure-start json: %v\noutput: %s", err, secondOut)
+	}
+	if second.Performed {
+		t.Fatalf("second ensure-start performed = true, want false: %+v", second)
+	}
+	if !strings.Contains(second.Reason, "already recorded") {
+		t.Fatalf("second reason = %q, want already-recorded hint", second.Reason)
+	}
+
+	after, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read state after second ensure-start: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("expected idempotent ensure-start to leave state unchanged\nbefore:\n%s\nafter:\n%s", string(before), string(after))
+	}
+}
+
 func TestCodexStopJSONUsesHistoryFallback(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -355,6 +440,81 @@ func TestCodexStopJSONSkipsDuplicateCloseoutForSameSession(t *testing.T) {
 	}
 	if string(after) != string(before) {
 		t.Fatalf("expected idempotent codex stop to leave state unchanged\nbefore:\n%s\nafter:\n%s", string(before), string(after))
+	}
+}
+
+func TestCodexEnsureStopJSONSkipsDuplicateCloseoutForSameSession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CODEX_THREAD_ID", "019d1bf7-58ea-79e1-9f5d-02109d930081")
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex Desktop")
+
+	sessionID := "019d1bf7-58ea-79e1-9f5d-02109d930081"
+	historyPath := filepath.Join(home, ".codex", "history.jsonl")
+	indexPath := filepath.Join(home, ".codex", "session_index.jsonl")
+	if err := os.MkdirAll(filepath.Dir(historyPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	history := []string{
+		`{"session_id":"` + sessionID + `","ts":1766945655,"text":"Design Codex fallback lifecycle"}`,
+		`{"session_id":"` + sessionID + `","ts":1766945658,"text":"Implement explicit ao codex stop closeout"}`,
+	}
+	if err := os.WriteFile(historyPath, []byte(strings.Join(history, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(indexPath, []byte(`{"id":"`+sessionID+`","thread_name":"Lifecycle fallback stop","updated_at":"2026-03-23T12:00:00Z"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	firstOut, err := executeCommand("codex", "ensure-stop", "--json")
+	if err != nil {
+		t.Fatalf("first codex ensure-stop --json: %v\noutput: %s", err, firstOut)
+	}
+	var first codexEnsureStopResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(firstOut)), &first); err != nil {
+		t.Fatalf("parse first codex ensure-stop json: %v\noutput: %s", err, firstOut)
+	}
+	if !first.Performed {
+		t.Fatalf("first ensure-stop performed = false, want true: %+v", first)
+	}
+
+	statePath := filepath.Join(repo, ".agents", "ao", "codex", "state.json")
+	before, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read state before second ensure-stop: %v", err)
+	}
+
+	secondOut, err := executeCommand("codex", "ensure-stop", "--json")
+	if err != nil {
+		t.Fatalf("second codex ensure-stop --json: %v\noutput: %s", err, secondOut)
+	}
+	var second codexEnsureStopResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(secondOut)), &second); err != nil {
+		t.Fatalf("parse second codex ensure-stop json: %v\noutput: %s", err, secondOut)
+	}
+	if second.Performed {
+		t.Fatalf("second ensure-stop performed = true, want false: %+v", second)
+	}
+	if !strings.Contains(second.Reason, "already recorded") {
+		t.Fatalf("second reason = %q, want already-recorded hint", second.Reason)
+	}
+
+	after, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read state after second ensure-stop: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("expected idempotent ensure-stop to leave state unchanged\nbefore:\n%s\nafter:\n%s", string(before), string(after))
 	}
 }
 

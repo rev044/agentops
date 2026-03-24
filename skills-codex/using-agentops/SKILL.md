@@ -168,7 +168,7 @@ AgentOps has three runtime modes. Do not assume hook automation exists everywher
 
 | Mode | When it applies | Start path | Closeout path | Guarantees |
 |------|-----------------|------------|---------------|------------|
-| `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces | `ao codex start` | `ao codex stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
+| `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces | `ao codex start` or `ao codex ensure-start` | `ao codex stop` or `ao codex ensure-stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
 | `manual` | Codex cannot resolve repo/runtime state automatically | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Works everywhere, but lifecycle actions are operator-driven |
 
 In Codex hookless mode, entry skills such as `$rpi`, `$research`, `$implement`,
@@ -191,11 +191,11 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 
 ### Startup Context Loading
 
-1. The first entry skill in a Codex thread should inspect `.agents/ao/codex/state.json` and run `ao codex start` only when `last_start.session_id` does not match the current thread.
+1. The first entry skill in a Codex thread should run `ao codex ensure-start`, which records startup once per thread and skips duplicate startup automatically.
 2. AgentOps inspects `.agents/`, runs safe close-loop maintenance, syncs MEMORY.md, and writes `.agents/ao/codex/startup-context.md`.
 3. Surfaced learnings, patterns, and findings are cited as `retrieved`.
 4. Use `ao lookup` for automatic citations during work, or `ao search --cite retrieved|reference|applied` when a search result is adopted.
-5. End the session through `$validation`, `$post-mortem`, or `$handoff`, which ensure `ao codex stop` once for the current thread, then verify loop health with `ao codex status` when needed.
+5. End the session through `$validation`, `$post-mortem`, or `$handoff`, which ensure `ao codex ensure-stop` once for the current thread, then verify loop health with `ao codex status` when needed.
 
 **Result:** In hookless Codex mode, the agent still gets prior context, citations, and closeout without hidden hooks.
 
@@ -216,7 +216,7 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Skill not auto-loaded | Hook runtime unavailable or startup path not run | Hook-capable runtimes: verify `hooks/session-start.sh` exists and is enabled. Codex: let an entry skill ensure `ao codex start`, or use `ao codex status` / `ao codex start` as the manual fallback |
+| Skill not auto-loaded | Hook runtime unavailable or startup path not run | Hook-capable runtimes: verify `hooks/session-start.sh` exists and is enabled. Codex: let an entry skill ensure `ao codex ensure-start`, or use `ao codex status` / `ao codex start` as the manual fallback |
 | Outdated skill catalog | This file not synced with actual skills/ directory | Update skill list in this file after adding/removing skills |
 | Wrong skill suggested | Natural language trigger ambiguous | User explicitly calls skill with `/skill-name` syntax |
 | Workflow unclear | RPI phases not well-documented here | Read full workflow guide in README.md or docs/ARCHITECTURE.md |

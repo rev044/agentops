@@ -37,6 +37,10 @@ ao codex stop
 ao codex status
 ```
 
+For normal Codex skill usage, entry skills drive the same startup path with
+`ao codex ensure-start`, and closeout-owner skills drive the same closeout path
+with `ao codex ensure-stop`.
+
 ### Option 3: Slash Commands (Hook-Capable Power Users)
 
 ```bash
@@ -50,7 +54,7 @@ ao codex status
 /session-end
 ```
 
-**Use the mode your runtime actually supports.** Claude/OpenCode can drive lifecycle via hooks. Codex uses `ao codex start` / `ao codex stop` / `ao codex status`.
+**Use the mode your runtime actually supports.** Claude/OpenCode can drive lifecycle via hooks. Codex uses explicit `ao codex start` / `ao codex stop` / `ao codex status`, while Codex skills automate the same boundaries via `ao codex ensure-start` / `ao codex ensure-stop`.
 
 ---
 
@@ -59,7 +63,7 @@ ao codex status
 | Mode | Start | Closeout | Notes |
 |------|-------|----------|-------|
 | Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed |
-| Codex hookless fallback | `ao codex start` | `ao codex stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit |
+| Codex hookless fallback | `ao codex start` or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit |
 | Manual fallback | `ao inject`, `ao lookup` | `ao forge transcript`, `ao flywheel close-loop` | Lowest-level portable path |
 
 ---

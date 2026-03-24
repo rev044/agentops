@@ -20,7 +20,7 @@ description: 'Post-compaction context recovery. Detects in-progress RPI and evol
 $recover              # Full recovery dashboard
 $recover --json       # Machine-readable JSON output
 ao codex status       # Codex hookless lifecycle health
-ao codex start        # Rebuild startup context explicitly in Codex
+ao codex ensure-start # Rebuild startup context explicitly in Codex
 ```
 
 ---
@@ -65,13 +65,13 @@ git branch --show-current
 
 **Call 4 — Work Queue State:**
 ```bash
-if command -v bd &>/dev/null; then
+if bd ready --json >/dev/null 2>&1 && bd list --type epic --status open --json >/dev/null 2>&1; then
   echo "=== IN_PROGRESS ==="
   bd list --status in_progress 2>/dev/null | head -3
   echo "=== READY ==="
   bd ready 2>/dev/null | head -3
 else
-  echo "BD_UNAVAILABLE"
+  echo "BD_DEGRADED_OR_UNAVAILABLE"
 fi
 ```
 
@@ -113,10 +113,7 @@ fi
 If Codex hookless mode is detected, also ensure startup context once for the current thread:
 
 ```bash
-Inspect .agents/ao/codex/state.json when it exists.
-If the file is missing, unreadable, or last_start.session_id does not match the current CODEX_THREAD_ID,
-run: ao codex start 2>/dev/null || true
-If last_start.session_id already matches the current thread, do not rerun ao codex start.
+ao codex ensure-start 2>/dev/null || true
 ```
 
 ### Step 3: Parse and Summarize Session State

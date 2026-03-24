@@ -41,17 +41,13 @@ When this skill runs in Codex hookless mode (`CODEX_THREAD_ID` is set or
 `CODEX_INTERNAL_ORIGINATOR_OVERRIDE` is `Codex Desktop`), ensure startup context
 before the first wave:
 
-1. Inspect `.agents/ao/codex/state.json` if it exists.
-2. If the file is missing, unreadable, or `last_start.session_id` does not match
-   the current `CODEX_THREAD_ID`, run:
+```bash
+ao codex ensure-start 2>/dev/null || true
+```
 
-   ```bash
-   ao codex start 2>/dev/null || true
-   ```
-
-3. If `last_start.session_id` already matches the current thread, do not rerun
-   startup.
-4. Leave `ao codex stop` to closeout skills after the implementation wave ends.
+`ao codex ensure-start` is the single startup guard for Codex skills. It records
+startup once per thread and skips duplicate startup automatically. Leave
+`ao codex ensure-stop` to closeout skills after the implementation wave ends.
 
 ## Flags
 
@@ -94,10 +90,10 @@ fi
 ### Step 0.5: Detect Tracking Mode
 
 ```bash
-if command -v bd &>/dev/null; then
+if bd ready --json >/dev/null 2>&1 && bd list --type epic --status open --json >/dev/null 2>&1; then
     TRACKING_MODE="beads"
 else
-    TRACKING_MODE="file"
+    TRACKING_MODE="tasklist"
 fi
 ```
 

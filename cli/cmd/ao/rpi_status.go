@@ -68,16 +68,18 @@ type rpiPhaseEntry struct {
 // --- rpiRunInfo: state-file-based run data ---
 
 type rpiRunInfo struct {
-	RunID     string `json:"run_id"`
-	Goal      string `json:"goal,omitempty"`
-	Phase     int    `json:"phase"`
-	PhaseName string `json:"phase_name"`
-	Status    string `json:"status"`
-	Reason    string `json:"reason,omitempty"` // why a run is stale/failed (e.g. "worktree missing")
-	EpicID    string `json:"epic_id,omitempty"`
-	Worktree  string `json:"worktree,omitempty"`
-	StartedAt string `json:"started_at,omitempty"`
-	Elapsed   string `json:"elapsed,omitempty"`
+	RunID         string `json:"run_id"`
+	Goal          string `json:"goal,omitempty"`
+	Phase         int    `json:"phase"`
+	PhaseName     string `json:"phase_name"`
+	Status        string `json:"status"`
+	Reason        string `json:"reason,omitempty"` // why a run is stale/failed (e.g. "worktree missing")
+	EpicID        string `json:"epic_id,omitempty"`
+	TrackerMode   string `json:"tracker_mode,omitempty"`
+	TrackerReason string `json:"tracker_reason,omitempty"`
+	Worktree      string `json:"worktree,omitempty"`
+	StartedAt     string `json:"started_at,omitempty"`
+	Elapsed       string `json:"elapsed,omitempty"`
 	// Liveness metadata (not shown in table, used for categorisation)
 	IsActive      bool      `json:"is_active"`
 	LastHeartbeat time.Time `json:"last_heartbeat,omitempty"`
@@ -185,22 +187,40 @@ func renderStateRunsSection(title string, runs []rpiRunInfo, label string, withL
 
 	// Check if any run has a reason to show the extra column.
 	hasReason := false
+	hasTracker := false
 	for _, r := range runs {
 		if r.Reason != "" {
 			hasReason = true
-			break
+		}
+		if r.TrackerMode != "" && r.TrackerMode != "beads" {
+			hasTracker = true
 		}
 	}
 
 	fmt.Println(title)
-	if hasReason {
+	switch {
+	case hasReason && hasTracker:
+		fmt.Printf("%-14s %-22s %-14s %-12s %-10s %-18s %s\n", "RUN-ID", "GOAL", "PHASE", "STATUS", "TRACKER", "REASON", "ELAPSED")
+		fmt.Println(strings.Repeat("─", 112))
+		for _, r := range runs {
+			fmt.Printf("%-14s %-22s %-14s %-12s %-10s %-18s %s\n",
+				r.RunID, truncateGoal(r.Goal, 20), r.PhaseName, r.Status, trackerSummary(r), truncateGoal(r.Reason, 18), r.Elapsed)
+		}
+	case hasReason:
 		fmt.Printf("%-14s %-26s %-14s %-12s %-20s %s\n", "RUN-ID", "GOAL", "PHASE", "STATUS", "REASON", "ELAPSED")
 		fmt.Println(strings.Repeat("─", 100))
 		for _, r := range runs {
 			fmt.Printf("%-14s %-26s %-14s %-12s %-20s %s\n",
 				r.RunID, truncateGoal(r.Goal, 24), r.PhaseName, r.Status, r.Reason, r.Elapsed)
 		}
-	} else {
+	case hasTracker:
+		fmt.Printf("%-14s %-24s %-14s %-12s %-12s %s\n", "RUN-ID", "GOAL", "PHASE", "STATUS", "TRACKER", "ELAPSED")
+		fmt.Println(strings.Repeat("─", 96))
+		for _, r := range runs {
+			fmt.Printf("%-14s %-24s %-14s %-12s %-12s %s\n",
+				r.RunID, truncateGoal(r.Goal, 22), r.PhaseName, r.Status, trackerSummary(r), r.Elapsed)
+		}
+	default:
 		fmt.Printf("%-14s %-30s %-14s %-10s %s\n", "RUN-ID", "GOAL", "PHASE", "STATUS", "ELAPSED")
 		fmt.Println(strings.Repeat("─", 82))
 		for _, r := range runs {
@@ -209,6 +229,20 @@ func renderStateRunsSection(title string, runs []rpiRunInfo, label string, withL
 		}
 	}
 	fmt.Printf("\n%d %s run(s) found.\n", len(runs), label)
+}
+
+func trackerSummary(run rpiRunInfo) string {
+	mode := strings.TrimSpace(run.TrackerMode)
+	if mode == "" {
+		return "beads"
+	}
+	if mode != "tasklist" {
+		return mode
+	}
+	if strings.TrimSpace(run.TrackerReason) == "" {
+		return mode
+	}
+	return truncateGoal(mode+":"+run.TrackerReason, 12)
 }
 
 func renderLogRunsSection(logRuns []rpiRun) {
@@ -865,6 +899,8 @@ func scanRegistryRuns(root string) []rpiRunInfo {
 			Status:        status,
 			Reason:        reason,
 			EpicID:        state.EpicID,
+			TrackerMode:   state.TrackerMode,
+			TrackerReason: state.TrackerReason,
 			Worktree:      root,
 			StartedAt:     state.StartedAt,
 			Elapsed:       elapsed,
@@ -998,6 +1034,8 @@ func loadRPIRun(dir string) (rpiRunInfo, bool) {
 		Status:        status,
 		Reason:        reason,
 		EpicID:        state.EpicID,
+		TrackerMode:   state.TrackerMode,
+		TrackerReason: state.TrackerReason,
 		Worktree:      dir,
 		StartedAt:     state.StartedAt,
 		Elapsed:       elapsed,

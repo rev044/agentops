@@ -140,6 +140,7 @@ while IFS= read -r entry; do
 done < "$selected_entries_file"
 
 if [[ "$failures" -gt 0 ]]; then
+  echo "Repair flow: bash scripts/refresh-codex-artifacts.sh --scope worktree" >&2
   echo "Codex backbone prompt validation FAILED ($failures finding(s))." >&2
   exit 1
 fi

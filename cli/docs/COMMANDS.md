@@ -709,6 +709,42 @@ ao codex [command]
 
 **Subcommands:**
 
+#### `ao codex ensure-start`
+
+Ensure Codex startup context exists once per thread
+
+```
+ao codex ensure-start [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help             help for ensure-start
+      --limit int        Maximum artifacts to surface per category (default 3)
+      --no-maintenance   Skip safe close-loop maintenance on start
+      --query string     Optional startup query (defaults to the current Codex thread name)
+```
+
+#### `ao codex ensure-stop`
+
+Ensure Codex closeout runs once per thread
+
+```
+ao codex ensure-stop [flags]
+```
+
+**Flags:**
+
+```
+      --auto-extract          Write lightweight learnings and handoff artifacts during closeout (default true)
+  -h, --help                  help for ensure-stop
+      --no-close-loop         Skip flywheel close-loop maintenance after forging
+      --no-history-fallback   Disable history.jsonl fallback when no archived Codex transcript exists
+      --session string        Codex session ID to close (defaults to the active thread)
+      --transcript string     Explicit transcript path to forge instead of runtime discovery
+```
+
 #### `ao codex start`
 
 Start a Codex session with explicit flywheel maintenance

@@ -42,12 +42,14 @@ For Codex skills specifically:
 1. `skills/<name>/SKILL.md` is the canonical workflow contract
 2. `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer
 3. `skills-codex-overrides/catalog.json` records the Codex treatment decision for every skill
-4. `skills-codex/<name>/` is the checked-in Codex runtime artifact and is manually maintained
+4. `skills-codex/<name>/` is the checked-in Codex runtime artifact
 
 For the core Codex execution chain, `skills-codex-overrides/catalog.json` also
 stores machine-readable `operator_contract` markers. When you change one of
 those prompts, update the contract alongside the prose so the validator can
-enforce the intended Codex-specific guarantees.
+enforce the intended Codex-specific guarantees. After Codex prompt/artifact
+changes, run `bash scripts/refresh-codex-artifacts.sh --scope worktree` so hash
+refresh and Codex-specific validators follow one obvious repair path.
 
 
 ## Key concepts to learn first

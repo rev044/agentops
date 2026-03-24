@@ -29,18 +29,14 @@ When this skill runs in Codex hookless mode (`CODEX_THREAD_ID` is set or
 `CODEX_INTERNAL_ORIGINATOR_OVERRIDE` is `Codex Desktop`), ensure startup context
 before gathering the dashboard:
 
-1. Inspect `.agents/ao/codex/state.json` if it exists.
-2. If the file is missing, unreadable, or `last_start.session_id` does not match
-   the current `CODEX_THREAD_ID`, run:
+```bash
+ao codex ensure-start 2>/dev/null || true
+```
 
-   ```bash
-   ao codex start 2>/dev/null || true
-   ```
-
-3. If `last_start.session_id` already matches the current thread, do not rerun
-   startup.
-4. Leave `ao codex stop` to dedicated closeout skills such as `$validation`,
-   `$post-mortem`, or `$handoff`.
+`ao codex ensure-start` is the single startup guard for Codex skills. It records
+startup once per thread and skips duplicate startup automatically. Leave
+`ao codex ensure-stop` to dedicated closeout skills such as `$validation`,
+`$post-mortem`, or `$handoff`.
 
 ---
 
@@ -68,7 +64,7 @@ fi
 
 **Call 2 — Beads / Epic State:**
 ```bash
-if command -v bd &>/dev/null; then
+if bd ready --json >/dev/null 2>&1 && bd list --type epic --status open --json >/dev/null 2>&1; then
   echo "=== EPIC ==="
   bd list --type epic --status open 2>/dev/null | head -5
   echo "=== IN_PROGRESS ==="
@@ -78,7 +74,7 @@ if command -v bd &>/dev/null; then
   echo "=== TOTAL ==="
   bd list 2>/dev/null | wc -l
 else
-  echo "BD_UNAVAILABLE"
+  echo "BD_DEGRADED_OR_UNAVAILABLE"
 fi
 ```
 

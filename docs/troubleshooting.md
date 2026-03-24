@@ -93,6 +93,43 @@ The `ao doctor` "Plugin" check scans the `skills/` directory for subdirectories 
    ao hooks test
    ```
 
+---
+
+## `bd` says a column is missing or RPI falls back to tasklist mode
+
+If `bd ready --json` fails with an error such as:
+
+```text
+column "crystallizes" could not be found in any table in scope
+```
+
+you likely have a beads CLI / beads DB schema mismatch.
+
+**Diagnosis:**
+
+```bash
+bd version
+bd migrate --inspect --json
+```
+
+If `bd migrate --inspect --json` shows the database state is newer than the
+installed `bd` version, the local CLI is too old for the repo's tracker data.
+
+**Fixes:**
+
+1. Upgrade beads to the matching or newer version:
+   ```bash
+   brew upgrade beads
+   ```
+2. Re-run tracker probes:
+   ```bash
+   bd ready --json
+   bd list --type epic --status open --json
+   ```
+3. If you cannot repair beads immediately, Codex phased RPI now degrades
+   honestly to tasklist mode instead of silently assuming beads is healthy. That
+   fallback is for continuity, not a substitute for repairing the tracker.
+
 For Codex, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. The installer enables plugins and suppresses the unstable-plugins warning in `~/.codex/config.toml`. On Linux, install system `bubblewrap` as well so Codex does not warn that it is using the vendored fallback. For OpenCode, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`. For other agents, use the platform-specific scripts in `scripts/`.
 
 ```bash

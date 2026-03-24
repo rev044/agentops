@@ -1515,10 +1515,23 @@ func TestRunPhasedEngine_DoesNotMutateProcessCWD(t *testing.T) {
 func writeFakeBDScript(t *testing.T, dir string) {
 	t.Helper()
 	script := filepath.Join(dir, "bd")
-	content := `#!/usr/bin/env bash
+content := `#!/usr/bin/env bash
 set -euo pipefail
 
+if [ "${1:-}" = "ready" ] && [ "${2:-}" = "--json" ]; then
+  echo '[]'
+  exit 0
+fi
+
 if [ "${1:-}" = "list" ]; then
+  if printf '%s\n' "$*" | grep -q -- '--json'; then
+    if printf '%s\n' "$*" | grep -q -- '--type epic'; then
+      echo '[{"id":"ag-old"},{"id":"ag-new"}]'
+      exit 0
+    fi
+    echo '[{"id":"ag-new"}]'
+    exit 0
+  fi
   echo "ag-old [EPIC]"
   echo "ag-new [EPIC]"
   exit 0

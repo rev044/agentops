@@ -53,9 +53,12 @@ func resolveGoalAndStartPhase(opts phasedEngineOptions, args []string, cwd strin
 }
 
 func newPhasedState(opts phasedEngineOptions, startPhase int, goal string) *phasedState {
+	tracker := detectTrackerHealth(opts.BDCommand)
 	s := &phasedState{
 		SchemaVersion: 1,
 		Goal:          goal,
+		TrackerMode:   tracker.Mode,
+		TrackerReason: tracker.Reason,
 		Phase:         startPhase,
 		StartPhase:    startPhase,
 		Cycle:         1,
@@ -77,6 +80,12 @@ func newPhasedState(opts phasedEngineOptions, startPhase int, goal string) *phas
 // into the current state for phase resumption.
 func mergeExistingStateFields(state *phasedState, existing *phasedState, opts phasedEngineOptions, goal string) {
 	state.EpicID = existing.EpicID
+	if existing.TrackerMode != "" {
+		state.TrackerMode = existing.TrackerMode
+	}
+	if existing.TrackerReason != "" {
+		state.TrackerReason = existing.TrackerReason
+	}
 	state.FastPath = existing.FastPath || opts.FastPath
 	state.SwarmFirst = existing.SwarmFirst || opts.SwarmFirst
 	if existing.Verdicts != nil {

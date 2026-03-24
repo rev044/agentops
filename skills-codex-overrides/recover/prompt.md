@@ -15,4 +15,4 @@ Recover context for Codex from disk-first evidence: active issues, recent artifa
 2. Keep the recovered summary short enough to act on immediately.
 3. Surface missing or inconsistent state explicitly instead of papering over it.
 4. If multiple resumable paths exist, name the recommended path first and explain the competing path in one line.
-5. Prefer `ao codex status` to inspect lifecycle health, then `ao codex start` to rebuild startup context when the session is hookless.
+5. Prefer `ao codex status` to inspect lifecycle health, then `ao codex ensure-start` to rebuild startup context when the session is hookless.

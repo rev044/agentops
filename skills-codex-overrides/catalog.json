@@ -150,7 +150,7 @@
         "required_markers": [
           "Capture the current objective, completed work, unresolved blockers, and the next command or file to inspect.",
           "Prefer durable paths, issue ids, and validation evidence over conversational summaries.",
-          "Finish handoff-driven session closeout by running `ao codex stop --auto-extract`; the CLI already skips duplicate closeout for the same Codex thread.",
+          "Finish handoff-driven session closeout by running `ao codex ensure-stop --auto-extract`; the CLI already skips duplicate closeout for the same Codex thread.",
           "Do not leave the next session guessing what to do first."
         ]
       }
@@ -173,7 +173,7 @@
           "## Guardrails"
         ],
         "required_markers": [
-          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before implementation begins.",
+          "In Codex hookless mode, run `ao codex ensure-start` before implementation begins; the CLI records startup once per thread and skips duplicates automatically.",
           "Work one claimed issue to completion with acceptance criteria, touched files, and validation steps kept explicit.",
           "Prefer TDD or the smallest proving test first when behavior changes, then widen validation only as needed.",
           "Do not widen scope beyond the claimed issue without creating a beads follow-up."
@@ -231,7 +231,7 @@
           "Treat `skills/post-mortem/SKILL.md` as the canonical close-out contract and `skills-codex/post-mortem/SKILL.md` as the Codex-facing artifact.",
           "Keep the council/validation summary concise, then write learnings and harvested work to disk.",
           "Prefer concrete follow-up items that can flow directly into `.agents/rpi/next-work.jsonl` for the next Codex loop.",
-          "Own Codex closeout during the post-mortem flywheel phase by running `ao codex stop --auto-extract`; the CLI already skips duplicate closeout for the same Codex thread.",
+          "Own Codex closeout during the post-mortem flywheel phase by running `ao codex ensure-stop --auto-extract`; the CLI already skips duplicate closeout for the same Codex thread.",
           "Keep harvested work machine-checkable: available on write, then claim/release/consume through the queue lifecycle."
         ]
       }
@@ -342,7 +342,7 @@
           "Treat `skills/recover/SKILL.md` as the canonical recovery contract and `skills-codex/recover/SKILL.md` as the Codex-facing artifact.",
           "Rebuild state from files, issues, generated artifacts, and git state before trusting chat memory.",
           "Return recovery output in this order: `Resume Target`, `Evidence`, `Gaps or Conflicts`, `Next Step`.",
-          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and run `ao codex start` only when `last_start.session_id` does not match the current thread.",
+          "In Codex hookless mode, run `ao codex ensure-start`; the CLI records startup once per thread and skips duplicates automatically.",
           "Make the `Next Step` directly executable by the current Codex session."
         ]
       }
@@ -378,7 +378,7 @@
           "## Guardrails"
         ],
         "required_markers": [
-          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before research.",
+          "In Codex hookless mode, run `ao codex ensure-start` before research; the CLI records startup once per thread and skips duplicates automatically.",
           "Prefer `spawn_agent` / `send_input` / `wait` for parallel exploration.",
           "Write findings to `.agents/research/` with file-level references and concrete evidence.",
           "Keep backend fallback logic explicit: codex sub-agents, then inline."
@@ -409,7 +409,7 @@
           "## Guardrails"
         ],
         "required_markers": [
-          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before phase orchestration.",
+          "In Codex hookless mode, run `ao codex ensure-start` before phase orchestration; the CLI records startup once per thread and skips duplicates automatically.",
           "When beads are present, resolve bead IDs before routing; when beads are absent, preserve the current goal or execution-packet objective across phases.",
           "Keep a single lifecycle objective spine across discovery, crank, and validation. Never replace it with a child issue ID or one ready slice from `bd ready`, `bd show`, or `.agents/rpi/next-work.jsonl`.",
           "If discovery does not yield an epic id, invoke `$crank .agents/rpi/execution-packet.json` and standalone `$validation` instead of inventing one.",
@@ -457,7 +457,7 @@
           "## Guardrails"
         ],
         "required_markers": [
-          "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before gathering dashboard state.",
+          "In Codex hookless mode, run `ao codex ensure-start` before gathering dashboard state; the CLI records startup once per thread and skips duplicates automatically.",
           "Default to a one-screen layout with three blocks in this order: `Current Work`, `Latest Gates`, `Next Action`.",
           "Use exact issue ids, branch/worktree state, and file-backed artifacts instead of conversational summaries.",
           "Keep the output resumable after compaction."

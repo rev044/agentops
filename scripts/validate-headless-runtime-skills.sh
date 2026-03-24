@@ -8,11 +8,13 @@ RUNTIME="all"
 WORKDIR=""
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 CODEX_BIN="${CODEX_BIN:-codex}"
-CODEX_PROFILE="${CODEX_VALIDATE_PROFILE:-safe}"
+CODEX_PROFILE="${CODEX_VALIDATE_PROFILE:-}"
+SOURCE_CODEX_HOME="${HEADLESS_RUNTIME_SOURCE_CODEX_HOME:-$HOME/.codex}"
 TIMEOUT_SECONDS="${HEADLESS_RUNTIME_SKILL_TIMEOUT_SECONDS:-120}"
 MAX_BUDGET_USD="${HEADLESS_RUNTIME_SKILL_MAX_BUDGET_USD:-2.00}"
 SKIP_ENV="${AGENTOPS_SKIP_HEADLESS_RUNTIME_SKILLS:-0}"
 CLAUDE_STRICT="${HEADLESS_RUNTIME_SKILL_CLAUDE_STRICT:-0}"
+CODEX_STRICT="${HEADLESS_RUNTIME_SKILL_CODEX_STRICT:-0}"
 
 usage() {
     cat <<'EOF'
@@ -28,7 +30,7 @@ Options:
   --workdir <dir>               Ephemeral working directory for headless sessions
   --claude-bin <path>           Claude CLI binary (default: claude)
   --codex-bin <path>            Codex CLI binary (default: codex)
-  --codex-profile <name>        Codex profile for headless exec (default: safe)
+  --codex-profile <name>        Codex profile for headless exec (default: none)
   --timeout <seconds>           Per-runtime timeout (default: 120)
   --max-budget-usd <amount>     Claude budget cap (default: 2.00)
   --help                        Show this help
@@ -36,6 +38,8 @@ Options:
 Environment:
   AGENTOPS_SKIP_HEADLESS_RUNTIME_SKILLS=1  Skip the validation entirely
   HEADLESS_RUNTIME_SKILL_CLAUDE_STRICT=1   Fail when Claude inventory cannot be collected
+  HEADLESS_RUNTIME_SKILL_CODEX_STRICT=1    Fail when Codex inventory cannot be collected
+  HEADLESS_RUNTIME_SOURCE_CODEX_HOME=/path Reuse auth.json from a real Codex home
 EOF
 }
 
@@ -122,6 +126,9 @@ EXPECTED_CODEX_JSON="$TMP_DIR/expected-codex.json"
 ACTUAL_CLAUDE_JSON="$TMP_DIR/actual-claude.json"
 ACTUAL_CODEX_JSON="$TMP_DIR/actual-codex.json"
 CODEX_STREAM_JSON="$TMP_DIR/codex-stream.jsonl"
+CODEX_HOME_ROOT="$TMP_DIR/codex-home"
+CODEX_USER_HOME="$CODEX_HOME_ROOT/home"
+CODEX_VALIDATION_HOME="$CODEX_USER_HOME/.codex"
 
 build_expected_inventory() {
     local skills_root="$1"
@@ -351,6 +358,35 @@ claude_inventory_failed() {
     return 1
 }
 
+run_codex_load_check() {
+    [[ -f "$CODEX_VALIDATION_HOME/.agentops-codex-install.json" ]] || return 1
+    env HOME="$CODEX_USER_HOME" CODEX_HOME="$CODEX_VALIDATION_HOME" \
+        timeout 20 "$CODEX_BIN" exec --help >/dev/null 2>&1
+}
+
+codex_inventory_failed() {
+    local reason="$1"
+    local raw_output="${2:-}"
+
+    echo "WARN: Codex inventory verification failed ($reason)." >&2
+    if [[ -n "$raw_output" && -f "$raw_output" ]]; then
+        sed -n '1,20p' "$raw_output" >&2 || true
+    fi
+
+    if run_codex_load_check; then
+        echo "WARN: Codex load check passed in isolated CODEX_HOME; using load-check fallback instead of verified inventory." >&2
+        if [[ "$CODEX_STRICT" == "1" ]]; then
+            echo "FAIL: HEADLESS_RUNTIME_SKILL_CODEX_STRICT=1 requires verified Codex inventory." >&2
+            return 1
+        fi
+        echo "codex: load-check fallback passed"
+        return 0
+    fi
+
+    echo "Codex load check failed" >&2
+    return 1
+}
+
 run_claude_validation() {
     if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
         echo "SKIP: Claude CLI not found in PATH"
@@ -431,19 +467,53 @@ run_codex_validation() {
         return 0
     fi
 
-    if ! timeout "$TIMEOUT_SECONDS" "$CODEX_BIN" exec \
-        --skip-git-repo-check \
-        --sandbox read-only \
-        --profile "$CODEX_PROFILE" \
-        --json \
-        -C "$WORKDIR" \
-        "$CODEX_PROMPT" >"$CODEX_STREAM_JSON"; then
-        echo "Codex headless session failed" >&2
-        sed -n '1,40p' "$CODEX_STREAM_JSON" >&2 || true
+    mkdir -p "$CODEX_USER_HOME" "$CODEX_VALIDATION_HOME"
+    if ! bash "$REPO_ROOT/scripts/install-codex-plugin.sh" --repo-root "$REPO_ROOT" --codex-home "$CODEX_VALIDATION_HOME" >/dev/null; then
+        echo "Codex plugin install into temp CODEX_HOME failed" >&2
         return 1
     fi
 
-    python3 - "$CODEX_STREAM_JSON" "$TMP_DIR/codex-output.txt" <<'PY'
+    if [[ -f "$SOURCE_CODEX_HOME/auth.json" ]]; then
+        cp "$SOURCE_CODEX_HOME/auth.json" "$CODEX_VALIDATION_HOME/auth.json"
+        chmod 600 "$CODEX_VALIDATION_HOME/auth.json"
+    fi
+
+    local -a codex_args=(
+        exec
+        --skip-git-repo-check
+        --sandbox read-only
+        --json
+        -C "$WORKDIR"
+    )
+    if [[ -n "$CODEX_PROFILE" ]]; then
+        codex_args+=(--profile "$CODEX_PROFILE")
+    fi
+    codex_args+=("$CODEX_PROMPT")
+
+    if ! env HOME="$CODEX_USER_HOME" CODEX_HOME="$CODEX_VALIDATION_HOME" \
+        timeout "$TIMEOUT_SECONDS" "$CODEX_BIN" "${codex_args[@]}" >"$CODEX_STREAM_JSON"; then
+        if [[ -n "$CODEX_PROFILE" ]] && grep -q "config profile .* not found" "$CODEX_STREAM_JSON" 2>/dev/null; then
+            echo "WARN: Codex profile '$CODEX_PROFILE' not found in isolated CODEX_HOME; retrying without --profile" >&2
+            local -a fallback_args=(
+                exec
+                --skip-git-repo-check
+                --sandbox read-only
+                --json
+                -C "$WORKDIR"
+                "$CODEX_PROMPT"
+            )
+            if ! env HOME="$CODEX_USER_HOME" CODEX_HOME="$CODEX_VALIDATION_HOME" \
+                timeout "$TIMEOUT_SECONDS" "$CODEX_BIN" "${fallback_args[@]}" >"$CODEX_STREAM_JSON"; then
+                codex_inventory_failed "headless command exit after retry" "$CODEX_STREAM_JSON"
+                return $?
+            fi
+        else
+            codex_inventory_failed "headless command exit" "$CODEX_STREAM_JSON"
+            return $?
+        fi
+    fi
+
+    if ! python3 - "$CODEX_STREAM_JSON" "$TMP_DIR/codex-output.txt" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -469,9 +539,25 @@ if not messages:
 
 Path(sys.argv[2]).write_text(messages[-1] + "\n")
 PY
+    then
+        codex_inventory_failed "stream-json parse error" "$CODEX_STREAM_JSON"
+        return $?
+    fi
 
-    extract_json_array "$TMP_DIR/codex-output.txt" "$ACTUAL_CODEX_JSON"
-    compare_inventory "$EXPECTED_CODEX_JSON" "$ACTUAL_CODEX_JSON" "codex" "names-only"
+    if ! extract_json_array "$TMP_DIR/codex-output.txt" "$ACTUAL_CODEX_JSON"; then
+        codex_inventory_failed "assistant output was not a JSON array" "$TMP_DIR/codex-output.txt"
+        return $?
+    fi
+
+    local compare_output
+    if compare_output="$(compare_inventory "$EXPECTED_CODEX_JSON" "$ACTUAL_CODEX_JSON" "codex" "names-only" 2>&1)"; then
+        echo "codex: inventory verified"
+        printf '%s\n' "$compare_output"
+        return 0
+    fi
+
+    printf '%s\n' "$compare_output" >&2
+    codex_inventory_failed "inventory mismatch" "$ACTUAL_CODEX_JSON"
 }
 
 case "$RUNTIME" in

@@ -311,33 +311,26 @@ while IFS=$'\t' read -r module_root pattern; do
 
     # Display human-readable summary from JSON output.
     if [[ -s "$tmp_json" ]]; then
-        # Show pass/fail lines for each package.
-        while IFS= read -r line; do
-            action="$(printf '%s' "$line" | jq -r '.Action // empty' 2>/dev/null)" || continue
-            pkg="$(printf '%s' "$line" | jq -r '.Package // empty' 2>/dev/null)" || continue
-            elapsed="$(printf '%s' "$line" | jq -r '.Elapsed // empty' 2>/dev/null)" || continue
-            test_name="$(printf '%s' "$line" | jq -r '.Test // empty' 2>/dev/null)" || continue
+        # Show pass/fail lines for each package using one jq pass instead of
+        # spawning jq per line, which gets very slow on large race-json output.
+        while IFS=$'\t' read -r action pkg elapsed; do
+            [[ -n "$action" && -n "$pkg" && -n "$elapsed" ]] || continue
+            status_label="ok"
+            [[ "$action" == "fail" ]] && status_label="FAIL"
+            printf '  %-4s  %-60s  %.1fs\n' "$status_label" "$pkg" "$elapsed"
 
-            case "$action" in
-                pass|fail)
-                    # Skip per-test events; only summarize package-level pass/fail.
-                    if [[ -n "$test_name" ]]; then
-                        continue
-                    fi
-                    if [[ -n "$elapsed" && -n "$pkg" ]]; then
-                        status_label="ok"
-                        [[ "$action" == "fail" ]] && status_label="FAIL"
-                        printf '  %-4s  %-60s  %.1fs\n' "$status_label" "$pkg" "$elapsed"
-
-                        # Warn if package exceeded the slow threshold.
-                        elapsed_int="${elapsed%.*}"
-                        if [[ -n "$elapsed_int" ]] && (( elapsed_int >= SLOW_THRESHOLD_SECS )); then
-                            echo "  WARNING: $pkg took ${elapsed}s (threshold: ${SLOW_THRESHOLD_SECS}s)"
-                        fi
-                    fi
-                    ;;
-            esac
-        done < "$tmp_json"
+            # Warn if package exceeded the slow threshold.
+            elapsed_int="${elapsed%%.*}"
+            if [[ -n "$elapsed_int" ]] && (( elapsed_int >= SLOW_THRESHOLD_SECS )); then
+                echo "  WARNING: $pkg took ${elapsed}s (threshold: ${SLOW_THRESHOLD_SECS}s)"
+            fi
+        done < <(
+            jq -r '
+                select((.Action == "pass" or .Action == "fail") and ((.Test // "") == ""))
+                | [(.Action // ""), (.Package // ""), ((.Elapsed // "") | tostring)]
+                | @tsv
+            ' "$tmp_json" 2>/dev/null
+        )
 
         # Surface any DATA RACE output embedded in JSON.
         if grep -q 'DATA RACE' "$tmp_json" 2>/dev/null; then
@@ -350,13 +343,7 @@ while IFS=$'\t' read -r module_root pattern; do
         # Print raw output lines for failed tests to aid debugging.
         echo ""
         echo "--- failure output ---"
-        while IFS= read -r line; do
-            action="$(printf '%s' "$line" | jq -r '.Action // empty' 2>/dev/null)" || continue
-            output="$(printf '%s' "$line" | jq -r '.Output // empty' 2>/dev/null)" || continue
-            if [[ "$action" == "output" && -n "$output" ]]; then
-                printf '%s' "$output"
-            fi
-        done < "$tmp_json"
+        jq -r 'select(.Action == "output" and (.Output // "") != "") | .Output' "$tmp_json" 2>/dev/null || true
         echo "--- end failure output ---"
         exit 1
     fi

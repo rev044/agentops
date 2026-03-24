@@ -74,6 +74,17 @@ type codexStartResult struct {
 	StatePath          string                   `json:"state_path"`
 }
 
+type codexEnsureStartResult struct {
+	Runtime            lifecycleRuntimeProfile `json:"runtime"`
+	Performed          bool                    `json:"performed"`
+	Reason             string                  `json:"reason,omitempty"`
+	SessionID          string                  `json:"session_id,omitempty"`
+	ContextQuery       string                  `json:"context_query,omitempty"`
+	StartupContextPath string                  `json:"startup_context_path,omitempty"`
+	MemoryPath         string                  `json:"memory_path,omitempty"`
+	StatePath          string                  `json:"state_path,omitempty"`
+}
+
 type codexStopResult struct {
 	Runtime             lifecycleRuntimeProfile  `json:"runtime"`
 	TranscriptPath      string                   `json:"transcript_path"`
@@ -83,6 +94,19 @@ type codexStopResult struct {
 	CloseLoop           *flywheelCloseLoopResult `json:"close_loop,omitempty"`
 	MemoryPath          string                   `json:"memory_path,omitempty"`
 	StatePath           string                   `json:"state_path"`
+}
+
+type codexEnsureStopResult struct {
+	Runtime             lifecycleRuntimeProfile `json:"runtime"`
+	Performed           bool                    `json:"performed"`
+	Reason              string                  `json:"reason,omitempty"`
+	SessionID           string                  `json:"session_id,omitempty"`
+	TranscriptPath      string                  `json:"transcript_path,omitempty"`
+	TranscriptSource    string                  `json:"transcript_source,omitempty"`
+	SyntheticTranscript bool                    `json:"synthetic_transcript,omitempty"`
+	HandoffPath         string                  `json:"handoff_path,omitempty"`
+	MemoryPath          string                  `json:"memory_path,omitempty"`
+	StatePath           string                  `json:"state_path,omitempty"`
 }
 
 type codexCaptureHealth struct {
@@ -144,11 +168,25 @@ var codexStartCmd = &cobra.Command{
 	RunE:  runCodexStart,
 }
 
+var codexEnsureStartCmd = &cobra.Command{
+	Use:   "ensure-start",
+	Short: "Ensure Codex startup context exists once per thread",
+	Args:  cobra.NoArgs,
+	RunE:  runCodexEnsureStart,
+}
+
 var codexStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Close a Codex session without relying on runtime hooks",
 	Args:  cobra.NoArgs,
 	RunE:  runCodexStop,
+}
+
+var codexEnsureStopCmd = &cobra.Command{
+	Use:   "ensure-stop",
+	Short: "Ensure Codex closeout runs once per thread",
+	Args:  cobra.NoArgs,
+	RunE:  runCodexEnsureStop,
 }
 
 var codexStatusCmd = &cobra.Command{
@@ -161,17 +199,25 @@ var codexStatusCmd = &cobra.Command{
 func init() {
 	codexCmd.GroupID = "workflow"
 	rootCmd.AddCommand(codexCmd)
-	codexCmd.AddCommand(codexStartCmd, codexStopCmd, codexStatusCmd)
+	codexCmd.AddCommand(codexStartCmd, codexEnsureStartCmd, codexStopCmd, codexEnsureStopCmd, codexStatusCmd)
 
 	codexStartCmd.Flags().IntVar(&codexStartLimit, "limit", 3, "Maximum artifacts to surface per category")
 	codexStartCmd.Flags().StringVar(&codexStartQuery, "query", "", "Optional startup query (defaults to the current Codex thread name)")
 	codexStartCmd.Flags().BoolVar(&codexStartNoMaintenance, "no-maintenance", false, "Skip safe close-loop maintenance on start")
+	codexEnsureStartCmd.Flags().IntVar(&codexStartLimit, "limit", 3, "Maximum artifacts to surface per category")
+	codexEnsureStartCmd.Flags().StringVar(&codexStartQuery, "query", "", "Optional startup query (defaults to the current Codex thread name)")
+	codexEnsureStartCmd.Flags().BoolVar(&codexStartNoMaintenance, "no-maintenance", false, "Skip safe close-loop maintenance on start")
 
 	codexStopCmd.Flags().StringVar(&codexStopSessionID, "session", "", "Codex session ID to close (defaults to the active thread)")
 	codexStopCmd.Flags().StringVar(&codexStopTranscriptPath, "transcript", "", "Explicit transcript path to forge instead of runtime discovery")
 	codexStopCmd.Flags().BoolVar(&codexStopAutoExtract, "auto-extract", true, "Write lightweight learnings and handoff artifacts during closeout")
 	codexStopCmd.Flags().BoolVar(&codexStopNoHistoryFallback, "no-history-fallback", false, "Disable history.jsonl fallback when no archived Codex transcript exists")
 	codexStopCmd.Flags().BoolVar(&codexStopNoCloseLoop, "no-close-loop", false, "Skip flywheel close-loop maintenance after forging")
+	codexEnsureStopCmd.Flags().StringVar(&codexStopSessionID, "session", "", "Codex session ID to close (defaults to the active thread)")
+	codexEnsureStopCmd.Flags().StringVar(&codexStopTranscriptPath, "transcript", "", "Explicit transcript path to forge instead of runtime discovery")
+	codexEnsureStopCmd.Flags().BoolVar(&codexStopAutoExtract, "auto-extract", true, "Write lightweight learnings and handoff artifacts during closeout")
+	codexEnsureStopCmd.Flags().BoolVar(&codexStopNoHistoryFallback, "no-history-fallback", false, "Disable history.jsonl fallback when no archived Codex transcript exists")
+	codexEnsureStopCmd.Flags().BoolVar(&codexStopNoCloseLoop, "no-close-loop", false, "Skip flywheel close-loop maintenance after forging")
 
 	codexStatusCmd.Flags().IntVar(&codexStatusDays, "days", 7, "Citation window in days for Codex lifecycle health")
 }
@@ -181,8 +227,81 @@ func runCodexStart(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	result, err := performCodexStart(cwd)
+	if err != nil {
+		return err
+	}
+	return outputCodexStartResult(result)
+}
+
+func runCodexEnsureStart(cmd *cobra.Command, args []string) error {
+	cwd, err := resolveProjectDir()
+	if err != nil {
+		return err
+	}
 	if err := ensureCodexLifecycleDirs(cwd); err != nil {
 		return err
+	}
+
+	profile := detectCodexLifecycleProfile()
+	sessionID := profile.SessionID
+	if strings.TrimSpace(sessionID) == "" {
+		sessionID = resolveSessionID("")
+	}
+	state, statePath, err := loadOrInitCodexLifecycleState(cwd)
+	if err != nil {
+		return err
+	}
+	if codexStartAlreadyStarted(state, sessionID) {
+		existingSessionID := sessionID
+		if state.LastStart != nil {
+			existingSessionID = firstNonEmptyTrimmed(existingSessionID, state.LastStart.SessionID)
+		}
+		return outputCodexEnsureStartResult(codexEnsureStartResult{
+			Runtime:            profile,
+			Performed:          false,
+			Reason:             "startup already recorded for this Codex thread",
+			SessionID:          existingSessionID,
+			ContextQuery:       firstNonEmptyTrimmed(codexStartQuery, profile.ThreadName, "codex startup"),
+			StartupContextPath: firstNonEmptyLifecycleField(state, func(event *codexLifecycleEvent) string { return event.StartupContextPath }),
+			MemoryPath:         firstNonEmptyLifecycleField(state, func(event *codexLifecycleEvent) string { return event.MemoryPath }),
+			StatePath:          statePath,
+		})
+	}
+
+	result, err := performCodexStart(cwd)
+	if err != nil {
+		return err
+	}
+	return outputCodexEnsureStartResult(codexEnsureStartResult{
+		Runtime:            result.Runtime,
+		Performed:          true,
+		Reason:             "startup recorded for current Codex thread",
+		SessionID:          firstNonEmptyTrimmed(sessionID, result.Runtime.SessionID),
+		ContextQuery:       result.ContextQuery,
+		StartupContextPath: result.StartupContextPath,
+		MemoryPath:         result.MemoryPath,
+		StatePath:          result.StatePath,
+	})
+}
+
+func codexStartAlreadyStarted(state *codexLifecycleState, sessionID string) bool {
+	if state == nil || state.LastStart == nil {
+		return false
+	}
+	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(state.LastStart.SessionID) != strings.TrimSpace(sessionID) {
+		return false
+	}
+	startupContextPath := strings.TrimSpace(state.LastStart.StartupContextPath)
+	if startupContextPath == "" {
+		return false
+	}
+	return fileExists(startupContextPath)
+}
+
+func performCodexStart(cwd string) (codexStartResult, error) {
+	if err := ensureCodexLifecycleDirs(cwd); err != nil {
+		return codexStartResult{}, err
 	}
 
 	profile := detectCodexLifecycleProfile()
@@ -203,11 +322,11 @@ func runCodexStart(cmd *cobra.Command, args []string) error {
 	if !codexStartNoMaintenance {
 		threshold, err := time.ParseDuration(defaultAutoPromoteThreshold)
 		if err != nil {
-			return fmt.Errorf("parse default close-loop threshold: %w", err)
+			return codexStartResult{}, fmt.Errorf("parse default close-loop threshold: %w", err)
 		}
 		result, err := performFlywheelCloseLoop(cwd, filepath.Join(".agents", "knowledge", "pending"), threshold, true)
 		if err != nil {
-			return fmt.Errorf("run codex startup maintenance: %w", err)
+			return codexStartResult{}, fmt.Errorf("run codex startup maintenance: %w", err)
 		}
 		closeLoop = &result
 	}
@@ -222,12 +341,12 @@ func runCodexStart(cmd *cobra.Command, args []string) error {
 
 	startupContextPath, err := writeCodexStartupContext(cwd, profile, query, learnings, patterns, findings, recentSessions, nextWork, research)
 	if err != nil {
-		return fmt.Errorf("write codex startup context: %w", err)
+		return codexStartResult{}, fmt.Errorf("write codex startup context: %w", err)
 	}
 
 	state, statePath, err := loadOrInitCodexLifecycleState(cwd)
 	if err != nil {
-		return err
+		return codexStartResult{}, err
 	}
 	state.Runtime = profile
 	state.LastStart = &codexLifecycleEvent{
@@ -242,10 +361,10 @@ func runCodexStart(cmd *cobra.Command, args []string) error {
 	}
 	state.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	if err := saveCodexLifecycleState(statePath, state); err != nil {
-		return err
+		return codexStartResult{}, err
 	}
 
-	result := codexStartResult{
+	return codexStartResult{
 		Runtime:            profile,
 		ContextQuery:       query,
 		StartupContextPath: startupContextPath,
@@ -259,8 +378,7 @@ func runCodexStart(cmd *cobra.Command, args []string) error {
 		NextWork:           nextWork,
 		Research:           research,
 		StatePath:          statePath,
-	}
-	return outputCodexStartResult(result)
+	}, nil
 }
 
 func runCodexStop(cmd *cobra.Command, args []string) error {
@@ -268,14 +386,46 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := ensureCodexLifecycleDirs(cwd); err != nil {
+	result, err := performCodexStop(cwd)
+	if err != nil {
 		return err
+	}
+	return outputCodexStopResult(result)
+}
+
+func runCodexEnsureStop(cmd *cobra.Command, args []string) error {
+	cwd, err := resolveProjectDir()
+	if err != nil {
+		return err
+	}
+	result, err := performCodexStop(cwd)
+	if err != nil {
+		return err
+	}
+	performed := result.Session.Status != "already_closed"
+	return outputCodexEnsureStopResult(codexEnsureStopResult{
+		Runtime:             result.Runtime,
+		Performed:           performed,
+		Reason:              ensureStopReason(result),
+		SessionID:           result.Session.SessionID,
+		TranscriptPath:      result.TranscriptPath,
+		TranscriptSource:    result.TranscriptSource,
+		SyntheticTranscript: result.SyntheticTranscript,
+		HandoffPath:         result.Session.HandoffWritten,
+		MemoryPath:          result.MemoryPath,
+		StatePath:           result.StatePath,
+	})
+}
+
+func performCodexStop(cwd string) (codexStopResult, error) {
+	if err := ensureCodexLifecycleDirs(cwd); err != nil {
+		return codexStopResult{}, err
 	}
 
 	profile := detectCodexLifecycleProfile()
 	state, statePath, err := loadOrInitCodexLifecycleState(cwd)
 	if err != nil {
-		return err
+		return codexStopResult{}, err
 	}
 	sessionID := strings.TrimSpace(codexStopSessionID)
 	if sessionID == "" {
@@ -289,28 +439,28 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 	if transcriptPath == "" {
 		transcriptPath, transcriptSource, syntheticTranscript, sessionID, err = resolveCodexStopTranscript(cwd, sessionID, codexStopNoHistoryFallback)
 		if err != nil {
-			return err
+			return codexStopResult{}, err
 		}
 	}
 
 	if codexStopAlreadyClosed(state, sessionID, transcriptPath) {
-		return outputCodexStopResult(buildCodexStopAlreadyClosedResult(profile, state, statePath, sessionID, transcriptPath, transcriptSource, syntheticTranscript))
+		return buildCodexStopAlreadyClosedResult(profile, state, statePath, sessionID, transcriptPath, transcriptSource, syntheticTranscript), nil
 	}
 
 	closeResult, err := forgeExtractReportWithOptions(transcriptPath, cwd, codexStopAutoExtract, false)
 	if err != nil {
-		return err
+		return codexStopResult{}, err
 	}
 
 	var closeLoop *flywheelCloseLoopResult
 	if !codexStopNoCloseLoop {
 		threshold, err := time.ParseDuration(defaultAutoPromoteThreshold)
 		if err != nil {
-			return fmt.Errorf("parse default close-loop threshold: %w", err)
+			return codexStopResult{}, fmt.Errorf("parse default close-loop threshold: %w", err)
 		}
 		result, err := performFlywheelCloseLoop(cwd, filepath.Join(".agents", "knowledge", "pending"), threshold, true)
 		if err != nil {
-			return fmt.Errorf("run codex close-loop maintenance: %w", err)
+			return codexStopResult{}, fmt.Errorf("run codex close-loop maintenance: %w", err)
 		}
 		closeLoop = &result
 	}
@@ -334,10 +484,10 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 	}
 	state.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	if err := saveCodexLifecycleState(statePath, state); err != nil {
-		return err
+		return codexStopResult{}, err
 	}
 
-	result := codexStopResult{
+	return codexStopResult{
 		Runtime:             profile,
 		TranscriptPath:      transcriptPath,
 		TranscriptSource:    transcriptSource,
@@ -346,8 +496,7 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 		CloseLoop:           closeLoop,
 		MemoryPath:          memoryPath,
 		StatePath:           statePath,
-	}
-	return outputCodexStopResult(result)
+	}, nil
 }
 
 func codexStopAlreadyClosed(state *codexLifecycleState, sessionID, transcriptPath string) bool {
@@ -403,6 +552,13 @@ func buildCodexStopAlreadyClosedResult(profile lifecycleRuntimeProfile, state *c
 		MemoryPath: firstNonEmptyTrimmed(lastStop.MemoryPath),
 		StatePath:  statePath,
 	}
+}
+
+func ensureStopReason(result codexStopResult) string {
+	if result.Session.Status == "already_closed" {
+		return "closeout already recorded for this Codex thread"
+	}
+	return "closeout recorded for current Codex thread"
 }
 
 func runCodexStatus(cmd *cobra.Command, args []string) error {
@@ -590,6 +746,13 @@ func firstNonEmptyTrimmed(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func firstNonEmptyLifecycleField(state *codexLifecycleState, getter func(*codexLifecycleEvent) string) string {
+	if state == nil || getter == nil || state.LastStart == nil {
+		return ""
+	}
+	return firstNonEmptyTrimmed(getter(state.LastStart))
 }
 
 func ensureCodexLifecycleDirs(cwd string) error {
@@ -813,6 +976,35 @@ func outputCodexStartResult(result codexStartResult) error {
 	return nil
 }
 
+func outputCodexEnsureStartResult(result codexEnsureStartResult) error {
+	if GetOutput() == "json" {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	}
+
+	fmt.Println("Codex Ensure Start")
+	fmt.Println("==================")
+	fmt.Printf("Mode: %s (%s)\n", result.Runtime.Mode, result.Runtime.Runtime)
+	if result.Runtime.ThreadName != "" {
+		fmt.Printf("Thread: %s\n", result.Runtime.ThreadName)
+	}
+	if result.SessionID != "" {
+		fmt.Printf("Session: %s\n", result.SessionID)
+	}
+	fmt.Printf("Performed: %t\n", result.Performed)
+	if result.Reason != "" {
+		fmt.Printf("Reason: %s\n", result.Reason)
+	}
+	if result.StartupContextPath != "" {
+		fmt.Printf("Startup context: %s\n", shortenPath(result.StartupContextPath))
+	}
+	if result.MemoryPath != "" {
+		fmt.Printf("Memory: %s\n", shortenPath(result.MemoryPath))
+	}
+	return nil
+}
+
 func outputCodexStopResult(result codexStopResult) error {
 	if GetOutput() == "json" {
 		enc := json.NewEncoder(os.Stdout)
@@ -836,6 +1028,44 @@ func outputCodexStopResult(result codexStopResult) error {
 	if result.CloseLoop != nil {
 		fmt.Printf("Close-loop: ingest=%d promote=%d reward=%d\n",
 			result.CloseLoop.Ingest.Added, result.CloseLoop.AutoPromote.Promoted, result.CloseLoop.CitationFeedback.Rewarded)
+	}
+	return nil
+}
+
+func outputCodexEnsureStopResult(result codexEnsureStopResult) error {
+	if GetOutput() == "json" {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	}
+
+	fmt.Println("Codex Ensure Stop")
+	fmt.Println("=================")
+	fmt.Printf("Mode: %s (%s)\n", result.Runtime.Mode, result.Runtime.Runtime)
+	if result.Runtime.ThreadName != "" {
+		fmt.Printf("Thread: %s\n", result.Runtime.ThreadName)
+	}
+	if result.SessionID != "" {
+		fmt.Printf("Session: %s\n", result.SessionID)
+	}
+	fmt.Printf("Performed: %t\n", result.Performed)
+	if result.Reason != "" {
+		fmt.Printf("Reason: %s\n", result.Reason)
+	}
+	if result.TranscriptPath != "" {
+		fmt.Printf("Transcript: %s\n", shortenPath(result.TranscriptPath))
+	}
+	if result.TranscriptSource != "" {
+		fmt.Printf("Source: %s\n", result.TranscriptSource)
+	}
+	if result.SyntheticTranscript {
+		fmt.Println("Transcript mode: synthesized from Codex history.jsonl")
+	}
+	if result.HandoffPath != "" {
+		fmt.Printf("Handoff: %s\n", shortenPath(result.HandoffPath))
+	}
+	if result.MemoryPath != "" {
+		fmt.Printf("Memory: %s\n", shortenPath(result.MemoryPath))
 	}
 	return nil
 }

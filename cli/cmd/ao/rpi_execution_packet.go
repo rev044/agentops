@@ -13,9 +13,11 @@ type executionPacket struct {
 	SchemaVersion      int                     `json:"schema_version"`
 	Objective          string                  `json:"objective"`
 	EpicID             string                  `json:"epic_id,omitempty"`
+	PlanPath           string                  `json:"plan_path,omitempty"`
 	ContractSurfaces   []string                `json:"contract_surfaces"`
 	ValidationCommands []string                `json:"validation_commands,omitempty"`
 	TrackerMode        string                  `json:"tracker_mode"`
+	TrackerHealth      *trackerHealth          `json:"tracker_health,omitempty"`
 	DoneCriteria       []string                `json:"done_criteria,omitempty"`
 	Complexity         string                  `json:"complexity,omitempty"`
 	AutodevProgram     *executionPacketProgram `json:"autodev_program,omitempty"`
@@ -32,13 +34,20 @@ type executionPacketProgram struct {
 }
 
 func writeExecutionPacketSeed(cwd string, state *phasedState) error {
+	tracker := detectTrackerHealth(state.Opts.BDCommand)
 	packet := executionPacket{
 		SchemaVersion:    1,
 		Objective:        state.Goal,
 		EpicID:           state.EpicID,
 		ContractSurfaces: []string{},
-		TrackerMode:      "beads",
+		TrackerMode:      tracker.Mode,
+		TrackerHealth:    &tracker,
 		Complexity:       string(state.Complexity),
+	}
+	if isPlanFileEpic(state.EpicID) {
+		packet.PlanPath = planFileFromEpic(state.EpicID)
+	} else if planPath, err := discoverPlanFile(cwd); err == nil {
+		packet.PlanPath = planPath
 	}
 
 	if _, err := os.Stat(filepath.Join(cwd, "docs", "contracts", "repo-execution-profile.md")); err == nil {

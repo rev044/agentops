@@ -8,7 +8,7 @@ Execute one issue in a Codex-native way: narrow scope, test-first edits, and exp
 
 ## Codex Execution Profile
 
-1. In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before implementation begins.
+1. In Codex hookless mode, run `ao codex ensure-start` before implementation begins; the CLI records startup once per thread and skips duplicates automatically.
 2. Work one claimed issue to completion with acceptance criteria, touched files, and validation steps kept explicit.
 3. Prefer TDD or the smallest proving test first when behavior changes, then widen validation only as needed.
 

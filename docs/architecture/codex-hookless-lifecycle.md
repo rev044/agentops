@@ -13,7 +13,7 @@ AgentOps originally assumed a hook-capable runtime lifecycle such as Claude/Open
 | Mode | Detection | Start path | Closeout path | Guarantees |
 |------|-----------|------------|---------------|------------|
 | `hook-capable` | Claude/OpenCode runtime plus installed hook surfaces | SessionStart hook or explicit `ao inject` | SessionEnd/Stop hooks or explicit `ao forge transcript` + `ao flywheel close-loop` | Startup injection and close-loop maintenance can be automatic when hooks are installed |
-| `codex-hookless-fallback` | Codex env/session metadata and no hook surface under `~/.codex` | `ao codex start` | `ao codex stop` | Explicit startup context, transcript discovery fallback, citation capture, close-loop maintenance, and persisted lifecycle state |
+| `codex-hookless-fallback` | Codex env/session metadata and no hook surface under `~/.codex` | `ao codex start` or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | Explicit startup context, transcript discovery fallback, citation capture, close-loop maintenance, and persisted lifecycle state |
 | `manual` | No hooks and no Codex-specific runtime detection | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Portable low-level workflow with no hidden lifecycle assumptions |
 
 ## Command Responsibilities
@@ -28,6 +28,12 @@ AgentOps originally assumed a hook-capable runtime lifecycle such as Claude/Open
 - Record `retrieved` citations for surfaced artifacts.
 - Persist lifecycle state to `.agents/ao/codex/state.json`.
 
+### `ao codex ensure-start`
+
+- Run the Codex startup path once per thread.
+- Skip duplicate startup automatically when the current Codex thread already has a recorded startup context.
+- Give entry skills one reusable startup primitive instead of teaching each skill to parse lifecycle state directly.
+
 ### `ao codex stop`
 
 - Resolve the best available Codex transcript.
@@ -36,6 +42,12 @@ AgentOps originally assumed a hook-capable runtime lifecycle such as Claude/Open
 - Forge/extract from the resolved transcript and queue or persist learnings safely.
 - Run close-loop maintenance unless `--no-close-loop` is set.
 - Sync `MEMORY.md` and persist stop state to `.agents/ao/codex/state.json`.
+
+### `ao codex ensure-stop`
+
+- Run the Codex closeout path once per thread.
+- Return an explicit no-op result when the same Codex thread was already closed out.
+- Give closeout-owner skills one reusable closeout primitive instead of teaching each skill to parse lifecycle state directly.
 
 ### `ao codex status`
 
@@ -83,6 +95,8 @@ The Codex fallback reuses the existing pool and close-loop hygiene instead of in
 
 - One obvious start command: `ao codex start`
 - One obvious closeout command: `ao codex stop`
+- One reusable skill-safe startup guard: `ao codex ensure-start`
+- One reusable skill-safe closeout guard: `ao codex ensure-stop`
 - Explicit health inspection: `ao codex status`
 - No dependence on hidden hook infrastructure for recall, citation, or close-loop metrics
 
@@ -96,7 +110,7 @@ The Codex fallback reuses the existing pool and close-loop hygiene instead of in
 
 Use these non-release checks to verify the Codex fallback from the current worktree:
 
-- `bash scripts/test-codex-hookless-lifecycle.sh` builds the local `ao` binary, seeds a temp Codex home and temp repo, then verifies `ao codex start`, retrieval/citation, `ao codex stop`, and `ao codex status`.
+- `bash scripts/test-codex-hookless-lifecycle.sh` builds the local `ao` binary, seeds a temp Codex home and temp repos, then verifies `ao codex ensure-start`, retrieval/citation, `ao codex ensure-stop`, `ao codex status`, and a tracker-degraded no-beads `ao rpi phased` flow.
 - `bash scripts/test-codex-native-install.sh --skip-lint` verifies the checked-in Codex plugin bundle and public installer flow in a temp home without cutting a tag.
 
 ## See Also
