@@ -5,13 +5,17 @@ Run the full RPI lifecycle in a Codex-native way: direct in-session orchestratio
 ## Codex Execution Profile
 
 1. Treat `skills/rpi/SKILL.md` as the canonical lifecycle contract and `skills-codex/rpi/SKILL.md` as the Codex-facing artifact.
-2. Orchestrate phases directly in the current session; do not hand RPI orchestration to wrapper commands.
-3. Prefer Codex sub-agents only for bounded sidecar work inside a phase, not for the lead orchestration path.
-4. Re-read `.agents/rpi/next-work.jsonl` after each cycle and honor claim, release, and consume semantics exactly.
+2. Resolve bead IDs before routing; do not infer epic scope from the `ag-*` prefix alone.
+3. Keep a single `epic_id` spine across discovery, crank, and validation. Never replace it with a child issue ID from `bd ready`, `bd show`, or `.agents/rpi/next-work.jsonl`.
+4. If `$crank` returns `<promise>PARTIAL</promise>`, rerun `$crank` on the same `epic_id` until the epic is done, blocked, or the retry budget is exhausted.
+5. Orchestrate phases directly in the current session; do not hand RPI orchestration to wrapper commands.
+6. Prefer Codex sub-agents only for bounded sidecar work inside a phase, not for the lead orchestration path.
+7. Re-read `.agents/rpi/next-work.jsonl` after each cycle and honor claim, release, and consume semantics exactly.
 
 ## Guardrails
 
 1. Keep commentary updates short and operational; report phase transitions, blockers, and validation outcomes.
 2. Preserve queue correctness: claim before work, consume on success, release on failure or interruption.
 3. Treat harvested work as durable state on disk, not ephemeral chat context.
-4. If a Codex-native override and the source skill diverge, keep behavior aligned with the source contract and then update the override.
+4. If the invocation resolves to standalone single-issue work with no parent epic, use `$implement` instead of pretending `$rpi` is epic orchestration.
+5. If a Codex-native override and the source skill diverge, keep behavior aligned with the source contract and then update the override.
