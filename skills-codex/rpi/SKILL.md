@@ -59,17 +59,23 @@ classify(goal) -> complexity, start_phase
 STEP 1  -- if start_phase <= discovery:
             $discovery <goal> [--interactive] --complexity=<level>
             BLOCKED? -> stop (manual intervention)
-            DONE?    -> read epic-id from .agents/rpi/execution-packet.json
+            DONE?    -> read .agents/rpi/execution-packet.json and preserve its objective spine
             Log: PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2
 
-STEP 2  -- $crank <objective-id> [--test-first] [--no-test-first]
+STEP 2  -- if execution-packet has epic_id:
+              $crank <epic-id> [--test-first] [--no-test-first]
+            else:
+              $crank .agents/rpi/execution-packet.json [--test-first] [--no-test-first]
             PARTIAL? -> retry SAME objective (max 3 total), then stop
             BLOCKED? -> retry SAME objective with block context (max 3 total), then stop
             DONE? -> ao ratchet record implement 2>/dev/null || true
             Log: PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3
 
 STEP 3  -- if complexity != fast:
-            $validation <epic-id> --complexity=<level>
+            if execution-packet has epic_id:
+              $validation <epic-id> --complexity=<level>
+            else:
+              $validation --complexity=<level>
             FAIL? -> re-crank + re-validate (max 3 total), then stop
             DONE? -> ao ratchet record vibe 2>/dev/null || true
             Log: PHASE 3 COMPLETE ✓ (validation) — RPI DONE
@@ -93,6 +99,7 @@ STEP 4  -- report(verdicts)
   - child issue with `parent` → STEP 2 using the parent epic ID
 - If beads are absent or the input is plain goal text:
   - preserve the goal as the lifecycle objective
+  - use `.agents/rpi/execution-packet.json` as the phase-2 handoff when discovery does not yield an epic
   - default to STEP 1 unless the user explicitly set `--from`
 - Do not infer epic scope from `ag-*` alone
 
@@ -129,7 +136,7 @@ rpi_state = {
 ## Gate Logic Detail
 
 **STEP 1 gate (discovery):**
-- `<promise>DONE</promise>`: extract epic-id from `.agents/rpi/execution-packet.json`, proceed to STEP 2
+- `<promise>DONE</promise>`: read `.agents/rpi/execution-packet.json`, preserve `objective`, and use `epic_id` only when it is present. Otherwise pass the execution packet itself to STEP 2.
 - `<promise>BLOCKED</promise>`: stop — discovery handles its own retries (max 3 pre-mortem attempts)
 
 **STEP 2 gate (implementation, max 3 attempts):**
@@ -139,7 +146,7 @@ rpi_state = {
 
 **STEP 3 gate (validation-to-crank loop, max 3 total):**
 - `<promise>DONE</promise>`: proceed to STEP 4
-- `<promise>FAIL</promise>`: extract findings → re-invoke `$crank` with findings → re-invoke `$validation`
+- `<promise>FAIL</promise>`: extract findings → re-invoke `$crank` on the same epic or execution packet → re-invoke `$validation`
 
 **STEP 4 (report + optional loop):**
 - Summarize all phase verdicts and epic status. See `references/report-template.md`.

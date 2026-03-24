@@ -80,7 +80,7 @@ When a task fails during wave execution, classify as **RETRY** (transient — re
 
 ## Execution Steps
 
-Given `$crank [epic-id | plan-file.md | "description"]`:
+Given `$crank [epic-id | .agents/rpi/execution-packet.json | plan-file.md | "description"]`:
 
 ### Step 0: Load Knowledge Context
 
@@ -158,28 +158,43 @@ log_plan_mutation() {
 
 **Mutation types:** `task_added`, `task_removed`, `task_reordered`, `scope_changed`, `dependency_changed`.
 
-### Step 1: Identify the Epic
+### Step 1: Identify the Execution Target
 
 **Beads mode:**
 - If epic ID provided: use it directly
 - If no epic ID: `bd list --type epic --status open 2>/dev/null | head -5`
 
-**File mode:**
-- Read the plan file and extract tasks
+**Execution-packet/file mode:**
+- If the input is `.agents/rpi/execution-packet.json`, read `objective`, `epic_id`, `tracker_mode`, `done_criteria`, and `validation_commands`
+- If `epic_id` exists inside the execution packet, keep that epic as the execution spine
+- If `epic_id` is absent, keep the packet `objective` as the execution spine and continue in file-backed mode instead of inventing an epic ID
+- For other plan files, read the plan file and extract tasks
 
-### Step 2: Get Epic Details
+### Step 2: Load Execution Details
+
+**Beads mode:**
 
 ```bash
 bd show <epic-id> 2>/dev/null
 ```
 
-### Step 3: List Ready Issues for the Current Wave
+**Execution-packet/file mode:**
+- Read the packet or plan file into local state for the current objective
+- Preserve the same objective across retries; do not narrow to one slice from `bd ready`
+
+### Step 3: List Ready Work for the Current Wave
+
+**Beads mode:**
 
 ```bash
 bd ready 2>/dev/null
 ```
 
 `bd ready` returns all unblocked issues - these can run in parallel.
+
+**Execution-packet/file mode:**
+- Read remaining tasks from `.agents/rpi/execution-packet.json` or the plan file
+- Execute against the packet objective until the plan-backed work is done, blocked, or the retry budget is exhausted
 
 ### Step 3a: Pre-flight Checks
 

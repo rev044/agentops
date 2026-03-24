@@ -5,9 +5,11 @@ Execute epics hands-free with Codex-native wave progression.
 ## Codex Execution Profile
 
 1. Treat `skills/crank/SKILL.md` as canonical execution contract.
-2. Run waves from beads dependencies and process only currently unblocked issues.
-3. Keep retries bounded and report blockers with exact issue ids.
-4. In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before the first wave.
+2. Accept either an epic id or `.agents/rpi/execution-packet.json` as the execution handoff.
+3. In execution-packet mode, preserve the packet objective instead of inventing an epic or narrowing to one slice.
+4. Run waves from beads dependencies when tracker mode is beads, and from the execution packet or plan file otherwise.
+5. Keep retries bounded and report blockers with exact issue ids or file-backed task refs.
+6. In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before the first wave.
 
 ## Guardrails
 

@@ -12,6 +12,7 @@ set -euo pipefail
 # 5) verifies ao lookup and ao search --local --cite record citations
 # 6) verifies ao codex stop uses history fallback and writes lifecycle state
 # 7) verifies ao codex status reports coherent hookless health and citation counts
+# 8) verifies the Codex RPI no-beads contract stays executable via the repo validator
 #
 # Usage:
 #   bash scripts/test-codex-hookless-lifecycle.sh
@@ -206,6 +207,9 @@ assert_json "$status_json" '.citations.reference >= 1' "codex status reference c
 assert_json "$status_json" '.citations.total >= 3' "codex status total citation count is too low"
 
 echo ""
+info "Running Codex RPI contract validation"
+bash "$REPO_ROOT/scripts/validate-codex-rpi-contract.sh"
+
 echo "PASS: Codex hookless lifecycle smoke verified"
 echo "  ao binary: $AO_BIN"
 echo "  temp root: $TMP_ROOT"

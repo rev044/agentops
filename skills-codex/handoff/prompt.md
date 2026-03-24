@@ -10,7 +10,7 @@ Create Codex-native handoffs that survive compaction: exact state, exact files, 
 
 1. Capture the current objective, completed work, unresolved blockers, and the next command or file to inspect.
 2. Prefer durable paths, issue ids, and validation evidence over conversational summaries.
-3. Finish handoff-driven session closeout by inspecting `.agents/ao/codex/state.json` and running `ao codex stop --auto-extract` only when `last_stop.session_id` does not match the current thread.
+3. Finish handoff-driven session closeout by running `ao codex stop --auto-extract`; the CLI already skips duplicate closeout for the same Codex thread.
 
 ## Guardrails
 

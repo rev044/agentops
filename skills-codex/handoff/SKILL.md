@@ -220,17 +220,15 @@ Tell the user:
 
 ### Step 10: Ensure Codex Closeout
 
-If this handoff is ending a Codex hookless thread, inspect
-`.agents/ao/codex/state.json` when it exists. If the file is missing,
-unreadable, or `last_stop.session_id` does not match the current
-`CODEX_THREAD_ID`, run:
+If this handoff is ending a Codex hookless thread, run:
 
 ```bash
 ao codex stop --auto-extract 2>/dev/null || true
 ```
 
-If `last_stop.session_id` already matches the current thread, do not rerun
-closeout. Use `ao codex status` only when you need to confirm lifecycle health.
+`ao codex stop` is idempotent for the same Codex thread, so duplicate handoff
+invocations are safe. Use `ao codex status` only when you need to confirm
+lifecycle health.
 
 **Output completion marker:**
 ```
@@ -358,4 +356,3 @@ If ao CLI not available:
 ### scripts/
 
 - `scripts/validate.sh`
-

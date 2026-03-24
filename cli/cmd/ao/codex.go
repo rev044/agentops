@@ -273,6 +273,10 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 	}
 
 	profile := detectCodexLifecycleProfile()
+	state, statePath, err := loadOrInitCodexLifecycleState(cwd)
+	if err != nil {
+		return err
+	}
 	sessionID := strings.TrimSpace(codexStopSessionID)
 	if sessionID == "" {
 		sessionID = strings.TrimSpace(profile.SessionID)
@@ -287,6 +291,10 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if codexStopAlreadyClosed(state, sessionID, transcriptPath) {
+		return outputCodexStopResult(buildCodexStopAlreadyClosedResult(profile, state, statePath, sessionID, transcriptPath, transcriptSource, syntheticTranscript))
 	}
 
 	closeResult, err := forgeExtractReportWithOptions(transcriptPath, cwd, codexStopAutoExtract, false)
@@ -310,11 +318,6 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 	memoryPath, err := syncCodexMemory(cwd)
 	if err != nil {
 		VerbosePrintf("Warning: codex memory sync: %v\n", err)
-	}
-
-	state, statePath, err := loadOrInitCodexLifecycleState(cwd)
-	if err != nil {
-		return err
 	}
 	state.Runtime = profile
 	state.LastStop = &codexLifecycleEvent{
@@ -345,6 +348,61 @@ func runCodexStop(cmd *cobra.Command, args []string) error {
 		StatePath:           statePath,
 	}
 	return outputCodexStopResult(result)
+}
+
+func codexStopAlreadyClosed(state *codexLifecycleState, sessionID, transcriptPath string) bool {
+	if state == nil || state.LastStop == nil {
+		return false
+	}
+
+	lastSessionID := strings.TrimSpace(state.LastStop.SessionID)
+	lastTranscript := normalizeCodexLifecyclePath(state.LastStop.TranscriptPath)
+	currentTranscript := normalizeCodexLifecyclePath(transcriptPath)
+
+	if currentTranscript != "" && lastTranscript != "" {
+		if currentTranscript != lastTranscript {
+			return false
+		}
+		if sessionID != "" && lastSessionID != "" && strings.TrimSpace(sessionID) != lastSessionID {
+			return false
+		}
+		return true
+	}
+
+	if sessionID == "" || lastSessionID == "" {
+		return false
+	}
+	return strings.TrimSpace(sessionID) == lastSessionID
+}
+
+func buildCodexStopAlreadyClosedResult(profile lifecycleRuntimeProfile, state *codexLifecycleState, statePath, sessionID, transcriptPath, transcriptSource string, syntheticTranscript bool) codexStopResult {
+	lastStop := &codexLifecycleEvent{}
+	if state != nil && state.LastStop != nil {
+		lastStop = state.LastStop
+	}
+
+	resolvedSessionID := firstNonEmptyTrimmed(sessionID, lastStop.SessionID)
+	resolvedTranscriptPath := firstNonEmptyTrimmed(transcriptPath, lastStop.TranscriptPath)
+	resolvedTranscriptSource := firstNonEmptyTrimmed(transcriptSource, lastStop.TranscriptSource)
+	if resolvedTranscriptSource == "" {
+		resolvedTranscriptSource = "explicit"
+	}
+
+	return codexStopResult{
+		Runtime:             profile,
+		TranscriptPath:      resolvedTranscriptPath,
+		TranscriptSource:    resolvedTranscriptSource,
+		SyntheticTranscript: syntheticTranscript || lastStop.SyntheticTranscript,
+		Session: SessionCloseResult{
+			SessionID:      resolvedSessionID,
+			Transcript:     resolvedTranscriptPath,
+			Status:         "already_closed",
+			Message:        "Codex closeout already recorded for this session",
+			HandoffWritten: lastStop.HandoffPath,
+		},
+		MemoryPath: firstNonEmptyTrimmed(lastStop.MemoryPath),
+		StatePath:  statePath,
+	}
 }
 
 func runCodexStatus(cmd *cobra.Command, args []string) error {
@@ -512,6 +570,26 @@ func syncCodexMemory(cwd string) (string, error) {
 
 func codexLifecycleStatePath(cwd string) string {
 	return filepath.Join(cwd, ".agents", "ao", "codex", "state.json")
+}
+
+func normalizeCodexLifecyclePath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(trimmed); err == nil {
+		return filepath.Clean(abs)
+	}
+	return filepath.Clean(trimmed)
+}
+
+func firstNonEmptyTrimmed(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func ensureCodexLifecycleDirs(cwd string) error {

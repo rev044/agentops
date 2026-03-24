@@ -7,7 +7,7 @@ Write to `.agents/rpi/execution-packet.json`:
 ```json
 {
   "objective": "<goal>",
-  "epic_id": "<epic-id>",
+  "epic_id": "<epic-id or null when discovery stays file-backed>",
   "contract_surfaces": ["docs/contracts/repo-execution-profile.md"],
   "validation_commands": ["<from repo profile or defaults>"],
   "tracker_mode": "<beads|tasklist>",
@@ -17,6 +17,10 @@ Write to `.agents/rpi/execution-packet.json`:
   "discovery_timestamp": "<ISO-8601>"
 }
 ```
+
+If discovery does not produce an epic, this execution packet becomes the
+concrete phase-2 handoff object for `$crank` and the concrete phase-3 context
+for standalone `$validation`.
 
 ## Phase Summary
 

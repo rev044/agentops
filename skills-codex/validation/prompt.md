@@ -6,11 +6,10 @@ Full validation phase orchestrator. Vibe + post-mortem + retro + forge. Reviews 
 
 1. Load and follow the skill instructions from the sibling `SKILL.md` file for
    this skill.
-2. In Codex hookless mode, standalone validation should inspect
-   `.agents/ao/codex/state.json` and ensure `ao codex stop --auto-extract` once
-   per thread when closeout has not already run.
-3. Keep closeout idempotent: if `last_stop.session_id` already matches the
-   current `CODEX_THREAD_ID`, do not rerun `ao codex stop`.
+2. In Codex hookless mode, standalone validation should run
+   `ao codex stop --auto-extract` after its own forge step.
+3. Keep closeout idempotent by relying on the CLI's same-thread dedupe instead
+   of parsing `.agents/ao/codex/state.json` in the skill layer.
 
 ## Guardrails
 

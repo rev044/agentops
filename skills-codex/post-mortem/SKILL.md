@@ -37,12 +37,10 @@ $post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 
 In Codex hookless mode, `$post-mortem` owns closeout during Step 6:
 
-1. Inspect `.agents/ao/codex/state.json` if it exists.
-2. If the file is missing, unreadable, or `last_stop.session_id` does not match
-   the current `CODEX_THREAD_ID`, run `ao codex stop --auto-extract`.
-3. If `last_stop.session_id` already matches the current thread, skip duplicate
-   closeout.
-4. Use `ao codex status` only when you need to report or verify lifecycle health.
+1. Run `ao codex stop --auto-extract`.
+2. Rely on the CLI's same-thread dedupe instead of parsing
+   `.agents/ao/codex/state.json` in the skill layer.
+3. Use `ao codex status` only when you need to report or verify lifecycle health.
 
 `ao codex stop` uses the latest transcript or history fallback to queue/persist
 learnings and run close-loop maintenance without runtime hooks. Do not stack the
@@ -883,17 +881,9 @@ if command -v ao &>/dev/null; then
 
   if [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
     # Codex owns closeout through ao codex stop, not the generic session-close path.
-    STATE_FILE=".agents/ao/codex/state.json"
-    LAST_STOP=""
-    if [ -f "$STATE_FILE" ] && command -v jq &>/dev/null; then
-      LAST_STOP="$(jq -r '.last_stop.session_id // empty' "$STATE_FILE" 2>/dev/null || true)"
-    fi
-    if [ "$LAST_STOP" != "${CODEX_THREAD_ID:-}" ]; then
-      ao codex stop --auto-extract 2>/dev/null || true
-      echo "Codex closeout ensured for the current thread"
-    else
-      echo "Codex closeout already recorded for this thread"
-    fi
+    # The CLI itself is idempotent for the same thread, so no jq/state parsing is required here.
+    ao codex stop --auto-extract 2>/dev/null || true
+    echo "Codex closeout ensured for the current thread"
   else
     # Close session and trigger full flywheel close-loop (includes adaptive feedback)
     ao session close 2>/dev/null || true

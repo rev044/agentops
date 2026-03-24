@@ -278,6 +278,86 @@ func TestCodexStopJSONUsesHistoryFallback(t *testing.T) {
 	}
 }
 
+func TestCodexStopJSONSkipsDuplicateCloseoutForSameSession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CODEX_THREAD_ID", "019d1bf7-58ea-79e1-9f5d-02109d930081")
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex Desktop")
+
+	sessionID := "019d1bf7-58ea-79e1-9f5d-02109d930081"
+	historyPath := filepath.Join(home, ".codex", "history.jsonl")
+	indexPath := filepath.Join(home, ".codex", "session_index.jsonl")
+	if err := os.MkdirAll(filepath.Dir(historyPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	history := []string{
+		`{"session_id":"` + sessionID + `","ts":1766945655,"text":"Design Codex fallback lifecycle"}`,
+		`{"session_id":"` + sessionID + `","ts":1766945658,"text":"Implement explicit ao codex stop closeout"}`,
+	}
+	if err := os.WriteFile(historyPath, []byte(strings.Join(history, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(indexPath, []byte(`{"id":"`+sessionID+`","thread_name":"Lifecycle fallback stop","updated_at":"2026-03-23T12:00:00Z"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	firstOut, err := executeCommand("codex", "stop", "--json")
+	if err != nil {
+		t.Fatalf("first codex stop --json: %v\noutput: %s", err, firstOut)
+	}
+
+	var first codexStopResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(firstOut)), &first); err != nil {
+		t.Fatalf("parse first codex stop json: %v\noutput: %s", err, firstOut)
+	}
+
+	statePath := filepath.Join(repo, ".agents", "ao", "codex", "state.json")
+	before, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read state before second stop: %v", err)
+	}
+
+	secondOut, err := executeCommand("codex", "stop", "--json")
+	if err != nil {
+		t.Fatalf("second codex stop --json: %v\noutput: %s", err, secondOut)
+	}
+
+	var second codexStopResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(secondOut)), &second); err != nil {
+		t.Fatalf("parse second codex stop json: %v\noutput: %s", err, secondOut)
+	}
+	if second.Session.Status != "already_closed" {
+		t.Fatalf("second status = %q, want already_closed", second.Session.Status)
+	}
+	if !strings.Contains(second.Session.Message, "already recorded") {
+		t.Fatalf("second message = %q, want already-recorded hint", second.Session.Message)
+	}
+	if second.CloseLoop != nil {
+		t.Fatalf("expected no duplicate close-loop on second stop, got %+v", second.CloseLoop)
+	}
+	if second.TranscriptPath != first.TranscriptPath {
+		t.Fatalf("second transcript path = %q, want %q", second.TranscriptPath, first.TranscriptPath)
+	}
+
+	after, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read state after second stop: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("expected idempotent codex stop to leave state unchanged\nbefore:\n%s\nafter:\n%s", string(before), string(after))
+	}
+}
+
 func TestCodexStatusJSONReflectsHooklessHealthAndSearchCitations(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

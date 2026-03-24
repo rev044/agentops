@@ -39,11 +39,8 @@ STEP 4  ──  if not --no-forge AND ao available:
                 if epic_id:
                   $post-mortem owns Codex closeout for this run; skip duplicate ao codex stop here
                 else:
-                  inspect .agents/ao/codex/state.json when present
-                  if the state is missing, unreadable, or last_stop.session_id != CODEX_THREAD_ID:
-                    ao codex stop --auto-extract 2>/dev/null || true
-                  else:
-                    skip duplicate Codex closeout for this thread
+                  ao codex stop --auto-extract 2>/dev/null || true
+                  # ao codex stop is thread-idempotent; duplicate standalone validation calls are safe
               else:
                 ao forge transcript --last-session --queue --quiet 2>/dev/null || true
 

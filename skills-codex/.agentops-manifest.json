@@ -568,13 +568,13 @@
       "name": "crank",
       "source_skill": "skills/crank",
       "source_hash": "f32e6f124674b821063d558f9392d352c044be5c6ad45651be60267abfe3807f",
-      "generated_hash": "3a873890847df5d44960c26dda112c897c02f2149572ee7fde33e757a72cd056"
+      "generated_hash": "edaf9cae16964a4cf9f7539b7c38daf6b3f1c863db9221d5a4e89c6490dc009e"
     },
     {
       "name": "discovery",
       "source_skill": "skills/discovery",
       "source_hash": "65abca1eeb4a35ea4d7e94093f21514a988b942fecbbdb4b0dabd5ac603d5d12",
-      "generated_hash": "e7aef3759cb30aa02bc48f283c424d99c092ae0177c9b597b622168d022fd205"
+      "generated_hash": "e0849049a4552f1ab526e74cf8c2674fc81fe0172abe88a591603bca12159f27"
     },
     {
       "name": "doc",
@@ -616,7 +616,7 @@
       "name": "handoff",
       "source_skill": "skills/handoff",
       "source_hash": "b706f6f249b11cba643982b46927fd6fc41156844233986487c2b5faf6d0096a",
-      "generated_hash": "8b87bf34893cbe2eebbfc913d65ffd3f33adf20f9cff08da18d6b5fc8ead3858"
+      "generated_hash": "6f7ffff76215609ac0452c6966d0fb3747066c11968e1a5b6479eeb83129fbe7"
     },
     {
       "name": "heal-skill",
@@ -658,7 +658,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "fbbedf5eb3b7883680a8a538748816756c7daa1d6d80b450dc2830af3fa9da17",
-      "generated_hash": "8687af8ec1b1bb275da8c9d4d0128f268d8a2386435add8fe614b64063ed74bc"
+      "generated_hash": "a7c058d7e902851dead561bf8b461d7dbffc193222113df88133f1dc9df5fa85"
     },
     {
       "name": "pr-implement",
@@ -772,7 +772,7 @@
       "name": "rpi",
       "source_skill": "skills/rpi",
       "source_hash": "60ea5729b1f96707a03bc8568a0daea814b601d2aa4ac454965c459ab7af8592",
-      "generated_hash": "33dd64d07d6f56e5e4225403d2b74c11c11c059d54bd92b62a25e917982cf7e2"
+      "generated_hash": "c0e8ee34e6458bce170cd9190f50f9f68ea1985adcbe5dad7e4a58c3cccd6231"
     },
     {
       "name": "security",
@@ -832,7 +832,7 @@
       "name": "validation",
       "source_skill": "skills/validation",
       "source_hash": "73c520360d95c007c1f251d8fe6ae55c7a8ef20889d973a2ff0fbd988d075a1e",
-      "generated_hash": "969c90dbe86473c85d4ee1713fa5cb227643a8b7204b21fb29316a974a5d7d98"
+      "generated_hash": "d2d2dd187afc0301cd23dac9e70e07dccf9ecf69130f5ec61c4578189d443e98"
     },
     {
       "name": "vibe",
