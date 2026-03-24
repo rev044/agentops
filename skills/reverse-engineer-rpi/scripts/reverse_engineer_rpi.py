@@ -16,6 +16,27 @@ REPO_ROOT = Path.cwd()
 SKILL_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = SKILL_DIR / "references" / "templates"
 
+IGNORED_REPO_SCAN_PARTS = {
+    ".agents",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".next",
+    ".pytest_cache",
+    ".svn",
+    ".tmp",
+    ".venv",
+    "__pycache__",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "target",
+    "tmp",
+    "venv",
+    "vendor",
+}
+
 
 def _die(msg: str, code: int = 2) -> None:
     print(f"error: {msg}", file=sys.stderr)
@@ -123,6 +144,17 @@ def _read_text(p: Path) -> str:
     return p.read_text(encoding="utf-8", errors="replace")
 
 
+def _should_skip_repo_scan_path(path: Path, repo_root: Path) -> bool:
+    try:
+        rel_parts = path.relative_to(repo_root).parts
+    except ValueError:
+        rel_parts = path.parts
+    for part in rel_parts:
+        if part in IGNORED_REPO_SCAN_PARTS:
+            return True
+    return False
+
+
 def _extract_ts_backtick_const(src: Path, const_name: str) -> str | None:
     # Best-effort: extract `const <name> = `...`;` blocks (common for CLI help text).
     if not src.exists():
@@ -201,7 +233,7 @@ def _find_node_cli_package(repo_root: Path, product_slug: str, product_name: str
     candidates: list[tuple[int, Path, dict[str, object]]] = []
 
     for pkg_json in sorted(repo_root.rglob("package.json")):
-        if "node_modules" in pkg_json.parts:
+        if _should_skip_repo_scan_path(pkg_json, repo_root):
             continue
         try:
             data = json.loads(_read_text(pkg_json))
@@ -271,7 +303,7 @@ def _find_python_cli(repo_root: Path) -> dict[str, object] | None:
 
     # Try pyproject.toml first (modern standard).
     for pyproject in sorted(repo_root.rglob("pyproject.toml")):
-        if ".venv" in pyproject.parts or "node_modules" in pyproject.parts:
+        if _should_skip_repo_scan_path(pyproject, repo_root):
             continue
         text = _read_text(pyproject)
         # [project.scripts] section (PEP 621).
@@ -300,7 +332,7 @@ def _find_python_cli(repo_root: Path) -> dict[str, object] | None:
     # Try setup.cfg if pyproject didn't find scripts.
     if not result["bin"]:
         for setup_cfg in sorted(repo_root.rglob("setup.cfg")):
-            if ".venv" in setup_cfg.parts:
+            if _should_skip_repo_scan_path(setup_cfg, repo_root):
                 continue
             text = _read_text(setup_cfg)
             m = re.search(r'\[options\.entry_points\]\s*\nconsole_scripts\s*=\s*\n((?:\s+.+\n)*)', text)
@@ -318,7 +350,7 @@ def _find_python_cli(repo_root: Path) -> dict[str, object] | None:
     # Detect CLI framework via source scan (best-effort, cap file count).
     scanned = 0
     for py_file in sorted(repo_root.rglob("*.py")):
-        if ".venv" in py_file.parts or "node_modules" in py_file.parts:
+        if _should_skip_repo_scan_path(py_file, repo_root):
             continue
         scanned += 1
         if scanned > 200:
@@ -345,6 +377,8 @@ def _find_go_cli(repo_root: Path) -> dict[str, object] | None:
     if not go_mod.exists():
         # Check one level deeper (monorepo).
         for gm in sorted(repo_root.rglob("go.mod")):
+            if _should_skip_repo_scan_path(gm, repo_root):
+                continue
             go_mod = gm
             break
     if go_mod.exists():
@@ -356,7 +390,7 @@ def _find_go_cli(repo_root: Path) -> dict[str, object] | None:
     # Find main.go files (entry points).
     main_files: list[Path] = []
     for mg in sorted(repo_root.rglob("main.go")):
-        if "vendor" in mg.parts or "testdata" in mg.parts:
+        if _should_skip_repo_scan_path(mg, repo_root) or "testdata" in mg.parts:
             continue
         main_files.append(mg)
 
@@ -382,7 +416,7 @@ def _find_go_cli(repo_root: Path) -> dict[str, object] | None:
     # Detect CLI framework (cobra vs stdlib flag).
     scanned = 0
     for go_file in sorted(repo_root.rglob("*.go")):
-        if "vendor" in go_file.parts or "testdata" in go_file.parts:
+        if _should_skip_repo_scan_path(go_file, repo_root) or "testdata" in go_file.parts:
             continue
         scanned += 1
         if scanned > 200:

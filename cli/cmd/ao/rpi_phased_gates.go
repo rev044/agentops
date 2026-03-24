@@ -121,6 +121,7 @@ func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error
 		VerbosePrintf("Warning: could not extract pre-mortem verdict: %v\n", err)
 		return nil
 	}
+	findings, _ := extractCouncilFindings(report, 5)
 	state.Verdicts["pre_mortem"] = verdict
 	fmt.Printf("Pre-mortem verdict: %s\n", verdict)
 	_, _ = appendRPIC2Event(cwd, rpiC2EventInput{
@@ -131,11 +132,13 @@ func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error
 		Details: map[string]any{"verdict": verdict, "report": report},
 	})
 	logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("pre-mortem verdict: %s report=%s", verdict, report))
+	if artifact, evalErr := emitPhaseEvaluatorArtifact(cwd, state, 1, verdict, findings, pathClean(report)); evalErr != nil {
+		VerbosePrintf("Warning: could not write discovery evaluator artifact: %v\n", evalErr)
+	} else if artifact != nil {
+		state.Verdicts["discovery_evaluator"] = artifact.Verdict
+	}
 
 	if verdict == "FAIL" {
-		// Discovery session was instructed to retry internally.
-		// If we still see FAIL here, it means all retries failed.
-		findings, _ := extractCouncilFindings(report, 5)
 		return &gateFailError{Phase: 1, Verdict: verdict, Findings: findings, Report: report}
 	}
 	return nil
@@ -150,15 +153,34 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 		}
 	}
 	if state.EpicID == "" {
+		gateVerdict := "PASS"
+		if state.TrackerMode == "tasklist" {
+			gateVerdict = "WARN"
+		}
+		if artifact, err := emitPhaseEvaluatorArtifact(cwd, state, 2, gateVerdict, nil); err != nil {
+			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", err)
+		} else if artifact != nil {
+			state.Verdicts["implementation_evaluator"] = artifact.Verdict
+		}
 		return nil
 	}
 	// Plan-file mode: skip bd-dependent completion check
 	if isPlanFileEpic(state.EpicID) {
+		if artifact, err := emitPhaseEvaluatorArtifact(cwd, state, 2, "PASS", nil); err != nil {
+			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", err)
+		} else if artifact != nil {
+			state.Verdicts["implementation_evaluator"] = artifact.Verdict
+		}
 		return nil
 	}
 	if isEpic, err := isEpicIssue(state.EpicID, state.Opts.BDCommand); err == nil && !isEpic {
 		fmt.Printf("Crank status: SKIP (non-epic issue %s)\n", state.EpicID)
 		logPhaseTransition(logPath, state.RunID, "implementation", fmt.Sprintf("crank status: SKIP (non-epic issue %s)", state.EpicID))
+		if artifact, evalErr := emitPhaseEvaluatorArtifact(cwd, state, 2, "SKIP", nil); evalErr != nil {
+			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", evalErr)
+		} else if artifact != nil {
+			state.Verdicts["implementation_evaluator"] = artifact.Verdict
+		}
 		return nil
 	} else if err != nil {
 		VerbosePrintf("Warning: could not determine issue type for %s (continuing with crank completion check): %v\n", state.EpicID, err)
@@ -166,6 +188,16 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 	status, err := checkCrankCompletion(state.EpicID, state.Opts.BDCommand)
 	if err != nil {
 		VerbosePrintf("Warning: could not check crank completion (continuing to validation): %v\n", err)
+		findings := []finding{{
+			Description: "Unable to mechanically confirm crank completion",
+			Fix:         "Inspect the implementation artifacts and tracker state before treating implementation as finished.",
+			Ref:         latestRelativeArtifact(cwd, filepath.Join(".agents", "rpi", "execution-packet.json")),
+		}}
+		if artifact, evalErr := emitPhaseEvaluatorArtifact(cwd, state, 2, "WARN", findings); evalErr != nil {
+			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", evalErr)
+		} else if artifact != nil {
+			state.Verdicts["implementation_evaluator"] = artifact.Verdict
+		}
 		return nil
 	}
 	fmt.Printf("Crank status: %s\n", status)
@@ -177,8 +209,24 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 		Details: map[string]any{"status": status, "epic_id": state.EpicID},
 	})
 	logPhaseTransition(logPath, state.RunID, "implementation", fmt.Sprintf("crank status: %s", status))
+	findings := []finding{}
 	if status == "BLOCKED" || status == "PARTIAL" {
-		return &gateFailError{Phase: 2, Verdict: status, Report: "bd children " + state.EpicID}
+		findings = append(findings, finding{
+			Description: fmt.Sprintf("Crank reported %s for %s", status, state.EpicID),
+			Fix:         "Resolve the remaining blocked or incomplete work before validation continues.",
+			Ref:         latestRelativeArtifact(cwd, filepath.Join(".agents", "rpi", "execution-packet.json")),
+		})
+	}
+	if artifact, err := emitPhaseEvaluatorArtifact(cwd, state, 2, status, findings); err != nil {
+		VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", err)
+	} else if artifact != nil {
+		state.Verdicts["implementation_evaluator"] = artifact.Verdict
+		if status == "BLOCKED" || status == "PARTIAL" {
+			findings = artifact.Findings
+		}
+	}
+	if status == "BLOCKED" || status == "PARTIAL" {
+		return &gateFailError{Phase: 2, Verdict: status, Findings: findings, Report: "bd children " + state.EpicID}
 	}
 	return nil
 }
@@ -200,6 +248,7 @@ func processValidationPhase(cwd string, state *phasedState, phaseNum int, logPat
 	if err != nil {
 		return fmt.Errorf("validation phase: could not extract vibe verdict from %s: %w", report, err)
 	}
+	findings, _ := extractCouncilFindings(report, 5)
 	state.Verdicts["vibe"] = verdict
 	fmt.Printf("Vibe verdict: %s\n", verdict)
 	_, _ = appendRPIC2Event(cwd, rpiC2EventInput{
@@ -211,12 +260,8 @@ func processValidationPhase(cwd string, state *phasedState, phaseNum int, logPat
 	})
 	logPhaseTransition(logPath, state.RunID, "validation", fmt.Sprintf("vibe verdict: %s report=%s", verdict, report))
 
-	if verdict == "FAIL" {
-		findings, _ := extractCouncilFindings(report, 5)
-		return &gateFailError{Phase: 3, Verdict: verdict, Findings: findings, Report: report}
-	}
-
 	// Also extract post-mortem verdict if available (non-blocking)
+	evidence := []string{pathClean(report)}
 	pmReport, err := findLatestCouncilReport(cwd, "post-mortem", time.Time{}, state.EpicID)
 	if err == nil {
 		pmVerdict, err := extractCouncilVerdict(pmReport)
@@ -224,7 +269,19 @@ func processValidationPhase(cwd string, state *phasedState, phaseNum int, logPat
 			state.Verdicts["post_mortem"] = pmVerdict
 			fmt.Printf("Post-mortem verdict: %s\n", pmVerdict)
 			logPhaseTransition(logPath, state.RunID, "validation", fmt.Sprintf("post-mortem verdict: %s report=%s", pmVerdict, pmReport))
+			evidence = append(evidence, pathClean(pmReport))
 		}
+	}
+	if artifact, evalErr := emitPhaseEvaluatorArtifact(cwd, state, 3, verdict, findings, evidence...); evalErr != nil {
+		VerbosePrintf("Warning: could not write validation evaluator artifact: %v\n", evalErr)
+	} else if artifact != nil {
+		state.Verdicts["validation_evaluator"] = artifact.Verdict
+		if verdict == "FAIL" {
+			findings = artifact.Findings
+		}
+	}
+	if verdict == "FAIL" {
+		return &gateFailError{Phase: 3, Verdict: verdict, Findings: findings, Report: report}
 	}
 	return nil
 }

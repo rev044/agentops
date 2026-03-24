@@ -311,6 +311,10 @@ func TestGateValidationVerdictC2Event(t *testing.T) {
 	if !found {
 		t.Errorf("gate.validation.verdict event not found among %d events", len(events))
 	}
+	evaluatorPath := filepath.Join(root, ".agents", "rpi", "phase-3-evaluator.json")
+	if _, err := os.Stat(evaluatorPath); err != nil {
+		t.Fatalf("expected evaluator artifact at %s: %v", evaluatorPath, err)
+	}
 }
 
 func TestGateEscalationC2Event(t *testing.T) {

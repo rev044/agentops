@@ -329,6 +329,9 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 	if err := writeExecutionPacketSeed(spawnCwd, state); err != nil {
 		return err
 	}
+	if err := updateExecutionPacketProof(spawnCwd, state); err != nil {
+		VerbosePrintf("Warning: could not initialize execution packet proof: %v\n", err)
+	}
 
 	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s complexity=%s fast_path=%v", state.Goal, opts.From, state.Complexity, state.FastPath))
 
@@ -365,11 +368,17 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 	if err := runPhaseLoopWithBudgets(ctx, cwd, spawnCwd, state, startPhase, opts, statusPath, allPhases, logPath); err != nil {
 		saveTerminalState(spawnCwd, state, "failed", err.Error())
 		emitRunCompleted(spawnCwd, state, runStart)
+		if proofErr := updateExecutionPacketProof(spawnCwd, state); proofErr != nil {
+			VerbosePrintf("Warning: could not refresh failed-run proof artifact set: %v\n", proofErr)
+		}
 		return err
 	}
 
 	saveTerminalState(spawnCwd, state, "completed", "all phases completed")
 	emitRunCompleted(spawnCwd, state, runStart)
+	if err := updateExecutionPacketProof(spawnCwd, state); err != nil {
+		VerbosePrintf("Warning: could not refresh completed-run proof artifact set: %v\n", err)
+	}
 
 	// All phases completed — mark worktree for merge+cleanup.
 	cleanupSuccess = true

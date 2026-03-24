@@ -12,6 +12,7 @@ import (
 type executionPacket struct {
 	SchemaVersion      int                     `json:"schema_version"`
 	Objective          string                  `json:"objective"`
+	RunID              string                  `json:"run_id,omitempty"`
 	EpicID             string                  `json:"epic_id,omitempty"`
 	PlanPath           string                  `json:"plan_path,omitempty"`
 	ContractSurfaces   []string                `json:"contract_surfaces"`
@@ -20,6 +21,9 @@ type executionPacket struct {
 	TrackerHealth      *trackerHealth          `json:"tracker_health,omitempty"`
 	DoneCriteria       []string                `json:"done_criteria,omitempty"`
 	Complexity         string                  `json:"complexity,omitempty"`
+	ProofArtifacts     []string                `json:"proof_artifacts,omitempty"`
+	EvaluatorArtifacts map[string]string       `json:"evaluator_artifacts,omitempty"`
+	ProofUpdatedAt     string                  `json:"proof_updated_at,omitempty"`
 	AutodevProgram     *executionPacketProgram `json:"autodev_program,omitempty"`
 }
 
@@ -38,6 +42,7 @@ func writeExecutionPacketSeed(cwd string, state *phasedState) error {
 	packet := executionPacket{
 		SchemaVersion:    1,
 		Objective:        state.Goal,
+		RunID:            state.RunID,
 		EpicID:           state.EpicID,
 		ContractSurfaces: []string{},
 		TrackerMode:      tracker.Mode,

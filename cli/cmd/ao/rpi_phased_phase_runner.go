@@ -215,6 +215,12 @@ func runSinglePhase(ctx context.Context, cwd, spawnCwd string, state *phasedStat
 	}
 
 	recordRatchetCheckpoint(p.Step, state.Opts.AOCommand)
+	if err := updatePhaseResultArtifacts(spawnCwd, state, p.Num, nil); err != nil {
+		VerbosePrintf("Warning: could not refresh phase result artifacts: %v\n", err)
+	}
+	if err := updateExecutionPacketProof(spawnCwd, state); err != nil {
+		VerbosePrintf("Warning: could not refresh execution packet proof: %v\n", err)
+	}
 
 	if err := savePhasedState(spawnCwd, state); err != nil {
 		VerbosePrintf("Warning: could not save state: %v\n", err)

@@ -324,6 +324,22 @@ func buildServeMux(root *serveMuxRoot, runID string) *http.ServeMux {
 		}
 		serveRPIState(w, r, root.get(), runID)
 	})
+	mux.HandleFunc("/artifacts", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			setCORSHeaders(w, r)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		serveRPIArtifacts(w, r, root.get(), runID)
+	})
+	mux.HandleFunc("/artifact", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			setCORSHeaders(w, r)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		serveRPIArtifact(w, r, root.get(), runID)
+	})
 	return mux
 }
 
@@ -534,6 +550,9 @@ func serveRPIState(w http.ResponseWriter, r *http.Request, root, defaultRunID st
 	if len(phaseResults) > 0 {
 		resp["phase_results"] = phaseResults
 	}
+	if artifacts := collectRunArtifacts(resolvedRoot, runID); len(artifacts) > 0 {
+		resp["artifacts"] = artifacts
+	}
 
 	// Scan for active runs if no specific run requested
 	if runID == "" {
@@ -543,6 +562,77 @@ func serveRPIState(w http.ResponseWriter, r *http.Request, root, defaultRunID st
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func serveRPIArtifacts(w http.ResponseWriter, r *http.Request, root, defaultRunID string) {
+	setCORSHeaders(w, r)
+
+	runID := strings.TrimSpace(r.URL.Query().Get("run-id"))
+	if runID != "" && (strings.Contains(runID, "..") || strings.Contains(runID, "/") || strings.Contains(runID, "\\")) {
+		http.Error(w, "invalid run-id", http.StatusBadRequest)
+		return
+	}
+	if runID == "" {
+		runID = defaultRunID
+	}
+
+	resolvedRoot := root
+	if runID != "" {
+		if _, stateRoot := resolveServeRun(root, runID); strings.TrimSpace(stateRoot) != "" {
+			resolvedRoot = stateRoot
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(collectRunArtifacts(resolvedRoot, runID))
+}
+
+func serveRPIArtifact(w http.ResponseWriter, r *http.Request, root, defaultRunID string) {
+	setCORSHeaders(w, r)
+
+	runID := strings.TrimSpace(r.URL.Query().Get("run-id"))
+	if runID != "" && (strings.Contains(runID, "..") || strings.Contains(runID, "/") || strings.Contains(runID, "\\")) {
+		http.Error(w, "invalid run-id", http.StatusBadRequest)
+		return
+	}
+	if runID == "" {
+		runID = defaultRunID
+	}
+
+	relPath := pathClean(r.URL.Query().Get("path"))
+	if !isSafeArtifactRelPath(relPath) {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	resolvedRoot := root
+	if runID != "" {
+		if _, stateRoot := resolveServeRun(root, runID); strings.TrimSpace(stateRoot) != "" {
+			resolvedRoot = stateRoot
+		}
+	}
+
+	var matched *rpiArtifactRef
+	for _, ref := range collectRunArtifacts(resolvedRoot, runID) {
+		if ref.Path == relPath {
+			refCopy := ref
+			matched = &refCopy
+			break
+		}
+	}
+	if matched == nil {
+		http.Error(w, "artifact not found", http.StatusNotFound)
+		return
+	}
+
+	content, err := readRunArtifactContent(resolvedRoot, *matched, artifactPreviewByteLimit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(content)
 }
 
 func setCORSHeaders(w http.ResponseWriter, r ...*http.Request) {

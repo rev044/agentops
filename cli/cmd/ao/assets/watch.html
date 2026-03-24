@@ -205,6 +205,61 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .session-label { color: var(--dim); }
 .session-value { color: var(--bright); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
 
+/* Artifacts */
+.artifact-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 240px;
+  max-height: 280px;
+  border-bottom: 1px solid var(--border);
+}
+.artifact-list {
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: rgba(13,17,23,.7);
+}
+.artifact-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(30,45,61,.5);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.artifact-item:hover,
+.artifact-item.active { background: var(--bg2); }
+.artifact-kind { color: var(--cyan); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+.artifact-label { color: var(--bright); font-size: 12px; margin-top: 3px; }
+.artifact-meta { color: var(--dim); font-size: 11px; margin-top: 4px; }
+.artifact-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.artifact-preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg1);
+}
+.artifact-preview-title { color: var(--bright); font-size: 12px; }
+.artifact-preview-path { color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artifact-preview {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 /* Completion banner */
 .completion-banner {
   display: none;
@@ -311,6 +366,24 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <!-- Right: event feed -->
   <section class="panel-right">
     <div class="events-header">
+      <span class="events-label">Artifact Timeline</span>
+    </div>
+    <div class="artifact-shell">
+      <div class="artifact-list" id="artifactList">
+        <div class="empty-state">
+          <div class="icon">🗂</div>
+          <div>Waiting for artifacts...</div>
+        </div>
+      </div>
+      <div class="artifact-preview-wrap">
+        <div class="artifact-preview-header">
+          <div class="artifact-preview-title" id="artifactPreviewTitle">Artifact preview</div>
+          <div class="artifact-preview-path" id="artifactPreviewPath">Select a run artifact to inspect</div>
+        </div>
+        <pre class="artifact-preview" id="artifactPreview">Waiting for artifacts...</pre>
+      </div>
+    </div>
+    <div class="events-header">
       <span class="events-label">Telemetry Feed</span>
       <button class="follow-btn active" id="followBtn" onclick="toggleFollow()">↓ follow</button>
       <span class="events-count" id="eventsCount">0 events</span>
@@ -360,6 +433,8 @@ let evSource = null;
 let stateInterval = null;
 let runsInterval = null;
 let connectGeneration = 0;
+let artifacts = [];
+let selectedArtifactPath = '';
 
 function init() {
   updateRunLabels();
@@ -401,6 +476,9 @@ function pollState() {
     // Reconcile from phase results
     if (state.phase_results) {
       reconcileFromPhaseResults(state.phase_results);
+    }
+    if (state.artifacts) {
+      reconcileArtifacts(state.artifacts);
     }
   }).catch(function(){});
 }
@@ -533,6 +611,12 @@ function resetRunState() {
   document.getElementById('workers-panel').style.display = 'none';
   document.getElementById('workers-body').textContent = '';
   document.getElementById('completionBanner').classList.remove('show');
+  artifacts = [];
+  selectedArtifactPath = '';
+  document.getElementById('artifactList').textContent = '';
+  document.getElementById('artifactPreviewTitle').textContent = 'Artifact preview';
+  document.getElementById('artifactPreviewPath').textContent = 'Select a run artifact to inspect';
+  document.getElementById('artifactPreview').textContent = 'Waiting for artifacts...';
   resetEventFeed();
   for (var i = 1; i <= 3; i++) refreshPhaseDisplay(i);
   updateProgress();
@@ -572,6 +656,85 @@ function setConn(cls, text) {
   const el = document.getElementById('sbConn');
   el.className = 'statusbar-conn ' + cls;
   el.textContent = text;
+}
+
+function reconcileArtifacts(nextArtifacts) {
+  if (!Array.isArray(nextArtifacts)) return;
+  artifacts = nextArtifacts.slice();
+  renderArtifacts();
+  if (!selectedArtifactPath && artifacts.length > 0) {
+    selectArtifact(artifacts[0].path);
+  }
+}
+
+function renderArtifacts() {
+  const list = document.getElementById('artifactList');
+  list.textContent = '';
+  if (!artifacts.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.style.height = '100%';
+    const icon = document.createElement('div');
+    icon.className = 'icon';
+    icon.textContent = '🗂';
+    const label = document.createElement('div');
+    label.textContent = 'No run artifacts yet';
+    empty.appendChild(icon);
+    empty.appendChild(label);
+    list.appendChild(empty);
+    return;
+  }
+
+  artifacts.forEach(function(artifact) {
+    const button = document.createElement('button');
+    button.className = 'artifact-item' + (artifact.path === selectedArtifactPath ? ' active' : '');
+    button.onclick = function() { selectArtifact(artifact.path); };
+
+    const kind = document.createElement('div');
+    kind.className = 'artifact-kind';
+    kind.textContent = artifact.kind || 'artifact';
+    button.appendChild(kind);
+
+    const label = document.createElement('div');
+    label.className = 'artifact-label';
+    label.textContent = artifact.label || artifact.path;
+    button.appendChild(label);
+
+    const meta = document.createElement('div');
+    meta.className = 'artifact-meta';
+    meta.textContent = (artifact.updated_at ? artifact.updated_at.replace('T', ' ').replace('Z', ' UTC') : '') + (artifact.size_bytes ? ' · ' + artifact.size_bytes + ' bytes' : '');
+    button.appendChild(meta);
+
+    list.appendChild(button);
+  });
+}
+
+function selectArtifact(path) {
+  if (!path) return;
+  selectedArtifactPath = path;
+  renderArtifacts();
+
+  const params = new URLSearchParams();
+  params.set('path', path);
+  if (runId) params.set('run-id', runId);
+
+  fetch('/artifact?' + params.toString()).then(function(r){ return r.json(); }).then(function(payload) {
+    if (!payload) return;
+    document.getElementById('artifactPreviewTitle').textContent = payload.label || payload.kind || 'Artifact preview';
+    document.getElementById('artifactPreviewPath').textContent = payload.path || path;
+    let body = payload.body || '';
+    if (payload.content_type === 'application/json') {
+      try {
+        body = JSON.stringify(JSON.parse(body), null, 2);
+      } catch (_) {}
+    }
+    if (payload.truncated) body += '\n\n[truncated preview]';
+    document.getElementById('artifactPreview').textContent = body || '(empty artifact)';
+  }).catch(function() {
+    document.getElementById('artifactPreviewTitle').textContent = 'Artifact preview';
+    document.getElementById('artifactPreviewPath').textContent = path;
+    document.getElementById('artifactPreview').textContent = 'Unable to load artifact preview.';
+  });
 }
 
 function handleEvent(ev) {

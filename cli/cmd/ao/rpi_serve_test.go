@@ -162,6 +162,13 @@ func TestBuildServeMux(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("/runs returned %d, want 200", rr.Code)
 	}
+
+	req = httptest.NewRequest(http.MethodGet, "/artifacts", nil)
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("/artifacts returned %d, want 200", rr.Code)
+	}
 }
 
 func TestSetCORSHeaders(t *testing.T) {
@@ -753,6 +760,9 @@ func TestServeRPIState_UsesRequestedRunRoot(t *testing.T) {
 	if got := phase3["status"]; got != "completed" {
 		t.Fatalf("phase_3.status = %v, want %q", got, "completed")
 	}
+	if artifacts, ok := resp["artifacts"].([]any); !ok || len(artifacts) == 0 {
+		t.Fatalf("artifacts missing or empty: %#v", resp["artifacts"])
+	}
 }
 
 func TestServeRPIEvents_ResolvesRequestedRunAcrossRoots(t *testing.T) {
@@ -806,5 +816,64 @@ func TestServeRPIEvents_ResolvesRequestedRunAcrossRoots(t *testing.T) {
 	body := rr.Body.String()
 	if !strings.Contains(body, ev.EventID) {
 		t.Fatalf("expected SSE body to contain event %q, got %q", ev.EventID, body)
+	}
+}
+
+func TestServeRPIArtifacts_ListAndRead(t *testing.T) {
+	root := t.TempDir()
+	rpiDir := filepath.Join(root, ".agents", "rpi")
+	if err := os.MkdirAll(filepath.Join(rpiDir, "runs", "rpi-artifacts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	packetPath := filepath.Join(rpiDir, "execution-packet.json")
+	if err := os.WriteFile(packetPath, []byte("{\"objective\":\"artifact test\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	evaluatorPath := filepath.Join(rpiDir, "phase-2-evaluator.json")
+	if err := os.WriteFile(evaluatorPath, []byte("{\"verdict\":\"PASS\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/artifacts?run-id=rpi-artifacts", nil)
+	rr := httptest.NewRecorder()
+	serveRPIArtifacts(rr, req, root, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("/artifacts returned %d", rr.Code)
+	}
+
+	var refs []rpiArtifactRef
+	if err := json.Unmarshal(rr.Body.Bytes(), &refs); err != nil {
+		t.Fatalf("decode /artifacts response: %v", err)
+	}
+	if len(refs) < 2 {
+		t.Fatalf("expected at least 2 artifact refs, got %d", len(refs))
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/artifact?run-id=rpi-artifacts&path=.agents/rpi/execution-packet.json", nil)
+	rr = httptest.NewRecorder()
+	serveRPIArtifact(rr, req, root, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("/artifact returned %d", rr.Code)
+	}
+
+	var content rpiArtifactContent
+	if err := json.Unmarshal(rr.Body.Bytes(), &content); err != nil {
+		t.Fatalf("decode /artifact response: %v", err)
+	}
+	if content.Kind != "execution_packet" {
+		t.Fatalf("kind = %q, want execution_packet", content.Kind)
+	}
+	if !strings.Contains(content.Body, "artifact test") {
+		t.Fatalf("preview body missing packet content: %q", content.Body)
+	}
+}
+
+func TestServeRPIArtifact_RejectsTraversal(t *testing.T) {
+	root := t.TempDir()
+	req := httptest.NewRequest(http.MethodGet, "/artifact?path=../../etc/passwd", nil)
+	rr := httptest.NewRecorder()
+	serveRPIArtifact(rr, req, root, "")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rr.Code)
 	}
 }
