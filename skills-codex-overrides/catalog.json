@@ -410,13 +410,13 @@
         ],
         "required_markers": [
           "In Codex hookless mode, inspect `.agents/ao/codex/state.json` and ensure `ao codex start` once per thread before phase orchestration.",
-          "Resolve bead IDs before routing; do not infer epic scope from the `ag-*` prefix alone.",
-          "Keep a single `epic_id` spine across discovery, crank, and validation. Never replace it with a child issue ID from `bd ready`, `bd show`, or `.agents/rpi/next-work.jsonl`.",
-          "If `$crank` returns `<promise>PARTIAL</promise>`, rerun `$crank` on the same `epic_id` until the epic is done, blocked, or the retry budget is exhausted.",
+          "When beads are present, resolve bead IDs before routing; when beads are absent, preserve the current goal or execution-packet objective across phases.",
+          "Keep a single lifecycle objective spine across discovery, crank, and validation. Never replace it with a child issue ID or one ready slice from `bd ready`, `bd show`, or `.agents/rpi/next-work.jsonl`.",
+          "If `$crank` returns `<promise>PARTIAL</promise>`, rerun `$crank` on the same lifecycle objective until the work is done, blocked, or the retry budget is exhausted.",
           "Orchestrate phases directly in the current session; do not hand RPI orchestration to wrapper commands.",
           "claim, release, and consume semantics exactly",
           "claim before work, consume on success, release on failure or interruption",
-          "If the invocation resolves to standalone single-issue work with no parent epic, use `$implement` instead of pretending `$rpi` is epic orchestration."
+          "Do not stop after a partial phase result; only stop on `<promise>BLOCKED</promise>`, retry-budget exhaustion, or final completion."
         ]
       }
     },

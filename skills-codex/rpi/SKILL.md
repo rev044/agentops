@@ -30,21 +30,21 @@ before phase orchestration:
 4. Let `$validation`, `$post-mortem`, or `$handoff` own the hookless closeout
    path.
 
-## Epic Scope Guard
+## Objective Scope Guard
 
-`$rpi` owns an objective or epic, not a single child issue.
+`$rpi` owns one lifecycle objective from discovery through validation.
 
-1. Keep one `epic_id` spine across discovery, implementation, and validation.
-   Never replace the execution-packet epic with a child issue surfaced by
-   `bd ready`, `bd show`, or `.agents/rpi/next-work.jsonl`.
-2. Do not infer epic scope from the `ag-*` prefix alone. Resolve bead IDs
-   before routing.
-3. If the input resolves to a child issue with a parent epic, carry the child as
+1. Keep one objective spine across phases:
+   - if discovery or resume state yields an `epic_id`, preserve that `epic_id`
+   - otherwise preserve the original goal plus execution-packet objective
+2. Never replace the current objective with a child issue or one ready slice
+   surfaced by `bd ready`, `bd show`, or `.agents/rpi/next-work.jsonl`.
+3. When bead IDs are present, resolve them before routing; when beads are absent,
+   route by `--from` plus the current goal/execution-packet state.
+4. If the input resolves to a child issue with a parent epic, carry the child as
    context only and continue `$rpi` against the parent epic.
-4. If the input resolves to standalone single-issue work with no parent epic,
-   that is `$implement`, not `$rpi`.
 5. `<promise>PARTIAL</promise>` from `$crank` means re-enter STEP 2 on the same
-   epic. It is not completion.
+   lifecycle objective. It is not completion, and it is not a reason to stop.
 
 ## DAG — Execute This Sequentially
 
@@ -62,9 +62,9 @@ STEP 1  -- if start_phase <= discovery:
             DONE?    -> read epic-id from .agents/rpi/execution-packet.json
             Log: PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2
 
-STEP 2  -- $crank <epic-id> [--test-first] [--no-test-first]
-            PARTIAL? -> retry SAME epic-id (max 3 total), then stop
-            BLOCKED? -> retry SAME epic-id with block context (max 3 total), then stop
+STEP 2  -- $crank <objective-id> [--test-first] [--no-test-first]
+            PARTIAL? -> retry SAME objective (max 3 total), then stop
+            BLOCKED? -> retry SAME objective with block context (max 3 total), then stop
             DONE? -> ao ratchet record implement 2>/dev/null || true
             Log: PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3
 
@@ -91,7 +91,9 @@ STEP 4  -- report(verdicts)
 - If input is a bead ID and no `--from`, resolve it before routing:
   - `bd show <id>` says `issue_type=epic` → STEP 2 using that epic ID
   - child issue with `parent` → STEP 2 using the parent epic ID
-  - non-epic with no parent → this is single-issue work; use `$implement`
+- If beads are absent or the input is plain goal text:
+  - preserve the goal as the lifecycle objective
+  - default to STEP 1 unless the user explicitly set `--from`
 - Do not infer epic scope from `ag-*` alone
 
 **Classify complexity:**
@@ -132,8 +134,8 @@ rpi_state = {
 
 **STEP 2 gate (implementation, max 3 attempts):**
 - `<promise>DONE</promise>`: proceed to STEP 3
-- `<promise>BLOCKED</promise>`: retry `$crank` on the same `epic_id` with block context (max 2 retries)
-- `<promise>PARTIAL</promise>`: retry `$crank` on the same `epic_id` (max 2 retries). Do not hand off a child issue or stop at a partial slice.
+- `<promise>BLOCKED</promise>`: retry `$crank` on the same lifecycle objective with block context (max 2 retries)
+- `<promise>PARTIAL</promise>`: retry `$crank` on the same lifecycle objective (max 2 retries). Do not hand off a child issue, narrow to one slice, or stop at a partial phase result.
 
 **STEP 3 gate (validation-to-crank loop, max 3 total):**
 - `<promise>DONE</promise>`: proceed to STEP 4
