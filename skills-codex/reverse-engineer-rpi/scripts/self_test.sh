@@ -179,4 +179,41 @@ if ! grep -q "no CLI surface detected" "$OUT_NONCLI/spec-code-map.md" 2>/dev/nul
 fi
 echo "OK: multi-language CLI graceful degradation works"
 
+echo "--- generated-tree hygiene regression test ---"
+HYGIENE_REPO="$TMP/local-hygiene"
+HYGIENE_OUT="$TMP/out-hygiene"
+mkdir -p "$HYGIENE_REPO/.tmp/compound-engineer" "$HYGIENE_OUT"
+(cd "$HYGIENE_REPO" && git init >/dev/null 2>&1)
+cat >"$HYGIENE_REPO/package.json" <<'EOF'
+{
+  "name": "agentops",
+  "version": "0.0.1",
+  "bin": {
+    "agentops": "bin/agentops.js"
+  }
+}
+EOF
+cat >"$HYGIENE_REPO/.tmp/compound-engineer/package.json" <<'EOF'
+{
+  "name": "@every-env/compound-plugin",
+  "version": "9.9.9",
+  "bin": {
+    "compound-plugin": "bin/index.js"
+  }
+}
+EOF
+python3 "$SKILL/scripts/reverse_engineer_rpi.py" agentops \
+  --mode=repo \
+  --local-clone-dir="$HYGIENE_REPO" \
+  --output-dir="$HYGIENE_OUT"
+if grep -q "\.tmp/compound-engineer" "$HYGIENE_OUT/spec-cli-surface.md"; then
+  echo "FAIL: generated-tree package leaked into CLI surface spec" >&2
+  exit 1
+fi
+if ! grep -q "package name: \`agentops\`" "$HYGIENE_OUT/spec-cli-surface.md"; then
+  echo "FAIL: root package did not win CLI surface detection" >&2
+  exit 1
+fi
+echo "OK: generated-tree hygiene regression holds"
+
 echo "OK: self-test passed (all positive + negative tests)"
