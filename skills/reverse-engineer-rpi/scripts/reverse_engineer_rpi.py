@@ -1877,8 +1877,20 @@ def main() -> int:
     learning_path = REPO_ROOT / ".agents" / "learnings" / f"{_today_ymd()}-{product_slug}-reverse-engineer-rpi.md"
     if not learning_path.exists():
         learning_path.write_text(
-            f"# Learning ({_today_ymd()}): reverse-engineer-rpi\n\n"
-            f"- Keep docs-derived inventory separate from code/binary evidence; treat hosted/control-plane as unknown until proven.\n",
+            f"---\n"
+            f"id: learn-{_today_ymd()}-{product_slug}-reverse-engineer-rpi\n"
+            f"date: {_today_ymd()}\n"
+            f"source_epic: reverse-engineer-rpi\n"
+            f"tags:\n"
+            f"  - reverse-engineer-rpi\n"
+            f"  - evidence\n"
+            f"  - analysis\n"
+            f"---\n\n"
+            f"# Learning: Separate documentary hints from proven product evidence\n\n"
+            f"Reverse-engineering output should keep documentation, marketing pages, and control-plane descriptions in a provisional lane. "
+            f"Features only become confirmed when the repo, binary, runtime trace, or CLI surface proves them directly. "
+            f"Treating hosted or control-plane behavior as unknown until evidence exists prevents inflated feature registries, keeps downstream planning honest, "
+            f"and makes later security or release decisions easier to defend.\n",
             encoding="utf-8",
         )
 

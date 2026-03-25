@@ -22,10 +22,40 @@ make_fixture() {
     local root="$1"
 
     mkdir -p \
+        "$root/scripts" \
         "$root/skills/athena" \
         "$root/skills/research" \
         "$root/skills-codex/athena" \
         "$root/skills-codex/research"
+
+    cat > "$root/scripts/install-codex-plugin.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+codex_home=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --codex-home)
+      codex_home="${2:-}"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$codex_home" ]]; then
+  echo "missing --codex-home" >&2
+  exit 2
+fi
+
+mkdir -p "$codex_home"
+cat > "$codex_home/.agentops-codex-install.json" <<'JSON'
+{"installed":true}
+JSON
+EOF
+    chmod +x "$root/scripts/install-codex-plugin.sh"
 
     cat > "$root/skills/athena/SKILL.md" <<'EOF'
 ---

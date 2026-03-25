@@ -458,7 +458,7 @@ PY
         return 0
     fi
     printf '%s\n' "$compare_output" >&2
-    claude_inventory_failed "inventory mismatch" "$ACTUAL_CLAUDE_JSON"
+    return 1
 }
 
 run_codex_validation() {
@@ -557,7 +557,7 @@ PY
     fi
 
     printf '%s\n' "$compare_output" >&2
-    codex_inventory_failed "inventory mismatch" "$ACTUAL_CODEX_JSON"
+    return 1
 }
 
 case "$RUNTIME" in

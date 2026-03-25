@@ -766,7 +766,7 @@
       "name": "reverse-engineer-rpi",
       "source_skill": "skills/reverse-engineer-rpi",
       "source_hash": "1cfb8d321bd477480fe32a0277d8eeab80740040413c5c1c3f1c92a76e2ec642",
-      "generated_hash": "428ba330acd35a98794e241f329a90490fa27b851c27b9ef281e3cca944fea60"
+      "generated_hash": "a0c51e3e8bd3ba273a1f1a34ef8a059712e05f4b3a1156ae6e98435d1a8f2518"
     },
     {
       "name": "rpi",
