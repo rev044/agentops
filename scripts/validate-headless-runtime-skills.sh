@@ -207,6 +207,33 @@ out_file.write_text(json.dumps(inventory, indent=2) + "\n")
 PY
 }
 
+claude_has_openai_docs_mcp() {
+    local settings_path="${CLAUDE_SETTINGS_PATH:-$HOME/.claude/settings.json}"
+    [[ -f "$settings_path" ]] || return 1
+    grep -q '"openaiDeveloperDocs"' "$settings_path"
+}
+
+prune_optional_claude_skills() {
+    local inventory_file="$1"
+
+    if claude_has_openai_docs_mcp; then
+        return 0
+    fi
+
+    python3 - "$inventory_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+inventory = json.loads(path.read_text())
+filtered = [item for item in inventory if item.get("name") != "openai-docs"]
+path.write_text(json.dumps(filtered, indent=2) + "\n")
+PY
+
+    echo "WARN: Claude MCP server openaiDeveloperDocs not configured; excluding openai-docs from expected headless inventory." >&2
+}
+
 extract_json_array() {
     local input_file="$1"
     local out_file="$2"
@@ -321,6 +348,7 @@ CODEX_PROMPT="List the available AgentOps skills in this session. Return ONLY a 
 
 build_expected_inventory "$REPO_ROOT/skills" "$EXPECTED_CLAUDE_JSON"
 build_expected_inventory "$REPO_ROOT/skills-codex" "$EXPECTED_CODEX_JSON"
+prune_optional_claude_skills "$EXPECTED_CLAUDE_JSON"
 
 run_claude_load_check() {
     if timeout 20 "$CLAUDE_BIN" --plugin-dir "$REPO_ROOT" --help >/dev/null 2>&1; then
