@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.30.0] - 2026-03-24
+
+### Added
+
+- **Codex hookless lifecycle support** — `ao codex` runtime commands, lifecycle fallback, and Codex skill orchestration now cover hookless sessions end to end
+- **PROGRAM.md autodev contract** — Added a first-class `PROGRAM.md` contract for autodev flows and taught `/evolve` and related RPI paths to use it
+- **Long-running RPI artifact visibility** — Mission control now exposes run artifacts and evaluator output so long-running RPI sessions are replayable and easier to inspect
+
+### Changed
+
+- **Codex runtime maintenance flow** — Refreshed Codex bundle hashes, lifecycle guards, runtime docs, and release validation coverage around the expanded Codex execution path
+
+### Fixed
+
+- **Codex RPI scoping and closeout** — Tightened objective scope, epic scope, closeout ownership, and validation gaps in the Codex RPI lifecycle
+- **Release gate reliability** — Restored headless runtime coverage, runtime-aware Claude inventory checks, and release-gate coherence validation
+- **Reverse-engineer repo hygiene** — Repo-mode reverse engineer now ignores generated and temp trees when identifying CLI and module surfaces
+
 ## [2.29.0] - 2026-03-22
 
 ### Added
