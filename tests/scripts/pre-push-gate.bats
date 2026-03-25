@@ -41,6 +41,8 @@ setup() {
     make_stub "$FAKE_REPO/scripts/validate-codex-override-coverage.sh"
     make_stub "$FAKE_REPO/scripts/validate-next-work-contract-parity.sh"
     make_stub "$FAKE_REPO/scripts/validate-skill-runtime-formats.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-rpi-contract.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-lifecycle-guards.sh"
     make_stub "$FAKE_REPO/scripts/validate-skill-cli-snippets.sh"
     make_stub "$FAKE_REPO/scripts/validate-headless-runtime-skills.sh"
     make_stub "$FAKE_REPO/skills/heal-skill/scripts/heal.sh"
@@ -75,11 +77,11 @@ STUB
     [ "$status" -eq 0 ]
 }
 
-@test "pre-push-gate.sh checks all 22 gates" {
+@test "pre-push-gate.sh checks all 24 gates" {
     # Verify the script references all gate sections
     run grep -c '# --- [0-9]' "$SCRIPT"
     [ "$status" -eq 0 ]
-    [ "$output" -ge 22 ]
+    [ "$output" -ge 24 ]
 }
 
 @test "pre-push-gate.sh exits 1 on go build failure" {

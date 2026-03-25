@@ -617,32 +617,34 @@ AOEOF
 }
 
 @test "task-validation-gate: docs issue_type exempt" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- '{"issue_type":"docs","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"issue_type":"docs","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }
 
 @test "task-validation-gate: chore issue_type exempt" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- '{"issue_type":"chore","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"issue_type":"chore","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }
 
 @test "task-validation-gate: ci issue_type exempt" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- '{"issue_type":"ci","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"issue_type":"ci","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }
 
 @test "task-validation-gate: untyped task passes" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- '{"metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }
 
 @test "task-validation-gate: files_exist with existing file passes" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- '{"metadata":{"validation":{"files_exist":["hooks/prompt-nudge.sh"]}}}' "$HOOKS_DIR/task-validation-gate.sh"
+    mkdir -p "$MOCK_REPO/hooks"
+    touch "$MOCK_REPO/hooks/prompt-nudge.sh"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"metadata":{"validation":{"files_exist":["hooks/prompt-nudge.sh"]}}}' "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -677,7 +679,7 @@ AOEOF
 }
 
 @test "task-validation-gate: empty stdin exits gracefully" {
-    run bash -c 'printf "" | bash "$1" 2>&1' \
-        -- "$HOOKS_DIR/task-validation-gate.sh"
+    run bash -c 'cd "$1" && printf "" | bash "$2" 2>&1' \
+        -- "$MOCK_REPO" "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }

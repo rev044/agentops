@@ -174,25 +174,26 @@ EOF
 }
 
 @test "task-validation-gate: content_check with matching pattern passes" {
-    # File must be inside REPO_ROOT for path validation to accept it
-    local fixture_dir="$REPO_ROOT/.agents/ao/bats-fixtures-$$"
+    local mock="$TMP_TEST_DIR/mock-content-check-pass"
+    setup_mock_repo "$mock"
+    local fixture_dir="$mock/fixtures"
     mkdir -p "$fixture_dir"
     local content_file="$fixture_dir/test-content.js"
     echo "function authenticate() {}" > "$content_file"
     INPUT=$(jq -n --arg f "$content_file" '{"metadata":{"validation":{"content_check":[{"file":$f,"pattern":"function authenticate"}]}}}')
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' -- "$INPUT" "$HOOKS_DIR/task-validation-gate.sh"
-    rm -rf "$fixture_dir"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' -- "$mock" "$INPUT" "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }
 
 @test "task-validation-gate: content_check with missing pattern blocks" {
-    local fixture_dir="$REPO_ROOT/.agents/ao/bats-fixtures-$$"
+    local mock="$TMP_TEST_DIR/mock-content-check-fail"
+    setup_mock_repo "$mock"
+    local fixture_dir="$mock/fixtures"
     mkdir -p "$fixture_dir"
     local content_file="$fixture_dir/test-content.js"
     echo "function authenticate() {}" > "$content_file"
     INPUT=$(jq -n --arg f "$content_file" '{"metadata":{"validation":{"content_check":[{"file":$f,"pattern":"class UserService"}]}}}')
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' -- "$INPUT" "$HOOKS_DIR/task-validation-gate.sh"
-    rm -rf "$fixture_dir"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' -- "$mock" "$INPUT" "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 2 ]
 }
 
