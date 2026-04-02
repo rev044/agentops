@@ -4,6 +4,11 @@
 
 Parallel agents produce noisy output; councils filter it; ratchets lock progress so it can never regress.
 
+Think of the mechanics below as the substrate under the software-factory
+operator surface: briefings and startup context prepare the work order, RPI
+phases run the delivery lane, and the flywheel closes the learning loop. See
+[Software Factory Surface](software-factory.md).
+
 ## The Three Gaps
 
 AgentOps exists because most agent tooling leaves three gaps open after prompt construction and routing are solved. The runtime mechanics described on this page are organized around closing them:

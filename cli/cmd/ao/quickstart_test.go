@@ -95,12 +95,18 @@ func TestQuickstart_ShowNextSteps_WithBeads(t *testing.T) {
 	if !strings.Contains(out, "bd") {
 		t.Errorf("with beads=true, expected bd reference in output:\n%s", out)
 	}
+	if !strings.Contains(out, "ao factory start") {
+		t.Errorf("with beads=true, expected factory lane in output:\n%s", out)
+	}
 }
 
 func TestQuickstart_ShowNextSteps_WithoutBeads(t *testing.T) {
 	out, _ := captureStdout(t, func() error { showNextSteps(false); return nil })
 	if out == "" {
 		t.Error("expected non-empty output for next steps")
+	}
+	if !strings.Contains(out, "ao factory start") {
+		t.Errorf("without beads, expected factory lane in output:\n%s", out)
 	}
 }
 

@@ -20,7 +20,31 @@ Just describe what you want:
 | "What should I work on?" | Shows status, suggests next task |
 | "Where was I?" | Shows last session, current state, blockers |
 
-### Option 2: Codex Explicit Lifecycle (Recommended in Codex)
+### Option 2: Software Factory Lane (Recommended in Codex)
+
+```bash
+# Start session with a goal-time briefing when possible
+ao factory start --goal "fix auth startup"
+
+# Run the delivery lane
+/rpi "fix auth startup"
+# or: ao rpi phased "fix auth startup"
+
+# Monitor long-running phased work
+ao rpi status
+
+# End session
+ao codex stop
+
+# Inspect lifecycle + flywheel health
+ao codex status
+```
+
+`ao factory start` keeps the operator lane explicit: build a bounded briefing if
+the corpus can support it, run Codex startup, then move into RPI. The lower
+level lifecycle commands still exist when you want direct control.
+
+### Option 3: Lower-Level Codex Lifecycle
 
 ```bash
 # Start session
@@ -32,16 +56,13 @@ ao search "topic" --cite retrieved
 
 # End session
 ao codex stop
-
-# Inspect lifecycle + flywheel health
-ao codex status
 ```
 
 For normal Codex skill usage, entry skills drive the same startup path with
 `ao codex ensure-start`, and closeout-owner skills drive the same closeout path
 with `ao codex ensure-stop`.
 
-### Option 3: Slash Commands (Hook-Capable Power Users)
+### Option 4: Slash Commands (Hook-Capable Power Users)
 
 ```bash
 # Start session
@@ -54,7 +75,7 @@ with `ao codex ensure-stop`.
 /session-end
 ```
 
-**Use the mode your runtime actually supports.** Claude/OpenCode can drive lifecycle via hooks. Codex uses explicit `ao codex start` / `ao codex stop` / `ao codex status`, while Codex skills automate the same boundaries via `ao codex ensure-start` / `ao codex ensure-stop`.
+**Use the mode your runtime actually supports.** Claude/OpenCode can drive lifecycle via hooks. Codex users should usually prefer `ao factory start --goal "<goal>"` as the briefing-first operator surface, while `ao codex start` / `ao codex stop` / `ao codex status` remain the lower-level lifecycle primitives. Codex skills automate the same boundaries via `ao codex ensure-start` / `ao codex ensure-stop`.
 
 ---
 
@@ -63,7 +84,7 @@ with `ao codex ensure-stop`.
 | Mode | Start | Closeout | Notes |
 |------|-------|----------|-------|
 | Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed |
-| Codex hookless fallback | `ao codex start` or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit |
+| Codex hookless fallback | `ao factory start --goal "<goal>"`, `ao codex start`, or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit |
 | Manual fallback | `ao inject`, `ao lookup` | `ao forge transcript`, `ao flywheel close-loop` | Lowest-level portable path |
 
 ---

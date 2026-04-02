@@ -798,6 +798,35 @@ ao codex stop [flags]
 
 ---
 
+### `ao factory`
+
+Software-factory operator surface for AgentOps.
+
+```
+ao factory [command]
+```
+
+**Subcommands:**
+
+#### `ao factory start`
+
+Start the software-factory operator lane for a concrete goal.
+
+```
+ao factory start [flags]
+```
+
+**Flags:**
+
+```
+      --goal string      Goal to brief and use as the startup query
+  -h, --help             help for start
+      --limit int        Maximum artifacts to surface per category during startup (default 3)
+      --no-maintenance   Skip safe close-loop maintenance on start
+```
+
+---
+
 ### `ao feedback-loop`
 
 Automatically close the MemRL feedback loop by updating utilities of cited learnings.
