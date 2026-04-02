@@ -2112,6 +2112,25 @@ ao mine [flags]
 
 ---
 
+### `ao retrieval-bench`
+
+Measure Precision@K and MRR against a curated corpus of learning artifacts.
+
+```
+ao retrieval-bench [flags]
+```
+
+**Flags:**
+
+```
+      --corpus string   Path to benchmark corpus directory
+  -h, --help            help for retrieval-bench
+      --json            JSON output
+      --k int           K for Precision@K (default 3)
+```
+
+---
+
 ### `ao search`
 
 Search workspace session history and repo-local AgentOps knowledge.
