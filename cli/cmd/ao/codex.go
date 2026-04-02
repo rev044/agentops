@@ -797,7 +797,51 @@ func loadOrInitCodexLifecycleState(cwd string) (*codexLifecycleState, string, er
 	if state.SchemaVersion == 0 {
 		state.SchemaVersion = 1
 	}
+	if err := validateCodexLifecycleState(&state); err != nil {
+		return nil, "", fmt.Errorf("validating codex lifecycle state: %w", err)
+	}
 	return &state, path, nil
+}
+
+// expectedCodexSchemaVersion is the schema version this code can handle.
+const expectedCodexSchemaVersion = 1
+
+// validateCodexLifecycleState checks invariants on a deserialized lifecycle state:
+// schema version, timestamp format (RFC3339), and temporal ordering.
+func validateCodexLifecycleState(state *codexLifecycleState) error {
+	if state.SchemaVersion != expectedCodexSchemaVersion {
+		return fmt.Errorf("unsupported schema_version %d (expected %d)", state.SchemaVersion, expectedCodexSchemaVersion)
+	}
+
+	if state.UpdatedAt != "" {
+		if _, err := time.Parse(time.RFC3339, state.UpdatedAt); err != nil {
+			return fmt.Errorf("invalid updated_at timestamp %q: %w", state.UpdatedAt, err)
+		}
+	}
+
+	if state.LastStart != nil && state.LastStart.Timestamp != "" {
+		if _, err := time.Parse(time.RFC3339, state.LastStart.Timestamp); err != nil {
+			return fmt.Errorf("invalid last_start timestamp %q: %w", state.LastStart.Timestamp, err)
+		}
+	}
+
+	if state.LastStop != nil && state.LastStop.Timestamp != "" {
+		if _, err := time.Parse(time.RFC3339, state.LastStop.Timestamp); err != nil {
+			return fmt.Errorf("invalid last_stop timestamp %q: %w", state.LastStop.Timestamp, err)
+		}
+	}
+
+	// If both start and stop exist with timestamps, stop must not precede start.
+	if state.LastStart != nil && state.LastStop != nil &&
+		state.LastStart.Timestamp != "" && state.LastStop.Timestamp != "" {
+		startT, err1 := time.Parse(time.RFC3339, state.LastStart.Timestamp)
+		stopT, err2 := time.Parse(time.RFC3339, state.LastStop.Timestamp)
+		if err1 == nil && err2 == nil && stopT.Before(startT) {
+			return fmt.Errorf("last_stop (%s) is before last_start (%s)", state.LastStop.Timestamp, state.LastStart.Timestamp)
+		}
+	}
+
+	return nil
 }
 
 func saveCodexLifecycleState(path string, state *codexLifecycleState) error {

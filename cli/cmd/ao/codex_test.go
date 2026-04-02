@@ -819,3 +819,107 @@ Use ao codex start, ao search --cite applied, and ao codex stop when runtime hoo
 		t.Fatalf("expected persisted codex lifecycle state, got %+v", result.State)
 	}
 }
+
+// --- validateCodexLifecycleState tests ---
+
+func TestCodexValidateState_ValidEmpty(t *testing.T) {
+	state := &codexLifecycleState{SchemaVersion: 1}
+	if err := validateCodexLifecycleState(state); err != nil {
+		t.Fatalf("expected no error for valid empty state, got: %v", err)
+	}
+}
+
+func TestCodexValidateState_WrongSchemaVersion(t *testing.T) {
+	state := &codexLifecycleState{SchemaVersion: 99}
+	err := validateCodexLifecycleState(state)
+	if err == nil {
+		t.Fatal("expected error for unsupported schema version")
+	}
+	expected := "unsupported schema_version 99 (expected 1)"
+	if err.Error() != expected {
+		t.Fatalf("expected %q, got %q", expected, err.Error())
+	}
+}
+
+func TestCodexValidateState_InvalidUpdatedAt(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		UpdatedAt:     "not-a-timestamp",
+	}
+	err := validateCodexLifecycleState(state)
+	if err == nil {
+		t.Fatal("expected error for invalid updated_at")
+	}
+}
+
+func TestCodexValidateState_InvalidStartTimestamp(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		LastStart:     &codexLifecycleEvent{Timestamp: "2026-13-01T00:00:00Z"},
+	}
+	err := validateCodexLifecycleState(state)
+	if err == nil {
+		t.Fatal("expected error for invalid last_start timestamp")
+	}
+}
+
+func TestCodexValidateState_InvalidStopTimestamp(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		LastStop:      &codexLifecycleEvent{Timestamp: "garbage"},
+	}
+	err := validateCodexLifecycleState(state)
+	if err == nil {
+		t.Fatal("expected error for invalid last_stop timestamp")
+	}
+}
+
+func TestCodexValidateState_StopBeforeStart(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		LastStart:     &codexLifecycleEvent{Timestamp: "2026-04-02T12:00:00Z"},
+		LastStop:      &codexLifecycleEvent{Timestamp: "2026-04-02T11:00:00Z"},
+	}
+	err := validateCodexLifecycleState(state)
+	if err == nil {
+		t.Fatal("expected error when last_stop is before last_start")
+	}
+	expected := "last_stop (2026-04-02T11:00:00Z) is before last_start (2026-04-02T12:00:00Z)"
+	if err.Error() != expected {
+		t.Fatalf("expected %q, got %q", expected, err.Error())
+	}
+}
+
+func TestCodexValidateState_StopAfterStart(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		LastStart:     &codexLifecycleEvent{Timestamp: "2026-04-02T11:00:00Z"},
+		LastStop:      &codexLifecycleEvent{Timestamp: "2026-04-02T12:00:00Z"},
+	}
+	if err := validateCodexLifecycleState(state); err != nil {
+		t.Fatalf("expected no error when stop is after start, got: %v", err)
+	}
+}
+
+func TestCodexValidateState_StopEqualStart(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		LastStart:     &codexLifecycleEvent{Timestamp: "2026-04-02T12:00:00Z"},
+		LastStop:      &codexLifecycleEvent{Timestamp: "2026-04-02T12:00:00Z"},
+	}
+	if err := validateCodexLifecycleState(state); err != nil {
+		t.Fatalf("expected no error when stop equals start, got: %v", err)
+	}
+}
+
+func TestCodexValidateState_FullValidState(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		UpdatedAt:     "2026-04-02T12:30:00Z",
+		LastStart:     &codexLifecycleEvent{Timestamp: "2026-04-02T11:00:00Z"},
+		LastStop:      &codexLifecycleEvent{Timestamp: "2026-04-02T12:00:00Z"},
+	}
+	if err := validateCodexLifecycleState(state); err != nil {
+		t.Fatalf("expected no error for fully valid state, got: %v", err)
+	}
+}
