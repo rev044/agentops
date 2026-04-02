@@ -59,6 +59,31 @@ jobs:
           chmod +x scripts/validate-hooks-doc-parity.sh
           ./scripts/validate-hooks-doc-parity.sh
 
+  retrieval-bench:
+    name: Retrieval Quality Bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache-dependency-path: cli/go.sum
+
+      - name: Run retrieval bench (synthetic corpus)
+        working-directory: cli
+        run: |
+          go run ./cmd/ao retrieval-bench --json 2>&1 | tee bench-results.json
+          # Fail if P@3 drops below 0.67
+          P3=$(go run ./cmd/ao retrieval-bench 2>&1 | grep "Precision@3" | awk '{print $2}')
+          echo "Precision@3: $P3"
+          if awk "BEGIN{exit !($P3 < 0.67)}"; then
+            echo "FAIL: Retrieval precision dropped below 0.67"
+            exit 1
+          fi
+
   security-toolchain:
     name: Security Toolchain
     runs-on: ubuntu-latest
