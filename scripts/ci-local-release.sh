@@ -472,6 +472,26 @@ write_release_artifact_manifest() {
     echo "Release artifact manifest: $manifest_file"
 }
 
+write_tag_index() {
+    local version
+    version="$(release_version)"
+
+    # Only write an index entry when a meaningful version is known.
+    # Skip if version looks like a git describe dirty/hash ref (no semver dot).
+    if [[ -z "$version" ]] || [[ "$version" != *.* ]]; then
+        return 0
+    fi
+
+    local tag_index="$REPO_ROOT/.agents/releases/local-ci/tag-index.txt"
+    local tag="v${version}"
+
+    # Append (or create): "<tag> <run_id> <generated_at>"
+    local generated_at
+    generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf '%s %s %s\n' "$tag" "$RUN_ID" "$generated_at" >> "$tag_index"
+    echo "Tag index updated: $tag_index ($tag -> $RUN_ID)"
+}
+
 generate_sbom_artifacts() {
     local version
     local cdx_file
@@ -682,6 +702,7 @@ END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
 
 write_release_artifact_manifest
+write_tag_index
 
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
