@@ -486,6 +486,7 @@ write_tag_index() {
     local tag="v${version}"
 
     # Append (or create): "<tag> <run_id> <generated_at>"
+    mkdir -p "$(dirname "$tag_index")"
     local generated_at
     generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf '%s %s %s\n' "$tag" "$RUN_ID" "$generated_at" >> "$tag_index"
