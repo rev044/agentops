@@ -78,11 +78,10 @@ Or install via [release binaries](https://github.com/boshu2/agentops/releases) o
 
 Then type `/quickstart` in your agent chat.
 
-In Claude Code, the native hook path now behaves like a software-factory
-startup surface: `SessionStart` prefers a matched goal-time briefing when
-handoff or tracker state already gives the runtime a goal, and when no goal is
-recovered the first substantive prompt becomes intake and the plugin routes the
-session toward `/rpi`.
+In Claude Code, `CLAUDE.md` is the startup surface. Installed hooks stay
+silent: `SessionStart` prepares runtime state and can stage factory goal or
+briefing files, while `UserPromptSubmit` can capture first-prompt intake
+without injecting additional context into the session.
 
 ---
 

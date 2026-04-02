@@ -55,20 +55,14 @@ assert_hook_schema() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 1. session-start.sh (SessionStart) — registered
+# 1. session-start.sh (SessionStart) — registered but intentionally silent
 # ═══════════════════════════════════════════════════════════════════════
 
-@test "session-start: output conforms to hookSpecificOutput schema with hookEventName=SessionStart" {
+@test "session-start: produces no operator-facing JSON output" {
     run bash -c 'cd "$1" && CLAUDE_SESSION_ID="bats-schema-sess" bash "$2" 2>&1' \
         -- "$MOCK_REPO" "$HOOKS_DIR/session-start.sh"
     [ "$status" -eq 0 ]
-    [ -n "$output" ]
-    # session-start emits multi-line pretty-printed JSON (heredoc) possibly preceded
-    # by non-JSON diagnostic lines. Extract from first '{' to end and parse.
-    local json_blob
-    json_blob=$(echo "$output" | sed -n '/^{/,/^}/p' | jq -c '.' 2>/dev/null)
-    [ -n "$json_blob" ]
-    assert_hook_schema "$json_blob" "SessionStart"
+    [ -z "$output" ]
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -76,7 +70,7 @@ assert_hook_schema() {
 #    Only emits JSON when there is a nudge to give (ratchet gate active).
 # ═══════════════════════════════════════════════════════════════════════
 
-@test "factory-router: intake prompt output conforms to schema with hookEventName=UserPromptSubmit" {
+@test "factory-router: intake prompt stays silent while staging state" {
     local mock="$TMP_TEST_DIR/mock-factory-router"
     mkdir -p "$mock/.agents/ao" "$mock/bin"
     git -C "$mock" init -q >/dev/null 2>&1
@@ -99,8 +93,9 @@ EOF
     run bash -c 'cd "$1" && printf "%s" "$3" | PATH="$1/bin:$PATH" MOCK_FACTORY_BRIEFING_PATH="$2" AGENTOPS_STARTUP_CONTEXT_MODE=factory bash "$4" 2>&1' \
         -- "$mock" "$briefing_path" '{"prompt":"fix auth bootstrap"}' "$HOOKS_DIR/factory-router.sh"
     [ "$status" -eq 0 ]
-    [ -n "$output" ]
-    assert_hook_schema "$output" "UserPromptSubmit"
+    [ -z "$output" ]
+    [ "$(cat "$mock/.agents/ao/factory-goal.txt" 2>/dev/null)" = "fix auth bootstrap" ]
+    [ "$(cat "$mock/.agents/ao/factory-briefing.txt" 2>/dev/null)" = "$briefing_path" ]
 }
 
 @test "prompt-nudge: when nudge fires, output conforms to schema with hookEventName=UserPromptSubmit" {
@@ -363,11 +358,10 @@ AOEOF
     local hooks_json="$HOOKS_DIR/hooks.json"
     [ -f "$hooks_json" ]
 
-    # Parse hooks.json to build event-to-hook mapping for all known JSON emitters
+    # Parse hooks.json to build event-to-hook mapping for registered JSON emitters.
+    # SessionStart and factory-router are intentionally silent.
     local -A hook_event_map
     hook_event_map=(
-        ["session-start.sh"]="SessionStart"
-        ["factory-router.sh"]="UserPromptSubmit"
         ["prompt-nudge.sh"]="UserPromptSubmit"
         ["intent-echo.sh"]="UserPromptSubmit"
         ["commit-review-gate.sh"]="PreToolUse"

@@ -28,15 +28,9 @@ teardown() {
 # session-start.sh / precompact-snapshot.sh
 # ═══════════════════════════════════════════════════════════════════════
 
-@test "session-start: emits SessionStart JSON" {
+@test "session-start: stays silent while preparing runtime state" {
     SESSION_RAW=$(bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
-    # Extract JSON from potentially noisy output
-    if echo "$SESSION_RAW" | grep -q '"hookEventName".*"SessionStart"'; then
-        true  # Found SessionStart in output
-    else
-        SESSION_JSON=$(echo "$SESSION_RAW" | LC_ALL=C awk '/^[[:space:]]*\{/{found=1; buf=""} found{buf=buf $0 "\n"} /^[[:space:]]*\}/{if(found) last=buf; found=0} END{printf "%s", last}')
-        echo "$SESSION_JSON" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null 2>&1
-    fi
+    [ -z "$SESSION_RAW" ]
 }
 
 @test "session-start: kill switch suppresses output" {
@@ -52,7 +46,7 @@ teardown() {
     [ -d "$mock/.agents/research" ] && [ ! -d "$mock/subdir/.agents/research" ]
 }
 
-@test "session-start: factory mode builds and injects a matched briefing" {
+@test "session-start: factory mode stages a matched briefing without injecting it" {
     local mock="$TMP_TEST_DIR/mock-factory-start"
     mkdir -p "$mock/.agents/handoff" "$mock/bin"
     git -C "$mock" init -q >/dev/null 2>&1
@@ -94,8 +88,10 @@ EOF
     run bash -c 'cd "$1" && PATH="$1/bin:$PATH" AO_ARGS_FILE="$2" MOCK_FACTORY_BRIEFING_PATH="$3" AGENTOPS_STARTUP_CONTEXT_MODE=factory bash "$4" 2>&1' \
         -- "$mock" "$args_file" "$briefing_path" "$HOOKS_DIR/session-start.sh"
     [ "$status" -eq 0 ]
+    [ -z "$output" ]
     grep -q '^knowledge brief --json --goal stabilize auth startup$' "$args_file"
-    echo "$output" | jq -r '.hookSpecificOutput.additionalContext // ""' | grep -q '<FACTORY_BRIEFING>'
+    [ "$(cat "$mock/.agents/ao/factory-goal.txt" 2>/dev/null)" = "stabilize auth startup" ]
+    [ "$(cat "$mock/.agents/ao/factory-briefing.txt" 2>/dev/null)" = "$briefing_path" ]
 }
 
 @test "precompact-snapshot: emits additionalContext JSON" {
@@ -439,10 +435,12 @@ EOF
     run bash -c 'cd "$1" && printf "%s" "$4" | PATH="$1/bin:$PATH" AO_ARGS_FILE="$2" MOCK_FACTORY_BRIEFING_PATH="$3" AGENTOPS_STARTUP_CONTEXT_MODE=factory bash "$5" 2>&1' \
         -- "$mock" "$args_file" "$briefing_path" '{"prompt":"fix auth bootstrap"}' "$HOOKS_DIR/factory-router.sh"
     [ "$status" -eq 0 ]
+    [ -z "$output" ]
     grep -q '^knowledge brief --json --goal fix auth bootstrap$' "$args_file"
     [ ! -f "$mock/.agents/ao/.factory-intake-needed" ]
     [ "$(cat "$mock/.agents/ao/factory-goal.txt" 2>/dev/null)" = "fix auth bootstrap" ]
-    echo "$output" | jq -r '.hookSpecificOutput.additionalContext // ""' | grep -q '<FACTORY_BRIEFING>'
+    [ "$(cat "$mock/.agents/ao/factory-briefing.txt" 2>/dev/null)" = "$briefing_path" ]
+    [ -f "$mock/.agents/ao/.factory-router-fired" ]
 }
 
 # ═══════════════════════════════════════════════════════════════════════

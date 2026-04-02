@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# factory-router.sh - UserPromptSubmit hook: convert first substantive prompt into
-# a goal-time briefing when SessionStart had no factory objective.
+# factory-router.sh - UserPromptSubmit hook: capture first substantive prompt as
+# factory state when SessionStart had no goal. This hook stays silent.
 
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_FACTORY_ROUTER_DISABLED:-}" = "1" ] && exit 0
@@ -62,26 +62,6 @@ build_factory_briefing() {
     [ -n "$path" ] || return 0
     [ -f "$path" ] || return 0
     printf '%s' "$path"
-}
-
-read_factory_briefing() {
-    local path="$1"
-    local max_chars=2200
-    local content trimmed
-
-    [ -f "$path" ] || return 0
-    content=$(cat "$path" 2>/dev/null || true)
-    [ -n "$content" ] || return 0
-
-    if [ "${#content}" -gt "$max_chars" ]; then
-        trimmed="${content:0:$max_chars}"
-        content="${trimmed%
-*}
-
-*[briefing truncated by factory router]*"
-    fi
-
-    printf '%s' "$content"
 }
 
 extract_prompt() {
@@ -157,37 +137,10 @@ printf '%s' "$GOAL" > "$GOAL_FILE" 2>/dev/null || true
 rm -f "$INTAKE_FLAG" 2>/dev/null || true
 printf '%s\n' "${CLAUDE_SESSION_ID:-unknown}" > "$ROUTER_FLAG" 2>/dev/null || true
 
-MESSAGE="Factory intake captured from the first substantive prompt.
-- **Goal:** ${GOAL}"
-
 if [ -n "$BRIEFING_PATH" ]; then
     printf '%s' "$BRIEFING_PATH" > "$BRIEFING_FILE" 2>/dev/null || true
-    BRIEFING_CONTENT="$(read_factory_briefing "$BRIEFING_PATH")"
-    MESSAGE="${MESSAGE}
-- **Primary briefing:** ${BRIEFING_PATH}
-- **Delivery lane:** Continue naturally, or run \`/rpi \"${GOAL}\"\`.
-
-Treat the briefing below as the primary dynamic surface for this session.
-
-<FACTORY_BRIEFING>
-${BRIEFING_CONTENT}
-</FACTORY_BRIEFING>"
 else
     rm -f "$BRIEFING_FILE" 2>/dev/null || true
-    MESSAGE="${MESSAGE}
-- **Primary briefing:** not available yet
-- **Delivery lane:** Run \`/rpi \"${GOAL}\"\` or continue with this objective.
-
-No matched knowledge briefing was available for the intake goal, so the captured goal above is the active factory objective."
-fi
-
-if command -v jq >/dev/null 2>&1; then
-    jq -n --arg msg "$MESSAGE" '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":$msg}}'
-else
-    safe_msg=${MESSAGE//\\/\\\\}
-    safe_msg=${safe_msg//\"/\\\"}
-    safe_msg=$(printf '%s' "$safe_msg" | tr '\n' ' ')
-    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"$safe_msg\"}}"
 fi
 
 exit 0

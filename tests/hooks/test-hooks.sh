@@ -84,20 +84,12 @@ echo ""
 echo "=== session-start.sh / precompact-snapshot.sh ==="
 # ============================================================
 
-# Test 12: session-start emits valid JSON (extract last JSON object from output,
-# since ao extract may emit non-JSON to stdout before the hook's JSON)
+# Test 12: session-start stays silent while preparing runtime state
 SESSION_RAW=$(bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
-# Extract the last valid JSON block by finding the final { ... } spanning multiple lines
-SESSION_JSON=$(echo "$SESSION_RAW" | LC_ALL=C awk '/^[[:space:]]*\{/{found=1; buf=""} found{buf=buf $0 "\n"} /^[[:space:]]*\}/{if(found) last=buf; found=0} END{printf "%s", last}')
-if echo "$SESSION_JSON" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null 2>&1; then
-    pass "session-start emits SessionStart JSON"
+if [ -z "$SESSION_RAW" ]; then
+    pass "session-start stays silent"
 else
-    # Fallback: check if hookEventName appears anywhere in raw output
-    if echo "$SESSION_RAW" | grep -q '"hookEventName".*"SessionStart"'; then
-        pass "session-start emits SessionStart JSON"
-    else
-        fail "session-start emits SessionStart JSON"
-    fi
+    fail "session-start stays silent"
 fi
 
 # Test 13: session-start kill switch suppresses output
@@ -115,7 +107,7 @@ else
     fail "session-start writes .agents to repo root"
 fi
 
-# Test 14b: session-start lookup uses handoff goal + active bead, not commit subject
+# Test 14b: session-start no longer performs hidden lookup injection
 MOCK_LOOKUP="$TMPDIR/mock-session-lookup"
 mkdir -p "$MOCK_LOOKUP/.agents/handoff" "$MOCK_LOOKUP/bin"
 git -C "$MOCK_LOOKUP" init -q >/dev/null 2>&1
@@ -130,8 +122,8 @@ cat > "$MOCK_LOOKUP/.agents/handoff/handoff-20260322T160000Z.json" <<'EOF'
   "id": "handoff-test",
   "created_at": "2026-03-22T16:00:00Z",
   "type": "manual",
-  "goal": "task-scoped lookup queries",
-  "summary": "use the handoff goal for retrieval"
+  "goal": "task-scoped silent startup",
+  "summary": "startup should materialize state without injected lookup chatter"
 }
 EOF
 cat > "$MOCK_LOOKUP/bin/ao" <<'EOF'
@@ -139,39 +131,23 @@ cat > "$MOCK_LOOKUP/bin/ao" <<'EOF'
 if [ -n "${AO_ARGS_FILE:-}" ]; then
     printf '%s\n' "$*" >> "$AO_ARGS_FILE"
 fi
-if [ "${1:-}" = "lookup" ]; then
-    printf '[lookup] stub result\n'
-fi
 exit 0
 EOF
-cat > "$MOCK_LOOKUP/bin/bd" <<'EOF'
-#!/usr/bin/env bash
-if [ "${1:-}" = "current" ]; then
-    printf 'ag-73u.5\n'
-fi
-exit 0
-EOF
-chmod +x "$MOCK_LOOKUP/bin/ao" "$MOCK_LOOKUP/bin/bd"
+chmod +x "$MOCK_LOOKUP/bin/ao"
 AO_ARGS_FILE="$MOCK_LOOKUP/ao-args.log"
 LOOKUP_OUTPUT=$(cd "$MOCK_LOOKUP" && PATH="$MOCK_LOOKUP/bin:$PATH" AO_ARGS_FILE="$AO_ARGS_FILE" bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
-if grep -q '^lookup --limit 5 --query task-scoped lookup queries --bead ag-73u.5$' "$AO_ARGS_FILE"; then
-    pass "session-start lookup is scoped by handoff goal and bead"
+if ! grep -qE '^(lookup|knowledge brief)\b' "$AO_ARGS_FILE" 2>/dev/null; then
+    pass "session-start performs no hidden lookup or briefing work in manual mode"
 else
-    fail "session-start lookup is scoped by handoff goal and bead"
+    fail "session-start performs no hidden lookup or briefing work in manual mode"
 fi
-if ! grep -q 'commit subject should not drive lookup' "$AO_ARGS_FILE"; then
-    pass "session-start no longer falls back to commit subject when task context exists"
+if [ -z "$LOOKUP_OUTPUT" ]; then
+    pass "session-start remains silent in manual mode"
 else
-    fail "session-start no longer falls back to commit subject when task context exists"
-fi
-LOOKUP_CONTEXT=$(echo "$LOOKUP_OUTPUT" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)
-if echo "$LOOKUP_CONTEXT" | grep -q 'auto-retrieved: query="task-scoped lookup queries", bead=ag-73u.5'; then
-    pass "session-start reports lookup scope in injected context"
-else
-    fail "session-start reports lookup scope in injected context"
+    fail "session-start remains silent in manual mode"
 fi
 
-# Test 14c: session-start prefers a factory briefing when startup goal exists
+# Test 14c: session-start can stage a factory briefing silently when startup goal exists
 MOCK_FACTORY_START="$TMPDIR/mock-factory-start"
 mkdir -p "$MOCK_FACTORY_START/.agents/handoff" "$MOCK_FACTORY_START/bin"
 git -C "$MOCK_FACTORY_START" init -q >/dev/null 2>&1
@@ -221,11 +197,16 @@ if grep -q '^knowledge brief --json --goal stabilize auth startup$' "$AO_ARGS_FI
 else
     fail "session-start builds a factory briefing from startup goal"
 fi
-FACTORY_CONTEXT=$(echo "$FACTORY_OUTPUT" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)
-if echo "$FACTORY_CONTEXT" | grep -q '<FACTORY_BRIEFING>' && echo "$FACTORY_CONTEXT" | grep -q 'stabilize auth startup'; then
-    pass "session-start injects the factory briefing as primary startup surface"
+if [ "$(cat "$MOCK_FACTORY_START/.agents/ao/factory-goal.txt" 2>/dev/null)" = "stabilize auth startup" ] && \
+   [ "$(cat "$MOCK_FACTORY_START/.agents/ao/factory-briefing.txt" 2>/dev/null)" = "$MOCK_FACTORY_BRIEFING_PATH" ]; then
+    pass "session-start records staged factory state"
 else
-    fail "session-start injects the factory briefing as primary startup surface"
+    fail "session-start records staged factory state"
+fi
+if [ -z "$FACTORY_OUTPUT" ]; then
+    pass "session-start does not inject startup context in factory mode"
+else
+    fail "session-start does not inject startup context in factory mode"
 fi
 
 # Test 15: precompact emits JSON when data exists
@@ -1819,11 +1800,16 @@ if [ ! -f "$FACTORY_ROUTER_MOCK/.agents/ao/.factory-intake-needed" ] && \
 else
     fail "factory-router records the captured goal and clears intake state"
 fi
-ROUTER_CONTEXT=$(echo "$ROUTER_OUTPUT" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)
-if echo "$ROUTER_CONTEXT" | grep -q '<FACTORY_BRIEFING>' && echo "$ROUTER_CONTEXT" | grep -q '/rpi "fix auth bootstrap"'; then
-    pass "factory-router emits factory routing guidance with briefing"
+if [ "$(cat "$FACTORY_ROUTER_MOCK/.agents/ao/factory-briefing.txt" 2>/dev/null)" = "$MOCK_FACTORY_BRIEFING_PATH" ] && \
+   [ -f "$FACTORY_ROUTER_MOCK/.agents/ao/.factory-router-fired" ]; then
+    pass "factory-router stages briefing state and dedup marker"
 else
-    fail "factory-router emits factory routing guidance with briefing"
+    fail "factory-router stages briefing state and dedup marker"
+fi
+if [ -z "$ROUTER_OUTPUT" ]; then
+    pass "factory-router stays silent"
+else
+    fail "factory-router stays silent"
 fi
 if jq -e '.hooks.UserPromptSubmit[].hooks[] | select(.command | contains("factory-router.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1; then
     pass "factory-router.sh wired in hooks.json"

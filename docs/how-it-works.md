@@ -108,7 +108,7 @@ The active runtime manifest currently declares **7 hook event sections** in `hoo
 
 | Hook surface | Trigger | What it does | Gap closed |
 |--------------|---------|--------------|------------|
-| Session start | `SessionStart` | Runs `session-start.sh` — startup maintenance, handoff recovery, matched briefing selection, and supporting retrieval | Durable learning (retrieval) |
+| Session start | `SessionStart` | Runs `session-start.sh` — startup maintenance, handoff recovery, and silent factory-state staging | Runtime continuity |
 | Session end maintenance | `SessionEnd` | Runs `session-end-maintenance.sh` (transcript mining, maturity management) and `athena-session-defrag.sh` (knowledge deduplication and defrag) | Durable learning (extraction), Loop closure |
 | Flywheel close | `Stop` | Runs `ao-flywheel-close.sh` — closes the feedback loop via `ao flywheel close-loop` | Loop closure |
 
@@ -116,7 +116,7 @@ The active runtime manifest currently declares **7 hook event sections** in `hoo
 
 | Hook surface | Trigger | What it does | Gap closed |
 |--------------|---------|--------------|------------|
-| Prompt guidance | `UserPromptSubmit` | Runs `factory-router.sh` (captures first-goal intake when startup had none), `prompt-nudge.sh` (ratchet nudges), and `intent-echo.sh` (confirms high-stakes intent) | Judgment validation |
+| Prompt guidance | `UserPromptSubmit` | Runs `factory-router.sh` (captures first-goal intake when startup had none), `prompt-nudge.sh` (ratchet nudges), and `intent-echo.sh` (confirms high-stakes intent) without adding startup briefings to the conversation | Judgment validation |
 | Pre-tool gates | `PreToolUse` | `pre-mortem-gate.sh` (blocks `/crank` without plan review), `commit-review-gate.sh` (pre-commit checks), `go-test-precommit.sh`, `git-worker-guard.sh` (worker isolation), `edit-knowledge-surface.sh`, `codex-parity-warn.sh` | Judgment validation |
 | Post-tool checks | `PostToolUse` | `write-time-quality.sh` (edit quality), `go-complexity-precommit.sh`, `go-vet-post-edit.sh`, `research-loop-detector.sh` (detects stalled loops), `context-monitor.sh` | Judgment validation, Loop closure |
 | Task completion gate | `TaskCompleted` | Runs `task-validation-gate.sh` — executes compiled constraints from `.agents/constraints/index.json` before accepting task completion | Judgment validation, Loop closure |

@@ -14,8 +14,8 @@ Just describe what you want:
 
 | Say This | What Happens |
 |----------|--------------|
-| "Continue working on X" | `SessionStart` prefers a matched goal-time briefing, then loads supporting context and progress |
-| "I need to add Y" | If no startup goal exists yet, the first substantive prompt becomes factory intake and the runtime routes you toward `/rpi` |
+| "Continue working on X" | `CLAUDE.md` provides the startup surface; hooks recover handoff and stage any factory state silently |
+| "I need to add Y" | If no startup goal exists yet, the first substantive prompt can be captured as silent factory intake for later explicit `/rpi` or `ao knowledge brief` use |
 | "I'm done for today" | Saves progress, offers retrospective |
 | "What should I work on?" | Shows status, suggests next task |
 | "Where was I?" | Shows last session, current state, blockers |
@@ -62,7 +62,7 @@ with `ao codex ensure-stop`.
 
 | Mode | Start | Closeout | Notes |
 |------|-------|----------|-------|
-| Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed; startup prefers matched briefings and prompt-time intake can route into `/rpi` |
+| Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed; `CLAUDE.md` is the startup surface and hooks stage state silently |
 | Codex hookless fallback | `ao codex start` or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit |
 | Manual fallback | `ao inject`, `ao lookup` | `ao forge transcript`, `ao flywheel close-loop` | Lowest-level portable path |
 
@@ -76,8 +76,8 @@ with `ao codex ensure-stop`.
 │  "Continue the API work" or /session-start                  │
 ├─────────────────────────────────────────────────────────────┤
 │  • Recover handoff / tracker goal when available            │
-│  • Prefer a matched goal-time briefing                      │
-│  • Add ranked learnings as supporting context               │
+│  • Keep operator framing in CLAUDE.md                       │
+│  • Stage factory goal / briefing files silently             │
 │  • Mark missing-goal sessions for prompt-time intake        │
 └─────────────────────────────────────────────────────────────┘
                             │
@@ -86,8 +86,8 @@ with `ao codex ensure-stop`.
 │                        WORK                                 │
 │  "Add the validation layer" or just start coding            │
 ├─────────────────────────────────────────────────────────────┤
-│  • First substantive prompt can become factory intake       │
-│  • Native hook path can build a briefing and route to /rpi  │
+│  • First substantive prompt can become silent factory intake│
+│  • Run /rpi or ao knowledge brief explicitly when needed    │
 │  • Implement features                                       │
 │  • Fix bugs                                                 │
 │  • Research when needed                                     │

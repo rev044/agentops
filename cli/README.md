@@ -18,19 +18,16 @@ ao init --hooks
 ao hooks test
 ```
 
-That's it. In Claude Code, the installed hooks now provide the native factory
-startup lane: `SessionStart` prefers matched knowledge briefings, and the first
-substantive prompt can become intake when no startup goal exists.
+That's it. In Claude Code, `CLAUDE.md` remains the startup surface. The
+installed hooks stay silent and only prepare runtime state for the factory lane.
 
 ## What It Does
 
-**SessionStart**: Performs startup maintenance, then surfaces the best
-available factory startup context. If a goal is already known, it prefers a
-matched knowledge briefing and treats ranked learnings as supporting evidence.
+**SessionStart**: Performs startup maintenance, recovers handoff state, and can
+stage `factory-goal.txt` / `factory-briefing.txt` without injecting context.
 
 **UserPromptSubmit**: When startup lacked a goal, the first substantive prompt
-is captured as factory intake, a goal-time briefing is built if possible, and
-the runtime is nudged toward `/rpi`.
+can be captured as silent factory intake and staged for later explicit use.
 
 **SessionEnd**: Extracts learnings and updates the feedback loop.
 
