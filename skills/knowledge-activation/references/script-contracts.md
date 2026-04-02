@@ -1,8 +1,8 @@
 # Script Contracts
 
-## Workspace-Local Builders
+## Builder Boundary
 
-The current product slice expects builders under `WORKSPACE/.agents/scripts/`.
+The current product slice still expects packet refresh builders under `WORKSPACE/.agents/scripts/` when `ao knowledge activate` needs to refresh the evidence substrate.
 
 ### Packet Builders
 
@@ -11,11 +11,14 @@ The current product slice expects builders under `WORKSPACE/.agents/scripts/`.
 - `corpus_packet_promote.py`
 - `knowledge_chunk_build.py`
 
-### Activation Builders
+### Native Activation Surfaces
 
-- `book_of_beliefs_build.py`
-- `playbook_build.py`
-- `briefing_build.py`
+These product surfaces are implemented inside the `ao` binary and no longer require workspace-local Python builders:
+
+- `ao knowledge beliefs`
+- `ao knowledge playbooks`
+- `ao knowledge brief --goal "<goal>"`
+- `ao knowledge gaps`
 
 ## Command Ownership
 
@@ -27,9 +30,9 @@ Runs the full outer loop:
 2. topic packets
 3. promoted packets
 4. chunk bundles
-5. belief book
-6. playbooks
-7. optional briefing build for `--goal`
+5. native belief book build
+6. native playbook build
+7. optional native briefing build for `--goal`
 
 ### `ao knowledge beliefs`
 
@@ -49,5 +52,9 @@ Reads generated artifacts and reports thin topics, promotion gaps, weak claims, 
 
 ## Roadmap Boundary
 
-This slice intentionally keeps the builders outside the `ao` binary for now.
-Once the contracts stabilize, the builders can migrate into durable product or CLI surfaces without changing the skill contract.
+This slice now splits responsibility:
+
+- packet refresh remains workspace-local while the corpus contracts keep moving
+- belief/playbook/brief/gap surfaces are durable `ao`-native product surfaces
+
+The skill contract stays stable across that boundary.

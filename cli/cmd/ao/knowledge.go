@@ -16,6 +16,11 @@ import (
 
 const knowledgeBuilderTimeout = 20 * time.Minute
 
+const (
+	knowledgeBuilderImplementationWorkspaceScript = "workspace-script"
+	knowledgeBuilderImplementationAONative        = "ao-native"
+)
+
 var (
 	knowledgeActivateGoal         string
 	knowledgeBriefGoal            string
@@ -23,9 +28,10 @@ var (
 )
 
 type knowledgeBuilderInvocation struct {
-	Step   string   `json:"step"`
-	Script string   `json:"script"`
-	Args   []string `json:"args,omitempty"`
+	Step           string   `json:"step"`
+	Script         string   `json:"script,omitempty"`
+	Implementation string   `json:"implementation,omitempty"`
+	Args           []string `json:"args,omitempty"`
 }
 
 type knowledgeBuilderRun struct {
@@ -97,10 +103,10 @@ var knowledgeCmd = &cobra.Command{
 	Long: `Knowledge turns a mature .agents corpus into operator-ready surfaces.
 
 Subcommands:
-  activate   Run the full outer loop over workspace-local builders
-  beliefs    Refresh the belief book
-  playbooks  Refresh candidate playbooks
-  brief      Compile a goal-time briefing
+  activate   Refresh packet layers with workspace builders, then write native operator surfaces
+  beliefs    Refresh the belief book from existing packet artifacts
+  playbooks  Refresh candidate playbooks from existing packet artifacts
+  brief      Compile a goal-time briefing from existing packet artifacts
   gaps       Report thin topics, promotion gaps, and next mining work`,
 }
 
@@ -151,33 +157,34 @@ func init() {
 }
 
 func runKnowledgeActivate(cmd *cobra.Command, args []string) error {
-	workspace, agentsRoot, scriptsRoot, err := resolveKnowledgeWorkspace()
+	workspace, agentsRoot, err := resolveKnowledgeWorkspace()
 	if err != nil {
 		return err
 	}
+	scriptsRoot := filepath.Join(agentsRoot, "scripts")
 
 	steps := []knowledgeBuilderInvocation{
-		{Step: "source-manifests", Script: "source_manifest_build.py", Args: []string{"--all"}},
-		{Step: "topic-packets", Script: "topic_packet_build.py", Args: []string{"--all"}},
-		{Step: "promoted-packets", Script: "corpus_packet_promote.py", Args: []string{"--all"}},
-		{Step: "chunk-bundles", Script: "knowledge_chunk_build.py", Args: []string{"--all"}},
-		{Step: "belief-book", Script: "book_of_beliefs_build.py", Args: []string{"--all"}},
-		{Step: "playbooks", Script: "playbook_build.py", Args: []string{"--all"}},
+		{Step: "source-manifests", Script: "source_manifest_build.py", Implementation: knowledgeBuilderImplementationWorkspaceScript, Args: []string{"--all"}},
+		{Step: "topic-packets", Script: "topic_packet_build.py", Implementation: knowledgeBuilderImplementationWorkspaceScript, Args: []string{"--all"}},
+		{Step: "promoted-packets", Script: "corpus_packet_promote.py", Implementation: knowledgeBuilderImplementationWorkspaceScript, Args: []string{"--all"}},
+		{Step: "chunk-bundles", Script: "knowledge_chunk_build.py", Implementation: knowledgeBuilderImplementationWorkspaceScript, Args: []string{"--all"}},
+		{Step: "belief-book", Implementation: knowledgeBuilderImplementationAONative},
+		{Step: "playbooks", Implementation: knowledgeBuilderImplementationAONative},
 	}
 	if strings.TrimSpace(knowledgeActivateGoal) != "" {
 		steps = append(steps, knowledgeBuilderInvocation{
-			Step:   "briefing",
-			Script: "briefing_build.py",
-			Args:   []string{"--goal", strings.TrimSpace(knowledgeActivateGoal)},
+			Step:           "briefing",
+			Implementation: knowledgeBuilderImplementationAONative,
+			Args:           []string{"--goal", strings.TrimSpace(knowledgeActivateGoal)},
 		})
 	}
-	if err := requireKnowledgeScripts(scriptsRoot, steps); err != nil {
+	if err := requireKnowledgeScripts(scriptsRoot, filterKnowledgeWorkspaceScriptSteps(steps)); err != nil {
 		return err
 	}
 
 	runs := make([]knowledgeBuilderRun, 0, len(steps))
 	for _, step := range steps {
-		run, runErr := runKnowledgeBuilder(scriptsRoot, step)
+		run, runErr := runKnowledgeBuilder(workspace, agentsRoot, scriptsRoot, step)
 		if runErr != nil {
 			return runErr
 		}
@@ -214,15 +221,12 @@ func runKnowledgeActivate(cmd *cobra.Command, args []string) error {
 }
 
 func runKnowledgeBeliefs(cmd *cobra.Command, args []string) error {
-	workspace, agentsRoot, scriptsRoot, err := resolveKnowledgeWorkspace()
+	workspace, agentsRoot, err := resolveKnowledgeWorkspace()
 	if err != nil {
 		return err
 	}
-	step := knowledgeBuilderInvocation{Step: "belief-book", Script: "book_of_beliefs_build.py", Args: []string{"--all"}}
-	if err := requireKnowledgeScripts(scriptsRoot, []knowledgeBuilderInvocation{step}); err != nil {
-		return err
-	}
-	run, err := runKnowledgeBuilder(scriptsRoot, step)
+	step := knowledgeBuilderInvocation{Step: "belief-book", Implementation: knowledgeBuilderImplementationAONative}
+	run, err := runKnowledgeBuilder(workspace, agentsRoot, "", step)
 	if err != nil {
 		return err
 	}
@@ -240,18 +244,15 @@ func runKnowledgeBeliefs(cmd *cobra.Command, args []string) error {
 }
 
 func runKnowledgePlaybooks(cmd *cobra.Command, args []string) error {
-	workspace, agentsRoot, scriptsRoot, err := resolveKnowledgeWorkspace()
+	workspace, agentsRoot, err := resolveKnowledgeWorkspace()
 	if err != nil {
 		return err
 	}
-	step := knowledgeBuilderInvocation{Step: "playbooks", Script: "playbook_build.py", Args: []string{"--all"}}
+	step := knowledgeBuilderInvocation{Step: "playbooks", Implementation: knowledgeBuilderImplementationAONative}
 	if knowledgePlaybooksIncludeThin {
 		step.Args = append(step.Args, "--include-thin")
 	}
-	if err := requireKnowledgeScripts(scriptsRoot, []knowledgeBuilderInvocation{step}); err != nil {
-		return err
-	}
-	run, err := runKnowledgeBuilder(scriptsRoot, step)
+	run, err := runKnowledgeBuilder(workspace, agentsRoot, "", step)
 	if err != nil {
 		return err
 	}
@@ -269,19 +270,16 @@ func runKnowledgePlaybooks(cmd *cobra.Command, args []string) error {
 }
 
 func runKnowledgeBrief(cmd *cobra.Command, args []string) error {
-	workspace, agentsRoot, scriptsRoot, err := resolveKnowledgeWorkspace()
+	workspace, agentsRoot, err := resolveKnowledgeWorkspace()
 	if err != nil {
 		return err
 	}
 	step := knowledgeBuilderInvocation{
-		Step:   "briefing",
-		Script: "briefing_build.py",
-		Args:   []string{"--goal", strings.TrimSpace(knowledgeBriefGoal)},
+		Step:           "briefing",
+		Implementation: knowledgeBuilderImplementationAONative,
+		Args:           []string{"--goal", strings.TrimSpace(knowledgeBriefGoal)},
 	}
-	if err := requireKnowledgeScripts(scriptsRoot, []knowledgeBuilderInvocation{step}); err != nil {
-		return err
-	}
-	run, err := runKnowledgeBuilder(scriptsRoot, step)
+	run, err := runKnowledgeBuilder(workspace, agentsRoot, "", step)
 	if err != nil {
 		return err
 	}
@@ -298,26 +296,39 @@ func runKnowledgeBrief(cmd *cobra.Command, args []string) error {
 }
 
 func runKnowledgeGaps(cmd *cobra.Command, args []string) error {
-	workspace, _, _, err := resolveKnowledgeWorkspace()
+	workspace, _, err := resolveKnowledgeWorkspace()
 	if err != nil {
 		return err
 	}
 	return outputKnowledgeGapSummary(collectKnowledgeGapSummary(workspace))
 }
 
-func resolveKnowledgeWorkspace() (string, string, string, error) {
+func resolveKnowledgeWorkspace() (string, string, error) {
 	workspace, err := resolveProjectDir()
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 	agentsRoot := filepath.Join(workspace, ".agents")
 	if !knowledgePathExists(agentsRoot) {
-		return "", "", "", fmt.Errorf("knowledge activation requires %s", agentsRoot)
+		return "", "", fmt.Errorf("knowledge activation requires %s", agentsRoot)
 	}
-	return workspace, agentsRoot, filepath.Join(agentsRoot, "scripts"), nil
+	return workspace, agentsRoot, nil
+}
+
+func filterKnowledgeWorkspaceScriptSteps(steps []knowledgeBuilderInvocation) []knowledgeBuilderInvocation {
+	filtered := make([]knowledgeBuilderInvocation, 0, len(steps))
+	for _, step := range steps {
+		if step.Implementation == knowledgeBuilderImplementationWorkspaceScript {
+			filtered = append(filtered, step)
+		}
+	}
+	return filtered
 }
 
 func requireKnowledgeScripts(scriptsRoot string, steps []knowledgeBuilderInvocation) error {
+	if len(steps) == 0 {
+		return nil
+	}
 	var missing []string
 	for _, step := range steps {
 		path := filepath.Join(scriptsRoot, step.Script)
@@ -328,10 +339,14 @@ func requireKnowledgeScripts(scriptsRoot string, steps []knowledgeBuilderInvocat
 	if len(missing) == 0 {
 		return nil
 	}
-	return fmt.Errorf("knowledge activation requires workspace-local builder scripts:\n- %s", strings.Join(missing, "\n- "))
+	return fmt.Errorf("knowledge activate requires workspace-local packet builders:\n- %s", strings.Join(missing, "\n- "))
 }
 
-func runKnowledgeBuilder(scriptsRoot string, step knowledgeBuilderInvocation) (knowledgeBuilderRun, error) {
+func runKnowledgeBuilder(workspace, agentsRoot, scriptsRoot string, step knowledgeBuilderInvocation) (knowledgeBuilderRun, error) {
+	if step.Implementation == knowledgeBuilderImplementationAONative {
+		return runKnowledgeNativeBuilder(workspace, agentsRoot, step)
+	}
+
 	run := knowledgeBuilderRun{
 		knowledgeBuilderInvocation: step,
 		Path:                       filepath.Join(scriptsRoot, step.Script),
@@ -397,7 +412,7 @@ func outputKnowledgeActivateResult(result knowledgeActivateResult) error {
 
 	fmt.Printf("Knowledge activation target: %s\n", result.Workspace)
 	for _, step := range result.Steps {
-		fmt.Printf("- %s: %s\n", step.Step, filepath.Base(step.Path))
+		fmt.Printf("- %s: %s\n", step.Step, knowledgeBuilderDisplayTarget(step))
 	}
 	if result.BeliefBook != "" {
 		fmt.Printf("Belief book: %s\n", result.BeliefBook)
@@ -423,6 +438,9 @@ func outputKnowledgeBuilderResult(result knowledgeBuilderResult) error {
 
 	fmt.Printf("Knowledge builder: %s\n", result.Step.Step)
 	fmt.Printf("Workspace: %s\n", result.Workspace)
+	if result.Step.Implementation != "" {
+		fmt.Printf("Implementation: %s\n", result.Step.Implementation)
+	}
 	if result.OutputPath != "" {
 		fmt.Printf("Output: %s\n", result.OutputPath)
 	}
@@ -704,6 +722,19 @@ func dedupeKnowledgeStrings(items []string) []string {
 		deduped = append(deduped, trimmed)
 	}
 	return deduped
+}
+
+func knowledgeBuilderDisplayTarget(step knowledgeBuilderRun) string {
+	if step.Path != "" {
+		return filepath.Base(step.Path)
+	}
+	if step.Script != "" {
+		return step.Script
+	}
+	if step.Implementation != "" {
+		return step.Implementation
+	}
+	return step.Step
 }
 
 func knowledgePathExists(path string) bool {

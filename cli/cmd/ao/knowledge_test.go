@@ -9,13 +9,13 @@ import (
 	"testing"
 )
 
-func TestKnowledgeActivateJSONRunsWorkspaceBuilders(t *testing.T) {
+func TestKnowledgeActivateJSONRunsNativeActivationBuilders(t *testing.T) {
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skip("python3 not available")
 	}
 
 	repo := t.TempDir()
-	writeKnowledgeBuilderFixtures(t, repo)
+	writeKnowledgePacketBuilderFixtures(t, repo)
 
 	origProjectDir := testProjectDir
 	origActivateGoal := knowledgeActivateGoal
@@ -42,6 +42,15 @@ func TestKnowledgeActivateJSONRunsWorkspaceBuilders(t *testing.T) {
 	if len(result.Steps) != 7 {
 		t.Fatalf("steps = %d, want 7", len(result.Steps))
 	}
+	if got := result.Steps[4].Implementation; got != knowledgeBuilderImplementationAONative {
+		t.Fatalf("belief-book implementation = %q, want %q", got, knowledgeBuilderImplementationAONative)
+	}
+	if got := result.Steps[5].Implementation; got != knowledgeBuilderImplementationAONative {
+		t.Fatalf("playbooks implementation = %q, want %q", got, knowledgeBuilderImplementationAONative)
+	}
+	if got := result.Steps[6].Implementation; got != knowledgeBuilderImplementationAONative {
+		t.Fatalf("briefing implementation = %q, want %q", got, knowledgeBuilderImplementationAONative)
+	}
 	if result.BeliefBook == "" || !knowledgePathExists(result.BeliefBook) {
 		t.Fatalf("belief book missing: %q", result.BeliefBook)
 	}
@@ -59,43 +68,125 @@ func TestKnowledgeActivateJSONRunsWorkspaceBuilders(t *testing.T) {
 	}
 }
 
+func TestKnowledgeBeliefsJSONUsesNativeBuilderWithoutScripts(t *testing.T) {
+	repo := t.TempDir()
+	writeKnowledgeCorpusFixtures(t, repo)
+
+	origProjectDir := testProjectDir
+	testProjectDir = repo
+	defer func() { testProjectDir = origProjectDir }()
+
+	out, err := executeCommand("knowledge", "beliefs", "--json")
+	if err != nil {
+		t.Fatalf("knowledge beliefs --json: %v\noutput: %s", err, out)
+	}
+
+	var result knowledgeBuilderResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &result); err != nil {
+		t.Fatalf("parse knowledge beliefs json: %v\noutput: %s", err, out)
+	}
+	if got := result.Step.Implementation; got != knowledgeBuilderImplementationAONative {
+		t.Fatalf("implementation = %q, want %q", got, knowledgeBuilderImplementationAONative)
+	}
+	if result.OutputPath == "" || !knowledgePathExists(result.OutputPath) {
+		t.Fatalf("belief book missing: %q", result.OutputPath)
+	}
+
+	data, err := os.ReadFile(result.OutputPath)
+	if err != nil {
+		t.Fatalf("read belief book: %v", err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "# Book Of Beliefs") {
+		t.Fatal("expected belief book header")
+	}
+	if !strings.Contains(text, "`ao knowledge beliefs`") {
+		t.Fatal("expected native refresh command in belief book")
+	}
+	if strings.Contains(text, ".agents/scripts") || strings.Contains(text, "python3") {
+		t.Fatal("belief book should not reference workspace-local python builders")
+	}
+}
+
+func TestKnowledgePlaybooksJSONUsesNativeBuilderWithoutScripts(t *testing.T) {
+	repo := t.TempDir()
+	writeKnowledgeCorpusFixtures(t, repo)
+
+	origProjectDir := testProjectDir
+	testProjectDir = repo
+	defer func() { testProjectDir = origProjectDir }()
+
+	out, err := executeCommand("knowledge", "playbooks", "--json")
+	if err != nil {
+		t.Fatalf("knowledge playbooks --json: %v\noutput: %s", err, out)
+	}
+
+	var result knowledgeBuilderResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &result); err != nil {
+		t.Fatalf("parse knowledge playbooks json: %v\noutput: %s", err, out)
+	}
+	if got := result.Step.Implementation; got != knowledgeBuilderImplementationAONative {
+		t.Fatalf("implementation = %q, want %q", got, knowledgeBuilderImplementationAONative)
+	}
+	if result.OutputPath == "" || !knowledgePathExists(result.OutputPath) {
+		t.Fatalf("playbooks index missing: %q", result.OutputPath)
+	}
+	if !knowledgePathExists(filepath.Join(repo, ".agents", "playbooks", "healthy-topic.md")) {
+		t.Fatal("expected healthy-topic playbook to exist")
+	}
+	if knowledgePathExists(filepath.Join(repo, ".agents", "playbooks", "thin-topic.md")) {
+		t.Fatal("did not expect thin-topic playbook without --include-thin")
+	}
+}
+
+func TestKnowledgeBriefJSONUsesNativeBuilderWithoutScripts(t *testing.T) {
+	repo := t.TempDir()
+	writeKnowledgeCorpusFixtures(t, repo)
+
+	origProjectDir := testProjectDir
+	testProjectDir = repo
+	defer func() { testProjectDir = origProjectDir }()
+
+	out, err := executeCommand("knowledge", "brief", "--json", "--goal", "Healthy topic rollout")
+	if err != nil {
+		t.Fatalf("knowledge brief --json: %v\noutput: %s", err, out)
+	}
+
+	var result knowledgeBuilderResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &result); err != nil {
+		t.Fatalf("parse knowledge brief json: %v\noutput: %s", err, out)
+	}
+	if got := result.Step.Implementation; got != knowledgeBuilderImplementationAONative {
+		t.Fatalf("implementation = %q, want %q", got, knowledgeBuilderImplementationAONative)
+	}
+	if result.OutputPath == "" || !knowledgePathExists(result.OutputPath) {
+		t.Fatalf("briefing missing: %q", result.OutputPath)
+	}
+
+	data, err := os.ReadFile(result.OutputPath)
+	if err != nil {
+		t.Fatalf("read briefing: %v", err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "# Briefing: Healthy topic rollout") {
+		t.Fatal("expected briefing header")
+	}
+	if !strings.Contains(text, "`ao knowledge brief --goal \"Healthy topic rollout\"`") {
+		t.Fatal("expected native refresh command in briefing")
+	}
+	if strings.Contains(text, ".agents/scripts") || strings.Contains(text, "python3") {
+		t.Fatal("briefing should not reference workspace-local python builders")
+	}
+}
+
 func TestKnowledgeGapsJSONSurfacesThinTopicsAndPromotionGaps(t *testing.T) {
 	repo := t.TempDir()
-	agentsRoot := filepath.Join(repo, ".agents")
-	topicsRoot := filepath.Join(agentsRoot, "topics")
-	if err := os.MkdirAll(topicsRoot, 0o755); err != nil {
-		t.Fatal(err)
+	writeKnowledgeCorpusFixtures(t, repo)
+	if err := os.Remove(filepath.Join(repo, ".agents", "packets", "promoted", "healthy-topic.md")); err != nil {
+		t.Fatalf("remove promoted packet: %v", err)
 	}
-
-	healthyTopic := `---
-topic_id: healthy-topic
-title: Healthy Topic
-health_state: healthy
----
-
-# Topic Packet: Healthy Topic
-
-## Open Gaps
-
-- No open gaps recorded.
-`
-	if err := os.WriteFile(filepath.Join(topicsRoot, "healthy-topic.md"), []byte(healthyTopic), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	thinTopic := `---
-topic_id: thin-topic
-title: Thin Topic
-health_state: thin
----
-
-# Topic Packet: Thin Topic
-
-## Open Gaps
-
-- Primary conversations below threshold (1/3).
-`
-	if err := os.WriteFile(filepath.Join(topicsRoot, "thin-topic.md"), []byte(thinTopic), 0o644); err != nil {
-		t.Fatal(err)
+	if err := os.Remove(filepath.Join(repo, ".agents", "playbooks", "index.md")); err == nil {
+		t.Fatal("playbooks index should not exist before building playbooks")
 	}
 
 	origProjectDir := testProjectDir
@@ -129,35 +220,216 @@ health_state: thin
 	}
 }
 
-func writeKnowledgeBuilderFixtures(t *testing.T, repo string) {
+func writeKnowledgeCorpusFixtures(t *testing.T, repo string) {
+	t.Helper()
+
+	agentsRoot := filepath.Join(repo, ".agents")
+	mkdirAll := func(rel string) string {
+		path := filepath.Join(agentsRoot, rel)
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", rel, err)
+		}
+		return path
+	}
+
+	topicsRoot := mkdirAll("topics")
+	promotedRoot := mkdirAll(filepath.Join("packets", "promoted"))
+	chunksRoot := mkdirAll(filepath.Join("packets", "chunks"))
+	packetsRoot := mkdirAll("packets")
+
+	write := func(path, content string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(strings.TrimLeft(content, "\n")), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	write(filepath.Join(packetsRoot, "index.md"), "# Packet registry\n")
+	write(filepath.Join(chunksRoot, "index.md"), "# Chunk index\n")
+	write(filepath.Join(topicsRoot, "index.md"), "# Topic index\n")
+
+	write(filepath.Join(topicsRoot, "healthy-topic.md"), `
+---
+topic_id: healthy-topic
+title: Healthy Topic
+health_state: healthy
+aliases:
+  - healthy rollout
+  - stable activation
+query_seeds:
+  - healthy topic
+  - stable activation
+consumer_surfaces:
+  - .agents/topics/index.md
+evidence_counts:
+  conversations: 4
+  artifacts: 8
+  verified_hits: 2
+---
+
+# Topic Packet: Healthy Topic
+
+## Summary
+
+Healthy Topic currently resolves to 4 primary conversation-backed session(s) and 8 linked artifact(s). The packet is stable enough to drive operator surfaces.
+
+## Consumers
+
+- .agents/topics/index.md
+- discovery and research reference surface
+
+## Key Decisions
+
+- Keep activation surfaces deterministic across unchanged inputs.
+- Prefer native Go writers for stable operator outputs.
+
+## Repeated Patterns
+
+- Healthy topics should generate canonical playbooks.
+- Briefings should stay citation-backed and bounded.
+
+## Open Gaps
+
+- No open gaps recorded.
+`)
+
+	write(filepath.Join(topicsRoot, "thin-topic.md"), `
+---
+topic_id: thin-topic
+title: Thin Topic
+health_state: thin
+aliases:
+  - thin caution
+query_seeds:
+  - thin topic
+consumer_surfaces:
+  - .agents/topics/index.md
+evidence_counts:
+  conversations: 1
+  artifacts: 3
+  verified_hits: 1
+---
+
+# Topic Packet: Thin Topic
+
+## Summary
+
+Thin Topic is only partially grounded and should stay discovery-only until more evidence is gathered.
+
+## Key Decisions
+
+- Thin topics should never silently become canonical outputs.
+
+## Repeated Patterns
+
+- Thin topics need more evidence before promotion.
+
+## Open Gaps
+
+- Primary conversations below threshold (1/3).
+`)
+
+	write(filepath.Join(promotedRoot, "healthy-topic.md"), `
+---
+source_topic: healthy-topic
+---
+
+# Promoted Pattern Packet: Healthy Topic
+
+## Primary Claims
+
+- Activation surfaces should stay deterministic across unchanged inputs.
+- Stable operator outputs belong in the ao binary, not workspace-local prototypes.
+`)
+
+	write(filepath.Join(chunksRoot, "healthy-topic.md"), `
+---
+topic_id: healthy-topic
+title: Healthy Topic
+promoted_packet_path: `+filepath.Join(promotedRoot, "healthy-topic.md")+`
+---
+
+# Historical Chunk Bundle: Healthy Topic
+
+## Knowledge Chunks
+
+### Healthy Topic Decision
+
+- Chunk ID: healthy-topic-decision-01
+- Type: decision
+- Confidence: topic
+- Claim: Activation surfaces should stay deterministic across unchanged inputs.
+
+### Healthy Topic Pattern
+
+- Chunk ID: healthy-topic-pattern-01
+- Type: pattern
+- Confidence: topic
+- Claim: Stable operator outputs belong in the ao binary, not workspace-local prototypes.
+`)
+}
+
+func writeKnowledgePacketBuilderFixtures(t *testing.T, repo string) {
 	t.Helper()
 
 	scriptsRoot := filepath.Join(repo, ".agents", "scripts")
 	if err := os.MkdirAll(scriptsRoot, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("mkdir scripts: %v", err)
 	}
 
 	fixtures := map[string]string{
 		"source_manifest_build.py": `
 from pathlib import Path
 root = Path.cwd().parent
-out = root / "packets" / "source-manifests"
-out.mkdir(parents=True, exist_ok=True)
-(out / "index.md").write_text("# Source manifests\n", encoding="utf-8")
-print("source_manifests=2")
+packets = root / "packets"
+packets.mkdir(parents=True, exist_ok=True)
+(packets / "index.md").write_text("# Packet registry\n", encoding="utf-8")
+print("source_manifests=1")
 `,
 		"topic_packet_build.py": `
 from pathlib import Path
 root = Path.cwd().parent
 topics = root / "topics"
 topics.mkdir(parents=True, exist_ok=True)
+(topics / "index.md").write_text("# Topic index\n", encoding="utf-8")
 (topics / "healthy-topic.md").write_text("""---
 topic_id: healthy-topic
 title: Healthy Topic
 health_state: healthy
+aliases:
+  - healthy rollout
+  - stable activation
+query_seeds:
+  - healthy topic
+  - stable activation
+consumer_surfaces:
+  - .agents/topics/index.md
+evidence_counts:
+  conversations: 4
+  artifacts: 8
+  verified_hits: 2
 ---
 
 # Topic Packet: Healthy Topic
+
+## Summary
+
+Healthy Topic currently resolves to 4 primary conversation-backed session(s) and 8 linked artifact(s). The packet is stable enough to drive operator surfaces.
+
+## Consumers
+
+- .agents/topics/index.md
+- discovery and research reference surface
+
+## Key Decisions
+
+- Keep activation surfaces deterministic across unchanged inputs.
+- Prefer native Go writers for stable operator outputs.
+
+## Repeated Patterns
+
+- Healthy topics should generate canonical playbooks.
+- Briefings should stay citation-backed and bounded.
 
 ## Open Gaps
 
@@ -167,27 +439,54 @@ health_state: healthy
 topic_id: thin-topic
 title: Thin Topic
 health_state: thin
+aliases:
+  - thin caution
+query_seeds:
+  - thin topic
+consumer_surfaces:
+  - .agents/topics/index.md
+evidence_counts:
+  conversations: 1
+  artifacts: 3
+  verified_hits: 1
 ---
 
 # Topic Packet: Thin Topic
+
+## Summary
+
+Thin Topic is only partially grounded and should stay discovery-only until more evidence is gathered.
+
+## Key Decisions
+
+- Thin topics should never silently become canonical outputs.
+
+## Repeated Patterns
+
+- Thin topics need more evidence before promotion.
 
 ## Open Gaps
 
 - Primary conversations below threshold (1/3).
 """, encoding="utf-8")
-(topics / "index.md").write_text("# Topic index\n", encoding="utf-8")
-print("healthy-topic: health=healthy conversations=4 artifacts=8 verified=2")
-print("thin-topic: health=thin conversations=1 artifacts=3 verified=1")
+print("topic_packets=2")
 `,
 		"corpus_packet_promote.py": `
 from pathlib import Path
 root = Path.cwd().parent
 promoted = root / "packets" / "promoted"
 promoted.mkdir(parents=True, exist_ok=True)
-(promoted / "healthy-topic.md").write_text("# Promoted packet\n", encoding="utf-8")
-(promoted / "index.md").write_text("# Promoted index\n", encoding="utf-8")
-(root / "packets").mkdir(parents=True, exist_ok=True)
-((root / "packets") / "index.md").write_text("# Packet registry\n", encoding="utf-8")
+(promoted / "healthy-topic.md").write_text("""---
+source_topic: healthy-topic
+---
+
+# Promoted Pattern Packet: Healthy Topic
+
+## Primary Claims
+
+- Activation surfaces should stay deterministic across unchanged inputs.
+- Stable operator outputs belong in the ao binary, not workspace-local prototypes.
+""", encoding="utf-8")
 print("promoted_packets=1")
 `,
 		"knowledge_chunk_build.py": `
@@ -195,44 +494,33 @@ from pathlib import Path
 root = Path.cwd().parent
 chunks = root / "packets" / "chunks"
 chunks.mkdir(parents=True, exist_ok=True)
-(chunks / "healthy-topic.md").write_text("# Chunk bundle\n", encoding="utf-8")
-(chunks / "catalog.jsonl").write_text("{\"chunk_id\":\"healthy-topic-overview-01\"}\n", encoding="utf-8")
-(chunks / "index.md").write_text("# Chunks index\n", encoding="utf-8")
+(chunks / "index.md").write_text("# Chunk index\n", encoding="utf-8")
+promoted = root / "packets" / "promoted" / "healthy-topic.md"
+(chunks / "healthy-topic.md").write_text(f"""---
+topic_id: healthy-topic
+title: Healthy Topic
+promoted_packet_path: {promoted.as_posix()}
+---
+
+# Historical Chunk Bundle: Healthy Topic
+
+## Knowledge Chunks
+
+### Healthy Topic Decision
+
+- Chunk ID: healthy-topic-decision-01
+- Type: decision
+- Confidence: topic
+- Claim: Activation surfaces should stay deterministic across unchanged inputs.
+
+### Healthy Topic Pattern
+
+- Chunk ID: healthy-topic-pattern-01
+- Type: pattern
+- Confidence: topic
+- Claim: Stable operator outputs belong in the ao binary, not workspace-local prototypes.
+""", encoding="utf-8")
 print("chunk_bundles=1")
-print("chunk_records=1")
-`,
-		"book_of_beliefs_build.py": `
-from pathlib import Path
-root = Path.cwd().parent
-out = root / "knowledge"
-out.mkdir(parents=True, exist_ok=True)
-path = out / "book-of-beliefs.md"
-path.write_text("# Book Of Beliefs\n", encoding="utf-8")
-print(f"belief_book={path.as_posix()}")
-`,
-		"playbook_build.py": `
-from pathlib import Path
-root = Path.cwd().parent
-out = root / "playbooks"
-out.mkdir(parents=True, exist_ok=True)
-(out / "healthy-topic.md").write_text("# Playbook Candidate\n", encoding="utf-8")
-(out / "index.md").write_text("# Playbook Candidates\n", encoding="utf-8")
-print("playbooks=1")
-`,
-		"briefing_build.py": `
-from pathlib import Path
-import re
-import sys
-root = Path.cwd().parent
-goal = "unknown-goal"
-if "--goal" in sys.argv:
-    goal = sys.argv[sys.argv.index("--goal") + 1]
-slug = re.sub(r"[^a-z0-9]+", "-", goal.lower()).strip("-") or "briefing"
-out = root / "briefings"
-out.mkdir(parents=True, exist_ok=True)
-path = out / f"2026-04-01-{slug}.md"
-path.write_text(f"# Briefing: {goal}\n", encoding="utf-8")
-print(f"briefing={path.as_posix()}")
 `,
 	}
 

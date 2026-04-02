@@ -38,7 +38,7 @@ Use this skill when the problem is no longer "capture more knowledge," but:
 This skill assumes the current workspace already has:
 
 - a `.agents/` directory
-- workspace-local builders under `.agents/scripts/`
+- packet refresh builders under `.agents/scripts/` when `ao knowledge activate` needs to rebuild source manifests, topics, promoted packets, and chunk bundles
 - packet, topic, playbook, and briefing surfaces that can be refreshed mechanically
 
 Read [references/script-contracts.md](references/script-contracts.md) for the required builder inventory and command ownership.
@@ -55,16 +55,16 @@ ao knowledge brief --goal "fix auth startup"
 ao knowledge gaps
 ```
 
-The skill owns routing, sequencing, interpretation, and next-step recommendations. The builders do the heavy lifting.
+The skill owns routing, sequencing, interpretation, and next-step recommendations. `ao` owns the belief/playbook/brief/gap product surfaces directly.
 
 ## Execution Steps
 
 ### Step 1: Preflight
 
-Verify that `.agents/` exists and that the workspace-local builders are present.
+Verify that `.agents/` exists. When you plan to run `ao knowledge activate`, also verify that the packet refresh builders are present.
 
 - packet builders: `source_manifest_build.py`, `topic_packet_build.py`, `corpus_packet_promote.py`, `knowledge_chunk_build.py`
-- activation builders: `book_of_beliefs_build.py`, `playbook_build.py`, `briefing_build.py`
+- native operator surfaces: `ao knowledge beliefs`, `ao knowledge playbooks`, `ao knowledge brief`, `ao knowledge gaps`
 
 ### Step 2: Consolidate Evidence
 
