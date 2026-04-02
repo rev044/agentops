@@ -7,7 +7,7 @@
 
 ### Your agents forget everything between sessions. AgentOps fixes that.
 
-The local DevOps layer for coding agents — validation, repo-native memory, and loop closure. Zero infrastructure. Zero telemetry.
+A self-evolving operating system for coding agents — validation, repo-native memory, and loop closure that compounds across every session. Zero infrastructure. Zero telemetry.
 
 [Start Here](#start-here) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Newcomer Guide](docs/newcomer-guide.md)
 
@@ -133,7 +133,7 @@ Each phase closes one or more of the three gaps — judgment, learning, loop clo
 - **Compiled prevention chain**: findings registry -> planning rules / pre-mortem checks / constraints -> later planning and validation
 - **Continuity chain**: session hooks + phased manifests + `/handoff` + `/recover`
 
-That is the real architecture: a local operating layer around the agent, not just a prompt pack. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
+That is the real architecture: a self-evolving operating system around the agent, not just a prompt pack. Each cycle leaves the system slightly better than before — without anyone shipping new code. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
 
 ### How Agent Memory Works Without Infrastructure
 
@@ -200,6 +200,26 @@ Deep dive: [The Knowledge Flywheel](docs/knowledge-flywheel.md)
 - **Harder to drift** — tracked issues and validation gates mean the repo is less dependent on agent mood or memory.
 
 Everything is [open source](cli/) — audit it yourself.
+
+---
+
+## What I've Observed Using This
+
+After five months of daily use across dozens of repos, a few things stuck:
+
+- Agents are fast and surprisingly capable, but they are forgetful and inconsistent. A great prompt helps. Workflow helps more.
+- The biggest gains came from giving agents the right context at the right time — not dumping everything into the system prompt.
+- Agents do much better with small, well-bounded tasks than vague "go figure it out" missions.
+- You cannot trust self-reported success. They need tests, checks, and external validation.
+- Parallel agents are powerful, but only when each one has clear ownership and non-overlapping files.
+- Raw chat history is not usable knowledge. It only becomes useful when you turn it into rules, playbooks, and briefings.
+- The real compounding effect is not "the model gets smarter." It is "your environment gets smarter."
+
+The git history tells its own story. Early commits are skill scaffolding — building `/research`, `/plan`, `/implement`. Later commits are meta-capabilities: session intelligence, quality signals, closure audits, prediction tracking. The system started spending more time improving itself and less time on raw features. That is the flywheel working.
+
+If I had to compress it into one sentence: good agent work comes from context, boundaries, validation, and reusable lessons — not from hoping the agent "just gets it."
+
+Deep dive: [Philosophy](docs/philosophy.md)
 
 ---
 
@@ -565,4 +585,4 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md). If AgentOps helped you ship somethi
 
 ## License
 
-Apache-2.0 · [Docs](docs/INDEX.md) · [How It Works](docs/how-it-works.md) · [FAQ](docs/FAQ.md) · [Glossary](docs/GLOSSARY.md) · [Architecture](docs/ARCHITECTURE.md) · [Configuration](docs/ENV-VARS.md) · [CLI Reference](cli/docs/COMMANDS.md) · [Changelog](docs/CHANGELOG.md)
+Apache-2.0 · [Docs](docs/INDEX.md) · [Philosophy](docs/philosophy.md) · [How It Works](docs/how-it-works.md) · [FAQ](docs/FAQ.md) · [Glossary](docs/GLOSSARY.md) · [Architecture](docs/ARCHITECTURE.md) · [Configuration](docs/ENV-VARS.md) · [CLI Reference](cli/docs/COMMANDS.md) · [Changelog](docs/CHANGELOG.md)

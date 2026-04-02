@@ -55,6 +55,7 @@
 
 ## Concepts
 
+- [Philosophy](philosophy.md) — Five validated principles for building with coding agents, with evidence from five months of production use
 - [Context Lifecycle Contract](context-lifecycle.md) — The three-gap contract for judgment validation, durable learning, and loop closure
 - [Knowledge Flywheel](knowledge-flywheel.md) — How every session makes the next one smarter
 - [The Science](the-science.md) — Research behind knowledge decay and compounding
