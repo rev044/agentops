@@ -147,9 +147,18 @@ func Promote(catalog *Catalog, destDir string, dryRun bool) (int, error) {
 
 		// Carry forward original metadata fields that the scoring pipeline needs.
 		// These are the fields that passesQualityGate and inject_scoring check.
+		// When a field is missing from the source, add a default so harvested
+		// files always have the minimum metadata for scoring.
+		defaults := map[string]string{
+			"type":     art.Type,
+			"maturity": "provisional",
+			"utility":  "0.5",
+		}
 		for _, key := range []string{"type", "maturity", "utility", "confidence", "source_bead", "source_phase", "date", "category", "id"} {
 			if val, ok := origFM[key]; ok {
 				headerLines = append(headerLines, fmt.Sprintf("%s: %s", key, val))
+			} else if def, ok := defaults[key]; ok {
+				headerLines = append(headerLines, fmt.Sprintf("%s: %s", key, def))
 			}
 		}
 
