@@ -827,11 +827,13 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 	if len(briefings) == 0 {
 		sb.WriteString(fmt.Sprintf("- No recent knowledge briefing surfaced. Build one with `ao knowledge brief --goal %q` when workspace builders are available.\n", query))
 	} else {
+		sb.WriteString("- Treat matched knowledge briefings as the primary dynamic surface for this thread; use the ranked context below as supporting operator state.\n")
 		for _, item := range briefings {
 			sb.WriteString(fmt.Sprintf("- %s\n", item.Title))
 		}
 	}
 	sb.WriteString("\n## Selected Context\n")
+	sb.WriteString("The sections below favor stable operator surfaces and canonical runtime artifacts before recency-heavy history.\n\n")
 	sb.WriteString(renderRankedIntelSectionFromBundle(bundle, "startup", 4000))
 	sb.WriteString("\n## Excluded By Default\n")
 	for _, bullet := range codexStartupExclusionBullets() {

@@ -10,6 +10,8 @@ type rankedContextBundle struct {
 	CWD            string
 	Query          string
 	Packet         StigmergicPacket
+	Beliefs        []string
+	Playbooks      []knowledgeContextPlaybook
 	Learnings      []learning
 	Patterns       []pattern
 	Findings       []knowledgeFinding
@@ -76,6 +78,8 @@ func collectRankedContextBundle(cwd, query string, limit int) rankedContextBundl
 		CWD:            cwd,
 		Query:          query,
 		Packet:         packet,
+		Beliefs:        loadKnowledgeBeliefsForContext(cwd, query, limit),
+		Playbooks:      loadKnowledgePlaybooksForContext(cwd, query, limit),
 		Learnings:      limitLearnings(learnings, limit),
 		Patterns:       limitPatterns(patterns, limit),
 		Findings:       prioritizeFindings(findings, packet.AppliedFindings, limit),
@@ -102,6 +106,8 @@ func buildRankedContextBundle(cwd, query string, limit int, learnings []learning
 		CWD:            cwd,
 		Query:          query,
 		Packet:         packet,
+		Beliefs:        loadKnowledgeBeliefsForContext(cwd, query, limit),
+		Playbooks:      loadKnowledgePlaybooksForContext(cwd, query, limit),
 		Learnings:      limitLearnings(learnings, limit),
 		Patterns:       limitPatterns(patterns, limit),
 		Findings:       prioritizeFindings(findings, packet.AppliedFindings, limit),
@@ -149,6 +155,8 @@ func rankedIntelSections(bundle rankedContextBundle, phase string) []intelSectio
 
 	planningRules := stringBullets(bundle.Packet.PlanningRules)
 	knownRisks := stringBullets(bundle.Packet.KnownRisks)
+	beliefs := beliefBullets(bundle.Beliefs)
+	playbooks := playbookBullets(bundle.CWD, bundle.Playbooks)
 	findings := findingBullets(bundle.Findings)
 	learnings := learningBullets(bundle.Learnings)
 	patterns := patternBullets(bundle.Patterns)
@@ -161,6 +169,8 @@ func rankedIntelSections(bundle rankedContextBundle, phase string) []intelSectio
 	case "startup":
 		add("Planning Rules", planningRules)
 		add("Known Risks", knownRisks)
+		add("Operating Beliefs", beliefs)
+		add("Relevant Playbooks", playbooks)
 		add("Relevant Next Work", nextWork)
 		add("Findings", findings)
 		add("Learnings", learnings)
@@ -170,6 +180,8 @@ func rankedIntelSections(bundle rankedContextBundle, phase string) []intelSectio
 	case "planning":
 		add("Planning Rules", planningRules)
 		add("Known Risks", knownRisks)
+		add("Operating Beliefs", beliefs)
+		add("Relevant Playbooks", playbooks)
 		add("Findings", findings)
 		add("Patterns", patterns)
 		add("Learnings", learnings)
@@ -178,6 +190,8 @@ func rankedIntelSections(bundle rankedContextBundle, phase string) []intelSectio
 	case "pre-mortem":
 		add("Known Risks", knownRisks)
 		add("Planning Rules", planningRules)
+		add("Operating Beliefs", beliefs)
+		add("Relevant Playbooks", playbooks)
 		add("Findings", findings)
 		add("Relevant Next Work", nextWork)
 		add("Patterns", patterns)
@@ -190,6 +204,8 @@ func rankedIntelSections(bundle rankedContextBundle, phase string) []intelSectio
 	default:
 		add("Planning Rules", planningRules)
 		add("Known Risks", knownRisks)
+		add("Operating Beliefs", beliefs)
+		add("Relevant Playbooks", playbooks)
 		add("Findings", findings)
 		add("Learnings", learnings)
 		add("Patterns", patterns)
@@ -200,6 +216,22 @@ func rankedIntelSections(bundle rankedContextBundle, phase string) []intelSectio
 	}
 
 	return specs
+}
+
+func beliefBullets(beliefs []string) []string {
+	return append([]string(nil), beliefs...)
+}
+
+func playbookBullets(cwd string, playbooks []knowledgeContextPlaybook) []string {
+	bullets := make([]string, 0, len(playbooks))
+	for _, playbook := range playbooks {
+		summary := strings.TrimSpace(playbook.Summary)
+		if summary == "" {
+			summary = "Use the generated operator loop for this topic."
+		}
+		bullets = append(bullets, fmt.Sprintf("%s: %s (`%s`)", playbook.Title, summary, displayKnowledgeContextPath(cwd, playbook.Path)))
+	}
+	return bullets
 }
 
 func prioritizeFindings(findings []knowledgeFinding, preferredIDs []string, limit int) []knowledgeFinding {

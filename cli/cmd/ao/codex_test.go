@@ -273,6 +273,13 @@ id: "f-startup-002"
 	if err := os.WriteFile(filepath.Join(repo, ".agents", "pre-mortem-checks", "f-startup-002.md"), []byte(check), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	writeKnowledgeCorpusFixtures(t, repo)
+	if _, err := buildKnowledgeBeliefBook(filepath.Join(repo, ".agents")); err != nil {
+		t.Fatalf("buildKnowledgeBeliefBook: %v", err)
+	}
+	if _, err := buildKnowledgePlaybooks(filepath.Join(repo, ".agents"), false); err != nil {
+		t.Fatalf("buildKnowledgePlaybooks: %v", err)
+	}
 
 	profile := lifecycleRuntimeProfile{Runtime: runtimeKindCodex, Mode: lifecycleModeCodexHookless, ThreadName: "startup"}
 	path, err := writeCodexStartupContext(
@@ -308,11 +315,20 @@ id: "f-startup-002"
 	if !strings.Contains(content, "### Planning Rules") {
 		t.Fatalf("expected planning rules in startup context, got:\n%s", content)
 	}
+	if !strings.Contains(content, "### Operating Beliefs") {
+		t.Fatalf("expected operating beliefs in startup context, got:\n%s", content)
+	}
+	if !strings.Contains(content, "### Relevant Playbooks") {
+		t.Fatalf("expected relevant playbooks in startup context, got:\n%s", content)
+	}
 	if !strings.Contains(content, "## Excluded By Default") {
 		t.Fatalf("expected exclusion policy heading, got:\n%s", content)
 	}
 	if !strings.Contains(content, "Wire startup context to ranked packet") {
 		t.Fatalf("expected ranked next work in startup context, got:\n%s", content)
+	}
+	if !strings.Contains(content, "primary dynamic surface") {
+		t.Fatalf("expected briefing-first guidance in startup context, got:\n%s", content)
 	}
 }
 

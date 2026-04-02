@@ -42,6 +42,8 @@ ao knowledge gaps
 
 The skill owns routing, sequencing, interpretation, and next-step recommendations. The builders do the heavy lifting.
 
+`ao context assemble` and `ao codex start` consume these outputs as operator context. Matched knowledge briefings are the preferred dynamic startup surface, while selected beliefs and healthy playbooks provide bounded supporting guidance.
+
 ## Execution Steps
 
 ### Step 1: Preflight

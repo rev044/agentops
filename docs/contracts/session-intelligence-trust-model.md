@@ -17,6 +17,9 @@ The goal is simple: do not let high-volume `.agents` capture turn into low-trust
 | learning | runtime-eligible | yes | yes | no | yes | Ranked learnings may enter runtime payloads once they pass quality gates. |
 | pattern | runtime-eligible | yes | yes | yes | yes | Patterns are compact enough to reuse when query-matched. |
 | finding | canonical | yes | yes | yes | yes | Promoted findings are the highest-trust reusable runtime signal. |
+| belief-book | canonical | yes | yes | yes | yes | Stable cross-domain doctrine promoted from healthy evidence. |
+| playbook | canonical | yes | yes | yes | yes | Generated operator workflows from healthy topics and promoted packets. |
+| knowledge-briefing | runtime-eligible | yes | no | no | yes | Preferred dynamic startup surface for a concrete goal; task-scoped, not universal policy. |
 | planning-rule | canonical | yes | yes | yes | yes | Compiled planning rules are canonical prevention memory. |
 | known-risk | canonical | yes | yes | yes | yes | Compiled pre-mortem checks are canonical risk memory. |
 | next-work | runtime-eligible | yes | yes | yes | yes | Ranked next-work gives the next session continuity. |
@@ -41,9 +44,10 @@ Suppression does not mean deletion. These classes remain valid lookup, provenanc
 Session Intelligence should prefer this order when building startup or planning context:
 
 1. canonical artifacts
-2. runtime-eligible artifacts
-3. experimental families only after explicit health review
-4. discovery-only or archive-only artifacts only by explicit lookup or post-mortem use
+2. matched knowledge briefings as the primary dynamic startup surface
+3. runtime-eligible artifacts
+4. experimental families only after explicit health review
+5. discovery-only or archive-only artifacts only by explicit lookup or post-mortem use
 
 ## Explainability Requirement
 

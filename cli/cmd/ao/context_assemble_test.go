@@ -512,6 +512,13 @@ id: "f-startup-001"
 	if err := os.WriteFile(filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl"), []byte(queue), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	writeKnowledgeCorpusFixtures(t, tmp)
+	if _, err := buildKnowledgeBeliefBook(filepath.Join(tmp, ".agents")); err != nil {
+		t.Fatalf("buildKnowledgeBeliefBook: %v", err)
+	}
+	if _, err := buildKnowledgePlaybooks(filepath.Join(tmp, ".agents"), false); err != nil {
+		t.Fatalf("buildKnowledgePlaybooks: %v", err)
+	}
 
 	sections := assembleSectionsForPhase(tmp, "rank startup context before falling back to recency", "startup", defaultAssembleMaxChars)
 	intelContent := sections[2].Content
@@ -524,6 +531,15 @@ id: "f-startup-001"
 	}
 	if !strings.Contains(intelContent, "Wire startup context to ranked packet") {
 		t.Fatalf("expected ranked queue item in INTEL, got:\n%s", intelContent)
+	}
+	if !strings.Contains(intelContent, "### Operating Beliefs") {
+		t.Fatalf("expected operating beliefs in INTEL, got:\n%s", intelContent)
+	}
+	if !strings.Contains(intelContent, "### Relevant Playbooks") {
+		t.Fatalf("expected relevant playbooks in INTEL, got:\n%s", intelContent)
+	}
+	if !strings.Contains(intelContent, "Healthy Topic") {
+		t.Fatalf("expected healthy topic playbook in INTEL, got:\n%s", intelContent)
 	}
 }
 
