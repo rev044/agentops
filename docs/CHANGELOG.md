@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.33.0] - 2026-04-02
+
+### Added
+
+- **Backlog hygiene gates** — added `bd-audit.sh`, `bd-cluster.sh`, and Crank/Codex guidance for cleaning stale or mergeable beads before execution
+- **Retrieval benchmarking and global scope** — added `ao retrieval-bench`, benchmark corpora, `--live`, `--global`, and nightly IR regression coverage
+- **`/red-team` adversarial validation** — added a persona-based validation skill plus checked-in Codex runtime artifacts
+- **Software factory operator lane** — added a CLI/operator surface and Claude factory startup routing for software-factory workflows
+- **Flywheel maintenance utilities** — added global garbage purge tooling and nightly retrieval benchmarking for knowledge quality tracking
+
+### Changed
+
+- **Release policy** — removed the enforced release cadence gate so releases no longer block on a minimum wait between tags
+- **Knowledge operator surfaces** — plan and validation now wire knowledge operator surfaces directly into execution flow
+- **Proof and runtime docs** — goals, RPI docs, and contributor guidance now reflect the expanded proof surfaces and hookless runtime behavior
+
+### Fixed
+
+- **Codex artifact parity** — restored checked-in Codex parity for red-team and cleaned Codex runtime metadata/frontmatter drift across crank, forge, post-mortem, release, and swarm artifacts
+- **Retrieval quality** — replaced exact-substring filtering with token-level matching and tuned penalty, deduplication, and OR-fallback behavior
+- **Harvest metadata preservation** — promotion now preserves source metadata and fills missing maturity, utility, and type fields safely
+- **Release tooling** — release artifact directories are created safely and audit artifacts now resolve against release tag names
+- **Documentation and link drift** — repaired the post-mortem Codex link and aligned runtime docs around the newer startup and lifecycle flows
+
 ## [2.31.0] - 2026-03-30
 
 ### Added
