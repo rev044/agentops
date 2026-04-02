@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -87,7 +88,7 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, error) {
 			fm = NormalizeFrontmatter(fm)
 
 			title := extractTitle(fm, body, name)
-			confidence := extractFloat(fm, "confidence", 0.3)
+			confidence := extractFloat(fm, "confidence", 0.5)
 			scope := extractString(fm, "scope", "project:"+rig.Project)
 			date := extractDate(fm, name)
 			slug := toSlug(title)
@@ -285,7 +286,19 @@ func toFloat64WithDefault(v any, def float64) float64 {
 	case int64:
 		return float64(n)
 	case string:
-		return def
+		switch strings.ToLower(n) {
+		case "high":
+			return 0.9
+		case "medium":
+			return 0.6
+		case "low":
+			return 0.3
+		default:
+			if f, err := strconv.ParseFloat(n, 64); err == nil {
+				return f
+			}
+			return def
+		}
 	default:
 		return def
 	}

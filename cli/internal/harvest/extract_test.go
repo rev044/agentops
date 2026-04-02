@@ -120,8 +120,8 @@ Use circuit breakers for external service calls.
 		t.Fatalf("expected 1 artifact, got %d", len(artifacts))
 	}
 
-	if artifacts[0].Confidence != 0.3 {
-		t.Errorf("confidence = %v, want 0.3 (default)", artifacts[0].Confidence)
+	if artifacts[0].Confidence != 0.5 {
+		t.Errorf("confidence = %v, want 0.5 (default)", artifacts[0].Confidence)
 	}
 	if artifacts[0].Scope != "project:myproject" {
 		t.Errorf("scope = %q, want %q", artifacts[0].Scope, "project:myproject")
@@ -258,6 +258,24 @@ func TestNormalizeFrontmatter_StandardizesFields(t *testing.T) {
 			name:     "existing confidence not overwritten by score",
 			input:    map[string]any{"confidence": 0.7, "score": 99},
 			wantConf: 0.7,
+			hasConf:  true,
+		},
+		{
+			name:     "string confidence high maps to 0.9",
+			input:    map[string]any{"confidence": "high"},
+			wantConf: 0.9,
+			hasConf:  true,
+		},
+		{
+			name:     "string confidence medium maps to 0.6",
+			input:    map[string]any{"confidence": "medium"},
+			wantConf: 0.6,
+			hasConf:  true,
+		},
+		{
+			name:     "string confidence low maps to 0.3",
+			input:    map[string]any{"confidence": "low"},
+			wantConf: 0.3,
 			hasConf:  true,
 		},
 		{
