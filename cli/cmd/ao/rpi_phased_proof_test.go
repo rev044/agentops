@@ -51,7 +51,9 @@ func TestFlywheelProof_InjectRetrievesCrossSession(t *testing.T) {
 }
 
 // TestFlywheelProof_QualityGateFilters verifies that the quality gate penalizes
-// unsourced learnings (no source_bead) per the C2.1 contract: 0.3x penalty.
+// unsourced learnings (no source_bead) per the C2.1 contract: 0.7x soft penalty.
+// The penalty is 0.7x (not 0.3x) to avoid a utility cliff that would cause most
+// unsourced learnings to fail the >0.3 quality gate threshold.
 func TestFlywheelProof_QualityGateFilters(t *testing.T) {
 	tmp := t.TempDir()
 	learningsDir := filepath.Join(tmp, ".agents", "learnings")
@@ -90,11 +92,12 @@ func TestFlywheelProof_QualityGateFilters(t *testing.T) {
 		t.Errorf("sourced Utility = %f, want 0.8", sourced.Utility)
 	}
 
-	// Unsourced learning gets 0.3x penalty: 0.8 * 0.3 = 0.24
-	expectedUnsourced := 0.8 * 0.3
+	// Unsourced learning gets 0.7x soft penalty: 0.8 * 0.7 = 0.56
+	// (Changed from 0.3x hard penalty to avoid cliffing learnings below the >0.3 quality gate threshold)
+	expectedUnsourced := 0.8 * 0.7
 	const tolerance = 0.001
 	if unsourced.Utility < expectedUnsourced-tolerance || unsourced.Utility > expectedUnsourced+tolerance {
-		t.Errorf("unsourced Utility = %f, want ~%f (0.3x penalty)", unsourced.Utility, expectedUnsourced)
+		t.Errorf("unsourced Utility = %f, want ~%f (0.7x soft penalty)", unsourced.Utility, expectedUnsourced)
 	}
 
 	// Sourced must have strictly higher utility
