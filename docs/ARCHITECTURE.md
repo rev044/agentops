@@ -323,7 +323,7 @@ All hooks can be disabled: `AGENTOPS_HOOKS_DISABLED=1` (kill switch) or per-hook
 .
 ├── .claude-plugin/
 │   └── plugin.json      # Plugin manifest
-├── skills/              # 64 skills (55 user-facing, 9 internal)
+├── skills/              # 65 skills (56 user-facing, 9 internal)
 │   ├── rpi/             # orchestration — Full RPI lifecycle orchestrator
 │   ├── council/         # orchestration — Multi-model validation (core primitive)
 │   ├── crank/           # orchestration — Autonomous epic execution

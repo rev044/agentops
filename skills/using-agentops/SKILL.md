@@ -145,6 +145,7 @@ These are the skills every user needs first. Everything else is available when y
 | `/security` | Continuous repository security scanning and release gating |
 | `/security-suite` | Binary and prompt-surface security suite — static analysis, dynamic tracing, offline redteam, policy gating |
 | `/test` | Test generation, coverage analysis, and TDD workflow |
+| `/red-team` | Persona-based adversarial validation — probe docs and skills from constrained user perspectives |
 | `/review` | Review incoming PRs, agent output, or diffs — SCORED checklist |
 | `/refactor` | Safe, verified refactoring with regression testing at each step |
 | `/deps` | Dependency audit, update, vulnerability scanning, and license compliance |

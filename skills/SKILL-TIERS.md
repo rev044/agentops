@@ -8,7 +8,7 @@ Skills fall into three functional categories, plus infrastructure tiers for inte
 
 | Tier | Category | Description | Examples |
 |------|----------|-------------|----------|
-| **judgment** | Judgment | Validation, review, and quality gates — council is the foundation | council, vibe, pre-mortem, post-mortem |
+| **judgment** | Judgment | Validation, review, and quality gates — council is the foundation | council, vibe, pre-mortem, post-mortem, red-team |
 | **execution** | Execution | Research, plan, build, ship — the work itself | research, plan, implement, crank, swarm, rpi |
 | **knowledge** | Knowledge | The flywheel — extract, store, query, inject learnings | retro (quick-capture), flywheel, forge |
 | **product** | Execution | Define mission, goals, release, docs | product, goals, release, readme, doc |
@@ -220,7 +220,7 @@ These are how skills chain in practice:
 
 ## Current Skill Tiers
 
-### User-Facing Skills (55)
+### User-Facing Skills (56)
 
 **Judgment:**
 
@@ -232,6 +232,7 @@ These are how skills chain in practice:
 | **post-mortem** | judgment | Council + knowledge lifecycle — validate completed work, extract/activate/retire learnings |
 | **review** | judgment | Review incoming PRs, agent-generated changes, or diffs — SCORED checklist |
 | **design** | judgment | Product validation gate — checks goal alignment, persona fit, competitive differentiation before discovery |
+| **red-team** | judgment | Persona-based adversarial validation — probe docs and skills from constrained user perspectives |
 
 **Execution:**
 
