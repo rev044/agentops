@@ -45,6 +45,26 @@ Set a timer. If a worker hasn't produced its first meaningful output (commit, te
 ### Gate 5: Wave Size Cap
 Maximum 4 workers per wave. Evidence: waves of 5+ have exponentially higher merge conflict rates. If you have 6 tasks, split into Wave 1 (4 workers) + Wave 2 (2 workers).
 
+### Gate 6: Worktree Base-SHA Ancestry
+Before spawning worktree-isolated workers, verify the worktree branch base is a direct ancestor of main HEAD. A worktree branch rooted off a non-main commit pulls unintended branch ancestry during merge-back, causing extra files to land.
+
+```bash
+# PSEUDO-CODE
+MAIN_HEAD=$(git rev-parse main)
+
+for WORKTREE_BRANCH in $WORKTREE_BRANCHES; do
+    if ! git merge-base --is-ancestor "$MAIN_HEAD" "$WORKTREE_BRANCH" 2>/dev/null; then
+        echo "WARN: $WORKTREE_BRANCH is not based on main HEAD ($MAIN_HEAD)"
+        echo "  Single-commit branch: prefer cherry-pick over merge for merge-back"
+        echo "  Multi-commit branch:  git rebase main $WORKTREE_BRANCH before merge"
+    fi
+done
+```
+
+**Resolution guidance:**
+- **Single-commit worktree branches:** Use `git cherry-pick <sha>` instead of `git merge --no-ff` during merge-back. Cherry-pick applies only the commit's diff, avoiding unintended ancestry.
+- **Multi-commit worktree branches:** Run `git rebase main <branch>` before merging back. This re-roots the branch onto current main HEAD and eliminates stale ancestry.
+
 ## Post-Spawn Gates
 
 ### After Each Worker Completes

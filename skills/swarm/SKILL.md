@@ -143,7 +143,7 @@ Once all tasks have manifests, proceed to Step 2 where the Pre-Spawn Conflict Ch
 
 ### Step 2: Identify Wave
 
-**Pre-Spawn Friction Gates:** Before spawning workers, execute all 5 friction gates (base sync, file manifest, dependency graph, misalignment breaker, wave cap). See `references/pre-spawn-friction-gates.md`.
+**Pre-Spawn Friction Gates:** Before spawning workers, execute all 6 friction gates (base sync, file manifest, dependency graph, misalignment breaker, wave cap, base-SHA ancestry). See `references/pre-spawn-friction-gates.md`.
 
 Find tasks that are:
 - Status: `pending`
@@ -610,6 +610,10 @@ git merge --no-ff swarm/<epic-id> -m "chore: merge swarm/<epic-id> (epic <epic-i
 ```
 
 Merge order: respect task dependencies. If epic B blocked by epic A, merge A before B.
+
+**Base-SHA ancestry check before merge-back:** Worktree branches rooted off non-main commits pull unintended branch ancestry during `git merge --no-ff`, causing extra files to land. Before merging:
+- **Single-commit worktree branches:** Prefer `git cherry-pick <sha>` over `git merge --no-ff`. Cherry-pick applies only the commit's diff and avoids pulling unintended ancestry.
+- **Multi-commit worktree branches:** Run `git rebase main swarm/<epic-id>` before `git merge --no-ff` to re-root the branch onto current main HEAD and eliminate stale ancestry.
 
 **Merge Arbiter Protocol:**
 
