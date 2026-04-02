@@ -53,11 +53,17 @@ func collectLearnings(cwd, query string, limit int, globalDir string, globalWeig
 		learnings = append(learnings, l)
 	}
 
-	// Build set of local file paths for dedup against global
+	// Build dedup sets: by path (same file) and by title (promoted copy of same learning)
 	localPaths := make(map[string]bool, len(files))
+	localTitles := make(map[string]bool, len(learnings))
 	for _, f := range files {
 		if abs, err := filepath.Abs(f); err == nil {
 			localPaths[abs] = true
+		}
+	}
+	for _, l := range learnings {
+		if l.Title != "" {
+			localTitles[strings.ToLower(l.Title)] = true
 		}
 	}
 
@@ -65,12 +71,16 @@ func collectLearnings(cwd, query string, limit int, globalDir string, globalWeig
 	if globalDir != "" {
 		globalFiles := globLearningFiles(globalDir)
 		for _, file := range globalFiles {
-			// Skip if already found in local collection (prevents duplicates)
+			// Skip if same absolute path as a local file
 			if abs, err := filepath.Abs(file); err == nil && localPaths[abs] {
 				continue
 			}
 			l, ok := processLearningFile(file, tokens, now)
 			if !ok {
+				continue
+			}
+			// Skip if title matches a local learning (promoted copy of same content)
+			if l.Title != "" && localTitles[strings.ToLower(l.Title)] {
 				continue
 			}
 			l.Global = true
@@ -128,22 +138,29 @@ func queryTokens(queryLower string) []string {
 	return tokens
 }
 
-// matchesQuery returns true if the learning matches the query tokens.
-// Strategy: all tokens must appear in the text (AND semantics).
-// This handles morphological variants (e.g. "hook" matches "hooks")
-// while maintaining precision for multi-word queries.
+// matchesQuery returns true if the learning matches at least one query token.
+// Returns the match ratio (0.0 to 1.0) as a score multiplier via matchRatio.
+// Full AND match = 1.0, partial match = fraction of tokens matched.
 // Single-token queries behave identically to the old substring filter.
 func matchesQuery(tokens []string, title, summary, body string) bool {
+	ratio := matchRatio(tokens, title, summary, body)
+	return ratio > 0
+}
+
+// matchRatio returns the fraction of query tokens found in the text (0.0 to 1.0).
+// Used by processLearningFile to scale utility for partial matches.
+func matchRatio(tokens []string, title, summary, body string) float64 {
 	if len(tokens) == 0 {
-		return true
+		return 1.0
 	}
 	text := strings.ToLower(title + " " + summary + " " + body)
+	matched := 0
 	for _, tok := range tokens {
-		if !strings.Contains(text, tok) {
-			return false
+		if strings.Contains(text, tok) {
+			matched++
 		}
 	}
-	return true
+	return float64(matched) / float64(len(tokens))
 }
 
 // processLearningFile parses, filters, and scores a single learning file.
@@ -157,11 +174,18 @@ func processLearningFile(file string, queryTokensList []string, now time.Time) (
 		VerbosePrintf("Skipping superseded learning: %s\n", l.ID)
 		return l, false
 	}
-	if !matchesQuery(queryTokensList, l.Title, l.Summary, l.BodyText) {
+	ratio := matchRatio(queryTokensList, l.Title, l.Summary, l.BodyText)
+	if ratio == 0 {
 		return l, false
 	}
 
 	applyFreshnessScore(&l, file, now)
+
+	// Partial matches (OR fallback) get proportionally lower utility.
+	// Full AND match = 1.0x, half tokens matched = 0.5x.
+	if ratio < 1.0 {
+		l.Utility *= ratio
+	}
 
 	if l.Utility == 0 {
 		l.Utility = types.InitialUtility
@@ -176,9 +200,11 @@ func processLearningFile(file string, queryTokensList []string, now time.Time) (
 		return l, false
 	}
 
-	// Soft penalty: penalize unsourced learnings that passed the hard gate
+	// Soft penalty: penalize unsourced learnings that passed the hard gate.
+	// 0.7x is enough to rank sourced learnings higher without creating a cliff
+	// that kills learnings at the quality gate (utility * 0.3 ≤ 0.3 for most).
 	if l.SourceBead == "" {
-		l.Utility *= 0.3
+		l.Utility *= 0.7
 	}
 
 	if l.Stability == "experimental" {

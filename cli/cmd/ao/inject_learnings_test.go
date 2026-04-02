@@ -722,10 +722,15 @@ func TestInjectLearnings_processLearningFile_TokenOverlapQuery(t *testing.T) {
 		t.Error("expected ok=true: both 'ci' and 'pipeline' appear in body")
 	}
 
-	// Partial match — only one of two tokens present — should NOT match
-	_, ok = processLearningFile(path, queryTokens("hook migration"), time.Now())
-	if ok {
-		t.Error("expected ok=false: 'migration' not found, AND semantics requires all tokens")
+	// Partial match — one of two tokens present — matches with OR fallback but lower score
+	l, ok := processLearningFile(path, queryTokens("hook migration"), time.Now())
+	if !ok {
+		t.Error("expected ok=true: 'hook' found (OR fallback for partial matches)")
+	}
+	// Partial match should have lower utility than full match due to ratio penalty
+	fullL, _ := processLearningFile(path, queryTokens("hook authoring"), time.Now())
+	if ok && l.Utility >= fullL.Utility {
+		t.Errorf("partial match utility (%.3f) should be less than full match (%.3f)", l.Utility, fullL.Utility)
 	}
 
 	// Completely unrelated tokens should not match
@@ -772,9 +777,20 @@ func TestMatchesQuery(t *testing.T) {
 		t.Error("expected match: both tokens present")
 	}
 
-	// One token missing → no match (AND semantics)
-	if matchesQuery([]string{"hook", "database"}, title, summary, body) {
-		t.Error("expected no match: 'database' not present")
+	// One token present, one missing → partial match (OR fallback)
+	if !matchesQuery([]string{"hook", "database"}, title, summary, body) {
+		t.Error("expected partial match: 'hook' is present (OR fallback)")
+	}
+	// Verify partial match has lower ratio than full match
+	fullRatio := matchRatio([]string{"hook", "authoring"}, title, summary, body)
+	partialRatio := matchRatio([]string{"hook", "database"}, title, summary, body)
+	if partialRatio >= fullRatio {
+		t.Errorf("partial ratio (%.2f) should be less than full ratio (%.2f)", partialRatio, fullRatio)
+	}
+
+	// No tokens present → no match
+	if matchesQuery([]string{"database", "redis"}, title, summary, body) {
+		t.Error("expected no match: neither token present")
 	}
 
 	// Empty tokens → match everything

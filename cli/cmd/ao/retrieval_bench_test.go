@@ -280,17 +280,26 @@ func TestRetrievalBench_GlobalLocalRanking(t *testing.T) {
 	globalLearnings := filepath.Join(globalDir, "learnings")
 	os.MkdirAll(globalLearnings, 0o755)
 
-	content := `---
+	localContent := `---
 type: learning
 maturity: candidate
 utility: 0.7
 ---
-# Deploy Pattern
+# Local Deploy Pattern
 
-A learning about deployment patterns.
+A learning about local deployment patterns and rollout strategies.
 `
-	os.WriteFile(filepath.Join(localLearnings, "local-deploy.md"), []byte(content), 0o644)
-	os.WriteFile(filepath.Join(globalLearnings, "global-deploy.md"), []byte(content), 0o644)
+	globalContent := `---
+type: learning
+maturity: candidate
+utility: 0.7
+---
+# Global Deploy Practices
+
+A cross-rig learning about deployment practices and release management.
+`
+	os.WriteFile(filepath.Join(localLearnings, "local-deploy.md"), []byte(localContent), 0o644)
+	os.WriteFile(filepath.Join(globalLearnings, "global-deploy.md"), []byte(globalContent), 0o644)
 
 	results, err := collectLearnings(localDir, "deploy", 10, globalDir, 0.8)
 	if err != nil {
