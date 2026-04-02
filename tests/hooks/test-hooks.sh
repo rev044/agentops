@@ -171,6 +171,63 @@ else
     fail "session-start reports lookup scope in injected context"
 fi
 
+# Test 14c: session-start prefers a factory briefing when startup goal exists
+MOCK_FACTORY_START="$TMPDIR/mock-factory-start"
+mkdir -p "$MOCK_FACTORY_START/.agents/handoff" "$MOCK_FACTORY_START/bin"
+git -C "$MOCK_FACTORY_START" init -q >/dev/null 2>&1
+cat > "$MOCK_FACTORY_START/.agents/handoff/handoff-20260402T192000Z.json" <<'EOF'
+{
+  "schema_version": 1,
+  "id": "handoff-factory-test",
+  "created_at": "2026-04-02T19:20:00Z",
+  "type": "manual",
+  "goal": "stabilize auth startup",
+  "summary": "route this session into the factory lane"
+}
+EOF
+cat > "$MOCK_FACTORY_START/bin/ao" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${AO_ARGS_FILE:-}" ]; then
+    printf '%s\n' "$*" >> "$AO_ARGS_FILE"
+fi
+if [ "${1:-}" = "knowledge" ] && [ "${2:-}" = "brief" ]; then
+    briefing_path="${MOCK_FACTORY_BRIEFING_PATH:?}"
+    mkdir -p "$(dirname "$briefing_path")"
+    cat > "$briefing_path" <<'BRIEF'
+# Briefing: stabilize auth startup
+
+## Relevant Topics
+- `auth-startup` (healthy)
+BRIEF
+    jq -n --arg path "$briefing_path" '{"output_path":$path}'
+    exit 0
+fi
+if [ "${1:-}" = "lookup" ]; then
+    printf '[lookup] supporting result\n'
+fi
+exit 0
+EOF
+chmod +x "$MOCK_FACTORY_START/bin/ao"
+AO_ARGS_FILE="$MOCK_FACTORY_START/ao-args.log"
+MOCK_FACTORY_BRIEFING_PATH="$MOCK_FACTORY_START/.agents/briefings/2026-04-02-stabilize-auth-startup.md"
+FACTORY_OUTPUT=$(cd "$MOCK_FACTORY_START" && \
+    PATH="$MOCK_FACTORY_START/bin:$PATH" \
+    AO_ARGS_FILE="$AO_ARGS_FILE" \
+    MOCK_FACTORY_BRIEFING_PATH="$MOCK_FACTORY_BRIEFING_PATH" \
+    AGENTOPS_STARTUP_CONTEXT_MODE=factory \
+    bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
+if grep -q '^knowledge brief --json --goal stabilize auth startup$' "$AO_ARGS_FILE"; then
+    pass "session-start builds a factory briefing from startup goal"
+else
+    fail "session-start builds a factory briefing from startup goal"
+fi
+FACTORY_CONTEXT=$(echo "$FACTORY_OUTPUT" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)
+if echo "$FACTORY_CONTEXT" | grep -q '<FACTORY_BRIEFING>' && echo "$FACTORY_CONTEXT" | grep -q 'stabilize auth startup'; then
+    pass "session-start injects the factory briefing as primary startup surface"
+else
+    fail "session-start injects the factory briefing as primary startup surface"
+fi
+
 # Test 15: precompact emits JSON when data exists
 MOCK_PRECOMPACT="$TMPDIR/mock-precompact"
 mkdir -p "$MOCK_PRECOMPACT/.agents"
@@ -1712,6 +1769,66 @@ if jq -e '.hooks.UserPromptSubmit[].hooks[] | select(.command | contains("intent
     pass "intent-echo.sh wired in hooks.json"
 else
     fail "intent-echo.sh not found in hooks.json"
+fi
+
+# ============================================================
+echo "=== factory-router.sh ==="
+# ============================================================
+
+FACTORY_ROUTER_MOCK="$TMPDIR/factory-router-mock"
+mkdir -p "$FACTORY_ROUTER_MOCK/.agents/ao" "$FACTORY_ROUTER_MOCK/bin"
+git -C "$FACTORY_ROUTER_MOCK" init -q >/dev/null 2>&1
+touch "$FACTORY_ROUTER_MOCK/.agents/ao/.factory-intake-needed"
+cat > "$FACTORY_ROUTER_MOCK/bin/ao" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${AO_ARGS_FILE:-}" ]; then
+    printf '%s\n' "$*" >> "$AO_ARGS_FILE"
+fi
+if [ "${1:-}" = "knowledge" ] && [ "${2:-}" = "brief" ]; then
+    briefing_path="${MOCK_FACTORY_BRIEFING_PATH:?}"
+    mkdir -p "$(dirname "$briefing_path")"
+    cat > "$briefing_path" <<'BRIEF'
+# Briefing: fix auth bootstrap
+
+## Relevant Topics
+- `auth-bootstrap` (healthy)
+BRIEF
+    jq -n --arg path "$briefing_path" '{"output_path":$path}'
+    exit 0
+fi
+exit 0
+EOF
+chmod +x "$FACTORY_ROUTER_MOCK/bin/ao"
+AO_ARGS_FILE="$FACTORY_ROUTER_MOCK/ao-args.log"
+MOCK_FACTORY_BRIEFING_PATH="$FACTORY_ROUTER_MOCK/.agents/briefings/2026-04-02-fix-auth-bootstrap.md"
+ROUTER_OUTPUT=$(cd "$FACTORY_ROUTER_MOCK" && \
+    printf '%s' '{"prompt":"fix auth bootstrap"}' | \
+    PATH="$FACTORY_ROUTER_MOCK/bin:$PATH" \
+    AO_ARGS_FILE="$AO_ARGS_FILE" \
+    MOCK_FACTORY_BRIEFING_PATH="$MOCK_FACTORY_BRIEFING_PATH" \
+    AGENTOPS_STARTUP_CONTEXT_MODE=factory \
+    bash "$HOOKS_DIR/factory-router.sh" 2>/dev/null || true)
+if grep -q '^knowledge brief --json --goal fix auth bootstrap$' "$AO_ARGS_FILE"; then
+    pass "factory-router builds briefing from first substantive prompt"
+else
+    fail "factory-router builds briefing from first substantive prompt"
+fi
+if [ ! -f "$FACTORY_ROUTER_MOCK/.agents/ao/.factory-intake-needed" ] && \
+   [ "$(cat "$FACTORY_ROUTER_MOCK/.agents/ao/factory-goal.txt" 2>/dev/null)" = "fix auth bootstrap" ]; then
+    pass "factory-router records the captured goal and clears intake state"
+else
+    fail "factory-router records the captured goal and clears intake state"
+fi
+ROUTER_CONTEXT=$(echo "$ROUTER_OUTPUT" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)
+if echo "$ROUTER_CONTEXT" | grep -q '<FACTORY_BRIEFING>' && echo "$ROUTER_CONTEXT" | grep -q '/rpi "fix auth bootstrap"'; then
+    pass "factory-router emits factory routing guidance with briefing"
+else
+    fail "factory-router emits factory routing guidance with briefing"
+fi
+if jq -e '.hooks.UserPromptSubmit[].hooks[] | select(.command | contains("factory-router.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1; then
+    pass "factory-router.sh wired in hooks.json"
+else
+    fail "factory-router.sh not found in hooks.json"
 fi
 
 # ============================================================

@@ -18,11 +18,19 @@ ao init --hooks
 ao hooks test
 ```
 
-That's it. Knowledge now flows automatically between sessions.
+That's it. In Claude Code, the installed hooks now provide the native factory
+startup lane: `SessionStart` prefers matched knowledge briefings, and the first
+substantive prompt can become intake when no startup goal exists.
 
 ## What It Does
 
-**SessionStart**: Injects relevant prior knowledge weighted by freshness and utility.
+**SessionStart**: Performs startup maintenance, then surfaces the best
+available factory startup context. If a goal is already known, it prefers a
+matched knowledge briefing and treats ranked learnings as supporting evidence.
+
+**UserPromptSubmit**: When startup lacked a goal, the first substantive prompt
+is captured as factory intake, a goal-time briefing is built if possible, and
+the runtime is nudged toward `/rpi`.
 
 **SessionEnd**: Extracts learnings and updates the feedback loop.
 

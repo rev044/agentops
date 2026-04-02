@@ -591,6 +591,7 @@ echo "=== Cross-Cutting: Kill Switch Verification ==="
 # Verify ALL hooks respect the AGENTOPS_HOOKS_DISABLED kill switch
 HOOKS_WITH_KILL_SWITCH=(
     "session-start.sh"
+    "factory-router.sh"
     "citation-tracker.sh"
     "git-worker-guard.sh"
     "ratchet-advance.sh"

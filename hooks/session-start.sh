@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# AgentOps Session Start Hook (manual mode)
-# Creates .agents/ directories, consumes handoffs, injects skill context.
-# MEMORY.md is auto-loaded by Claude Code — no extract/inject needed.
+# AgentOps Session Start Hook
+# Creates .agents/ directories, consumes handoffs, and surfaces startup context.
+# In default factory mode, SessionStart prefers a matched knowledge briefing when
+# a goal is available; manual mode keeps a lighter startup surface.
 
 # Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
@@ -20,10 +21,22 @@ ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 AO_DIR="$ROOT/.agents/ao"
 
 HOOK_ERROR_LOG="$AO_DIR/hook-errors.log"
+AO_TIMEOUT_BIN="timeout"
+command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1 || AO_TIMEOUT_BIN="gtimeout"
 
 log_hook_fail() {
     mkdir -p "$AO_DIR" 2>/dev/null || return 0
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: $1" >> "$HOOK_ERROR_LOG" 2>/dev/null || true
+}
+
+run_with_timeout() {
+    local seconds="$1"
+    shift
+    if command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1; then
+        "$AO_TIMEOUT_BIN" "$seconds" "$@" 2>/dev/null
+        return $?
+    fi
+    "$@" 2>/dev/null
 }
 
 trim_lookup_text() {
@@ -31,6 +44,27 @@ trim_lookup_text() {
         | tr '\n' ' ' \
         | tr -s '[:space:]' ' ' \
         | sed 's/^ //; s/ $//'
+}
+
+resolve_startup_context_mode() {
+    local mode
+    if [ "${AGENTOPS_STARTUP_LEGACY_INJECT:-}" = "1" ]; then
+        printf 'manual'
+        return 0
+    fi
+
+    mode=$(printf '%s' "${AGENTOPS_STARTUP_CONTEXT_MODE:-factory}" | tr '[:upper:]' '[:lower:]')
+    case "$mode" in
+        ""|factory)
+            printf 'factory'
+            ;;
+        manual|lean|legacy)
+            printf 'manual'
+            ;;
+        *)
+            printf 'factory'
+            ;;
+    esac
 }
 
 derive_lookup_query() {
@@ -53,7 +87,45 @@ detect_lookup_bead() {
     if ! command -v bd >/dev/null 2>&1; then
         return 0
     fi
-    timeout 1 bd current 2>/dev/null | head -1 | tr -d '\r' | sed 's/^ //; s/ $//'
+    run_with_timeout 1 bd current | head -1 | tr -d '\r' | sed 's/^ //; s/ $//'
+}
+
+build_factory_briefing() {
+    local goal="$1"
+    local output path
+
+    [ -n "$goal" ] || return 0
+    command -v ao >/dev/null 2>&1 || return 0
+    command -v jq >/dev/null 2>&1 || return 0
+
+    output=$(run_with_timeout 8 ao knowledge brief --json --goal "$goal") || return 0
+    [ -n "$output" ] || return 0
+
+    path=$(printf '%s' "$output" | jq -r '.output_path // empty' 2>/dev/null)
+    path=$(trim_lookup_text "$path")
+    [ -n "$path" ] || return 0
+    [ -f "$path" ] || return 0
+    printf '%s' "$path"
+}
+
+read_factory_briefing() {
+    local path="$1"
+    local max_chars=2200
+    local content trimmed
+
+    [ -f "$path" ] || return 0
+    content=$(cat "$path" 2>/dev/null || true)
+    [ -n "$content" ] || return 0
+
+    if [ "${#content}" -gt "$max_chars" ]; then
+        trimmed="${content:0:$max_chars}"
+        content="${trimmed%
+*}
+
+*[briefing truncated by session-start hook]*"
+    fi
+
+    printf '%s' "$content"
 }
 
 write_environment_manifest() {
@@ -130,6 +202,10 @@ write_environment_manifest
 
 # Clear stale dedup flags from prior sessions (prevents cross-session suppression)
 rm -f "$ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
+rm -f "$ROOT/.agents/ao/.factory-router-fired" \
+      "$ROOT/.agents/ao/.factory-intake-needed" \
+      "$ROOT/.agents/ao/factory-goal.txt" \
+      "$ROOT/.agents/ao/factory-briefing.txt" 2>/dev/null
 
 # Auto-cleanup stale RPI runs (lightweight, <1s, dry-run only)
 if command -v ao &>/dev/null; then
@@ -226,6 +302,10 @@ fi
 
 # Flywheel behavior
 INJECTED_KNOWLEDGE=""
+STARTUP_CONTEXT_MODE="$(resolve_startup_context_mode)"
+FACTORY_GOAL=""
+FACTORY_BRIEFING_PATH=""
+FACTORY_BRIEFING_CONTENT=""
 
 # Derive MEMORY.md path once (used for stale nudge)
 MEMORY_DIR="$HOME/.claude/projects"
@@ -280,7 +360,7 @@ if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
     PREDECESSOR_FILE=$(ls -t "$ROOT/.agents/handoff/"*.md 2>/dev/null | head -1)
 fi
 
-# Build injection context (manual mode — MEMORY.md auto-loaded by Claude Code)
+# Build injection context (MEMORY.md is auto-loaded by Claude Code)
 INJECTED_KNOWLEDGE="MEMORY.md is auto-loaded by Claude Code for this project.
 For on-demand retrieval: \`ao search \"<query>\"\` or \`ao lookup --query \"<query>\"\`"
 if [ -n "$HANDOFF_CONTEXT" ]; then
@@ -306,6 +386,46 @@ Knowledge artifacts are in \`.agents/\` (if populated).
 Use \`ao lookup --query \"topic\"\` for on-demand learnings retrieval."
 fi
 
+if [ "$STARTUP_CONTEXT_MODE" = "factory" ]; then
+    FACTORY_GOAL="$(derive_lookup_query)"
+    if [ -n "$FACTORY_GOAL" ]; then
+        printf '%s' "$FACTORY_GOAL" > "$ROOT/.agents/ao/factory-goal.txt" 2>/dev/null || true
+        FACTORY_BRIEFING_PATH="$(build_factory_briefing "$FACTORY_GOAL")"
+        if [ -n "$FACTORY_BRIEFING_PATH" ]; then
+            printf '%s' "$FACTORY_BRIEFING_PATH" > "$ROOT/.agents/ao/factory-briefing.txt" 2>/dev/null || true
+            FACTORY_BRIEFING_CONTENT="$(read_factory_briefing "$FACTORY_BRIEFING_PATH")"
+            INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
+
+### Factory Startup Surface
+- **Goal:** ${FACTORY_GOAL}
+- **Primary briefing:** ${FACTORY_BRIEFING_PATH}
+- **Delivery lane:** Continue naturally, or run \`/rpi \"${FACTORY_GOAL}\"\` for the full factory cycle.
+
+Treat the matched briefing below as the primary dynamic startup surface for this session. Use ranked learnings only as supporting evidence.
+
+<FACTORY_BRIEFING>
+${FACTORY_BRIEFING_CONTENT}
+</FACTORY_BRIEFING>"
+        else
+            INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
+
+### Factory Startup Surface
+- **Goal:** ${FACTORY_GOAL}
+- **Primary briefing:** not available yet
+- **Delivery lane:** Run \`/rpi \"${FACTORY_GOAL}\"\` or continue with this objective.
+
+No matched knowledge briefing was available at session start. Treat the goal above as the active factory objective; supporting learnings below are advisory rather than the primary brief."
+        fi
+    else
+        : > "$ROOT/.agents/ao/.factory-intake-needed" 2>/dev/null || true
+        INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
+
+### Factory Startup Surface
+No startup goal was recovered from handoff or tracker state.
+Treat the first substantive user prompt as factory intake: compile a goal-time briefing, then route into \`/rpi\`."
+    fi
+fi
+
 # Auto-retrieve and cite top learnings for this session (closes citation gap)
 if command -v ao &>/dev/null; then
     LOOKUP_QUERY="$(derive_lookup_query)"
@@ -327,14 +447,14 @@ if command -v ao &>/dev/null; then
         LOOKUP_CONTEXT="task context unavailable"
     fi
     if [ -n "$LOOKUP_QUERY" ] || [ -n "$LOOKUP_BEAD" ]; then
-        FLYWHEEL_KNOWLEDGE=$(timeout 5 ao "${LOOKUP_ARGS[@]}" 2>/dev/null || true)
+        FLYWHEEL_KNOWLEDGE=$(run_with_timeout 5 ao "${LOOKUP_ARGS[@]}" || true)
     else
         FLYWHEEL_KNOWLEDGE=""
     fi
     if [ -n "$FLYWHEEL_KNOWLEDGE" ]; then
         INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
 
-### Prior Learnings (auto-retrieved: ${LOOKUP_CONTEXT})
+### Supporting Learnings (auto-retrieved: ${LOOKUP_CONTEXT})
 ${FLYWHEEL_KNOWLEDGE}"
     fi
 fi

@@ -17,7 +17,7 @@
 
 | Claude Event | Codex Equivalent | Mechanism |
 |-------------|-----------------|-----------|
-| `SessionStart` | `ao codex start` / `ao codex ensure-start` | Explicit command in skill preamble or user invocation |
+| `SessionStart` | `ao codex start` / `ao codex ensure-start` | Claude native hooks can recover a goal and surface a matched briefing automatically; Codex uses the explicit startup command path |
 | `SessionEnd` | `ao codex stop` / `ao codex ensure-stop` | Explicit command in skill epilogue or user invocation |
 | `Stop` | `ao codex stop --close-loop` | Explicit flywheel close via command |
 
@@ -25,7 +25,7 @@
 
 | Claude Event | Codex Adaptation | Notes |
 |-------------|-----------------|-------|
-| `UserPromptSubmit` | Skill preamble checks | Prompt nudges and intent echo run as inline skill logic, not hook callbacks |
+| `UserPromptSubmit` | Skill preamble checks | Claude native hooks can capture first-prompt intake, emit prompt nudges, and run intent echo; Codex keeps equivalent guidance inside skill/runtime preambles instead of callbacks |
 | `TaskCompleted` | Skill epilogue validation | Task validation gates run inline after task completion |
 
 ### Unsupported (no Codex equivalent)
@@ -46,6 +46,7 @@ ao hook install  # Merges hooks.json into ~/.claude/settings.json
 - Full event manifest from `hooks/hooks.json`
 - `${CLAUDE_PLUGIN_ROOT}` path resolution
 - All events wired automatically
+- Native startup surface: `SessionStart` prefers matched goal-time briefings, and `UserPromptSubmit` can turn the first substantive prompt into factory intake when startup lacked a goal
 
 ### Codex
 

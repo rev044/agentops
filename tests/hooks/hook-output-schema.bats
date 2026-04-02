@@ -76,6 +76,33 @@ assert_hook_schema() {
 #    Only emits JSON when there is a nudge to give (ratchet gate active).
 # ═══════════════════════════════════════════════════════════════════════
 
+@test "factory-router: intake prompt output conforms to schema with hookEventName=UserPromptSubmit" {
+    local mock="$TMP_TEST_DIR/mock-factory-router"
+    mkdir -p "$mock/.agents/ao" "$mock/bin"
+    git -C "$mock" init -q >/dev/null 2>&1
+    touch "$mock/.agents/ao/.factory-intake-needed"
+    cat > "$mock/bin/ao" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = "knowledge" ] && [ "${2:-}" = "brief" ]; then
+    briefing_path="${MOCK_FACTORY_BRIEFING_PATH:?}"
+    mkdir -p "$(dirname "$briefing_path")"
+    cat > "$briefing_path" <<'BRIEF'
+# Briefing: fix auth bootstrap
+BRIEF
+    jq -n --arg path "$briefing_path" '{"output_path":$path}'
+    exit 0
+fi
+exit 0
+EOF
+    chmod +x "$mock/bin/ao"
+    local briefing_path="$mock/.agents/briefings/2026-04-02-fix-auth-bootstrap.md"
+    run bash -c 'cd "$1" && printf "%s" "$3" | PATH="$1/bin:$PATH" MOCK_FACTORY_BRIEFING_PATH="$2" AGENTOPS_STARTUP_CONTEXT_MODE=factory bash "$4" 2>&1' \
+        -- "$mock" "$briefing_path" '{"prompt":"fix auth bootstrap"}' "$HOOKS_DIR/factory-router.sh"
+    [ "$status" -eq 0 ]
+    [ -n "$output" ]
+    assert_hook_schema "$output" "UserPromptSubmit"
+}
+
 @test "prompt-nudge: when nudge fires, output conforms to schema with hookEventName=UserPromptSubmit" {
     # Set up ratchet state so prompt-nudge has something to nudge about.
     # Simulate: research step done, plan step pending, user says "implement".
@@ -340,6 +367,7 @@ AOEOF
     local -A hook_event_map
     hook_event_map=(
         ["session-start.sh"]="SessionStart"
+        ["factory-router.sh"]="UserPromptSubmit"
         ["prompt-nudge.sh"]="UserPromptSubmit"
         ["intent-echo.sh"]="UserPromptSubmit"
         ["commit-review-gate.sh"]="PreToolUse"
