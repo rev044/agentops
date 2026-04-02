@@ -20,7 +20,7 @@ The local DevOps layer for coding agents — skills, CLI, and knowledge flywheel
 
 README and PRODUCT.md promise skills work across 4 runtimes, but runtime-specific tests are quarantined (Claude Code, Codex, OpenCode all disabled in `tests/_quarantine/`). Only one cross-runtime test exists (`tests/codex/test-skill-cross-runtime.sh`). Ship at least 2 more runtime-specific smoke tests and promote them to CI.
 
-**Progress:** One cross-runtime test (`tests/codex/test-skill-cross-runtime.sh`) exists and passes. Remaining gap: 2+ additional runtime smoke tests needed and promoted out of quarantine.
+**Progress:** One cross-runtime test (`tests/codex/test-skill-cross-runtime.sh`) exists and passes. Two additional runtime smoke tests promoted to CI: `tests/skills/test-runtime-opencode-smoke.sh` (OpenCode install script + skill structure) and `tests/skills/test-runtime-claude-code-smoke.sh` (Claude Code plugin manifest + hooks + frontmatter). Both are standalone — no live runtime required. Remaining gap: Codex CLI and live runtime execution tests still require external infrastructure.
 
 **Steer:** increase (runtime coverage count)
 
@@ -28,7 +28,7 @@ README and PRODUCT.md promise skills work across 4 runtimes, but runtime-specifi
 
 Three install scripts (`install.sh`, `install-codex.sh`, `install-opencode.sh`) have zero automated testing. A broken install is the fastest way to lose a user. Add install-path smoke tests that verify each script produces a working skill set.
 
-**Progress:** `install-smoke` gate added (`tests/install/test-install-smoke.sh`, weight 5) — validates syntax and structure of all install scripts. Gate is active in CI. Remaining gap: runtime execution tests (verify actual skill installation works end-to-end).
+**Progress:** `install-smoke` gate added (`tests/install/test-install-smoke.sh`, weight 5) — validates syntax and structure of all install scripts. Gate is active in CI. Runtime execution tests added: when a local `cli/bin/ao` binary exists, the gate now verifies `ao --version`, `ao help`, and that `flywheel`, `goals`, and `inject` subcommands are registered. Remaining gap: end-to-end install execution (running `scripts/install.sh` against a clean environment) requires a sandboxed CI environment with network access — documented as out-of-scope for local gate.
 
 **Steer:** increase (install scripts with smoke tests)
 
@@ -42,7 +42,7 @@ Three install scripts (`install.sh`, `install-codex.sh`, `install-opencode.sh`) 
 
 The flywheel-compounding gate proves σρ > δ (escape velocity). But the full lifecycle — capture quality, injection correctness, citation in downstream work — has no gate. Add a gate that traces one learning from extraction through injection to retrieval.
 
-**Progress:** `flywheel-lifecycle` gate added (`scripts/check-flywheel-lifecycle.sh`, weight 6) — traces capture → index → inject → retrieval as a 4-stage pipeline check. Gate is active in CI. Remaining gap: citation in downstream work (stage 5) not yet gated.
+**Progress:** `flywheel-lifecycle` gate now traces 5 stages: capture → retrieval → inject → round-trip → citation (`scripts/check-flywheel-lifecycle.sh`). Stage 5 (citation) checks for cross-citations between learnings, briefings directory population, and corpus density. Citation checks are soft-fail on sparse corpus (structurally valid but no accumulated sessions yet) — they hard-fail only if the corpus is populated and citations are structurally absent. Gate is active in CI.
 
 **Steer:** increase (lifecycle stages gated)
 

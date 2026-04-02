@@ -119,6 +119,41 @@ done
 
 echo ""
 
+# ── Runtime execution tests ──
+# Verify that a locally-built ao binary is executable and responds to basic commands.
+# These tests require the CLI to be built (cd cli && make build).
+
+echo "=== Runtime Execution Tests ==="
+echo ""
+
+AO_BIN=""
+if [[ -x "$REPO_ROOT/cli/bin/ao" ]]; then
+    AO_BIN="$REPO_ROOT/cli/bin/ao"
+elif command -v ao >/dev/null 2>&1; then
+    AO_BIN="$(command -v ao)"
+fi
+
+if [[ -n "$AO_BIN" ]]; then
+    # ao binary responds to version subcommand
+    check "ao binary runs (version)" "$AO_BIN" version
+
+    # ao help exits cleanly
+    check "ao help exits cleanly" "$AO_BIN" help
+
+    # ao flywheel subcommand is registered
+    check "ao flywheel subcommand registered" bash -c "'$AO_BIN' help 2>&1 | grep -q flywheel"
+
+    # ao goals subcommand is registered
+    check "ao goals subcommand registered" bash -c "'$AO_BIN' help 2>&1 | grep -q goals"
+
+    # ao inject subcommand is registered
+    check "ao inject subcommand registered" bash -c "'$AO_BIN' help 2>&1 | grep -q inject"
+else
+    echo "SKIP: ao binary not found — build with 'cd cli && make build' to enable runtime execution tests"
+fi
+
+echo ""
+
 # ── Summary ──
 
 echo "================================="
