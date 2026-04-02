@@ -15,6 +15,7 @@
 ## Architecture
 
 - [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Wiggum Pattern, agent backends, hooks, context windowing
+- [Software Factory Surface](software-factory.md) — Explicit operator surface connecting briefings, RPI lanes, and loop closure
 - [Architecture](ARCHITECTURE.md) — System design and component overview
 - [Architecture Folder Index](architecture/README.md) — Architecture subdocs overview
 - [Codex Hookless Lifecycle](architecture/codex-hookless-lifecycle.md) — Runtime-aware lifecycle fallback for Codex when hooks are unavailable
