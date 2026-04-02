@@ -33,6 +33,18 @@ detect complexity from execution-packet or --complexity flag (default: standard)
 detect ao CLI availability
 ```
 
+### Step 0: Load Prior Validation Context
+
+Before running the validation pipeline, pull relevant learnings from prior reviews:
+
+```bash
+if command -v ao &>/dev/null; then
+    ao lookup --query "<epic or goal context> validation review patterns" --limit 5 2>/dev/null || true
+fi
+```
+
+Incorporate any relevant prior findings (e.g., recurring vibe failures, known anti-patterns for this scope) as context for the review cycle.
+
 **Run every step in order. Do not stop between steps.**
 
 ```
