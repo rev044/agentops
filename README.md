@@ -5,9 +5,9 @@
 [![Validate](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![Nightly](https://github.com/boshu2/agentops/actions/workflows/nightly.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/nightly.yml)
 
-### Your agents forget everything between sessions. AgentOps fixes that.
+### Every session starts where the last one left off.
 
-A self-evolving operating system for coding agents — validation, repo-native memory, and loop closure that compounds across every session. Zero infrastructure. Zero telemetry.
+Validation, memory, and lifecycle gates for coding agents — plain files, zero infrastructure, zero telemetry, and knowledge that compounds across every session.
 
 [Start Here](#start-here) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Newcomer Guide](docs/newcomer-guide.md)
 
@@ -19,21 +19,21 @@ A self-evolving operating system for coding agents — validation, repo-native m
 
 ---
 
-## Why Agents Keep Making the Same Mistakes
+## What AgentOps Gives You
 
-Most coding-agent tools improve the prompt or the routing. The failure modes come after that — three gaps between "agent wrote code" and "the system got smarter":
+Session 1, your agent spends 2 hours debugging a timeout bug. Session 15, a new agent finds the answer in 10 seconds — because `/retro` captured the lesson and the flywheel promoted it. Three capabilities make this work:
 
-1. **Judgment validation** is missing — agents ship without the risk context that would challenge the plan or the code.
-2. **Durable learning** is missing — solved problems come back as if they were never solved. Your agent is a temp that forgets everything when the session ends.
-3. **Loop closure** is missing — completed work does not reliably produce better next work, better rules, or better future context.
+1. **Judgment validation** — agents get risk context that challenges the plan and the code *before* shipping.
+2. **Durable learning** — solved problems stay solved. Your repo accumulates institutional knowledge across sessions, agents, and runtimes.
+3. **Loop closure** — completed work produces better next work, stronger rules, and richer future context.
 
-AgentOps treats those three gaps as a [lifecycle contract](docs/context-lifecycle.md), not as separate features. Every skill, hook, and CLI command exists to close one of these gaps.
+Every skill, hook, and CLI command exists to deliver one of these three. They form a single [lifecycle contract](docs/context-lifecycle.md), not separate features.
 
-| Gap | Without AgentOps | With AgentOps |
-|-----|------------------|---------------|
-| Judgment validation | Review after the fact | `/pre-mortem` before build, `/vibe` + `/council` before commit |
-| Durable learning | Session amnesia — same mistake, every time | Repo-native memory via `.agents/` — lessons compound across sessions |
-| Loop closure | Chat logs, untracked runs | Artifacts, issues, and next-work suggestions the next session acts on |
+| Capability | What you get |
+|-----|---------------|
+| Judgment validation | `/pre-mortem` challenges your plan before build; `/vibe` + `/council` validate code before commit |
+| Durable learning | Repo-native memory via `.agents/` — lessons compound across sessions, agents, and runtimes |
+| Loop closure | Every cycle produces artifacts, issues, and next-work suggestions the next session acts on |
 
 ---
 
@@ -44,7 +44,7 @@ AgentOps treats those three gaps as a [lifecycle contract](docs/context-lifecycl
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (0.110.0+ native plugin; installs the native plugin, archives stale raw mirrors if needed, suppresses the unstable-plugins warning, then open a fresh Codex session)
+# Codex CLI (0.110.0+ native plugin)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode
@@ -55,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 npx skills@latest add boshu2/agentops --cursor -g
 ```
 
-On Linux, also install system `bubblewrap` so Codex does not warn that it is falling back to the vendored copy:
+On Linux, also install system `bubblewrap` so Codex uses it directly:
 
 ```bash
 sudo apt-get install -y bubblewrap
@@ -63,7 +63,7 @@ sudo apt-get install -y bubblewrap
 
 ### Install ao CLI (optional)
 
-Skills work standalone — no CLI required. The `ao` CLI is what unlocks the full repo-native layer: knowledge extraction, retrieval and injection, maturity scoring, goals, and control-plane style workflows.
+Skills work standalone. The `ao` CLI unlocks the full repo-native layer: knowledge extraction, retrieval and injection, maturity scoring, goals, and control-plane workflows.
 
 #### Homebrew (recommended)
 
@@ -104,15 +104,15 @@ Every skill works alone. Compose them however you want. Full catalog: [Skills](#
 
 ## How It Works
 
-Each phase closes one or more of the three gaps — judgment, learning, loop closure:
+Each phase delivers one or more of the three capabilities — judgment, learning, loop closure:
 
-| Phase | Primary skills | What gets locked in |
+| Phase | Primary skills | What you get |
 |------|----------------|---------------------|
-| Discovery | `/brainstorm` -> `/research` -> `/plan` -> `/pre-mortem` | repo context, scoped work, known risks, execution packet |
-| Implementation | `/crank` -> `/swarm` -> `/implement` | closed issues, validated wave outputs, ratchet checkpoints |
-| Validation + learning | `/validation` -> `/vibe` -> `/post-mortem` -> `/retro` -> `/forge` | findings, learnings, next work, stronger prevention artifacts |
+| Discovery | `/brainstorm` -> `/research` -> `/plan` -> `/pre-mortem` | Repo context, scoped work, known risks, execution packet |
+| Implementation | `/crank` -> `/swarm` -> `/implement` | Closed issues, validated wave outputs, ratchet checkpoints |
+| Validation + learning | `/validation` -> `/vibe` -> `/post-mortem` -> `/retro` -> `/forge` | Findings, learnings, next work, stronger prevention artifacts |
 
-`/rpi` orchestrates all three phases. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next. The output is not just code — it is code + state + memory + gates.
+`/rpi` orchestrates all three phases. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next. The output is code + state + memory + gates.
 
 | Pattern | Chain | When |
 |---------|-------|------|
@@ -133,20 +133,20 @@ Each phase closes one or more of the three gaps — judgment, learning, loop clo
 - **Compiled prevention chain**: findings registry -> planning rules / pre-mortem checks / constraints -> later planning and validation
 - **Continuity chain**: session hooks + phased manifests + `/handoff` + `/recover`
 
-That is the real architecture: a self-evolving operating system around the agent, not just a prompt pack. Each cycle leaves the system slightly better than before — without anyone shipping new code. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
+Each cycle adds new rules, learnings, and constraints — without anyone shipping new code. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
 
-### How Agent Memory Works Without Infrastructure
+### How Agent Memory Works
 
-Mistakes happen once. `.agents/` makes sure of it.
+Session 50 starts with 50 sessions of accumulated wisdom.
 
-`.agents/` is a directory in your repo that stores what your agents learned — as plain files. No vector database. No embeddings pipeline. No cloud dependency. Grep replaces RAG.
+`.agents/` is a directory in your repo that stores what your agents learned — as plain files. Grep replaces RAG. Plain text you can diff, review in PRs, and open in Obsidian.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │   Traditional Cache          .agents/ Knowledge Store                    │
 │  ┌────────────────────┐    ┌──────────────────────────────────────────┐  │
 │  │ Stores results     │    │ Stores extracted lessons                 │  │
-│  │ Hit = skip compute │    │ Hit = avoid repeating mistakes           │  │
+│  │ Hit = skip compute │    │ Hit = skip the 2-hour debugging          │  │
 │  │ Flat key-value     │    │ Hierarchical: learning → pattern → rule  │  │
 │  │ Static after write │    │ Promotes through tiers over time         │  │
 │  │ One consumer       │    │ Any agent, any runtime, any session      │  │
@@ -154,7 +154,7 @@ Mistakes happen once. `.agents/` makes sure of it.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**How it compounds:** Session 1, your agent hits a timeout bug and spends 2 hours debugging. `/retro` captures the lesson. `/athena` promotes it to a pattern. Session 15, a new agent greps "timeout" and finds the answer in 2 operations — skipping the 2-hour debugging entirely. Session 20, a planning rule gates plans that don't include timeout checks. That's not memory. That's institutional knowledge that survives agent death.
+**How it compounds:** Session 1, your agent hits a timeout bug and spends 2 hours debugging. `/retro` captures the lesson. `/athena` promotes it to a pattern. Session 15, a new agent greps "timeout" and finds the answer in 2 operations — turning a 2-hour investigation into a 10-second lookup. Session 20, a planning rule gates plans that omit timeout checks. That's institutional knowledge that survives agent death.
 
 ```
 ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐
@@ -179,25 +179,24 @@ Mistakes happen once. `.agents/` makes sure of it.
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
-Session 50 starts with 50 sessions of accumulated wisdom — not from scratch.
-Stale insights [decay automatically](docs/the-science.md). Useful ones
-compound. Measure it with `ao flywheel status`.
+Stale insights decay automatically. Useful ones compound.
+Measure it with `ao flywheel status`.
 
 | What it looks like | What it actually does |
 |--------------------|----------------------|
-| Markdown files | Scored, decayed, and deduplicated knowledge with freshness semantics |
+| Markdown files | Knowledge scored by freshness, auto-decayed, and deduplicated |
 | `grep` | Contextual retrieval with relevance scoring and phase-aware injection |
 | Git commits | Provenance tracking, audit trail, diffable knowledge evolution |
 
 Deep dive: [The Knowledge Flywheel](docs/knowledge-flywheel.md)
 
-### Why engineers buy in
+### Why engineers choose it
 
-- **Your agents are temps. Your repo remembers everything.** — Knowledge survives session resets, agent turnover, and runtime changes.
-- **Local-only** — no telemetry, no cloud, no accounts. Nothing phones home.
-- **Auditable** — plans, verdicts, learnings, and patterns are plain files on disk. Diff them. Grep them. Review them in PRs.
+- **Your repo remembers everything.** Knowledge survives session resets, agent turnover, and runtime changes. Every session inherits every prior session's lessons.
+- **Local-only** — all state lives on your disk. Grep it, diff it, review it in PRs.
+- **Auditable** — plans, verdicts, learnings, and patterns are plain files. Open `.agents/` as an Obsidian vault for full browsability.
 - **Multi-runtime** — Claude Code and Codex CLI (first-class), Cursor and OpenCode (experimental).
-- **Harder to drift** — tracked issues and validation gates mean the repo is less dependent on agent mood or memory.
+- **More stable** — tracked issues and validation gates anchor the repo across every session and every agent.
 
 Everything is [open source](cli/) — audit it yourself.
 
@@ -207,17 +206,17 @@ Everything is [open source](cli/) — audit it yourself.
 
 After five months of daily use across dozens of repos, a few things stuck:
 
-- Agents are fast and surprisingly capable, but they are forgetful and inconsistent. A great prompt helps. Workflow helps more.
-- The biggest gains came from giving agents the right context at the right time — not dumping everything into the system prompt.
-- Agents do much better with small, well-bounded tasks than vague "go figure it out" missions.
-- You cannot trust self-reported success. They need tests, checks, and external validation.
-- Parallel agents are powerful, but only when each one has clear ownership and non-overlapping files.
-- Raw chat history is not usable knowledge. It only becomes useful when you turn it into rules, playbooks, and briefings.
-- The real compounding effect is not "the model gets smarter." It is "your environment gets smarter."
+- Agents are fast and surprisingly capable, but forgetful and inconsistent. A great prompt helps. Workflow helps more.
+- The biggest gains came from giving agents the right context at the right time — targeted injection over prompt stuffing.
+- Agents produce their best work on small, well-bounded tasks with clear ownership.
+- Self-reported success is unreliable. Agents need tests, checks, and external validation.
+- Parallel agents are powerful when each one has clear ownership and non-overlapping files.
+- Raw chat history is noise. It becomes knowledge only when you distill it into rules, playbooks, and briefings.
+- The real compounding effect: your environment gets smarter. The model stays the same; the context around it improves.
 
 The git history tells its own story. Early commits are skill scaffolding — building `/research`, `/plan`, `/implement`. Later commits are meta-capabilities: session intelligence, quality signals, closure audits, prediction tracking. The system started spending more time improving itself and less time on raw features. That is the flywheel working.
 
-If I had to compress it into one sentence: good agent work comes from context, boundaries, validation, and reusable lessons — not from hoping the agent "just gets it."
+Compressed into one sentence: good agent work comes from boundaries, validation, reusable lessons, and the right context.
 
 Deep dive: [Philosophy](docs/philosophy.md)
 
@@ -342,14 +341,14 @@ That ran overnight — ~7 hours, unattended. Regression gates auto-reverted anyt
 
 | Workflow | Commands | What happens |
 |----------|----------|-------------|
-| **PR reviewer** | `/council validate this PR` | One command, actionable feedback, no setup |
+| **PR reviewer** | `/council validate this PR` | One command, actionable feedback |
 | **Team lead** | `/research` → `/plan` → `/council validate` | Compose skills manually, stay in control |
 | **Solo dev** | `/rpi "add user auth"` | Research through post-mortem, walk away |
 | **Platform team** | `/swarm` + `/evolve` | Parallel pipelines + fitness-scored improvement loop |
 
 </details>
 
-Not sure which skill to run? See the [Skill Router](docs/SKILL-ROUTER.md).
+Unsure which skill to run? See the [Skill Router](docs/SKILL-ROUTER.md).
 
 ---
 
@@ -440,10 +439,10 @@ AgentOps orchestrates across runtimes. Claude can lead a team of Codex workers. 
 
 Two read-only agents fill the gap between Claude Code's `Explore` (no commands) and `general-purpose` (full write, expensive):
 
-| Agent | Model | Can do | Can't do |
+| Agent | Model | Can do | Best for |
 |-------|-------|--------|----------|
-| `agentops:researcher` | haiku | Read, search, run commands | Write or edit files |
-| `agentops:code-reviewer` | sonnet | Read, search, `git diff`, structured findings | Write or edit files |
+| `agentops:researcher` | haiku | Read, search, run commands | `/research` exploration |
+| `agentops:code-reviewer` | sonnet | Read, search, `git diff`, structured findings | `/vibe` code review |
 
 Skills spawn these automatically — `/research` uses the researcher, `/vibe` uses the code-reviewer.
 
@@ -506,8 +505,8 @@ ao rpi status --watch                          # Monitor active/terminal runs
 Walk away, come back to committed code + extracted learnings.
 
 ```bash
-ao search "query"              # Search workspace session history plus repo-local knowledge
-ao lookup --query "topic"      # Retrieve specific knowledge artifacts by ID or relevance
+ao search "query"              # Search session history and repo-local .agents/ knowledge
+ao lookup --query "topic"      # Retrieve curated knowledge artifacts by relevance
 ao notebook update             # Merge latest session insights into MEMORY.md
 ao memory sync                 # Sync session history to MEMORY.md (cross-runtime: Codex, OpenCode)
 ao context assemble            # Build 5-section context briefing for a task
@@ -518,7 +517,7 @@ ao contradict                  # Detect potentially contradictory learnings
 ao demo                        # Interactive demo
 ```
 
-`ao search` delegates session-history search to upstream [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) when `cass` is installed, scoped to the current workspace via `cass search --workspace <cwd>`. In auto mode it also searches repo-local `.agents/ao/sessions/` plus adjacent `.agents/` knowledge surfaces such as learnings, patterns, findings, and research. Use `ao lookup` when you specifically want curated AO knowledge artifacts by relevance.
+`ao search` searches session history (via [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) if installed) and repo-local `.agents/` knowledge — learnings, patterns, findings, and research. Use `ao lookup` for curated knowledge artifacts by relevance.
 
 <details>
 <summary><b>Second Brain + Obsidian vault</b> — semantic search over all your sessions</summary>
@@ -542,7 +541,7 @@ One recursive shape at every scale:
             └── /evolve ── fitness-gated /rpi cycles
 ```
 
-Each level treats the one below as a black box: spec in, validated result out. Workers get fresh context per wave ([Ralph Wiggum Pattern](https://ghuntley.com/ralph/)), never commit (lead-only), and communicate through the filesystem. Orchestrators stay in the main session; workers fork into subagents. See [`SKILL-TIERS.md`](skills/SKILL-TIERS.md) for the full classification.
+Each level treats the one below as a black box: spec in, validated result out. Workers get fresh context per wave, communicate through the filesystem, and never commit — the lead commits. See the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/) for the rationale. Orchestrators stay in the main session; workers fork into subagents. See [`SKILL-TIERS.md`](skills/SKILL-TIERS.md) for the full classification.
 
 | Topic | Where |
 |-------|-------|
@@ -557,9 +556,9 @@ Each level treats the one below as a black box: spec in, validated result out. W
 
 ## How AgentOps Fits With Other Tools
 
-| Alternative | What it does well | Where AgentOps focuses differently |
+| Alternative | What it does well | What AgentOps adds |
 |-------------|-------------------|-------------------------------------|
-| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
+| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot | Cross-session memory — GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions |
 | **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
 
 [Detailed comparisons →](docs/comparisons/)
