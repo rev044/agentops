@@ -229,6 +229,27 @@ Read `references/troubleshooting.md` for common problems and solutions.
 
 **See also:** [discovery](../discovery/SKILL.md), [crank](../crank/SKILL.md), [validation](../validation/SKILL.md)
 
+## Runtime Compatibility
+
+RPI runs in two runtime modes. Both must produce identical phase artifacts.
+
+| Concern | Hook-capable (Claude Code) | Hook-less (Codex) |
+|---------|---------------------------|-------------------|
+| Session start | `session-start.sh` hook fires automatically | `ao codex start` called explicitly |
+| Session stop | `session-end.sh` hook fires automatically | `ao codex stop` called explicitly |
+| Phase state | `.agents/rpi/phased-state.json` | `.agents/rpi/phased-state.json` |
+| Phase numbering | 1 = discovery, 2 = implementation, 3 = validation | Same |
+| Ratchet checkpoints | `ao ratchet check` | `ao ratchet check` |
+
+**Minimal contract across both modes:**
+
+1. Phase state is written to `.agents/rpi/phased-state.json` on every phase transition.
+2. Phase numbers (1, 2, 3) and their names (discovery, implementation, validation) are identical.
+3. Ratchet gates (`ao ratchet check`) work unchanged — they read phase state, not hook output.
+4. The close-loop flywheel runs at stop time regardless of how stop is triggered.
+
+Hook-less runtimes skip hook-only side effects (e.g., automatic knowledge injection at session start). Use `ao codex start --query` to get equivalent startup context.
+
 ## Reference Documents
 
 - [references/complexity-scaling.md](references/complexity-scaling.md)
