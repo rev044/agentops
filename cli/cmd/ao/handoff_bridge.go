@@ -30,7 +30,7 @@ func bridgeHandoffToLearnings(cwd string, artifact *handoffArtifact) error {
 			slug = slug[:40]
 		}
 		filename := fmt.Sprintf("%s-handoff-%s-%d.md", date, slug, i)
-		content := fmt.Sprintf("---\ntype: learning\nsource: handoff-bridge\ndate: %s\nconfidence: medium\nsession_type: %s\nmaturity: provisional\n%s---\n\n# Decision: %s\n\nCaptured from handoff artifact %s.\nGoal: %s\n", date, artifact.Type, researchSources, decision, artifact.ID, artifact.Goal)
+		content := fmt.Sprintf("---\ntype: learning\nsource: handoff-bridge\ndate: %s\nconfidence: medium\nsession_type: %s\nmaturity: provisional\nutility: 0.5\n%s---\n\n# Decision: %s\n\nCaptured from handoff artifact %s.\nGoal: %s\n", date, artifact.Type, researchSources, decision, artifact.ID, artifact.Goal)
 		if err := os.WriteFile(filepath.Join(learningsDir, filename), []byte(content), 0o644); err != nil {
 			return fmt.Errorf("write learning %s: %w", filename, err)
 		}

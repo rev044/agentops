@@ -88,9 +88,9 @@ func TestPromote_CopiesWithProvenance(t *testing.T) {
 	srcDir := t.TempDir()
 	destDir := t.TempDir()
 
-	// Create a source file with frontmatter.
+	// Create a source file with frontmatter including metadata the scoring pipeline needs.
 	srcFile := filepath.Join(srcDir, "note.md")
-	srcContent := "---\ntitle: Original\nconfidence: 0.9\n---\n\n# My Learning\n\nSome content here.\n"
+	srcContent := "---\ntitle: Original\nconfidence: 0.9\nmaturity: provisional\nutility: 0.7\ntype: learning\ndate: 2026-04-02\n---\n\n# My Learning\n\nSome content here.\n"
 	if err := os.WriteFile(srcFile, []byte(srcContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -134,14 +134,23 @@ func TestPromote_CopiesWithProvenance(t *testing.T) {
 	if !strings.Contains(content, "# My Learning") {
 		t.Error("missing body content in promoted file")
 	}
-	// Verify original frontmatter is stripped (no duplicate --- blocks beyond the new one).
-	parts := strings.Split(content, "---")
-	// Expected: ["", frontmatter, "\n\nbody..."]
-	// Original frontmatter should NOT appear.
-	if strings.Contains(content, "title: Original") {
-		t.Error("original frontmatter should be stripped")
+	// Verify scoring-relevant metadata is preserved from original frontmatter.
+	if !strings.Contains(content, "maturity: provisional") {
+		t.Error("original maturity should be preserved in promoted file")
 	}
-	_ = parts // used above for documentation
+	if !strings.Contains(content, "utility: 0.7") {
+		t.Error("original utility should be preserved in promoted file")
+	}
+	if !strings.Contains(content, "type: learning") {
+		t.Error("original type should be preserved in promoted file")
+	}
+	if !strings.Contains(content, "confidence: 0.9") {
+		t.Error("original confidence should be preserved in promoted file")
+	}
+	// Non-carried fields (like title) should NOT appear — only scoring-relevant fields are kept.
+	if strings.Contains(content, "title: Original") {
+		t.Error("non-scoring fields like title should not be carried forward")
+	}
 }
 
 func TestPromote_DryRunNoCopy(t *testing.T) {

@@ -129,14 +129,31 @@ func Promote(catalog *Catalog, destDir string, dryRun bool) (int, error) {
 			return count, fmt.Errorf("reading source %s: %w", art.SourcePath, err)
 		}
 
-		// Strip original frontmatter, keep body only.
+		// Merge original frontmatter with provenance fields.
+		// Preserves maturity, utility, type, confidence from the source
+		// while adding harvest provenance metadata.
+		now := time.Now().UTC().Format("2006-01-02")
+		origFM := extractFrontmatter(string(data))
 		body := stripFrontmatter(string(data))
 
-		// Build provenance header.
-		now := time.Now().UTC().Format("2006-01-02")
-		header := fmt.Sprintf("---\npromoted_from: %q\npromoted_at: %q\noriginal_path: %q\nharvest_confidence: %g\n---\n\n",
-			art.SourceRig, now, art.SourcePath, art.Confidence)
+		// Start with provenance fields
+		var headerLines []string
+		headerLines = append(headerLines,
+			fmt.Sprintf("promoted_from: %q", art.SourceRig),
+			fmt.Sprintf("promoted_at: %q", now),
+			fmt.Sprintf("original_path: %q", art.SourcePath),
+			fmt.Sprintf("harvest_confidence: %g", art.Confidence),
+		)
 
+		// Carry forward original metadata fields that the scoring pipeline needs.
+		// These are the fields that passesQualityGate and inject_scoring check.
+		for _, key := range []string{"type", "maturity", "utility", "confidence", "source_bead", "source_phase", "date", "category", "id"} {
+			if val, ok := origFM[key]; ok {
+				headerLines = append(headerLines, fmt.Sprintf("%s: %s", key, val))
+			}
+		}
+
+		header := "---\n" + strings.Join(headerLines, "\n") + "\n---\n\n"
 		content := header + body
 
 		if err := os.WriteFile(destPath, []byte(content), 0o644); err != nil {
@@ -145,6 +162,38 @@ func Promote(catalog *Catalog, destDir string, dryRun bool) (int, error) {
 	}
 
 	return count, nil
+}
+
+// extractFrontmatter parses YAML frontmatter into a key-value map.
+// Returns an empty map if no frontmatter is found.
+func extractFrontmatter(content string) map[string]string {
+	fm := make(map[string]string)
+	trimmed := strings.TrimSpace(content)
+	if !strings.HasPrefix(trimmed, "---") {
+		return fm
+	}
+	first := strings.Index(trimmed, "---")
+	rest := trimmed[first+3:]
+	second := strings.Index(rest, "---")
+	if second < 0 {
+		return fm
+	}
+	block := rest[:second]
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			val := strings.TrimSpace(parts[1])
+			// Remove surrounding quotes if present
+			val = strings.Trim(val, "\"'")
+			fm[key] = val
+		}
+	}
+	return fm
 }
 
 // stripFrontmatter removes YAML frontmatter delimiters and content,
