@@ -346,7 +346,34 @@ fi
 
 **Why:** Pre-mortems have positive ROI for 3+ issue epics; cost (~2 min) is negligible.
 
-### Step 3a.2: Pre-flight Check - Changed-String Grep
+### Step 3a.2: Pre-flight Check - Bead Audit (Stale/Fixed/Consolidatable)
+
+**Run bd-audit before wave execution to avoid burning compute on dead work.**
+
+```bash
+if [[ "$TRACKING_MODE" == "beads" ]] && [[ -f scripts/bd-audit.sh ]]; then
+    AUDIT_RESULT="$(bash scripts/bd-audit.sh --json 2>/dev/null || echo '{}')"
+    TOTAL_BEADS="$(echo "${AUDIT_RESULT}" | jq '.summary.total // 0')"
+    FLAGGED_FIXED="$(echo "${AUDIT_RESULT}" | jq '.summary.likely_fixed // 0')"
+    FLAGGED_STALE="$(echo "${AUDIT_RESULT}" | jq '.summary.likely_stale // 0')"
+    FLAGGED_CONSOL="$(echo "${AUDIT_RESULT}" | jq '.summary.consolidatable // 0')"
+    FLAGGED_TOTAL=$(( FLAGGED_FIXED + FLAGGED_STALE + FLAGGED_CONSOL ))
+    FLAGGED_PCT="$(echo "${AUDIT_RESULT}" | jq '.summary.flagged_pct // 0')"
+
+    if [[ "$TOTAL_BEADS" -gt 0 && "$FLAGGED_PCT" -gt 30 ]]; then
+        echo "WARNING: bd-audit flagged ${FLAGGED_PCT}% of open beads (${FLAGGED_TOTAL}/${TOTAL_BEADS})"
+        echo "  likely-fixed: ${FLAGGED_FIXED}  likely-stale: ${FLAGGED_STALE}  consolidatable: ${FLAGGED_CONSOL}"
+        echo "  Consider running: scripts/bd-audit.sh --auto-close"
+        echo "  Proceeding with wave execution (advisory only)."
+    elif [[ "$FLAGGED_TOTAL" -gt 0 ]]; then
+        echo "INFO: bd-audit flagged ${FLAGGED_TOTAL} beads (${FLAGGED_PCT}%) — below 30% threshold, proceeding."
+    fi
+fi
+```
+
+This is **advisory only** — it never blocks wave execution. If >30% of open beads are flagged, log a WARNING and suggest `--auto-close`. Re-run with `--auto-close` to close likely-fixed beads automatically.
+
+### Step 3a.3: Pre-flight Check - Changed-String Grep
 
 **Before spawning workers, grep for every string being changed by the plan.**
 
