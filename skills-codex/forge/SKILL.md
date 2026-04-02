@@ -1,6 +1,19 @@
 ---
 name: forge
 description: 'Mine transcripts for knowledge - decisions, learnings, failures, patterns. Triggers: "forge insights", "mine transcripts", "extract knowledge".'
+skill_api_version: 1
+user-invocable: false
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [TASK]
+  intel_scope: full
+metadata:
+  tier: background
+  dependencies: []
+  internal: true
 ---
 
 # Forge Skill
@@ -26,7 +39,7 @@ This queues the session for knowledge extraction.
 
 ## Promote Mode
 
-Given `$forge --promote`:
+Given `/forge --promote`:
 
 ### Promote Step 1: Find Pending Files
 
@@ -69,7 +82,7 @@ Queue cleared.
 
 ## Manual Execution
 
-Given `$forge [path]`:
+Given `/forge [path]`:
 
 ### Step 1: Identify Transcript
 
@@ -87,7 +100,7 @@ Look at recent conversation history and extract learnings manually.
 
 ### Step 2: Extract Knowledge Types
 
-Read `skills$forge/references/uncaptured-lesson-patterns.md` for signal patterns and the 26 known uncaptured lesson categories.
+Read `skills/forge/references/uncaptured-lesson-patterns.md` for signal patterns and the 26 known uncaptured lesson categories.
 
 Look for these patterns in the transcript:
 
@@ -102,7 +115,7 @@ Look for these patterns in the transcript:
 
 ### Step 3: Write Candidates
 
-**Write to:** `.agents$forge/YYYY-MM-DD-forge.md`
+**Write to:** `.agents/forge/YYYY-MM-DD-forge.md`
 
 ```markdown
 # Forged: YYYY-MM-DD
@@ -132,11 +145,11 @@ Look for these patterns in the transcript:
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao forge markdown .agents$forge/YYYY-MM-DD-forge.md 2>/dev/null
+  ao forge markdown .agents/forge/YYYY-MM-DD-forge.md 2>/dev/null
 else
   # Without ao CLI: auto-promote high-confidence candidates to learnings
   mkdir -p .agents/learnings .agents/ao
-  for f in .agents$forge/YYYY-MM-DD-*.md; do
+  for f in .agents/forge/YYYY-MM-DD-*.md; do
     [ -f "$f" ] || continue
     # Extract confidence (numeric or categorical)
     CONF=$(grep -i "confidence:" "$f" | head -1 | awk '{print $NF}')
@@ -144,9 +157,9 @@ else
     case "$CONF" in
       high) CONF_NUM=0.9 ;; medium) CONF_NUM=0.6 ;; low) CONF_NUM=0.3 ;; *) CONF_NUM=$CONF ;;
     esac
-    # Auto-promote if confidence >= 0.7
+    # Auto-promote if confidence >= 0.7, prepending required frontmatter
     if (( $(echo "$CONF_NUM >= 0.7" | bc -l) )); then
-      cp "$f" .agents/learnings/
+      { printf -- '---\ntype: learning\nsource: forge\ndate: %s\nmaturity: provisional\nutility: 0.5\n---\n' "$(date +%Y-%m-%d)"; cat "$f"; } > .agents/learnings/"$(basename "$f")"
       TITLE=$(head -1 "$f" | sed 's/^# //')
       echo "{\"file\": \".agents/learnings/$(basename $f)\", \"title\": \"$TITLE\", \"keywords\": [], \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/search-index.jsonl
       echo "Auto-promoted (confidence $CONF): $(basename $f)"
@@ -188,7 +201,7 @@ Tell the user:
 
 Forged candidates enter at Tier 0:
 ```
-Transcript → $forge → .agents$forge/ (Tier 0)
+Transcript → /forge → .agents/forge/ (Tier 0)
                            ↓
                    Human review or 2+ citations
                    OR auto-promote (confidence >= 0.7, ao-free fallback)
@@ -213,19 +226,19 @@ Transcript → $forge → .agents$forge/ (Tier 0)
 1. Hook calls `ao forge transcript --last-session --queue --quiet`
 2. CLI analyzes session transcript for decisions, learnings, failures, patterns
 3. CLI writes session ID to `.agents/ao/pending.jsonl` queue
-4. Next session start triggers `$forge --promote` to process the queue
+4. Next session start triggers `/forge --promote` to process the queue
 
 **Result:** Session transcript automatically queued for knowledge extraction without user action.
 
 ### Manual Transcript Mining
 
-**User says:** `$forge <path>` or "mine this transcript for knowledge"
+**User says:** `/forge <path>` or "mine this transcript for knowledge"
 
 **What happens:**
 1. Agent identifies transcript path or uses `ao forge transcript --last-session`
 2. Agent scans transcript for knowledge patterns (decisions, learnings, failures, patterns)
 3. Agent scores each extraction by confidence (0.0-1.0)
-4. Agent writes candidates to `.agents$forge/YYYY-MM-DD-forge.md`
+4. Agent writes candidates to `.agents/forge/YYYY-MM-DD-forge.md`
 5. Agent indexes forge output with `ao forge markdown`
 6. Agent reports extraction counts and candidate locations
 

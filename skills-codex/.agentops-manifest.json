@@ -616,7 +616,7 @@
       "name": "forge",
       "source_skill": "skills/forge",
       "source_hash": "286b17f44efe413b7b8514cefded51f7085e82bf9698cc41d0136337af66662d",
-      "generated_hash": "8fe4e1ba564e07f9d98922a5f1018ec0b823bacbcc82bd01c5ca22734e7d086c"
+      "generated_hash": "67c85d7955a7f3ffdcdc31a37959bc8729788e1db27782d5fb8582bf5683d29c"
     },
     {
       "name": "goals",
@@ -694,7 +694,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "afce1fac76a1e506e9405b76886ecdf390c3eead5d863d82b8311286ad00d6a4",
-      "generated_hash": "7db31bfe9021fcabdc8c91d819768ac430a60333fb1a239e7fd54c1b90585d4a"
+      "generated_hash": "1c423b461d9f72a1d626d3f3d13c10b0e5f18014aad2d192be96e1b90a6dc596"
     },
     {
       "name": "pr-implement",

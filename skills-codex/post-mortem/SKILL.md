@@ -1,14 +1,27 @@
 ---
 name: post-mortem
 description: 'Wrap up completed work. Council validates the implementation, then extract and process learnings. Triggers: "post-mortem", "wrap up", "close epic", "what did we learn".'
+skill_api_version: 1
+metadata:
+  tier: judgment
+  dependencies:
+    - council  # multi-model judgment
+    - beads    # optional - for issue status
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: full
+output_contract: skills/council/schemas/verdict.json
 ---
-
 
 # Post-Mortem Skill
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
 >
-> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so `$post-mortem` must own the Codex-native closeout once per thread through `ao codex ensure-stop --auto-extract`.
+> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex sessions should finish closeout with `ao codex stop`.
 
 Six phases:
 1. **Council** — Did we implement it correctly?
@@ -23,28 +36,26 @@ Six phases:
 ## Quick Start
 
 ```bash
-$post-mortem                    # wraps up recent work
-$post-mortem epic-123           # wraps up specific epic
-$post-mortem --quick "insight"  # quick-capture single learning (no council)
-$post-mortem --process-only     # skip council+extraction, run Phase 3-5 on backlog
-$post-mortem --skip-activate    # extract + process but don't write MEMORY.md
-$post-mortem --deep recent      # thorough council review
-$post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
-$post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
+/post-mortem                    # wraps up recent work
+/post-mortem epic-123           # wraps up specific epic
+/post-mortem --quick "insight"  # quick-capture single learning (no council)
+/post-mortem --process-only     # skip council+extraction, run Phase 3-5 on backlog
+/post-mortem --skip-activate    # extract + process but don't write MEMORY.md
+/post-mortem --deep recent      # thorough council review
+/post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
+/post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 ```
 
 ### Codex Closeout
 
-In Codex hookless mode, `$post-mortem` owns closeout during Step 6:
+In Codex hookless mode, run these after the post-mortem workflow writes learnings and next work:
 
-1. Run `ao codex ensure-stop --auto-extract`.
-2. Rely on the CLI's same-thread dedupe instead of parsing lifecycle state in
-   the skill layer.
-3. Use `ao codex status` only when you need to report or verify lifecycle health.
+```bash
+ao codex stop
+ao codex status
+```
 
-`ao codex ensure-stop` uses the latest transcript or history fallback to queue/persist
-learnings and run close-loop maintenance without runtime hooks. Do not stack the
-generic `ao session close` + `ao flywheel close-loop` path on top of it in Codex.
+`ao codex stop` uses the latest transcript or history fallback to queue/persist learnings and run close-loop maintenance without runtime hooks.
 
 ---
 
@@ -52,7 +63,7 @@ generic `ao session close` + `ao flywheel close-loop` path on top of it in Codex
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--quick "text"` | off | Quick-capture a single learning directly to `.agents/learnings/` without running a full post-mortem. Formerly handled by `$retro --quick`. |
+| `--quick "text"` | off | Quick-capture a single learning directly to `.agents/learnings/` without running a full post-mortem. Formerly handled by `/retro --quick`. |
 | `--process-only` | off | Skip council and extraction (Phase 1-2). Run Phase 3-5 on the existing backlog only. |
 | `--skip-activate` | off | Extract and process learnings but do not write to MEMORY.md (skip Phase 4 promotions). |
 | `--deep` | off | 3 judges (default for post-mortem) |
@@ -66,7 +77,7 @@ generic `ao session close` + `ao flywheel close-loop` path on top of it in Codex
 
 ## Quick Mode
 
-Given `$post-mortem --quick "insight text"`:
+Given `/post-mortem --quick "insight text"`:
 
 ### Quick Step 1: Generate Slug
 
@@ -82,6 +93,7 @@ type: learning
 source: post-mortem-quick
 date: YYYY-MM-DD
 maturity: provisional
+utility: 0.5
 ---
 
 # Learning: <Short Title>
@@ -95,7 +107,7 @@ maturity: provisional
 
 ## Source
 
-Quick capture via `$post-mortem --quick`
+Quick capture via `/post-mortem --quick`
 ```
 
 This skips the full pipeline — writes directly to learnings, no council or backlog processing.
@@ -106,7 +118,7 @@ This skips the full pipeline — writes directly to learnings, no council or bac
 Learned: <one-line summary>
 Saved to: .agents/learnings/YYYY-MM-DD-quick-<slug>.md
 
-For deeper reflection, use `$post-mortem` without --quick.
+For deeper reflection, use `/post-mortem` without --quick.
 ```
 
 **Done.** Return immediately after confirmation.
@@ -119,25 +131,25 @@ For deeper reflection, use `$post-mortem` without --quick.
 
 Before proceeding, verify:
 1. **Git repo exists:** `git rev-parse --git-dir 2>/dev/null` — if not, error: "Not in a git repository"
-2. **Work was done:** `git log --oneline -1 2>/dev/null` — if empty, error: "No commits found. Run $implement first."
+2. **Work was done:** `git log --oneline -1 2>/dev/null` — if empty, error: "No commits found. Run /implement first."
 3. **Epic context:** If epic ID provided, verify it has closed children. If 0 closed children, error: "No completed work to review."
 
 **If `--process-only`:** Skip Pre-Flight Checks through Step 3. Jump directly to Phase 3: Process Backlog.
 
 ### Step 0.4: Load Reference Documents (MANDATORY)
 
-Before Step 0.5 and Step 2.5, load required reference docs into context by reading them:
+Before Step 0.5 and Step 2.5, load required reference docs into context using the Read tool:
 
 ```
 REQUIRED_REFS=(
-  "references/checkpoint-policy.md"
-  "references/metadata-verification.md"
-  "references/closure-integrity-audit.md"
-  "references/four-surface-closure.md"
+  "skills/post-mortem/references/checkpoint-policy.md"
+  "skills/post-mortem/references/metadata-verification.md"
+  "skills/post-mortem/references/closure-integrity-audit.md"
+  "skills/post-mortem/references/four-surface-closure.md"
 )
 ```
 
-For each reference file, **read its content** and hold it in context for use in later steps. Do NOT just test file existence with `[ -f ]` -- actually read the content so it is available when Steps 0.5 and 2.5 need it.
+For each reference file, use the **Read tool** to load its content and hold it in context for use in later steps. Do NOT just test file existence with `[ -f ]` -- actually read the content so it is available when Steps 0.5 and 2.5 need it.
 
 If a reference file does not exist (Read returns an error), log a warning and add it as a checkpoint warning in the council context. Proceed only if the missing reference is intentionally deferred.
 
@@ -202,7 +214,7 @@ Check for a crank-generated phase-2 summary:
 PHASE2_SUMMARY=$(ls -t .agents/rpi/phase-2-summary-*-crank.md 2>/dev/null | head -1)
 if [ -n "$PHASE2_SUMMARY" ]; then
     echo "Phase-2 summary found: $PHASE2_SUMMARY"
-    # Read the summary for implementation context
+    # Read the summary with the Read tool for implementation context
 fi
 ```
 
@@ -229,7 +241,7 @@ Read `references/closure-integrity-audit.md` for the full procedure. Mechanicall
 
 Include results in the council packet as `context.closure_integrity`. WARN on 1-2 findings, FAIL on 3+.
 
-If a closure is evidence-only or closes before its proving commit exists, emit a proof artifact with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite the durable tracked copy at `.agents/releases/evidence-only-closures/<target-id>.json` in the council packet. The writer also emits a local council copy at `.agents/council/evidence-only-closures/<target-id>.json`. The packet must record the selected `evidence_mode` plus repo-state detail that distinguishes staged files from broader worktree state so active-session audits stay mechanically replayable.
+If a closure is evidence-only, emit a proof artifact with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite at `.agents/releases/evidence-only-closures/<target-id>.json`. Record `evidence_mode` plus repo-state detail for replayability.
 
 ### Step 2.5: Pre-Council Metadata Verification (MANDATORY)
 
@@ -239,7 +251,7 @@ Read `references/metadata-verification.md` for the full verification procedure. 
 
 **Skip if `--quick` or `--skip-sweep`.**
 
-Before council runs, dispatch a deep audit sweep to systematically discover issues across all changed files. This uses the same protocol as `$vibe --deep` — see the deep audit protocol in the vibe skill (`skills/vibe/`) for the full specification.
+Before council runs, dispatch a deep audit sweep to systematically discover issues across all changed files. This uses the same protocol as `/vibe --deep` — see the deep audit protocol in the vibe skill (`skills/vibe/`) for the full specification.
 
 In summary:
 
@@ -258,10 +270,12 @@ In summary:
 
 ### Step 3: Council Validates the Work
 
-Run `$council` with the **retrospective** preset and always 3 judges:
+## Council Verdict:
+
+Run `/council` with the **retrospective** preset and always 3 judges:
 
 ```
-$council --deep --preset=retrospective validate <epic-or-recent>
+/council --deep --preset=retrospective validate <epic-or-recent>
 ```
 
 **Default (3 judges with retrospective perspectives):**
@@ -271,7 +285,7 @@ $council --deep --preset=retrospective validate <epic-or-recent>
 
 Post-mortem always uses 3 judges (`--deep`) because completed work deserves thorough review.
 
-**Four-Surface Closure:** Validate all four surfaces -- Code, Documentation, Examples, and Proof. A PASS verdict requires all four surfaces addressed, not just code correctness. Read `references/four-surface-closure.md` for the closure checklist and common gaps.
+**Four-Surface Closure:** Validate all four surfaces -- Code, Documentation, Examples, and Proof. A PASS verdict requires all four surfaces addressed, not just code correctness. Read `skills/post-mortem/references/four-surface-closure.md` for the closure checklist and common gaps.
 
 **Timeout:** Post-mortem inherits council timeout settings. If judges time out,
 the council report will note partial results. Post-mortem treats a partial council
@@ -281,15 +295,15 @@ The plan/spec content is injected into the council packet context so the `plan-c
 
 **With --quick (inline, no spawning):**
 ```
-$council --quick validate <epic-or-recent>
+/council --quick validate <epic-or-recent>
 ```
 Single-agent structured review. Fast wrap-up without spawning.
 
 **With debate mode:**
 ```
-$post-mortem --debate epic-123
+/post-mortem --debate epic-123
 ```
-Enables adversarial two-round review for post-implementation validation. Use for high-stakes shipped work where missed findings have production consequences. See `$council` docs for full --debate details.
+Enables adversarial two-round review for post-implementation validation. Use for high-stakes shipped work where missed findings have production consequences. See `/council` docs for full --debate details.
 
 **Advanced options (passed through to council):**
 - `--mixed` — Cross-vendor (Claude + Codex) with retrospective perspectives
@@ -318,7 +332,7 @@ bd children <epic-id> 2>/dev/null | head -20
 ls -lt .agents/plans/ .agents/research/ 2>/dev/null | head -10
 ```
 
-Read relevant artifacts: research documents, plan documents, commit messages, code changes. Read relevant files and use git commands to understand what was done.
+Read relevant artifacts: research documents, plan documents, commit messages, code changes. Use the Read tool and git commands to understand what was done.
 
 **If retrospecting an epic:** Run the closure integrity quick-check from `references/context-gathering.md` (Phantom Bead Detection + Multi-Wave Regression Scan). Include any warnings in findings.
 
@@ -362,6 +376,7 @@ date: YYYY-MM-DD
 category: <category>
 confidence: <high|medium|low>
 maturity: provisional
+utility: 0.5
 ---
 
 # Learning: <Short Title>
@@ -388,28 +403,7 @@ maturity: provisional
 
 #### Step EX.3.5: Test Pyramid Gap Analysis
 
-Assess test coverage against the pyramid levels defined in the test pyramid standard (`test-pyramid.md` in the standards skill).
-
-**For each closed issue in the epic:**
-
-1. What `test_levels` were planned? (from issue metadata or plan)
-2. What test levels actually exist? (grep test files for patterns)
-3. What gaps remain?
-
-**Write to post-mortem report** under `## Test Pyramid Assessment`:
-
-```markdown
-## Test Pyramid Assessment
-
-| Issue | Planned Levels | Actual Levels | Gaps | Action |
-|-------|---------------|---------------|------|--------|
-| ag-001 | L0, L1, L2 | L1, L2 | L0 missing | Add contract tests (next-work item) |
-| ag-002 | L1 | L1 | none | covered |
-
-**Summary:** N/M issues have full pyramid coverage. K gaps identified.
-```
-
-Gaps with severity >= moderate become `next-work.jsonl` items with type `tech-debt` and title `"Add L{N} tests for {component}"`.
+Compare planned vs actual test levels per the test pyramid standard (`test-pyramid.md` in the standards skill). For each closed issue: check planned `test_levels` metadata against actual test files. Write a `## Test Pyramid Assessment` table (Issue | Planned | Actual | Gaps | Action). Gaps with severity >= moderate become `next-work.jsonl` items with type `tech-debt`.
 
 #### Step EX.4: Classify Learning Scope
 
@@ -461,102 +455,6 @@ bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
 
 This promotes registry rows into `.agents/findings/*.md`, refreshes `.agents/planning-rules/*.md` and `.agents/pre-mortem-checks/*.md`, and rewrites draft constraint metadata under `.agents/constraints/`. Active enforcement still depends on the constraint index lifecycle and runtime hook support, but compilation itself is no longer deferred.
 
-### Phase 3: Process Backlog
-
-Score, deduplicate, and flag stale learnings across the full backlog. This phase runs on ALL learnings, not just those extracted in Phase 2.
-
-Read `references/backlog-processing.md` for detailed scoring formulas, deduplication logic, and staleness criteria.
-
-#### Step BP.1: Load Last-Processed Marker
-
-```bash
-MARKER=".agents/ao/last-processed"
-mkdir -p .agents/ao
-if [ ! -f "$MARKER" ]; then
-  date -v-30d +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -d "30 days ago" --iso-8601=seconds > "$MARKER"
-fi
-LAST_PROCESSED=$(cat "$MARKER")
-```
-
-#### Step BP.2: Scan Unprocessed Learnings
-
-```bash
-find .agents/learnings/ -name "*.md" -newer "$MARKER" -not -path "*/archive/*" -type f | sort
-```
-
-If zero files found: report "Backlog empty — no unprocessed learnings" and skip to Phase 4.
-
-#### Step BP.3: Deduplicate
-
-For each pair of unprocessed learnings:
-1. Extract `# Learning:` title
-2. Normalize: lowercase, strip punctuation, collapse whitespace
-3. If two normalized titles share >= 80% word overlap, merge:
-   - Keep the file with highest confidence (high > medium > low); if tied, keep most recent
-   - Archive the duplicate with a `merged_into:` pointer
-
-#### Step BP.4: Score Each Learning
-
-Compute composite score for each learning:
-
-| Factor | Values | Points |
-|--------|--------|--------|
-| Confidence | high=3, medium=2, low=1 | 1-3 |
-| Citations | default=1, +1 per cite in `.agents/ao/citations.jsonl` | 1+ |
-| Recency | <7d=3, <30d=2, else=1 | 1-3 |
-
-**Score = confidence + citations + recency**
-
-#### Step BP.5: Flag Stale
-
-Learnings that are >30 days old AND have zero citations are flagged for retirement in Phase 5.
-
-```bash
-# Flag but do not archive yet — Phase 5 handles retirement
-if [ "$DAYS_OLD" -gt 30 ] && [ "$CITE_COUNT" -eq 0 ]; then
-  echo "STALE: $LEARNING_FILE (${DAYS_OLD}d old, 0 citations)"
-fi
-```
-
-#### Step BP.6: Report
-
-```
-Phase 3 (Process Backlog) Summary:
-- N learnings scanned
-- N duplicates merged
-- N scored (range: X-Y)
-- N flagged stale
-```
-
-### Phase 4: Activate
-
-Promote high-value learnings and feed downstream systems. Read `references/activation-policy.md` for detailed promotion thresholds and procedures.
-
-**If `--skip-activate` is set:** Skip this phase entirely. Report "Phase 4 skipped (--skip-activate)."
-
-#### Step ACT.1: Promote to MEMORY.md
-
-Learnings with score >= 6 are promoted:
-1. Read the learning file
-2. Extract title and core insight
-3. Check MEMORY.md for duplicate entries (grep for key phrases)
-4. If no duplicate: append to `## Key Lessons` in MEMORY.md
-
-```markdown
-## Key Lessons
-- **<Title>** — <one-line insight> (source: `.agents/learnings/<filename>`)
-```
-
-**Important:** Append only. Never overwrite MEMORY.md.
-
-#### Step ACT.2: Re-Run the Finding Compiler Idempotently
-
-If registry rows changed during this post-mortem, rerun the compiler before feeding next-work so downstream sessions read the freshest compiled prevention outputs:
-
-```bash
-bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
-```
-
 #### Step ACT.3: Feed Next-Work
 
 Actionable improvements identified during processing -> append one schema v1.3
@@ -600,329 +498,7 @@ date -Iseconds > .agents/ao/last-processed
 
 This must be the LAST action in Phase 4.
 
-#### Step ACT.5: Report
-
-```
-Phase 4 (Activate) Summary:
-- N promoted to MEMORY.md
-- N duplicates merged
-- N flagged for retirement
-- N constraints compiled
-- N improvements fed to next-work.jsonl
-```
-
-### Phase 5: Retire Stale
-
-Archive learnings that are no longer earning their keep.
-
-#### Step RET.1: Archive Stale Learnings
-
-Learnings flagged in Phase 3 (>30d old, zero citations):
-
-```bash
-mkdir -p .agents/learnings/archive
-for f in <stale-files>; do
-  mv "$f" .agents/learnings/archive/
-  echo "Archived: $f (stale: >30d, 0 citations)"
-done
-```
-
-#### Step RET.2: Archive Superseded Learnings
-
-Learnings merged during Phase 3 deduplication were already archived with `merged_into:` pointers. Verify the pointers are valid:
-
-```bash
-for f in .agents/learnings/archive/*.md; do
-  [ -f "$f" ] || continue
-  MERGED_INTO=$(grep "^merged_into:" "$f" 2>/dev/null | awk '{print $2}')
-  if [ -n "$MERGED_INTO" ] && [ ! -f "$MERGED_INTO" ]; then
-    echo "WARN: $f points to missing file: $MERGED_INTO"
-  fi
-done
-```
-
-#### Step RET.3: Clean MEMORY.md References
-
-If any archived learning was previously promoted to MEMORY.md, remove those entries:
-
-```bash
-for f in <archived-files>; do
-  BASENAME=$(basename "$f")
-  # Check if MEMORY.md references this file
-  if grep -q "$BASENAME" MEMORY.md 2>/dev/null; then
-    echo "WARN: MEMORY.md references archived learning: $BASENAME — consider removing"
-  fi
-done
-```
-
-**Note:** Do not auto-delete MEMORY.md entries. WARN the user and let them decide.
-
-#### Step RET.4: Report
-
-```
-Phase 5 (Retire) Summary:
-- N stale learnings archived
-- N superseded learnings archived
-- N MEMORY.md references to review
-```
-
-### Step 4: Write Post-Mortem Report
-
-**Write to:** `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`
-
-```markdown
----
-id: post-mortem-YYYY-MM-DD-<topic-slug>
-type: post-mortem
-date: YYYY-MM-DD
-source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
----
-
-# Post-Mortem: <Epic/Topic>
-
-**Epic:** <epic-id or "recent">
-**Duration:** <elapsed time from PM_START to now>
-**Cycle-Time Trend:** <compare against prior post-mortems — is this faster or slower? Check .agents/council/ for prior post-mortem Duration values>
-
-## Council Verdict: PASS / WARN / FAIL
-
-| Judge | Verdict | Key Finding |
-|-------|---------|-------------|
-| Plan-Compliance | ... | ... |
-| Tech-Debt | ... | ... |
-| Learnings | ... | ... |
-
-### Implementation Assessment
-<council summary>
-
-### Concerns
-<any issues found>
-
-## Learnings (from Phase 2)
-
-### What Went Well
-- ...
-
-### What Was Hard
-- ...
-
-### Do Differently Next Time
-- ...
-
-### Patterns to Reuse
-- ...
-
-### Anti-Patterns to Avoid
-- ...
-
-### Footgun Entries (Required)
-
-List discovered footguns — common mistakes or surprising behaviors that cost time:
-
-| Footgun | Impact | Prevention |
-|---------|--------|-----------|
-| description | how it wasted time | how to prevent |
-
-These entries are promoted to `.agents/learnings/` and injected into future worker prompts to prevent recurrence. Zero-cycle lag between discovery and prevention.
-
-## Knowledge Lifecycle
-
-### Backlog Processing (Phase 3)
-- Scanned: N learnings
-- Merged: N duplicates
-- Flagged stale: N
-
-### Activation (Phase 4)
-- Promoted to MEMORY.md: N
-- Constraints compiled: N
-- Next-work items fed: N
-
-### Retirement (Phase 5)
-- Archived: N learnings
-
-## Proactive Improvement Agenda
-
-| # | Area | Improvement | Priority | Horizon | Effort | Evidence |
-|---|------|-------------|----------|---------|--------|----------|
-| 1 | repo / execution / ci-automation | ... | P0/P1/P2 | now/next-cycle/later | S/M/L | ... |
-
-## Prior Findings Resolution Tracking
-
-| Metric | Value |
-|---|---|
-| Backlog entries analyzed | ... |
-| Prior findings total | ... |
-| Resolved findings | ... |
-| Unresolved findings | ... |
-| Resolution rate | ...% |
-
-| Source Epic | Findings | Resolved | Unresolved | Resolution Rate |
-|---|---:|---:|---:|---:|
-| ... | ... | ... | ... | ...% |
-
-## Command-Surface Parity Checklist
-
-| Command File | Run-path Covered by Test? | Evidence (file:line or test name) | Intentionally Uncovered? | Reason |
-|---|---|---|---|---|
-| cli/cmd/ao/<command>.go | yes/no | ... | yes/no | ... |
-
-## BF Assessment
-
-| Level | Exist? | Bugs | Action |
-|-------|--------|------|--------|
-| BF1 | y/n | N | property tests |
-| BF4 | y/n | N | chaos tests |
-
-## Next Work
-
-| # | Title | Type | Severity | Source | Target Repo |
-|---|-------|------|----------|--------|-------------|
-| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
-
-### Recommended Next $rpi
-$rpi "<highest-value improvement>"
-
-## Status
-
-[ ] CLOSED - Work complete, learnings captured
-[ ] FOLLOW-UP - Issues need addressing (create new beads)
-```
-
-### Step 4.5: Synthesize Proactive Improvement Agenda (MANDATORY)
-
-**After writing the post-mortem report, analyze extraction + council context and proactively propose improvements to repo quality and execution quality.**
-
-Read the extraction output (from Phase 2) and the council report (from Step 3). For each learning, ask:
-1. **What process does this improve?** (build, test, review, deploy, documentation, automation, etc.)
-2. **What's the concrete change?** (new check, new automation, workflow change, tooling improvement)
-3. **Is it actionable in one RPI cycle?** (if not, split into smaller pieces)
-
-Coverage requirements:
-- Include **ALL** improvements found (no cap).
-- Cover all three surfaces:
-  - `repo` (code/contracts/docs quality)
-  - `execution` (planning/implementation/review workflow)
-  - `ci-automation` (validation/tooling reliability)
-- Include at least **1 quick win** (small, low-risk, same-session viable).
-
-Write process improvement items with type `process-improvement` (distinct from `tech-debt` or `improvement`). Each item must have:
-- `title`: imperative form, e.g. "Add pre-commit lint check"
-- `area`: which part of the development process to improve
-- `description`: 2-3 sentences describing the change and why retro evidence supports it
-- `evidence`: which retro finding or council finding motivates this
-- `priority`: P0 / P1 / P2
-- `horizon`: now / next-cycle / later
-- `effort`: S / M / L
-
-**These items feed directly into Step 5 (Harvest Next Work) alongside council findings. They are the flywheel's growth vector — each cycle makes the system smarter.**
-
-Write this into the post-mortem report under `## Proactive Improvement Agenda`.
-
-Example output:
-```markdown
-## Proactive Improvement Agenda
-
-| # | Area | Improvement | Priority | Horizon | Effort | Evidence |
-|---|------|-------------|----------|---------|--------|----------|
-| 1 | ci-automation | Add validation metadata requirement for Go tasks | P0 | now | S | Workers shipped untested code when metadata didn't require `go test` |
-| 2 | execution | Add consistency-check finding category in review | P1 | next-cycle | M | Partial refactoring left stale references undetected |
-```
-
-### Step 4.6: Prior-Findings Resolution Tracking (MANDATORY)
-
-After Step 4.5, compute and include prior-findings resolution tracking from `.agents/rpi/next-work.jsonl`. Read `references/harvest-next-work.md` for the jq queries that compute totals and per-source resolution rates. Write results into `## Prior Findings Resolution Tracking` in the post-mortem report.
-
-### Step 4.7: Command-Surface Parity Gate (MANDATORY)
-
-Before marking post-mortem complete, enforce command-surface parity for modified CLI commands:
-
-1. Identify modified command files under `cli/cmd/ao/` from the reviewed scope.
-2. For each file, record at least one tested run-path (unit/integration/e2e) in `## Command-Surface Parity Checklist`.
-3. Any intentionally uncovered command family must be explicitly listed with a reason and follow-up item.
-
-If any modified command file is missing both coverage evidence and an intentional-uncovered rationale, post-mortem cannot be marked complete.
-
-### Step 4.8: Persist Retro History (Trend Tracking)
-
-After writing the post-mortem report, persist a structured summary JSON to `.agents/retro/YYYY-MM-DD-<epic-slug>.json` and append an index line to `.agents/retro/index.jsonl`. When 2+ prior retros exist, compute verdict streak, average cycle time, and learnings-per-retro trend for the report. See [references/retro-history.md](references/retro-history.md) for the full JSON schema, write rules, and trend queries.
-
-### Step 5: Harvest Next Work
-
-Scan the council report and extracted learnings for actionable follow-up items:
-
-1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
-2. **Retro patterns:** Extract recurring patterns from learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
-3. **Process improvements:** Include all items from Step 4.5 (type: `process-improvement`). These are the flywheel's growth vector — each cycle makes development more effective.
-4. **Footgun entries (REQUIRED):** Extract platform-specific gotchas, surprising API behaviors, or silent-failure modes discovered during implementation. Each must include: trigger condition, observable symptom, and fix. Write as type `pattern-fix` with source `retro-learning`. If a footgun was discovered this cycle, it must appear in this harvest — do not defer.
-5. **Write `## Next Work` section** to the post-mortem report:
-
-```markdown
-## Next Work
-
-| # | Title | Type | Severity | Source | Target Repo |
-|---|-------|------|----------|--------|-------------|
-| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
-```
-
-6. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the tracked contract in [`.agents/rpi/next-work.schema.md`](../../.agents/rpi/next-work.schema.md). Read `references/harvest-next-work.md` for the validation function and write procedure. Drop invalid items; do NOT block the entire harvest.
-
-7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`). Read `references/harvest-next-work.md` for the write procedure (target_repo assignment, claim/finalize lifecycle, JSONL format, required fields).
-
-8. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `$rpi --spawn-next` to create an epic from these items."
-
-If no actionable items found, write: "No follow-up items identified. Flywheel stable."
-
-### Step 6: Feed the Knowledge Flywheel
-
-Post-mortem automatically feeds learnings into the flywheel:
-
-```bash
-if command -v ao &>/dev/null; then
-  ao forge markdown .agents/learnings/*.md 2>/dev/null
-  echo "Learnings indexed in knowledge flywheel"
-
-  # Validate and lock artifacts that passed council review
-  ao temper validate --min-feedback 0 .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
-  echo "Artifacts validated for tempering"
-
-  if [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
-    # Codex owns closeout through ao codex ensure-stop, not the generic session-close path.
-    # The CLI itself is idempotent for the same thread, so no jq/state parsing is required here.
-    ao codex ensure-stop --auto-extract 2>/dev/null || true
-    echo "Codex closeout ensured for the current thread"
-  else
-    # Close session and trigger full flywheel close-loop (includes adaptive feedback)
-    ao session close 2>/dev/null || true
-    ao flywheel close-loop --quiet 2>/dev/null || true
-    echo "Session closed, flywheel loop triggered"
-  fi
-else
-  # Learnings are already in .agents/learnings/ from Phase 2.
-  # Without ao CLI, grep-based search in $research and $inject
-  # will find them directly — no copy to pending needed.
-
-  # Feedback-loop fallback: update confidence for cited learnings
-  mkdir -p .agents/ao
-  if [ -f .agents/ao/citations.jsonl ]; then
-    echo "Processing citation feedback (ao-free fallback)..."
-    # Read cited learning files and boost confidence notation
-    while IFS= read -r line; do
-      CITED_FILE=$(echo "$line" | grep -o '"artifact_path":"[^"]*"' | cut -d'"' -f4)
-      if [ -f "$CITED_FILE" ]; then
-        # Note: confidence boost tracked via citation count, not file modification
-        echo "Cited: $CITED_FILE"
-      fi
-    done < .agents/ao/citations.jsonl
-  fi
-
-  # Session-outcome fallback: record this session's outcome
-  EPIC_ID="<epic-id>"
-  echo "{\"epic\": \"$EPIC_ID\", \"verdict\": \"<council-verdict>\", \"cycle_time_minutes\": 0, \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/outcomes.jsonl
-
-  # Skip ao temper validate (no fallback needed — tempering is an optimization)
-  echo "Flywheel fed locally (ao CLI not available — learnings searchable via grep)"
-fi
-```
+**Phases 3-6 (Maintenance):** Read `references/maintenance-phases.md` for backlog processing, activation, retirement, and harvesting phases. Load when `--process-only` flag is set or when running full post-mortem.
 
 ### Step 7: Report to User
 
@@ -932,11 +508,11 @@ Tell the user:
 3. Any follow-up items
 4. Location of post-mortem report
 5. Knowledge flywheel status
-6. **Suggested next `$rpi` command** from the harvested `## Next Work` section (ALWAYS — this is how the flywheel spins itself)
+6. **Suggested next `/rpi` command** from the harvested `## Next Work` section (ALWAYS — this is how the flywheel spins itself)
 7. ALL proactive improvements, organized by priority (highlight one quick win)
 8. Knowledge lifecycle summary (Phase 3-5 stats)
 
-**The next `$rpi` suggestion is MANDATORY, not opt-in.** After every post-mortem, present the highest-severity harvested item as a ready-to-copy command:
+**The next `/rpi` suggestion is MANDATORY, not opt-in.** After every post-mortem, present the highest-severity harvested item as a ready-to-copy command:
 
 ```markdown
 ## Flywheel: Next Cycle
@@ -948,7 +524,7 @@ Based on this post-mortem, the highest-priority follow-up is:
 
 Ready to run:
 ```
-$rpi "<title>"
+/rpi "<title>"
 ```
 
 Or see all N harvested items in `.agents/rpi/next-work.jsonl`.
@@ -961,22 +537,22 @@ If no items were harvested, write: "Flywheel stable — no follow-up items ident
 ## Integration with Workflow
 
 ```
-$plan epic-123
+/plan epic-123
     |
     v
-$pre-mortem (council on plan)
+/pre-mortem (council on plan)
     |
     v
-$implement
+/implement
     |
     v
-$vibe (council on code)
+/vibe (council on code)
     |
     v
 Ship it
     |
     v
-$post-mortem              <-- You are here
+/post-mortem              <-- You are here
     |
     |-- Phase 1: Council validates implementation
     |-- Phase 2: Extract learnings (inline)
@@ -984,12 +560,12 @@ $post-mortem              <-- You are here
     |-- Phase 4: Activate (promote to MEMORY.md, compile constraints)
     |-- Phase 5: Retire stale learnings
     |-- Phase 6: Harvest next work
-    |-- Suggest next $rpi --------------------+
+    |-- Suggest next /rpi --------------------+
                                               |
     +----------------------------------------+
     |  (flywheel: learnings become next work)
     v
-$rpi "<highest-priority enhancement>"
+/rpi "<highest-priority enhancement>"
 ```
 
 ---
@@ -998,22 +574,22 @@ $rpi "<highest-priority enhancement>"
 
 ### Wrap Up Recent Work
 
-**User says:** `$post-mortem`
+**User says:** `/post-mortem`
 
 **What happens:**
 1. Agent scans recent commits.
-2. Runs `$council --deep validate recent`.
+2. Runs `/council --deep validate recent`.
 3. Extracts learnings, processes backlog, and promotes items.
 4. Harvests next-work to `.agents/rpi/next-work.jsonl`.
 
-**Result:** Report with learnings, stats, and a suggested `$rpi` command.
+**Result:** Report with learnings, stats, and a suggested `/rpi` command.
 
 ### Other Modes
 
-- **Epic-specific:** `$post-mortem ag-5k2` — review against the target plan
-- **Quick capture:** `$post-mortem --quick "insight"` — write a learning without council
-- **Process-only:** `$post-mortem --process-only` — run backlog processing only
-- **Cross-vendor:** `$post-mortem --mixed ag-3b7` — broaden judgment coverage
+- **Epic-specific:** `/post-mortem ag-5k2` — review against the target plan
+- **Quick capture:** `/post-mortem --quick "insight"` — write a learning without council
+- **Process-only:** `/post-mortem --process-only` — run backlog processing only
+- **Cross-vendor:** `/post-mortem --mixed ag-3b7` — broaden judgment coverage
 
 ## Troubleshooting
 
@@ -1028,9 +604,9 @@ $rpi "<highest-priority enhancement>"
 
 ## See Also
 
-- `../council/SKILL.md` — Multi-model validation council
-- `../vibe/SKILL.md` — Council validates code (`$vibe` after coding)
-- `../pre-mortem/SKILL.md` — Council validates plans (before implementation)
+- `skills/council/SKILL.md` — Multi-model validation council
+- `skills/vibe/SKILL.md` — Council validates code (`/vibe` after coding)
+- `skills/pre-mortem/SKILL.md` — Council validates plans (before implementation)
 
 
 ## Reference Documents
@@ -1049,30 +625,5 @@ $rpi "<highest-priority enhancement>"
 - [references/prediction-tracking.md](references/prediction-tracking.md)
 - [references/retro-history.md](references/retro-history.md)
 - [references/streak-tracking.md](references/streak-tracking.md)
+- [references/maintenance-phases.md](references/maintenance-phases.md)
 - [references/four-surface-closure.md](references/four-surface-closure.md)
-
-## Local Resources
-
-### references/
-
-- [references/activation-policy.md](references/activation-policy.md)
-- [references/backlog-processing.md](references/backlog-processing.md)
-- [references/checkpoint-policy.md](references/checkpoint-policy.md)
-- [references/closure-integrity-audit.md](references/closure-integrity-audit.md)
-- [references/context-gathering.md](references/context-gathering.md)
-- [references/harvest-next-work.md](references/harvest-next-work.md)
-- [references/learning-templates.md](references/learning-templates.md)
-- [references/metadata-verification.md](references/metadata-verification.md)
-- [references/output-templates.md](references/output-templates.md)
-- [references/plan-compliance-checklist.md](references/plan-compliance-checklist.md)
-- [references/prediction-tracking.md](references/prediction-tracking.md)
-- [references/retro-history.md](references/retro-history.md)
-- [references/security-patterns.md](references/security-patterns.md)
-- [references/streak-tracking.md](references/streak-tracking.md)
-
-### scripts/
-
-- `scripts/closure-integrity-audit.sh`
-- `scripts/preflight-refs.sh`
-- `scripts/validate.sh`
-- `scripts/write-evidence-only-closure.sh`

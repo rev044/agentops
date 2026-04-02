@@ -157,9 +157,9 @@ else
     case "$CONF" in
       high) CONF_NUM=0.9 ;; medium) CONF_NUM=0.6 ;; low) CONF_NUM=0.3 ;; *) CONF_NUM=$CONF ;;
     esac
-    # Auto-promote if confidence >= 0.7
+    # Auto-promote if confidence >= 0.7, prepending required frontmatter
     if (( $(echo "$CONF_NUM >= 0.7" | bc -l) )); then
-      cp "$f" .agents/learnings/
+      { printf -- '---\ntype: learning\nsource: forge\ndate: %s\nmaturity: provisional\nutility: 0.5\n---\n' "$(date +%Y-%m-%d)"; cat "$f"; } > .agents/learnings/"$(basename "$f")"
       TITLE=$(head -1 "$f" | sed 's/^# //')
       echo "{\"file\": \".agents/learnings/$(basename $f)\", \"title\": \"$TITLE\", \"keywords\": [], \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/search-index.jsonl
       echo "Auto-promoted (confidence $CONF): $(basename $f)"

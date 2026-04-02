@@ -93,6 +93,7 @@ type: learning
 source: post-mortem-quick
 date: YYYY-MM-DD
 maturity: provisional
+utility: 0.5
 ---
 
 # Learning: <Short Title>
@@ -375,6 +376,7 @@ date: YYYY-MM-DD
 category: <category>
 confidence: <high|medium|low>
 maturity: provisional
+utility: 0.5
 ---
 
 # Learning: <Short Title>
