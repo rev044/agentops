@@ -50,6 +50,8 @@ reports/
 !.agents/releases/
 .agents/releases/*
 !.agents/releases/*.md
+!.agents/evidence/
+!.agents/evidence/*.md
 !.agents/evolve/
 .agents/evolve/*
 !.agents/evolve/cycle-history.jsonl
