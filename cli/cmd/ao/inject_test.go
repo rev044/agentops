@@ -624,7 +624,7 @@ func TestCollectLearningsGlobalDir(t *testing.T) {
 	if err := os.MkdirAll(localLearningsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	localContent := "---\nutility: 0.8\nmaturity: provisional\n---\n# Local Learning\n\nThis is local.\n"
+	localContent := "---\nutility: 0.8\nmaturity: provisional\n---\n# Local Learning\n\nThis is local content for testing that local learnings are discovered by collectLearnings.\n"
 	if err := os.WriteFile(filepath.Join(localLearningsDir, "local.md"), []byte(localContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -638,7 +638,7 @@ func TestCollectLearningsGlobalDir(t *testing.T) {
 		_ = os.RemoveAll(globalDir) //nolint:errcheck // test cleanup
 	}()
 
-	globalContent := "---\nutility: 0.7\nmaturity: provisional\n---\n# Global Learning\n\nCross-repo knowledge.\n"
+	globalContent := "---\nutility: 0.7\nmaturity: provisional\n---\n# Global Learning\n\nCross-repo knowledge for testing that global learnings are discovered and flagged correctly.\n"
 	if err := os.WriteFile(filepath.Join(globalDir, "global.md"), []byte(globalContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -689,7 +689,7 @@ func TestCollectLearningsGlobalWeight(t *testing.T) {
 		{"local-mid.md", "0.7"},
 		{"local-low.md", "0.4"},
 	} {
-		content := "---\nutility: " + item.utility + "\nmaturity: provisional\n---\n# " + item.name + "\n\nLocal content.\n"
+		content := "---\nutility: " + item.utility + "\nmaturity: provisional\n---\n# " + item.name + "\n\nLocal content for z-normalization spread testing across multiple utility levels.\n"
 		if err := os.WriteFile(filepath.Join(localLearningsDir, item.name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -704,7 +704,7 @@ func TestCollectLearningsGlobalWeight(t *testing.T) {
 		_ = os.RemoveAll(globalDir) //nolint:errcheck // test cleanup
 	}()
 
-	globalContent := "---\nutility: 0.9\nmaturity: provisional\n---\n# Global High\n\nGlobal content.\n"
+	globalContent := "---\nutility: 0.9\nmaturity: provisional\n---\n# Global High\n\nGlobal content for testing that the global weight penalty reduces cross-rig scores correctly.\n"
 	if err := os.WriteFile(filepath.Join(globalDir, "global-high.md"), []byte(globalContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -925,7 +925,7 @@ func TestProcessLearningFile_QualityGateFilters(t *testing.T) {
 	// Learning with no maturity should now pass (empty defaults to provisional)
 	noMaturity := writeTestMDLearning(t, dir, "no-maturity.md", map[string]string{
 		"utility": "0.9",
-	}, "# Good content\nBut no maturity\n")
+	}, "# Good content\nBut no maturity. This learning explains how to handle missing maturity fields gracefully.\n")
 
 	_, included := processLearningFile(noMaturity, nil, time.Now())
 	if !included {
@@ -936,7 +936,7 @@ func TestProcessLearningFile_QualityGateFilters(t *testing.T) {
 	good := writeTestMDLearning(t, dir, "good.md", map[string]string{
 		"maturity": "provisional",
 		"utility":  "0.8",
-	}, "# Good Learning\nHas maturity and utility\n")
+	}, "# Good Learning\nHas maturity and utility. This learning validates that the quality gate passes correctly for well-formed entries.\n")
 
 	l, included := processLearningFile(good, nil, time.Now())
 	if !included {

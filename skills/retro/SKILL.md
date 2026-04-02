@@ -28,6 +28,7 @@ type: learning
 source: retro-quick
 date: YYYY-MM-DD
 maturity: provisional
+utility: 0.5
 ---
 
 # Learning: <Short Title>

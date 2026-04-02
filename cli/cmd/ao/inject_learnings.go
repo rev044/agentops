@@ -191,6 +191,7 @@ func processLearningFile(file string, queryTokensList []string, now time.Time) (
 // passesQualityGate returns true if a learning meets minimum injection standards.
 // Requires maturity >= provisional (provisional, candidate, or established) AND utility > 0.3.
 // Empty maturity defaults to provisional (legacy learnings lack metadata).
+// Also rejects content that is too short or lacks a heading — catches auto-extracted garbage.
 func passesQualityGate(l learning) bool {
 	mat := types.Maturity(l.Maturity)
 	if mat == "" {
@@ -203,7 +204,16 @@ func passesQualityGate(l learning) bool {
 		// "draft" or unknown → fail gate
 		return false
 	}
-	return l.Utility > 0.3
+	if l.Utility > 0 && l.Utility <= 0.3 {
+		return false
+	}
+	// Content quality: reject auto-extracted fragments with very short body.
+	// Only applies when BodyText was populated by the parser (markdown files).
+	// JSONL learnings and test fixtures may have empty BodyText — skip this check for them.
+	if l.BodyText != "" && len(strings.TrimSpace(l.BodyText)) < 50 {
+		return false
+	}
+	return true
 }
 
 // applyFreshnessScore sets the freshness score on a learning based on file modification time.

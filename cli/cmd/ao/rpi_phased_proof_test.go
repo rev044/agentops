@@ -24,7 +24,7 @@ func TestFlywheelProof_InjectRetrievesCrossSession(t *testing.T) {
 	}
 
 	// Session 1: seed a learning with frontmatter
-	content := "---\nutility: 0.8\nsource_bead: test-proof\nsource_phase: validate\nmaturity: provisional\n---\n# Proof Learning\n\nFlywheel compounding test content.\n"
+	content := "---\nutility: 0.8\nsource_bead: test-proof\nsource_phase: validate\nmaturity: provisional\n---\n# Proof Learning\n\nFlywheel compounding test content verifying that learnings persist across sessions and are retrievable.\n"
 	path := filepath.Join(learningsDir, "proof-learning-1.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
@@ -60,14 +60,14 @@ func TestFlywheelProof_QualityGateFilters(t *testing.T) {
 	}
 
 	// Learning WITH source_bead
-	sourcedContent := "---\nutility: 0.8\nsource_bead: ag-proof\nsource_phase: implement\nmaturity: provisional\n---\n# Sourced Learning\n\nThis learning has provenance.\n"
+	sourcedContent := "---\nutility: 0.8\nsource_bead: ag-proof\nsource_phase: implement\nmaturity: provisional\n---\n# Sourced Learning\n\nThis learning has provenance and demonstrates that sourced learnings keep their utility score intact.\n"
 	sourcedPath := filepath.Join(learningsDir, "sourced.md")
 	if err := os.WriteFile(sourcedPath, []byte(sourcedContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Learning WITHOUT source_bead (still has maturity for quality gate)
-	unsourcedContent := "---\nutility: 0.8\nmaturity: provisional\n---\n# Unsourced Learning\n\nThis learning has no provenance.\n"
+	unsourcedContent := "---\nutility: 0.8\nmaturity: provisional\n---\n# Unsourced Learning\n\nThis learning has no provenance and should receive a utility penalty during scoring.\n"
 	unsourcedPath := filepath.Join(learningsDir, "unsourced.md")
 	if err := os.WriteFile(unsourcedPath, []byte(unsourcedContent), 0644); err != nil {
 		t.Fatal(err)
@@ -134,7 +134,7 @@ func TestFlywheelProof_DecayReducesScore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content := "---\nutility: 0.8\nsource_bead: decay-test\nmaturity: provisional\n---\n# Decay Test\n\nContent for decay test.\n"
+	content := "---\nutility: 0.8\nsource_bead: decay-test\nmaturity: provisional\n---\n# Decay Test\n\nContent for decay test validates that older learnings receive lower freshness scores than recent ones.\n"
 
 	recentPath := filepath.Join(learningsDir, "recent.md")
 	if err := os.WriteFile(recentPath, []byte(content), 0644); err != nil {
@@ -175,7 +175,7 @@ func TestFlywheelProof_DecayReducesScore(t *testing.T) {
 	if err := os.MkdirAll(noUtilDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	noUtilContent := "---\nsource_bead: no-util\nmaturity: provisional\n---\n# No Utility\n\nContent.\n"
+	noUtilContent := "---\nsource_bead: no-util\nmaturity: provisional\n---\n# No Utility Learning\n\nContent without utility field should receive the default InitialUtility value from the system.\n"
 	noUtilPath := filepath.Join(noUtilDir, "no-util.md")
 	if err := os.WriteFile(noUtilPath, []byte(noUtilContent), 0644); err != nil {
 		t.Fatal(err)

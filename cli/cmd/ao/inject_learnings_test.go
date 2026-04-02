@@ -658,7 +658,7 @@ func TestInjectLearnings_processLearningFile_SkipsSuperseded(t *testing.T) {
 
 func TestInjectLearnings_processLearningFile_FiltersByQuery(t *testing.T) {
 	tmp := t.TempDir()
-	content := "---\nmaturity: provisional\n---\n# Authentication Patterns\n\nUse JWT for auth.\n"
+	content := "---\nmaturity: provisional\n---\n# Authentication Patterns\n\nUse JWT for auth tokens in stateless APIs. Always validate the signature server-side and check expiry claims.\n"
 	path := filepath.Join(tmp, "auth.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
@@ -816,7 +816,7 @@ func TestInjectLearnings_passesQualityGate_EmptyMaturityDefaultsProvisional(t *t
 
 func TestInjectLearnings_processLearningFile_SetsDefaultUtility(t *testing.T) {
 	tmp := t.TempDir()
-	content := "---\nsource_bead: test-fixture\nmaturity: provisional\n---\n# Test\n\nSome content\n"
+	content := "---\nsource_bead: test-fixture\nmaturity: provisional\n---\n# Test Learning for Default Utility\n\nWhen a learning has no explicit utility field, the system should assign InitialUtility as default.\n"
 	path := filepath.Join(tmp, "test.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
@@ -965,7 +965,7 @@ func TestInjectLearnings_collectLearnings_WithGlobalDir(t *testing.T) {
 	if err := os.MkdirAll(localLearnings, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(localLearnings, "local.md"), []byte("---\nmaturity: provisional\n---\n# Local Learning\n\nLocal content.\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(localLearnings, "local.md"), []byte("---\nmaturity: provisional\n---\n# Local Learning\n\nLocal content for testing that local learnings are discovered and included in results correctly.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -975,7 +975,7 @@ func TestInjectLearnings_collectLearnings_WithGlobalDir(t *testing.T) {
 	if err := os.MkdirAll(globalNamespace, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(globalNamespace, "global.md"), []byte("---\nmaturity: provisional\n---\n# Global Learning\n\nGlobal content.\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(globalNamespace, "global.md"), []byte("---\nmaturity: provisional\n---\n# Global Learning\n\nGlobal content for testing cross-rig knowledge retrieval and the global weight penalty.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
