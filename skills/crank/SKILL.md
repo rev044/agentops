@@ -34,39 +34,9 @@ For Claude runtime feature coverage (agents/hooks/worktree/settings), the shared
 
 ## Architecture: Crank + Swarm
 
-**Beads mode** (bd available):
-```
-Crank (orchestrator)           Swarm (executor)
-    |                              |
-    +-> bd ready (wave issues)     |
-    |                              |
-    +-> TaskCreate from beads  --->+-> Select spawn backend (codex sub-agents | claude teams | fallback)
-    |                              |
-    +-> /swarm                 --->+-> Spawn workers per backend
-    |                              |   (fresh context per wave)
-    +-> Verify + bd update     <---+-> Workers report via backend channel
-    |                              |
-    +-> Loop until epic DONE   <---+-> Cleanup backend resources after wave
-```
+Crank owns orchestration, epic/task lifecycle, and knowledge-flywheel steps. Swarm owns runtime-native worker spawning, fresh-context isolation, per-wave execution, and cleanup. In beads mode Crank gets each wave from `bd ready`, bridges issues into worker tasks, verifies results, and syncs status back to beads. In TaskList mode the same loop runs over pending unblocked tasks instead of beads issues.
 
-**TaskList mode** (bd unavailable):
-```
-Crank (orchestrator, TaskList mode)    Swarm (executor)
-    |                                      |
-    +-> TaskList() (wave tasks)            |
-    |                                      |
-    +-> /swarm                         --->+-> Select spawn backend per wave
-    |                                      |
-    +-> Verify via TaskList()          <---+-> Workers report via backend channel
-    |                                      |
-    +-> Loop until all completed       <---+-> Cleanup backend resources after wave
-```
-
-**Separation of concerns:**
-- **Crank** = Orchestration, epic/task lifecycle, knowledge flywheel
-- **Swarm** = Runtime-native parallel execution (Ralph Wiggum pattern via fresh worker set per wave)
-
-Ralph alignment source: `../shared/references/ralph-loop-contract.md` (fresh context, scheduler/worker split, disk-backed state, backpressure).
+Read `references/team-coordination.md` for the full per-wave execution model and `references/ralph-loop-contract.md` for the fresh-context worker contract.
 
 ## Flags
 
@@ -88,14 +58,12 @@ This prevents infinite loops on circular dependencies or cascading failures. Typ
 
 ## Completion Enforcement (The Sisyphus Rule)
 
-**THE SISYPHUS RULE:** Not done until explicitly DONE.
+Not done until you emit an explicit completion marker after each wave:
+- `<promise>DONE</promise>` when the epic is truly complete
+- `<promise>BLOCKED</promise>` when progress cannot continue
+- `<promise>PARTIAL</promise>` when work remains
 
-After each wave, output completion marker:
-- `<promise>DONE</promise>` - Epic truly complete, all issues closed
-- `<promise>BLOCKED</promise>` - Cannot proceed (with reason)
-- `<promise>PARTIAL</promise>` - Incomplete (with remaining items)
-
-**Never claim completion without the marker.**
+Never claim completion without one of these markers.
 
 ## Node Repair Operator
 
@@ -768,25 +736,14 @@ Iterations: M/50
 
 ## The FIRE Loop
 
-Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wave. Loop until all issues are CLOSED (beads) or all tasks are completed (TaskList).
-
-**For FIRE loop details, parallel wave models, and wave acceptance check, read `skills/crank/references/wave-patterns.md`.**
+Crank repeats FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wave until all issues are CLOSED (beads) or all tasks are completed (TaskList). Read `references/wave-patterns.md` for the loop model, parallel wave rules, and acceptance check details.
 
 ## Key Rules
 
-- **Auto-detect tracking** - check for `bd` at start; use TaskList if absent
-- **Plan files as input** - `/crank plan.md` decomposes plan into tasks automatically
-- **If epic ID given, USE IT** - don't ask for confirmation (beads mode only)
-- **Swarm for each wave** - delegates parallel execution to swarm
-- **Fresh context per issue** - swarm provides Ralph pattern isolation
-- **Batch validation at end** - ONE vibe at the end saves context
-- **Fix CRITICAL before completion** - address findings before reporting done
-- **Loop until done** - don't stop until all issues closed / tasks completed
-- **Autonomous execution** - minimize human prompts
-- **Respect wave limit** - STOP at 50 waves (hard limit)
-- **Output completion markers** - DONE, BLOCKED, or PARTIAL (required)
-- **Knowledge flywheel** - load learnings at start, forge at end (ao optional)
-- **Beads ↔ TaskList sync** - in beads mode, crank bridges beads issues to TaskList for swarm
+- Auto-detect tracking (`bd` first, TaskList fallback) and use the provided epic or plan input directly.
+- Use `/swarm` for every wave, preserve fresh per-issue context, and refuse to continue past unresolved conflicts or the 50-wave cap.
+- Validate once per wave, fix CRITICAL findings before completion, and keep looping until every issue/task is done.
+- Load learnings at the start, extract learnings at the end, and always emit `DONE`, `BLOCKED`, or `PARTIAL`.
 
 ### Verb Disambiguation for Worker Prompts
 
@@ -802,16 +759,7 @@ Read `references/worker-verb-disambiguation.md` for the verb clarification table
 
 ## Troubleshooting
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| "No ready issues found" | Epic has no children or all blocked | Run `/plan` first or check deps with `bd show <id>` |
-| "Global wave limit (50) reached" | Excessive retries or circular deps | Review `.agents/crank/wave-N-checkpoint.json`, fix blockers manually |
-| Wave vibe gate fails repeatedly | Workers producing non-conforming code | Check `.agents/council/` vibe reports, refine constraints |
-| Workers complete but files missing | Permission errors or wrong paths | Check swarm output files, verify write permissions |
-| RED Gate passes (tests don't fail) | Test wave workers wrote implementation | Re-run TEST WAVE with no-implementation-access prompt |
-| TaskList mode can't find epic | bd CLI required for beads tracking | Provide plan file (`.md`) instead, or install bd |
-
-See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
+Common failure modes: no ready issues, repeated wave gate failures, missing files from workers, bad RED-gate output, or TaskList/beads mismatches. See `references/troubleshooting.md` for fixes and command-level recovery steps.
 
 ---
 

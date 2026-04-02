@@ -107,7 +107,7 @@ else
     fail "session-start writes .agents to repo root"
 fi
 
-# Test 14b: session-start no longer performs hidden lookup injection
+# Test 14b: manual startup stays silent and skips hidden briefing work
 MOCK_LOOKUP="$TMPDIR/mock-session-lookup"
 mkdir -p "$MOCK_LOOKUP/.agents/handoff" "$MOCK_LOOKUP/bin"
 git -C "$MOCK_LOOKUP" init -q >/dev/null 2>&1
@@ -135,7 +135,11 @@ exit 0
 EOF
 chmod +x "$MOCK_LOOKUP/bin/ao"
 AO_ARGS_FILE="$MOCK_LOOKUP/ao-args.log"
-LOOKUP_OUTPUT=$(cd "$MOCK_LOOKUP" && PATH="$MOCK_LOOKUP/bin:$PATH" AO_ARGS_FILE="$AO_ARGS_FILE" bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
+LOOKUP_OUTPUT=$(cd "$MOCK_LOOKUP" && \
+    PATH="$MOCK_LOOKUP/bin:$PATH" \
+    AO_ARGS_FILE="$AO_ARGS_FILE" \
+    AGENTOPS_STARTUP_CONTEXT_MODE=manual \
+    bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
 if ! grep -qE '^(lookup|knowledge brief)\b' "$AO_ARGS_FILE" 2>/dev/null; then
     pass "session-start performs no hidden lookup or briefing work in manual mode"
 else

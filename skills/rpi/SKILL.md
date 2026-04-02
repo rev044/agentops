@@ -30,26 +30,11 @@ metadata:
 
 ## Quick Start
 
-```bash
-/rpi "add user authentication"                        # full lifecycle
-/rpi --interactive "add user authentication"          # human gates in discovery only
-/rpi --from=discovery "add auth"                      # resume discovery
-/rpi --from=implementation ag-23k                      # skip to crank with existing epic
-/rpi --from=validation                                 # run validation only
-/rpi --loop --max-cycles=3 "add auth"                 # iterate-on-fail loop
-/rpi --deep "refactor payment module"                  # force full council ceremony
-/rpi --fast-path "fix typo in readme"                  # force lightweight ceremony
-/rpi --no-test-first "add auth"                       # opt out of strict-quality
-```
+Run `/rpi "<goal>"` for the full lifecycle. For resume, loop, fast-path, and deep examples, read `references/examples.md`.
 
 ## Lifecycle Ownership
 
-Phase orchestrators own all sub-skill sequencing, retry gates, and phase budgets:
-- Phase 1: `/discovery` handles brainstorm → design (when PRODUCT.md exists) → search → research → plan → pre-mortem and writes the execution packet.
-- Phase 2: `/crank` handles wave-based implementation plus implementation retries.
-- Phase 3: `/validation` handles vibe → post-mortem → retro → forge plus validation retries.
-
-`/rpi` stays thin: it owns setup, complexity classification, phase routing, the implementation gate, the validation-fail-to-crank loop, and the final report.
+Phase orchestrators own all sub-skill sequencing, retry gates, and phase budgets. `/discovery` handles brainstorm → design (when PRODUCT.md exists) → search → research → plan → pre-mortem and writes the execution packet; `/crank` owns wave-based implementation and implementation retries; `/validation` owns vibe → post-mortem → retro → forge and validation retries. `/rpi` stays thin: it owns setup, complexity classification, phase routing, the implementation gate, the validation-fail-to-crank loop, and the final report.
 
 ## Execution Steps
 
@@ -202,32 +187,30 @@ Read `references/error-handling.md` for failure semantics.
 | `--no-budget` | off | Disable phase time budgets (passed to phase skills) |
 
 ## Phase Data Contracts
-All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries `contract_surfaces` (repo execution profile), `done_criteria`, and queue claim/finalize metadata between phases. Sub-skills include /plan, /vibe, /post-mortem, and /pre-mortem. For detailed contract schemas, read `references/phase-data-contracts.md`.
+All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries the repo execution profile via `contract_surfaces`, plus `done_criteria` and queue claim/finalize metadata between phases. For detailed schemas, read `references/phase-data-contracts.md`.
 
 ## Complexity-Scaled Council Gates
 
-### Phase 3: Pre-mortem
+### Pre-mortem
 - `complexity == "low"` or `complexity == "fast"`: inline review, no spawning (`--quick`)
 - `complexity == "medium"` or `complexity == "standard"`: inline fast default (`--quick`)
-- `complexity == "high"` or `complexity == "full"`: full council, 2-judge minimum; retry gate: max 3 total attempts
+- `complexity == "high"` or `complexity == "full"`: full council, 2-judge minimum; retry gate max 3 total attempts
 
-### Phase 5: Final Vibe
+### Final Vibe
 - `complexity == "low"` or `complexity == "fast"`: inline review, no spawning (`--quick`)
 - `complexity == "medium"` or `complexity == "standard"`: inline fast default (`--quick`)
-- `complexity == "high"` or `complexity == "full"`: full council, 2-judge minimum; retry gate: max 3 total attempts
+- `complexity == "high"` or `complexity == "full"`: full council, 2-judge minimum; retry gate max 3 total attempts
 
-### Phase 6: Post-mortem (STEP 2)
+### Post-mortem (STEP 2)
 - `complexity == "low"` or `complexity == "fast"`: inline review, no spawning (`--quick`)
 - `complexity == "medium"` or `complexity == "standard"`: inline fast default (`--quick`)
-- `complexity == "high"` or `complexity == "full"`: full council, 2-judge minimum; retry gate: max 3 total attempts
+- `complexity == "high"` or `complexity == "full"`: full council, 2-judge minimum; retry gate max 3 total attempts
 
 ## Examples
 Read `references/examples.md` for full lifecycle, resume, and interactive examples.
 
 ## Troubleshooting
 Read `references/troubleshooting.md` for common problems and solutions.
-
-**See also:** [discovery](../discovery/SKILL.md), [crank](../crank/SKILL.md), [validation](../validation/SKILL.md)
 
 ## Runtime Compatibility
 
@@ -241,12 +224,7 @@ RPI runs in two runtime modes. Both must produce identical phase artifacts.
 | Phase numbering | 1 = discovery, 2 = implementation, 3 = validation | Same |
 | Ratchet checkpoints | `ao ratchet check` | `ao ratchet check` |
 
-**Minimal contract across both modes:**
-
-1. Phase state is written to `.agents/rpi/phased-state.json` on every phase transition.
-2. Phase numbers (1, 2, 3) and their names (discovery, implementation, validation) are identical.
-3. Ratchet gates (`ao ratchet check`) work unchanged — they read phase state, not hook output.
-4. The close-loop flywheel runs at stop time regardless of how stop is triggered.
+**Minimal contract across both modes:** phase state is always written to `.agents/rpi/phased-state.json`; phase numbering stays `1=discovery`, `2=implementation`, `3=validation`; `ao ratchet check` reads that shared state unchanged; the close-loop flywheel still runs at stop time.
 
 Hook-less runtimes skip hook-only side effects (e.g., automatic knowledge injection at session start). Use `ao codex start --query` to get equivalent startup context.
 

@@ -45,6 +45,8 @@ CURATED_NOTES=""
 NOTES_FILE=$(find .agents/releases -name "*-v${VERSION}-notes.md" 2>/dev/null | head -1 || true)
 if [[ -n "$NOTES_FILE" && -f "$NOTES_FILE" ]]; then
   CURATED_NOTES=$(cat "$NOTES_FILE")
+  CURATED_NOTES="$(printf '%s' "$CURATED_NOTES" \
+    | sed "s#(../../CHANGELOG.md)#(https://github.com/${REPO}/blob/main/CHANGELOG.md)#g")"
   echo "Using curated release notes from $NOTES_FILE" >&2
 fi
 
