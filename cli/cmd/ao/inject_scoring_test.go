@@ -99,3 +99,52 @@ func TestApplyCompositeScoring_NoMaturity(t *testing.T) {
 		t.Errorf("p2 (%v) should outrank p3 (%v)", p2.CompositeScore, p3.CompositeScore)
 	}
 }
+
+func TestApplyCompositeScoring_SmallPool(t *testing.T) {
+	// n < 3 triggers the raw-value fallback: score = freshness + λ × utility
+	// (z-normalization is skipped). Verify correct ordering is preserved.
+	high := &learning{
+		FreshnessScore: 0.9,
+		Utility:        0.8,
+	}
+	low := &learning{
+		FreshnessScore: 0.3,
+		Utility:        0.2,
+	}
+
+	items := []scorable{high, low}
+	applyCompositeScoringTo(items, 0.5)
+
+	if high.CompositeScore <= low.CompositeScore {
+		t.Errorf("high-scored learning (%v) should outrank low-scored learning (%v)",
+			high.CompositeScore, low.CompositeScore)
+	}
+}
+
+func TestApplyCompositeScoring_GlobalWeightPenalty(t *testing.T) {
+	// NOTE: The global weight penalty is NOT applied in applyCompositeScoringTo.
+	// It is applied upstream in collectLearnings (inject_learnings.go:87-98).
+	// This test verifies that applyCompositeScoringTo ignores the Global field
+	// entirely — two learnings with identical freshness/utility/maturity must
+	// receive equal CompositeScores regardless of their Global value.
+	nonGlobal := &learning{
+		FreshnessScore: 0.7,
+		Utility:        0.5,
+		Maturity:       "provisional",
+		Global:         false,
+	}
+	global := &learning{
+		FreshnessScore: 0.7,
+		Utility:        0.5,
+		Maturity:       "provisional",
+		Global:         true,
+	}
+
+	items := []scorable{nonGlobal, global}
+	applyCompositeScoringTo(items, 0.5)
+
+	if nonGlobal.CompositeScore != global.CompositeScore {
+		t.Errorf("applyCompositeScoringTo should ignore Global field: nonGlobal=%v global=%v",
+			nonGlobal.CompositeScore, global.CompositeScore)
+	}
+}
