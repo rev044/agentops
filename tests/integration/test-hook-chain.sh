@@ -142,42 +142,21 @@ else
     fail "session-start.sh exits with code 0 (got $EXIT_CODE)"
 fi
 
-if [ -n "$OUTPUT" ]; then
-    pass "session-start.sh produces output"
+if [ -z "$OUTPUT" ]; then
+    pass "session-start.sh stays silent"
 else
-    fail "session-start.sh produces output"
+    fail "session-start.sh stays silent"
 fi
 
 # ============================================================
 echo ""
-echo "=== Test 2: session-start.sh JSON output validation ==="
+echo "=== Test 2: session-start.sh silent runtime prep ==="
 # ============================================================
 
-# Validate JSON structure
-if echo "$OUTPUT" | jq . >/dev/null 2>&1; then
-    pass "session-start.sh produces valid JSON"
+if [ -z "$OUTPUT" ]; then
+    pass "session-start.sh emits no operator-facing context"
 else
-    fail "session-start.sh produces valid JSON"
-fi
-
-# Check for required fields
-if echo "$OUTPUT" | jq -e '.hookSpecificOutput.hookEventName' >/dev/null 2>&1; then
-    pass "JSON contains hookEventName field"
-else
-    fail "JSON contains hookEventName field"
-fi
-
-if echo "$OUTPUT" | jq -e '.hookSpecificOutput.additionalContext' >/dev/null 2>&1; then
-    pass "JSON contains additionalContext field"
-else
-    fail "JSON contains additionalContext field"
-fi
-
-EVENT_NAME=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.hookEventName')
-if [ "$EVENT_NAME" = "SessionStart" ]; then
-    pass "hookEventName is 'SessionStart'"
-else
-    fail "hookEventName is 'SessionStart' (got: $EVENT_NAME)"
+    fail "session-start.sh emits no operator-facing context"
 fi
 
 # ============================================================

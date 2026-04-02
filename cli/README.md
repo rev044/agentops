@@ -1,6 +1,26 @@
-# ao - Agent Operations CLI
+# ao - AgentOps Software Factory CLI
 
-CLI for the CASS (Contextual Agent Session Search) knowledge flywheel. Automates knowledge capture, retrieval, and reinforcement learning across Claude Code sessions.
+`ao` is the explicit operator surface for AgentOps when you want the repo to
+behave like a software factory instead of a loose collection of agent
+primitives.
+
+The short version:
+
+```bash
+ao quick-start
+ao factory start --goal "fix auth startup"
+ao rpi phased "fix auth startup"
+ao codex stop
+```
+
+That lane keeps four concerns explicit:
+
+1. `ao factory start` surfaces a bounded work order by compiling a goal-time
+   briefing when the corpus supports it, then running Codex startup.
+2. `ao rpi phased` runs the delivery line with fresh context per phase.
+3. `ao rpi status` lets the operator inspect long-running factory work.
+4. `ao codex stop` closes the flywheel so the session leaves behind learnings,
+   citations, and handoff state.
 
 ## Install
 
@@ -11,85 +31,52 @@ go install github.com/boshu2/agentops/cli/cmd/ao@latest
 ## Quick Start
 
 ```bash
-# From your repo root: create `.agents/` + register hooks
-ao init --hooks
+# From your repo root: create .agents/, starter knowledge surfaces, and hooks
+ao quick-start
 
-# Verify installation
-ao hooks test
+# Start a goal with briefing-first runtime context
+ao factory start --goal "fix auth startup"
+
+# Run the delivery lane
+ao rpi phased "fix auth startup"
 ```
 
-That's it. Knowledge now flows automatically between sessions.
+If you prefer the skill-first path, use `/rpi "fix auth startup"` after
+`ao factory start`.
 
-## What It Does
+That's it. In Claude Code, `CLAUDE.md` remains the startup surface. The
+installed hooks stay silent and only prepare runtime state for the factory lane.
 
-**SessionStart**: Injects relevant prior knowledge weighted by freshness and utility.
+## Operator Surfaces
+
+**SessionStart**: Performs startup maintenance, recovers handoff state, and can
+stage `factory-goal.txt` / `factory-briefing.txt` without injecting context.
+
+**UserPromptSubmit**: When startup lacked a goal, the first substantive prompt
+can be captured as silent factory intake and staged for later explicit use.
 
 **SessionEnd**: Extracts learnings and updates the feedback loop.
 
-## Core Commands
-
 | Command | Purpose |
 |---------|---------|
-| `ao inject` | Inject knowledge into current session |
-| `ao forge transcript` | Extract learnings from session transcripts |
-| `ao feedback-loop` | Update utility scores based on outcomes |
-| `ao metrics report` | View flywheel health and escape velocity |
+| `ao factory start --goal "<goal>"` | Compile briefing-first startup context, then run explicit Codex start |
+| `ao knowledge brief --goal "<goal>"` | Build the task-time briefing directly |
+| `ao codex start` | Lower-level hookless Codex startup |
+| `ao rpi phased "<goal>"` | CLI-first Discovery -> Implementation -> Validation lane |
+| `ao rpi status` | Monitor long-running phased work |
+| `ao codex stop` | Close the loop explicitly at session end |
 
-## Ratchet Workflow
+## Lower-Level Substrate
 
-Track progress through the RPI (Research → Plan → Implement) workflow:
+These commands remain important, but they sit below the factory lane:
 
-```bash
-ao ratchet gate plan        # Check if ready for planning
-ao ratchet record research  # Lock research completion
-ao ratchet status           # View current progress
-```
+- `ao knowledge` for belief/playbook/briefing refresh and gap reporting
+- `ao context assemble` for a five-section task briefing
+- `ao lookup` and `ao search` for direct retrieval
+- `ao forge transcript` and `ao flywheel close-loop` for manual lifecycle work
 
-## Hooks Management
+## Reference
 
-```bash
-ao init --hooks        # Recommended: repo setup + hooks (SessionStart + Stop)
-ao init --hooks --full # Optional: all 8 lifecycle events
-
-# Lower-level (hooks only; does not create `.agents/`)
-ao hooks init          # Generate hooks configuration
-ao hooks install       # Install to Claude Code
-ao hooks show      # View current hooks
-ao hooks test      # Verify hooks work
-```
-
-## Knowledge Commands
-
-```bash
-ao lookup --query "kubernetes"  # Look up knowledge about k8s
-ao search "error handling"      # Search knowledge base
-```
-
-## Task Integration
-
-Sync Claude Code tasks with CASS maturity system:
-
-```bash
-ao task-sync              # Sync current tasks
-ao task-sync --promote    # Promote completed tasks
-ao task-status            # View maturity distribution
-```
-
-## The Science
-
-The flywheel equation:
-
-```
-dK/dt = I(t) - δ·K + σ·ρ·K
-```
-
-- **δ = 0.17/week** - Knowledge decay rate (Darr et al.)
-- **σρ > δ/100** - Operational escape velocity for compounding knowledge
-
-See [docs/HOOKS.md](docs/HOOKS.md) for details.
-
-For a complete command reference, see [docs/COMMANDS.md](docs/COMMANDS.md).
-
-## License
-
-MIT
+- [Software Factory Surface](../docs/software-factory.md)
+- [Session Lifecycle](../docs/workflows/session-lifecycle.md)
+- [CLI Reference](docs/COMMANDS.md)

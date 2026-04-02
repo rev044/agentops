@@ -20,7 +20,7 @@ This command:
   1. Creates .agents/ directory structure
   2. Optionally initializes beads (git-native issues)
   3. Creates starter knowledge pack
-  4. Shows next steps
+  4. Shows the software-factory operator lane
 
 Examples:
   ao quick-start              # Full setup with beads
@@ -86,6 +86,9 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("━━━ STEP 1: Creating .agents/ structure ━━━")
 	dirs := []string{
+		".agents/briefings",
+		".agents/knowledge",
+		".agents/playbooks",
 		".agents/research",
 		".agents/synthesis",
 		".agents/specs",
@@ -330,32 +333,39 @@ func showNextSteps(hasBeads bool) {
 `)
 
 	if hasBeads {
-		fmt.Println(`  1. Create your first issue:
+		fmt.Println(`  1. Start the software-factory lane for a concrete goal:
+     $ ao factory start --goal "your first objective"
+
+  2. Create your first issue:
      $ bd create "My first task"
 
-  2. Start working:
+  3. Start working:
      $ claude
-     > /implement <issue-id>
+     > /rpi "your first objective"
 
-  3. When done, extract learnings:
-     > /post-mortem`)
+  4. When done, close the loop explicitly:
+     $ ao codex stop`)
 	} else {
-		fmt.Println(`  1. Start Claude in your project:
+		fmt.Println(`  1. Start the software-factory lane for a concrete goal:
+     $ ao factory start --goal "your first objective"
+
+  2. Start Claude in your project:
      $ claude
 
-  2. Work normally - learnings go to .agents/
+  3. Work normally:
+     > /rpi "your first objective"
 
-  3. When ready for full power:
+  4. When ready for tracked execution:
      $ bd init
      $ bd create "My first task"`)
 	}
 
 	fmt.Print(`
-  4. Your knowledge compounds automatically via Smart Connections
+  5. Your knowledge compounds through briefings, RPI, and flywheel closeout
 
 ═══════════════════════════════════════════════════════════════════
 
-  "Others forget. AgentOps learns. Zero infrastructure."
+  "Stateful environment. Stateless agents. One explicit operator lane."
 
 ═══════════════════════════════════════════════════════════════════
 `)

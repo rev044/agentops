@@ -20,11 +20,15 @@ The local DevOps layer for coding agents — skills, CLI, and knowledge flywheel
 
 README and PRODUCT.md promise skills work across 4 runtimes, but runtime-specific tests are quarantined (Claude Code, Codex, OpenCode all disabled in `tests/_quarantine/`). Only one cross-runtime test exists (`tests/codex/test-skill-cross-runtime.sh`). Ship at least 2 more runtime-specific smoke tests and promote them to CI.
 
+**Progress:** One cross-runtime test (`tests/codex/test-skill-cross-runtime.sh`) exists and passes. Remaining gap: 2+ additional runtime smoke tests needed and promoted out of quarantine.
+
 **Steer:** increase (runtime coverage count)
 
 ### 2. Gate the install path
 
 Three install scripts (`install.sh`, `install-codex.sh`, `install-opencode.sh`) have zero automated testing. A broken install is the fastest way to lose a user. Add install-path smoke tests that verify each script produces a working skill set.
+
+**Progress:** `install-smoke` gate added (`tests/install/test-install-smoke.sh`, weight 5) — validates syntax and structure of all install scripts. Gate is active in CI. Remaining gap: runtime execution tests (verify actual skill installation works end-to-end).
 
 **Steer:** increase (install scripts with smoke tests)
 
@@ -37,6 +41,8 @@ Three install scripts (`install.sh`, `install-codex.sh`, `install-opencode.sh`) 
 ### 4. Verify knowledge lifecycle end-to-end
 
 The flywheel-compounding gate proves σρ > δ (escape velocity). But the full lifecycle — capture quality, injection correctness, citation in downstream work — has no gate. Add a gate that traces one learning from extraction through injection to retrieval.
+
+**Progress:** `flywheel-lifecycle` gate added (`scripts/check-flywheel-lifecycle.sh`, weight 6) — traces capture → index → inject → retrieval as a 4-stage pipeline check. Gate is active in CI. Remaining gap: citation in downstream work (stage 5) not yet gated.
 
 **Steer:** increase (lifecycle stages gated)
 
@@ -57,6 +63,20 @@ Competitive analysis docs (`docs/comparisons/vs-*.md`) must stay fresh. GSD, Com
 CI catches codex drift at push time, but 40% of fix commits in the March 2026 integration were codex parity issues caught too late. The PreToolUse hook warns during editing; the goal gate blocks push if drift exists.
 
 **Steer:** decrease (codex parity findings count)
+
+## Three-Gap Proof Surface
+
+AgentOps closes three gaps that prevent coding agents from compounding. This section maps each gap to measurable gates so fitness checks can verify the claim is true, not just stated.
+
+| Gap | Definition | Gate | Check |
+|-----|-----------|------|-------|
+| Judgment validation | Plans and code are reviewed before commit; regressions are blocked, not advised | `hook-preflight`, `go-cli-tests`, `go-complexity-ceiling` | All three must pass on every push |
+| Durable learning | Knowledge captured in one session is retrievable and applied in the next; decay rate does not exceed usage | `flywheel-compounding` (σρ > δ), `flywheel-lifecycle` (capture → index → inject → retrieval) | Both gates must pass; lifecycle must trace ≥ 4 stages |
+| Loop closure | Completed work feeds back into constraints and goals; every cycle produces better next work | `flywheel-proof`, `athena-freshness`, `athena-no-oscillation` | Proof passes, defrag report fresh, zero oscillating goals |
+
+**Canonical reference:** `docs/context-lifecycle.md` — evidence map and mechanism inventory for all three gaps.
+
+The three-gap contract is satisfied when all nine gates above pass simultaneously. `ao goals measure` checks this on demand.
 
 ## Gates
 

@@ -43,6 +43,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/factory-router.sh",
+            "timeout": 8
+          },
+          {
+            "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/prompt-nudge.sh",
             "timeout": 5
           },

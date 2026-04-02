@@ -28,15 +28,9 @@ teardown() {
 # session-start.sh / precompact-snapshot.sh
 # ═══════════════════════════════════════════════════════════════════════
 
-@test "session-start: emits SessionStart JSON" {
+@test "session-start: stays silent while preparing runtime state" {
     SESSION_RAW=$(bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
-    # Extract JSON from potentially noisy output
-    if echo "$SESSION_RAW" | grep -q '"hookEventName".*"SessionStart"'; then
-        true  # Found SessionStart in output
-    else
-        SESSION_JSON=$(echo "$SESSION_RAW" | LC_ALL=C awk '/^[[:space:]]*\{/{found=1; buf=""} found{buf=buf $0 "\n"} /^[[:space:]]*\}/{if(found) last=buf; found=0} END{printf "%s", last}')
-        echo "$SESSION_JSON" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null 2>&1
-    fi
+    [ -z "$SESSION_RAW" ]
 }
 
 @test "session-start: kill switch suppresses output" {
@@ -50,6 +44,54 @@ teardown() {
     git -C "$mock" init -q >/dev/null 2>&1
     (cd "$mock/subdir" && bash "$HOOKS_DIR/session-start.sh" >/dev/null 2>&1 || true)
     [ -d "$mock/.agents/research" ] && [ ! -d "$mock/subdir/.agents/research" ]
+}
+
+@test "session-start: factory mode stages a matched briefing without injecting it" {
+    local mock="$TMP_TEST_DIR/mock-factory-start"
+    mkdir -p "$mock/.agents/handoff" "$mock/bin"
+    git -C "$mock" init -q >/dev/null 2>&1
+    cat > "$mock/.agents/handoff/handoff-20260402T192000Z.json" <<'EOF'
+{
+  "schema_version": 1,
+  "id": "handoff-factory-test",
+  "created_at": "2026-04-02T19:20:00Z",
+  "type": "manual",
+  "goal": "stabilize auth startup",
+  "summary": "route this session into the factory lane"
+}
+EOF
+    cat > "$mock/bin/ao" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${AO_ARGS_FILE:-}" ]; then
+    printf '%s\n' "$*" >> "$AO_ARGS_FILE"
+fi
+if [ "${1:-}" = "knowledge" ] && [ "${2:-}" = "brief" ]; then
+    briefing_path="${MOCK_FACTORY_BRIEFING_PATH:?}"
+    mkdir -p "$(dirname "$briefing_path")"
+    cat > "$briefing_path" <<'BRIEF'
+# Briefing: stabilize auth startup
+
+## Relevant Topics
+- `auth-startup` (healthy)
+BRIEF
+    jq -n --arg path "$briefing_path" '{"output_path":$path}'
+    exit 0
+fi
+if [ "${1:-}" = "lookup" ]; then
+    printf '[lookup] supporting result\n'
+fi
+exit 0
+EOF
+    chmod +x "$mock/bin/ao"
+    local args_file="$mock/ao-args.log"
+    local briefing_path="$mock/.agents/briefings/2026-04-02-stabilize-auth-startup.md"
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" AO_ARGS_FILE="$2" MOCK_FACTORY_BRIEFING_PATH="$3" AGENTOPS_STARTUP_CONTEXT_MODE=factory bash "$4" 2>&1' \
+        -- "$mock" "$args_file" "$briefing_path" "$HOOKS_DIR/session-start.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    grep -q '^knowledge brief --json --goal stabilize auth startup$' "$args_file"
+    [ "$(cat "$mock/.agents/ao/factory-goal.txt" 2>/dev/null)" = "stabilize auth startup" ]
+    [ "$(cat "$mock/.agents/ao/factory-briefing.txt" 2>/dev/null)" = "$briefing_path" ]
 }
 
 @test "precompact-snapshot: emits additionalContext JSON" {
@@ -360,6 +402,48 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
+# factory-router.sh
+# ═══════════════════════════════════════════════════════════════════════
+
+@test "factory-router: first substantive prompt builds briefing and clears intake" {
+    local mock="$TMP_TEST_DIR/mock-factory-router"
+    mkdir -p "$mock/.agents/ao" "$mock/bin"
+    git -C "$mock" init -q >/dev/null 2>&1
+    touch "$mock/.agents/ao/.factory-intake-needed"
+    cat > "$mock/bin/ao" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${AO_ARGS_FILE:-}" ]; then
+    printf '%s\n' "$*" >> "$AO_ARGS_FILE"
+fi
+if [ "${1:-}" = "knowledge" ] && [ "${2:-}" = "brief" ]; then
+    briefing_path="${MOCK_FACTORY_BRIEFING_PATH:?}"
+    mkdir -p "$(dirname "$briefing_path")"
+    cat > "$briefing_path" <<'BRIEF'
+# Briefing: fix auth bootstrap
+
+## Relevant Topics
+- `auth-bootstrap` (healthy)
+BRIEF
+    jq -n --arg path "$briefing_path" '{"output_path":$path}'
+    exit 0
+fi
+exit 0
+EOF
+    chmod +x "$mock/bin/ao"
+    local args_file="$mock/ao-args.log"
+    local briefing_path="$mock/.agents/briefings/2026-04-02-fix-auth-bootstrap.md"
+    run bash -c 'cd "$1" && printf "%s" "$4" | PATH="$1/bin:$PATH" AO_ARGS_FILE="$2" MOCK_FACTORY_BRIEFING_PATH="$3" AGENTOPS_STARTUP_CONTEXT_MODE=factory bash "$5" 2>&1' \
+        -- "$mock" "$args_file" "$briefing_path" '{"prompt":"fix auth bootstrap"}' "$HOOKS_DIR/factory-router.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    grep -q '^knowledge brief --json --goal fix auth bootstrap$' "$args_file"
+    [ ! -f "$mock/.agents/ao/.factory-intake-needed" ]
+    [ "$(cat "$mock/.agents/ao/factory-goal.txt" 2>/dev/null)" = "fix auth bootstrap" ]
+    [ "$(cat "$mock/.agents/ao/factory-briefing.txt" 2>/dev/null)" = "$briefing_path" ]
+    [ -f "$mock/.agents/ao/.factory-router-fired" ]
+}
+
+# ═══════════════════════════════════════════════════════════════════════
 # research-loop-detector.sh
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -440,6 +524,10 @@ AOEOF
 
 @test "hooks.json: intent-echo wired in UserPromptSubmit" {
     jq -e '.hooks.UserPromptSubmit[].hooks[] | select(.command | contains("intent-echo.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1
+}
+
+@test "hooks.json: factory-router wired in UserPromptSubmit" {
+    jq -e '.hooks.UserPromptSubmit[].hooks[] | select(.command | contains("factory-router.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1
 }
 
 @test "hooks.json: research-loop-detector wired in PostToolUse" {

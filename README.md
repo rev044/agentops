@@ -7,7 +7,7 @@
 
 ### Every session starts where the last one left off.
 
-Validation, memory, and lifecycle gates for coding agents — plain files, zero infrastructure, zero telemetry, and knowledge that compounds across every session.
+Validation, memory, lifecycle gates, and briefing-first control for coding agents. AgentOps acts as a software-factory control plane: bounded context goes in, validated code and durable learning come out.
 
 [Start Here](#start-here) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Newcomer Guide](docs/newcomer-guide.md)
 
@@ -28,6 +28,15 @@ Session 1, your agent spends 2 hours debugging a timeout bug. Session 15, a new 
 3. **Loop closure** — completed work produces better next work, stronger rules, and richer future context.
 
 Every skill, hook, and CLI command exists to deliver one of these three. They form a single [lifecycle contract](docs/context-lifecycle.md), not separate features.
+
+Operationally, that means AgentOps behaves like a software factory:
+
+- briefings and startup context prepare the work order
+- RPI runs the delivery line
+- validation gates accept or reject output
+- the flywheel turns completed work into future advantage
+
+See [Software Factory Surface](docs/software-factory.md) for the explicit operator lane.
 
 | Capability | What you get |
 |-----|---------------|
@@ -78,6 +87,11 @@ Or install via [release binaries](https://github.com/boshu2/agentops/releases) o
 
 Then type `/quickstart` in your agent chat.
 
+In Claude Code, `CLAUDE.md` is the startup surface. Installed hooks stay
+silent: `SessionStart` prepares runtime state and can stage factory goal or
+briefing files, while `UserPromptSubmit` can capture first-prompt intake
+without injecting additional context into the session.
+
 ---
 
 ## Start Here
@@ -100,6 +114,16 @@ When you're ready for more:
 
 Every skill works alone. Compose them however you want. Full catalog: [Skills](#skills).
 
+If you want the explicit operator lane instead of individual primitives:
+
+```bash
+ao factory start --goal "fix auth startup"
+/rpi "fix auth startup"           # or: ao rpi phased "fix auth startup"
+ao codex stop
+```
+
+That path keeps briefing, runtime startup, delivery, and loop closure on one surface. See [Software Factory Surface](docs/software-factory.md).
+
 ---
 
 ## How It Works
@@ -113,6 +137,12 @@ Each phase delivers one or more of the three capabilities — judgment, learning
 | Validation + learning | `/validation` -> `/vibe` -> `/post-mortem` -> `/retro` -> `/forge` | Findings, learnings, next work, stronger prevention artifacts |
 
 `/rpi` orchestrates all three phases. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next. The output is code + state + memory + gates.
+
+The explicit CLI operator surface around that line is:
+
+- `ao factory start` for briefing-first startup
+- `/rpi` or `ao rpi phased` for delivery
+- `ao codex stop` for explicit loop closure
 
 | Pattern | Chain | When |
 |---------|-------|------|

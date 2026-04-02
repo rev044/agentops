@@ -22,11 +22,16 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "ao",
 	Short: "AgentOps Knowledge Compounding CLI",
-	Long: `ao is the CLI for AgentOps, a knowledge compounding workflow system.
+	Long: `ao is the CLI for AgentOps, a software-factory control plane for repo-native agent work.
 
 "Problem in. Value out. Intelligence compounds."
 
-The Knowledge Flywheel:
+Software Factory Lane:
+  ao factory start --goal "fix auth startup"
+  /rpi "fix auth startup"   or   ao rpi phased "fix auth startup"
+  ao codex stop
+
+The Knowledge Flywheel underneath it:
   Sessions compound via .agents/ + Smart Connections.
   Others start fresh. You get smarter every session.
 
