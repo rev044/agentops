@@ -352,6 +352,12 @@
       "reason": "README generation benefits from Codex-specific interview brevity, artifact output, and validation focus."
     },
     {
+      "name": "red-team",
+      "treatment": "parity_only",
+      "wave": "catalog-parity",
+      "reason": "New adversarial validation skill; converter parity is acceptable."
+    },
+    {
       "name": "recover",
       "treatment": "bespoke",
       "wave": "core-execution",

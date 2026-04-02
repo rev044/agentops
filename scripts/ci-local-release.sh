@@ -623,7 +623,6 @@ run_step_bg "Skill CLI snippets" bash ./scripts/validate-skill-cli-snippets.sh
 run_step_bg "Command/test pairing gate" ./scripts/check-go-command-test-pair.sh
 run_step_bg "MemRL feedback loop health" ./scripts/check-memrl-health.sh
 run_step_bg "Doctor health check" ./scripts/check-doctor-health.sh
-run_step_bg "Release cadence check" ./scripts/release-cadence-check.sh
 
 collect_parallel
 

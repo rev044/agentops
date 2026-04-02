@@ -78,6 +78,7 @@ Ralph alignment source: `../shared/references/ralph-loop-contract.md` (fresh con
 | `--no-lifecycle` | off | Skip ALL lifecycle skill auto-invocations (test delegation in TEST WAVE, pre-vibe deps/test checks) |
 | `--lifecycle=<tier>` | matches complexity | Controls which lifecycle skills fire: `minimal` (test only), `standard` (+deps vuln), `full` (all) |
 | `--no-scope-check` | off | Skip scope-completion check before DONE marker (Step 8.7) |
+| `--skip-audit` | off | Skip bd-audit pre-flight gate (Step 3a.2) |
 
 ## Global Limits
 
@@ -351,7 +352,7 @@ fi
 **Run bd-audit before wave execution to avoid burning compute on dead work.**
 
 ```bash
-if [[ "$TRACKING_MODE" == "beads" ]] && [[ -f scripts/bd-audit.sh ]]; then
+if [[ "${SKIP_AUDIT:-}" != "true" ]] && [[ "$TRACKING_MODE" == "beads" ]] && [[ -f scripts/bd-audit.sh ]]; then
     AUDIT_RESULT="$(bash scripts/bd-audit.sh --json 2>/dev/null || echo '{}')"
     TOTAL_BEADS="$(echo "${AUDIT_RESULT}" | jq '.summary.total // 0')"
     FLAGGED_FIXED="$(echo "${AUDIT_RESULT}" | jq '.summary.likely_fixed // 0')"
@@ -360,18 +361,29 @@ if [[ "$TRACKING_MODE" == "beads" ]] && [[ -f scripts/bd-audit.sh ]]; then
     FLAGGED_TOTAL=$(( FLAGGED_FIXED + FLAGGED_STALE + FLAGGED_CONSOL ))
     FLAGGED_PCT="$(echo "${AUDIT_RESULT}" | jq '.summary.flagged_pct // 0')"
 
-    if [[ "$TOTAL_BEADS" -gt 0 && "$FLAGGED_PCT" -gt 30 ]]; then
+    if [[ "$FLAGGED_TOTAL" -gt 0 ]]; then
         echo "WARNING: bd-audit flagged ${FLAGGED_PCT}% of open beads (${FLAGGED_TOTAL}/${TOTAL_BEADS})"
         echo "  likely-fixed: ${FLAGGED_FIXED}  likely-stale: ${FLAGGED_STALE}  consolidatable: ${FLAGGED_CONSOL}"
-        echo "  Consider running: scripts/bd-audit.sh --auto-close"
-        echo "  Proceeding with wave execution (advisory only)."
-    elif [[ "$FLAGGED_TOTAL" -gt 0 ]]; then
-        echo "INFO: bd-audit flagged ${FLAGGED_TOTAL} beads (${FLAGGED_PCT}%) — below 30% threshold, proceeding."
+        echo ""
+        echo "  Recovery options:"
+        echo "    scripts/bd-audit.sh --auto-close   # close likely-fixed beads"
+        echo "    bd show <id>                        # review individual beads"
+        echo "    /crank --skip-audit                 # bypass this gate"
+
+        if [[ "$FLAGGED_PCT" -gt 50 ]]; then
+            echo ""
+            echo "BLOCKED: >50% of beads flagged — backlog hygiene required before execution."
+            echo "  Run: scripts/bd-audit.sh --auto-close && scripts/bd-cluster.sh --auto-merge"
+            echo "<promise>BLOCKED</promise>"
+            return 1
+        fi
+        echo ""
+        echo "  Proceeding with WARNING (${FLAGGED_PCT}% < 50% blocking threshold)."
     fi
 fi
 ```
 
-This is **advisory only** — it never blocks wave execution. If >30% of open beads are flagged, log a WARNING and suggest `--auto-close`. Re-run with `--auto-close` to close likely-fixed beads automatically.
+This is a **WARNING gate** — it warns on any flagged beads and **blocks at >50%**. Use `--skip-audit` to bypass. If blocked, clean up with `scripts/bd-audit.sh --auto-close` and `scripts/bd-cluster.sh --auto-merge`, then re-run crank.
 
 ### Step 3a.3: Pre-flight Check - Changed-String Grep
 

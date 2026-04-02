@@ -222,14 +222,11 @@ The release workflow (`release.yml`) triggers on version tags (`v*`) or manual d
 
 Manual dispatch is a rerun path, not the primary publish path for a new version. For a fresh release, push the tag. For post-tag fixes, use `scripts/retag-release.sh vX.Y.Z`. Do not start a manual dispatch in parallel with the tag-push workflow for the same tag.
 
-### Release Cadence
+### Release Timing
 
-- **Weekly release train (Fridays).** One published release per week max.
-- **Security hotfixes** are the only exception -- ship same day as patch version.
-- **No single-commit releases** for non-security fixes. Batch into the weekly train.
+- AgentOps does not enforce a minimum gap between releases.
 - Draft releases do not notify watchers and can be used freely for CI testing.
 - Curated release notes are written to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` before tagging.
-- The release skill includes a 7-day cadence check in its pre-flight.
 
 ### Release Commands
 

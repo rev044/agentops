@@ -92,7 +92,6 @@ Once the target version is known, rerun the gate as `./scripts/ci-local-release.
 | Manifest versions sync | Compare `.claude-plugin/plugin.json` and `marketplace.json` versions | Warn (show mismatches) |
 | Dependency vulnerabilities | Run `$deps vuln` to confirm no critical vulnerabilities ship with this release | Warn |
 | Commits since last tag | `git log --oneline <range>` | Block if empty — nothing to release |
-| Release cadence | Check date of last tag vs today | Warn if <7 days since last non-security release (see `references/release-cadence.md`) |
 | Unconsumed high-severity findings | Count items in `.agents/rpi/next-work.jsonl` where `consumed=false` and `severity=high` | Warn — not a blocker (see check below) |
 
 **Unconsumed findings check (soft WARN, non-blocking):**

@@ -196,7 +196,9 @@ bd ready 2>/dev/null
 
 1. Verify there are ready issues. Empty list is an error unless the epic is already complete.
 2. If 3+ issues are ready, check `.agents/council/` for pre-mortem evidence.
-3. For every string being modified, grep the codebase for stale cross-references.
+3. If tracking mode is `beads` and `scripts/bd-audit.sh` exists, run the backlog audit before spawning workers.
+4. If bd-audit flags backlog hygiene issues, stop and clean them up before continuing. Use `--skip-audit` only when you intentionally want to bypass that gate.
+5. For every string being modified, grep the codebase for stale cross-references.
 
 ### Step 3b: Language Standards Injection
 

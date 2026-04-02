@@ -1,20 +1,6 @@
 ---
 name: post-mortem
 description: 'Wrap up completed work. Council validates the implementation, then extract and process learnings. Triggers: "post-mortem", "wrap up", "close epic", "what did we learn".'
-skill_api_version: 1
-metadata:
-  tier: judgment
-  dependencies:
-    - council  # multi-model judgment
-    - beads    # optional - for issue status
-context:
-  window: fork
-  intent:
-    mode: task
-  sections:
-    exclude: [HISTORY]
-  intel_scope: full
-output_contract: skills/council/schemas/verdict.json
 ---
 
 # Post-Mortem Skill
@@ -138,7 +124,7 @@ Before proceeding, verify:
 
 ### Step 0.4: Load Reference Documents (MANDATORY)
 
-Before Step 0.5 and Step 2.5, load required reference docs into context using the Read tool:
+Before Step 0.5 and Step 2.5, read the required reference docs into context:
 
 ```
 REQUIRED_REFS=(
@@ -149,7 +135,7 @@ REQUIRED_REFS=(
 )
 ```
 
-For each reference file, use the **Read tool** to load its content and hold it in context for use in later steps. Do NOT just test file existence with `[ -f ]` -- actually read the content so it is available when Steps 0.5 and 2.5 need it.
+For each reference file, read its content and hold it in context for use in later steps. Do NOT just test file existence with `[ -f ]` -- actually read the content so it is available when Steps 0.5 and 2.5 need it.
 
 If a reference file does not exist (Read returns an error), log a warning and add it as a checkpoint warning in the council context. Proceed only if the missing reference is intentionally deferred.
 
@@ -332,7 +318,7 @@ bd children <epic-id> 2>/dev/null | head -20
 ls -lt .agents/plans/ .agents/research/ 2>/dev/null | head -10
 ```
 
-Read relevant artifacts: research documents, plan documents, commit messages, code changes. Use the Read tool and git commands to understand what was done.
+Read relevant artifacts: research documents, plan documents, commit messages, and code changes. Use file reads and git commands to understand what was done.
 
 **If retrospecting an epic:** Run the closure integrity quick-check from `references/context-gathering.md` (Phantom Bead Detection + Multi-Wave Regression Scan). Include any warnings in findings.
 

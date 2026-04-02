@@ -94,7 +94,6 @@ The three-gap contract is satisfied when all nine gates above pass simultaneousl
 | manifest-versions-match | `test "$(jq -r '.metadata.version' .claude-plugin/marketplace.json)" = "$(jq -r '.version' .claude-plugin/plugin.json)"` | 5 | Plugin and marketplace versions in sync |
 | wiring-closure | `timeout 60 bash scripts/check-wiring-closure.sh` | 7 | All scripts, skills, and hooks referenced by registries exist |
 | contract-compatibility | `timeout 60 bash scripts/check-contract-compatibility.sh` | 5 | Contract schemas and references exist on disk |
-| release-cadence | `bash scripts/release-cadence-check.sh` | 3 | Release cadence policy enforced (warn <7d, block <1d) |
 | goals-validate | `bash -c 'cd cli && go build -o /tmp/ao-goals-val ./cmd/ao && cd .. && /tmp/ao-goals-val goals validate --json 2>/dev/null \| jq -e ".valid == true"'` | 5 | GOALS.md parses and validates without structural errors |
 | athena-freshness | `bash scripts/check-athena-health.sh` | 4 | Athena defrag report is fresh and stale learnings are low |
 | athena-no-oscillation | `bash -c 'test -f .agents/defrag/latest.json && jq -e "(.oscillation.oscillating_goals // []) \| length == 0" .agents/defrag/latest.json'` | 4 | No evolve goals oscillating across consecutive cycles |

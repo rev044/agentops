@@ -302,25 +302,15 @@ Once merged:
   - Other agents: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
 - You'll be credited as author
 
-## Release Cadence
+## Release Timing
 
-AgentOps follows a **weekly release train** to avoid notification spam for watchers and stargazers (GitHub sends an email for every published release — there's no way to filter).
+AgentOps does not enforce a minimum wait between releases. Maintainers can cut a release whenever the repo state and validation results justify it.
 
-### Schedule
+### Maintainer Guidance
 
-| Type | When | Version | Example |
-|------|------|---------|---------|
-| **Regular release** | Weekly (Fridays) | Minor bump (`vX.Y.0`) | Features + fixes accumulated all week |
-| **Security hotfix** | Immediately | Patch bump (`vX.Y.Z`) | Only for security vulnerabilities |
-| **Skip week** | When nothing meaningful shipped | — | No release, no tag |
-
-### Rules
-
-- **One published release per week, max.** Accumulate features and fixes in `[Unreleased]` in CHANGELOG.md.
-- **Security hotfixes are the only exception.** Ship same day as patch version.
-- **No 1-commit releases** for non-security fixes. Batch them.
-- **No multiple releases in one day** unless one is a security hotfix.
-- **Draft releases don't notify anyone.** Use drafts freely for CI testing.
+- Keep `[Unreleased]` in `CHANGELOG.md` current so release prep stays mechanical.
+- Prefer batching related changes into coherent release notes when practical.
+- Draft releases do not notify anyone and can be used freely for CI testing.
 
 ### For Maintainers
 
