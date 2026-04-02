@@ -87,6 +87,11 @@ Or install via [release binaries](https://github.com/boshu2/agentops/releases) o
 
 Then type `/quickstart` in your agent chat.
 
+In Claude Code, `CLAUDE.md` is the startup surface. Installed hooks stay
+silent: `SessionStart` prepares runtime state and can stage factory goal or
+briefing files, while `UserPromptSubmit` can capture first-prompt intake
+without injecting additional context into the session.
+
 ---
 
 ## Start Here

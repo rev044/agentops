@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# AgentOps Session Start Hook (manual mode)
-# Creates .agents/ directories, consumes handoffs, injects skill context.
-# MEMORY.md is auto-loaded by Claude Code — no extract/inject needed.
+# AgentOps Session Start Hook
+# Creates .agents/ directories, consumes handoffs, and prepares runtime state.
+# CLAUDE.md owns the operator-facing startup surface; this hook stays silent.
 
 # Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
@@ -20,10 +20,22 @@ ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 AO_DIR="$ROOT/.agents/ao"
 
 HOOK_ERROR_LOG="$AO_DIR/hook-errors.log"
+AO_TIMEOUT_BIN="timeout"
+command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1 || AO_TIMEOUT_BIN="gtimeout"
 
 log_hook_fail() {
     mkdir -p "$AO_DIR" 2>/dev/null || return 0
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: $1" >> "$HOOK_ERROR_LOG" 2>/dev/null || true
+}
+
+run_with_timeout() {
+    local seconds="$1"
+    shift
+    if command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1; then
+        "$AO_TIMEOUT_BIN" "$seconds" "$@" 2>/dev/null
+        return $?
+    fi
+    "$@" 2>/dev/null
 }
 
 trim_lookup_text() {
@@ -31,6 +43,27 @@ trim_lookup_text() {
         | tr '\n' ' ' \
         | tr -s '[:space:]' ' ' \
         | sed 's/^ //; s/ $//'
+}
+
+resolve_startup_context_mode() {
+    local mode
+    if [ "${AGENTOPS_STARTUP_LEGACY_INJECT:-}" = "1" ]; then
+        printf 'manual'
+        return 0
+    fi
+
+    mode=$(printf '%s' "${AGENTOPS_STARTUP_CONTEXT_MODE:-factory}" | tr '[:upper:]' '[:lower:]')
+    case "$mode" in
+        ""|factory)
+            printf 'factory'
+            ;;
+        manual|lean|legacy)
+            printf 'manual'
+            ;;
+        *)
+            printf 'factory'
+            ;;
+    esac
 }
 
 derive_lookup_query() {
@@ -49,11 +82,22 @@ derive_lookup_query() {
     return 0
 }
 
-detect_lookup_bead() {
-    if ! command -v bd >/dev/null 2>&1; then
-        return 0
-    fi
-    timeout 1 bd current 2>/dev/null | head -1 | tr -d '\r' | sed 's/^ //; s/ $//'
+build_factory_briefing() {
+    local goal="$1"
+    local output path
+
+    [ -n "$goal" ] || return 0
+    command -v ao >/dev/null 2>&1 || return 0
+    command -v jq >/dev/null 2>&1 || return 0
+
+    output=$(run_with_timeout 8 ao knowledge brief --json --goal "$goal") || return 0
+    [ -n "$output" ] || return 0
+
+    path=$(printf '%s' "$output" | jq -r '.output_path // empty' 2>/dev/null)
+    path=$(trim_lookup_text "$path")
+    [ -n "$path" ] || return 0
+    [ -f "$path" ] || return 0
+    printf '%s' "$path"
 }
 
 write_environment_manifest() {
@@ -130,6 +174,10 @@ write_environment_manifest
 
 # Clear stale dedup flags from prior sessions (prevents cross-session suppression)
 rm -f "$ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
+rm -f "$ROOT/.agents/ao/.factory-router-fired" \
+      "$ROOT/.agents/ao/.factory-intake-needed" \
+      "$ROOT/.agents/ao/factory-goal.txt" \
+      "$ROOT/.agents/ao/factory-briefing.txt" 2>/dev/null
 
 # Auto-cleanup stale RPI runs (lightweight, <1s, dry-run only)
 if command -v ao &>/dev/null; then
@@ -224,23 +272,11 @@ rpi/*
 EOF
 fi
 
-# Flywheel behavior
-INJECTED_KNOWLEDGE=""
-
-# Derive MEMORY.md path once (used for stale nudge)
-MEMORY_DIR="$HOME/.claude/projects"
-PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
-MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
-MEMORY_AGE_DAYS=-1
-if [ -f "$MEMORY_FILE" ]; then
-    MTIME=$(stat -f %m "$MEMORY_FILE" 2>/dev/null || stat -c %Y "$MEMORY_FILE" 2>/dev/null || echo "")
-    if [ -n "$MTIME" ]; then
-        MEMORY_AGE_DAYS=$(( ($(date +%s) - MTIME) / 86400 ))
-    fi
-fi
+STARTUP_CONTEXT_MODE="$(resolve_startup_context_mode)"
+FACTORY_GOAL=""
+FACTORY_BRIEFING_PATH=""
 
 # Structured handoff consumption (ao handoff JSON artifacts)
-HANDOFF_CONTEXT=""
 if [ -d "$ROOT/.agents/handoff" ] && command -v jq &>/dev/null; then
     # Find newest unconsumed .json handoff (exclude .consumed.json and .consuming.json)
     HANDOFF_JSON=$(find "$ROOT/.agents/handoff" -maxdepth 1 -name 'handoff-*.json' \
@@ -260,151 +296,23 @@ if [ -d "$ROOT/.agents/handoff" ] && command -v jq &>/dev/null; then
                 "$CONSUMING" > "${CONSUMING}.tmp" 2>/dev/null \
                 && mv "${CONSUMING}.tmp" "${HANDOFF_JSON%.json}.consumed.json" 2>/dev/null \
                 && rm -f "$CONSUMING" 2>/dev/null
-            # Build injection context
-            HANDOFF_CONTEXT="### Handoff Context (${H_TYPE})"
-            [ -n "$H_GOAL" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
-- **Goal:** ${H_GOAL}"
-            [ -n "$H_SUMMARY" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
-- **Summary:** ${H_SUMMARY}"
-            [ -n "$H_CONTINUATION" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
-- **Continue:** ${H_CONTINUATION}"
-            HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
-- **Source:** ${HANDOFF_JSON}"
         fi
     fi
 fi
 
-# Predecessor handoff discovery
-PREDECESSOR_FILE="${GT_PREDECESSOR_HANDOFF:-}"
-if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
-    PREDECESSOR_FILE=$(ls -t "$ROOT/.agents/handoff/"*.md 2>/dev/null | head -1)
-fi
-
-# Build injection context (manual mode — MEMORY.md auto-loaded by Claude Code)
-INJECTED_KNOWLEDGE="MEMORY.md is auto-loaded by Claude Code for this project.
-For on-demand retrieval: \`ao search \"<query>\"\` or \`ao lookup --query \"<query>\"\`"
-if [ -n "$HANDOFF_CONTEXT" ]; then
-    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
-
-${HANDOFF_CONTEXT}"
-fi
-if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
-    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
-Predecessor handoff: ${PREDECESSOR_FILE}"
-fi
-
-# Point to knowledge signpost (agents search on demand)
-if [ -f "${ROOT:-.}/.agents/AGENTS.md" ]; then
-    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
-
-Knowledge artifacts are in \`.agents/\`. See \`.agents/AGENTS.md\` for navigation.
-Use \`ao lookup --query \"topic\"\` for learnings retrieval, or \`Grep\` in \`.agents/learnings/\` as fallback."
-else
-    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
-
-Knowledge artifacts are in \`.agents/\` (if populated).
-Use \`ao lookup --query \"topic\"\` for on-demand learnings retrieval."
-fi
-
-# Auto-retrieve and cite top learnings for this session (closes citation gap)
-if command -v ao &>/dev/null; then
-    LOOKUP_QUERY="$(derive_lookup_query)"
-    LOOKUP_BEAD="$(detect_lookup_bead)"
-    LOOKUP_CONTEXT=""
-    LOOKUP_ARGS=(lookup --limit 5)
-    if [ -n "$LOOKUP_QUERY" ]; then
-        LOOKUP_ARGS+=(--query "$LOOKUP_QUERY")
-        LOOKUP_CONTEXT="query=\"$LOOKUP_QUERY\""
-    fi
-    if [ -n "$LOOKUP_BEAD" ]; then
-        LOOKUP_ARGS+=(--bead "$LOOKUP_BEAD")
-        if [ -n "$LOOKUP_CONTEXT" ]; then
-            LOOKUP_CONTEXT="${LOOKUP_CONTEXT}, "
+if [ "$STARTUP_CONTEXT_MODE" = "factory" ]; then
+    FACTORY_GOAL="$(derive_lookup_query)"
+    if [ -n "$FACTORY_GOAL" ]; then
+        printf '%s' "$FACTORY_GOAL" > "$ROOT/.agents/ao/factory-goal.txt" 2>/dev/null || true
+        FACTORY_BRIEFING_PATH="$(build_factory_briefing "$FACTORY_GOAL")"
+        if [ -n "$FACTORY_BRIEFING_PATH" ]; then
+            printf '%s' "$FACTORY_BRIEFING_PATH" > "$ROOT/.agents/ao/factory-briefing.txt" 2>/dev/null || true
+        else
+            rm -f "$ROOT/.agents/ao/factory-briefing.txt" 2>/dev/null || true
         fi
-        LOOKUP_CONTEXT="${LOOKUP_CONTEXT}bead=${LOOKUP_BEAD}"
-    fi
-    if [ -z "$LOOKUP_CONTEXT" ]; then
-        LOOKUP_CONTEXT="task context unavailable"
-    fi
-    if [ -n "$LOOKUP_QUERY" ] || [ -n "$LOOKUP_BEAD" ]; then
-        FLYWHEEL_KNOWLEDGE=$(timeout 5 ao "${LOOKUP_ARGS[@]}" 2>/dev/null || true)
     else
-        FLYWHEEL_KNOWLEDGE=""
+        : > "$ROOT/.agents/ao/.factory-intake-needed" 2>/dev/null || true
     fi
-    if [ -n "$FLYWHEEL_KNOWLEDGE" ]; then
-        INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
-
-### Prior Learnings (auto-retrieved: ${LOOKUP_CONTEXT})
-${FLYWHEEL_KNOWLEDGE}"
-    fi
-fi
-
-# Keep startup context lean: inject only fresh flywheel knowledge and a short skill pointer.
-SKILL_FILE="${PLUGIN_ROOT}/skills/using-agentops/SKILL.md"
-if [ -f "$SKILL_FILE" ]; then
-    using_agentops_hint="AgentOps workflow context is available. Use the Skill tool to read ${SKILL_FILE} when needed."
-else
-    using_agentops_hint="(AgentOps skill content unavailable at ${SKILL_FILE})"
-fi
-
-# Truncation (static cap — no notebook mode logic needed)
-MAX_INJECT_CHARS=4000
-if [ -n "$INJECTED_KNOWLEDGE" ] && [ "${#INJECTED_KNOWLEDGE}" -gt "$MAX_INJECT_CHARS" ]; then
-    # Truncate at last newline within budget (never mid-line)
-    trimmed="${INJECTED_KNOWLEDGE:0:$MAX_INJECT_CHARS}"
-    INJECTED_KNOWLEDGE="${trimmed%
-*}
-
-*[truncated by session-start hook]*"
-fi
-
-# Nudge agent if MEMORY.md is stale or missing
-if [ -n "${MEMORY_FILE:-}" ] && [ -f "$MEMORY_FILE" ] && [ "${MEMORY_AGE_DAYS:-0}" -gt 7 ]; then
-    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
-
-*Note: Your MEMORY.md hasn't been updated in ${MEMORY_AGE_DAYS} days. Consider running \`ao notebook update\` or updating it manually.*"
-fi
-
-if [ -n "$INJECTED_KNOWLEDGE" ]; then
-    full_content=$(cat <<HOOKCTX
-<AGENTOPS_CONTEXT>
-${INJECTED_KNOWLEDGE}
-
-${using_agentops_hint}
-</AGENTOPS_CONTEXT>
-HOOKCTX
-)
-else
-    full_content=$(cat <<HOOKCTX
-<AGENTOPS_CONTEXT>
-No prior flywheel knowledge was injected for this session.
-${using_agentops_hint}
-</AGENTOPS_CONTEXT>
-HOOKCTX
-)
-fi
-
-if command -v jq &>/dev/null; then
-    additional_context=$(printf '%s' "$full_content" | jq -Rs '.')
-    cat <<HOOKEOF
-{
-  "hookSpecificOutput": {
-    "hookEventName": "SessionStart",
-    "additionalContext": ${additional_context}
-  }
-}
-HOOKEOF
-else
-    # Minimal fallback — escape newlines and quotes
-    escaped=$(printf '%s' "$full_content" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
-    cat <<HOOKEOF
-{
-  "hookSpecificOutput": {
-    "hookEventName": "SessionStart",
-    "additionalContext": "${escaped}"
-  }
-}
-HOOKEOF
 fi
 
 exit 0

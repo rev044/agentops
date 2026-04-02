@@ -4,7 +4,7 @@
 # Verifies each hook produces correct side effects in the expected order.
 #
 # Lifecycle sequence:
-#   1. SessionStart   → session-start.sh (directory creation, JSON output)
+#   1. SessionStart   → session-start.sh (directory creation, silent runtime prep)
 #   2. PreToolUse(Read)  → citation-tracker.sh (citation recorded)
 #   3. PreToolUse(Bash)  → git-worker-guard.sh (worker git commit blocked)
 #   4. PostToolUse(Bash) → ratchet-advance.sh (advance suggestion on ratchet record)
@@ -163,21 +163,10 @@ else
     SESSION_JSON=$(echo "$SESSION_OUTPUT" | LC_ALL=C awk '/^[[:space:]]*\{/{found=1; buf=""} found{buf=buf $0 "\n"} /^[[:space:]]*\}/{if(found) last=buf; found=0} END{printf "%s", last}')
 fi
 
-if echo "$SESSION_JSON" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null 2>&1; then
-    pass "step 1: emits SessionStart hookEventName"
+if [ -z "$SESSION_OUTPUT" ]; then
+    pass "step 1: session-start remains silent"
 else
-    # Fallback: grep raw output
-    if echo "$SESSION_OUTPUT" | grep -q '"SessionStart"'; then
-        pass "step 1: emits SessionStart hookEventName"
-    else
-        fail "step 1: emits SessionStart hookEventName"
-    fi
-fi
-
-if echo "$SESSION_JSON" | jq -e '.hookSpecificOutput.additionalContext' >/dev/null 2>&1; then
-    pass "step 1: emits additionalContext"
-else
-    fail "step 1: emits additionalContext"
+    fail "step 1: session-start remains silent"
 fi
 
 # Verify directory creation (session-start creates .agents/ dirs)
@@ -591,6 +580,7 @@ echo "=== Cross-Cutting: Kill Switch Verification ==="
 # Verify ALL hooks respect the AGENTOPS_HOOKS_DISABLED kill switch
 HOOKS_WITH_KILL_SWITCH=(
     "session-start.sh"
+    "factory-router.sh"
     "citation-tracker.sh"
     "git-worker-guard.sh"
     "ratchet-advance.sh"

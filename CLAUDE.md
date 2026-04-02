@@ -194,6 +194,17 @@ Research → Plan → Implement → Validate
     └──── Knowledge Flywheel ────┘
 ```
 
+## Claude Code Startup Surface
+
+`CLAUDE.md` is the startup surface in Claude Code. Do not expect `SessionStart`
+or first-prompt hooks to inject briefings into the conversation.
+
+- Use the goal stated in the user prompt or recovered handoff as the working objective.
+- If you want the full software-factory lane, run `/rpi "goal"` explicitly.
+- If you want a compiled goal-time briefing first, run `ao knowledge brief --goal "goal"`.
+- Treat `.agents/ao/factory-goal.txt` and `.agents/ao/factory-briefing.txt` as
+  silent runtime state, not operator-facing instructions.
+
 ### Session & Swarm Constraints
 
 - **Multi-phase work:** Route through `ao rpi` — it enforces 90-min phase timeouts and 10-min stall detection. Raw sessions have neither.

@@ -59,8 +59,9 @@ These control the optional hook system installed via `ao init --hooks`. Each hoo
 |----------|---------|-------------|
 | `AGENTOPS_HOOKS_DISABLED` | `0` | Set to `1` to disable **all** hooks at once. Global kill switch. Useful for debugging or when hooks interfere with a specific workflow. |
 | `AGENTOPS_SESSION_START_DISABLED` | `0` | Set to `1` to disable the session-start hook entirely. |
-| `AGENTOPS_STARTUP_CONTEXT_MODE` | `manual` | Controls SessionStart behavior: `manual` (default — MEMORY.md auto-loaded, no extract/inject), `lean` (extract + inject with reduced budget), `legacy` (extract + inject with full budget). |
-| `AGENTOPS_STARTUP_LEGACY_INJECT` | (unset) | Set to `1` to force `lean` startup mode regardless of `AGENTOPS_STARTUP_CONTEXT_MODE`. Backward compatibility rollback if `manual` default causes issues. |
+| `AGENTOPS_STARTUP_CONTEXT_MODE` | `factory` | Controls SessionStart behavior: `factory` (default — silently stage factory goal/briefing state when a goal is recoverable, and mark missing-goal sessions for prompt-time intake) or `manual` (baseline startup maintenance only). Legacy values `lean` and `legacy` are treated as `manual` for compatibility. |
+| `AGENTOPS_STARTUP_LEGACY_INJECT` | (unset) | Compatibility alias that forces `manual` startup mode regardless of `AGENTOPS_STARTUP_CONTEXT_MODE`. Use only as a rollback for older startup expectations that relied on hidden hook-managed startup context. |
+| `AGENTOPS_FACTORY_ROUTER_DISABLED` | `0` | Set to `1` to disable the `UserPromptSubmit` factory intake hook that captures the first substantive prompt into `.agents/ao/` state when startup had no goal. |
 | `AGENTOPS_MEMORY_SYNC` | `0` | Set to `1` to enable repo-root MEMORY.md sync at SessionEnd. Writes session history with managed block markers for cross-runtime access (Codex, OpenCode). |
 | `AGENTOPS_EVICTION_DISABLED` | `0` | Set to `1` to disable knowledge eviction. Eviction removes stale learnings that have decayed below the retention threshold. Disable if you want to keep all learnings indefinitely. |
 | `AGENTOPS_GITIGNORE_AUTO` | `1` | Set to `0` to prevent the session-start hook from auto-adding `.agents/` to `.gitignore`. Useful if you want to commit knowledge artifacts to your repo. |

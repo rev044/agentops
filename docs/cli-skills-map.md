@@ -112,7 +112,7 @@ Which `ao` commands each hook invokes.
 
 | Hook File | Event | ao Commands |
 |-----------|-------|-------------|
-| **session-start.sh** | SessionStart | `extract`, `inject`, `lookup`, `notebook update`, `search` |
+| **session-start.sh** | SessionStart | `flywheel close-loop`, `knowledge brief`, `rpi cleanup` |
 | **session-end-maintenance.sh** | SessionEnd | `contradict`, `dedup`, `forge transcript`, `maturity`, `memory sync`, `notebook update`, `pool ingest` |
 | **ao-flywheel-close.sh** | Stop | `flywheel close-loop` |
 | **ratchet-advance.sh** | PostToolUse | `ratchet record` |

@@ -44,7 +44,18 @@ ao rpi phased "fix auth startup"
 If you prefer the skill-first path, use `/rpi "fix auth startup"` after
 `ao factory start`.
 
+That's it. In Claude Code, `CLAUDE.md` remains the startup surface. The
+installed hooks stay silent and only prepare runtime state for the factory lane.
+
 ## Operator Surfaces
+
+**SessionStart**: Performs startup maintenance, recovers handoff state, and can
+stage `factory-goal.txt` / `factory-briefing.txt` without injecting context.
+
+**UserPromptSubmit**: When startup lacked a goal, the first substantive prompt
+can be captured as silent factory intake and staged for later explicit use.
+
+**SessionEnd**: Extracts learnings and updates the feedback loop.
 
 | Command | Purpose |
 |---------|---------|
