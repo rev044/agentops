@@ -14,6 +14,7 @@ var (
 	benchCorpus  string
 	benchJSON    bool
 	benchK       int
+	benchLive    bool
 )
 
 // benchQuery defines a single benchmark query with expected results.
@@ -43,6 +44,122 @@ type benchReport struct {
 	Results    []benchResult  `json:"results"`
 }
 
+// liveQueryResult holds the result of a single query against the live corpus.
+type liveQueryResult struct {
+	Query      string   `json:"query"`
+	Count      int      `json:"count"`
+	TopIDs     []string `json:"top_ids"`
+	MinScore   float64  `json:"min_score"`
+	MaxScore   float64  `json:"max_score"`
+	MeanScore  float64  `json:"mean_score"`
+}
+
+// liveReport holds results from benchmarking against the real .agents/learnings/ directory.
+type liveReport struct {
+	Mode           string            `json:"mode"`
+	TotalLearnings int               `json:"total_learnings"`
+	Queries        int               `json:"queries"`
+	K              int               `json:"k"`
+	Results        []liveQueryResult `json:"results"`
+}
+
+// liveQueries are broad queries that exercise real-world retrieval patterns.
+var liveQueries = []string{
+	"CI pipeline",
+	"session intelligence",
+	"hook authoring",
+	"flywheel",
+	"testing",
+	"refactor",
+	"security",
+	"performance",
+	"debugging",
+	"architecture",
+}
+
+// runLiveBench benchmarks against the actual .agents/learnings/ directory.
+func runLiveBench(k int, asJSON bool) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting working directory: %w", err)
+	}
+
+	// Count total learnings available
+	allLearnings, err := collectLearnings(cwd, "", 1000, "", 0)
+	if err != nil {
+		return fmt.Errorf("collecting all learnings: %w", err)
+	}
+
+	report := liveReport{
+		Mode:           "live",
+		TotalLearnings: len(allLearnings),
+		Queries:        len(liveQueries),
+		K:              k,
+	}
+
+	for _, q := range liveQueries {
+		results, err := collectLearnings(cwd, q, k*3, "", 0)
+		if err != nil {
+			return fmt.Errorf("collectLearnings(%q): %w", q, err)
+		}
+
+		lr := liveQueryResult{
+			Query: q,
+			Count: len(results),
+		}
+
+		if len(results) > 0 {
+			topN := k
+			if topN > len(results) {
+				topN = len(results)
+			}
+			lr.TopIDs = make([]string, 0, topN)
+			for _, r := range results[:topN] {
+				lr.TopIDs = append(lr.TopIDs, r.ID)
+			}
+
+			lr.MinScore = results[len(results)-1].CompositeScore
+			lr.MaxScore = results[0].CompositeScore
+			var sum float64
+			for _, r := range results {
+				sum += r.CompositeScore
+			}
+			lr.MeanScore = sum / float64(len(results))
+		}
+
+		report.Results = append(report.Results, lr)
+	}
+
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(report)
+	}
+
+	fmt.Println("Retrieval Quality Report (Live)")
+	fmt.Println("================================")
+	fmt.Printf("Corpus:      %d learnings in .agents/learnings/\n", report.TotalLearnings)
+	fmt.Printf("Queries:     %d\n", report.Queries)
+	fmt.Printf("K:           %d\n", k)
+	fmt.Println()
+
+	if report.TotalLearnings == 0 {
+		fmt.Println("No learnings found. Run /retro or /post-mortem to populate the knowledge base.")
+		return nil
+	}
+
+	fmt.Println("Per-query breakdown:")
+	for _, r := range report.Results {
+		if r.Count == 0 {
+			fmt.Printf("  %-25s  hits=0  (no matches)\n", fmt.Sprintf("%q", r.Query))
+		} else {
+			fmt.Printf("  %-25s  hits=%-3d  score=[%.2f, %.2f]  mean=%.2f  top=%v\n",
+				fmt.Sprintf("%q", r.Query), r.Count, r.MinScore, r.MaxScore, r.MeanScore, r.TopIDs)
+		}
+	}
+	return nil
+}
+
 // defaultBenchQueries returns the built-in benchmark query set.
 func defaultBenchQueries() []benchQuery {
 	return []benchQuery{
@@ -60,6 +177,10 @@ var retrievalBenchCmd = &cobra.Command{
 	Long:  "Measure Precision@K and MRR against a curated corpus of learning artifacts.",
 	GroupID: "knowledge",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if benchLive {
+			return runLiveBench(benchK, benchJSON)
+		}
+
 		corpusDir := benchCorpus
 		if corpusDir == "" {
 			// Default: use embedded testdata
@@ -210,4 +331,5 @@ func init() {
 	retrievalBenchCmd.Flags().StringVar(&benchCorpus, "corpus", "", "Path to benchmark corpus directory")
 	retrievalBenchCmd.Flags().BoolVar(&benchJSON, "json", false, "JSON output")
 	retrievalBenchCmd.Flags().IntVar(&benchK, "k", 3, "K for Precision@K")
+	retrievalBenchCmd.Flags().BoolVar(&benchLive, "live", false, "Benchmark against real .agents/learnings/ instead of synthetic corpus")
 }

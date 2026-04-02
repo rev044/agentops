@@ -2127,6 +2127,7 @@ ao retrieval-bench [flags]
   -h, --help            help for retrieval-bench
       --json            JSON output
       --k int           K for Precision@K (default 3)
+      --live            Benchmark against real .agents/learnings/ instead of synthetic corpus
 ```
 
 ---
