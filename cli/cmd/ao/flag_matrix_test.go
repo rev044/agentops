@@ -186,6 +186,7 @@ func TestFlagMatrix_HelpConsistency(t *testing.T) {
 		"metrics",
 		"goals",
 		"ratchet",
+		"retrieval-bench",
 		"rpi",
 		"pool",
 		"flywheel",
