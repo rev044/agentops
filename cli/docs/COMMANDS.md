@@ -2124,6 +2124,7 @@ ao retrieval-bench [flags]
 
 ```
       --corpus string   Path to benchmark corpus directory
+      --global          Include ~/.agents/learnings/ (cross-rig aggregated store, requires --live)
   -h, --help            help for retrieval-bench
       --json            JSON output
       --k int           K for Precision@K (default 3)

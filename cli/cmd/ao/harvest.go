@@ -54,7 +54,13 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 	// Resolve home-relative defaults at runtime so generated docs don't embed absolute paths.
 	if harvestRootsFlag == "" {
 		home, _ := os.UserHomeDir()
-		harvestRootsFlag = filepath.Join(home, "gt")
+		defaultRoots := []string{filepath.Join(home, "gt")}
+		// Include Claude project directories if they exist
+		claudeProjects := filepath.Join(home, ".claude", "projects")
+		if info, err := os.Stat(claudeProjects); err == nil && info.IsDir() {
+			defaultRoots = append(defaultRoots, claudeProjects)
+		}
+		harvestRootsFlag = strings.Join(defaultRoots, ",")
 	}
 	if harvestPromoteTo == "" {
 		home, _ := os.UserHomeDir()

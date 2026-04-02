@@ -15,6 +15,7 @@ var (
 	benchJSON    bool
 	benchK       int
 	benchLive    bool
+	benchGlobal  bool
 )
 
 // benchQuery defines a single benchmark query with expected results.
@@ -78,27 +79,44 @@ var liveQueries = []string{
 }
 
 // runLiveBench benchmarks against the actual .agents/learnings/ directory.
-func runLiveBench(k int, asJSON bool) error {
+// When global is true, benchmarks against ~/.agents/learnings/ (cross-rig aggregated store).
+func runLiveBench(k int, asJSON, global bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("getting working directory: %w", err)
 	}
 
+	globalDir := ""
+	if global {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolving home directory: %w", err)
+		}
+		globalDir = filepath.Join(home, ".agents", "learnings")
+		if _, err := os.Stat(globalDir); err != nil {
+			return fmt.Errorf("global knowledge store not found at %s — run 'ao harvest' first", globalDir)
+		}
+	}
+
 	// Count total learnings available
-	allLearnings, err := collectLearnings(cwd, "", 1000, "", 0)
+	allLearnings, err := collectLearnings(cwd, "", 1000, globalDir, 1.0)
 	if err != nil {
 		return fmt.Errorf("collecting all learnings: %w", err)
 	}
 
+	mode := "live-local"
+	if global {
+		mode = "live-global"
+	}
 	report := liveReport{
-		Mode:           "live",
+		Mode:           mode,
 		TotalLearnings: len(allLearnings),
 		Queries:        len(liveQueries),
 		K:              k,
 	}
 
 	for _, q := range liveQueries {
-		results, err := collectLearnings(cwd, q, k*3, "", 0)
+		results, err := collectLearnings(cwd, q, k*3, globalDir, 1.0)
 		if err != nil {
 			return fmt.Errorf("collectLearnings(%q): %w", q, err)
 		}
@@ -136,9 +154,15 @@ func runLiveBench(k int, asJSON bool) error {
 		return enc.Encode(report)
 	}
 
-	fmt.Println("Retrieval Quality Report (Live)")
+	modeLabel := "Live (local)"
+	storeLabel := ".agents/learnings/"
+	if global {
+		modeLabel = "Live (global)"
+		storeLabel = "~/.agents/learnings/ (cross-rig)"
+	}
+	fmt.Printf("Retrieval Quality Report (%s)\n", modeLabel)
 	fmt.Println("================================")
-	fmt.Printf("Corpus:      %d learnings in .agents/learnings/\n", report.TotalLearnings)
+	fmt.Printf("Corpus:      %d learnings in %s\n", report.TotalLearnings, storeLabel)
 	fmt.Printf("Queries:     %d\n", report.Queries)
 	fmt.Printf("K:           %d\n", k)
 	fmt.Println()
@@ -178,7 +202,7 @@ var retrievalBenchCmd = &cobra.Command{
 	GroupID: "knowledge",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if benchLive {
-			return runLiveBench(benchK, benchJSON)
+			return runLiveBench(benchK, benchJSON, benchGlobal)
 		}
 
 		corpusDir := benchCorpus
@@ -332,4 +356,5 @@ func init() {
 	retrievalBenchCmd.Flags().BoolVar(&benchJSON, "json", false, "JSON output")
 	retrievalBenchCmd.Flags().IntVar(&benchK, "k", 3, "K for Precision@K")
 	retrievalBenchCmd.Flags().BoolVar(&benchLive, "live", false, "Benchmark against real .agents/learnings/ instead of synthetic corpus")
+	retrievalBenchCmd.Flags().BoolVar(&benchGlobal, "global", false, "Include ~/.agents/learnings/ (cross-rig aggregated store, requires --live)")
 }
