@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.32.0] - 2026-04-01
+
+### Added
+
+- **Knowledge activation skill** — new `/knowledge-activation` skill and CLI surfaces for activating cross-domain knowledge at runtime, with operator surface consumption and ranked intelligence context
+- **Session intelligence engine** — complete runtime engine with explainability, ranked context assembly, and trust policy enforcement
+- **Runtime selection for `ao rpi serve`** — serve now supports explicit runtime selection for Claude and Codex execution modes
+- **Quality signals hook** — new `quality-signals.sh` hook with test coverage for session quality telemetry
+- **Pre-push gate expansion** — 9 checks migrated from CI-only to the local pre-push gate for faster feedback
+- **Inject stability warnings and status dashboard** — closed 3 harvest items with signal tests and dashboard improvements
+
+### Changed
+
+- **README refresh** — product-minded rewrite with gain-framing and Strunk-style prose fixes
+- **Philosophy doc** — new `docs/philosophy.md` and observations section added to README
+- **Documentation alignment** — repo front doors and codex artifact guidance unified across entry points
+- **Claude Code architecture lessons** — retry budgets, stability flags, quality signals, and orchestration patterns applied to skills
+- **Homebrew formula** — updated to v2.31.0 with pre-built binaries
+
+### Fixed
+
+- **Post-mortem closure integrity** — normalized file parsing for closure integrity audits
+- **CI reliability** — resolved CI failures across codex refs, test pairing, hook coverage, worktree handling, docs parity, hook portability, and codex lifecycle
+- **Lookup nested scanning** — `ao lookup` now scans nested global knowledge directories correctly
+- **Pre-push test stubs** — added test stubs for new pre-push checks, skip non-shell in shellcheck
+
+### Dependencies
+
+- Bumped `codecov/codecov-action` from 5 to 6
+- Bumped `DavidAnson/markdownlint-cli2-action` from 22 to 23
+
 ## [2.31.0] - 2026-03-30
 
 ### Added
