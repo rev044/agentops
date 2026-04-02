@@ -42,11 +42,11 @@ func collectLearnings(cwd, query string, limit int, globalDir string, globalWeig
 	}
 
 	now := time.Now()
-	queryLower := strings.ToLower(query)
+	tokens := queryTokens(strings.ToLower(query))
 	learnings := make([]learning, 0, len(files))
 
 	for _, file := range files {
-		l, ok := processLearningFile(file, queryLower, now)
+		l, ok := processLearningFile(file, tokens, now)
 		if !ok {
 			continue
 		}
@@ -69,7 +69,7 @@ func collectLearnings(cwd, query string, limit int, globalDir string, globalWeig
 			if abs, err := filepath.Abs(file); err == nil && localPaths[abs] {
 				continue
 			}
-			l, ok := processLearningFile(file, queryLower, now)
+			l, ok := processLearningFile(file, tokens, now)
 			if !ok {
 				continue
 			}
@@ -115,9 +115,40 @@ func findLearningFiles(cwd string) ([]string, error) {
 	return resolver.NewFileResolver(cwd).DiscoverAll()
 }
 
+// queryTokens splits a lowercased query into individual search tokens.
+// Tokens shorter than 2 characters are dropped to avoid noise.
+func queryTokens(queryLower string) []string {
+	words := strings.Fields(queryLower)
+	tokens := make([]string, 0, len(words))
+	for _, w := range words {
+		if len(w) >= 2 {
+			tokens = append(tokens, w)
+		}
+	}
+	return tokens
+}
+
+// matchesQuery returns true if the learning matches the query tokens.
+// Strategy: all tokens must appear in the text (AND semantics).
+// This handles morphological variants (e.g. "hook" matches "hooks")
+// while maintaining precision for multi-word queries.
+// Single-token queries behave identically to the old substring filter.
+func matchesQuery(tokens []string, title, summary, body string) bool {
+	if len(tokens) == 0 {
+		return true
+	}
+	text := strings.ToLower(title + " " + summary + " " + body)
+	for _, tok := range tokens {
+		if !strings.Contains(text, tok) {
+			return false
+		}
+	}
+	return true
+}
+
 // processLearningFile parses, filters, and scores a single learning file.
 // Returns the learning and true if it should be included, false otherwise.
-func processLearningFile(file, queryLower string, now time.Time) (learning, bool) {
+func processLearningFile(file string, queryTokensList []string, now time.Time) (learning, bool) {
 	l, err := parseLearningFile(file)
 	if err != nil {
 		return l, false
@@ -126,8 +157,7 @@ func processLearningFile(file, queryLower string, now time.Time) (learning, bool
 		VerbosePrintf("Skipping superseded learning: %s\n", l.ID)
 		return l, false
 	}
-	if queryLower != "" && !strings.Contains(strings.ToLower(l.Title+" "+l.Summary), queryLower) &&
-		!strings.Contains(strings.ToLower(l.BodyText), queryLower) {
+	if !matchesQuery(queryTokensList, l.Title, l.Summary, l.BodyText) {
 		return l, false
 	}
 

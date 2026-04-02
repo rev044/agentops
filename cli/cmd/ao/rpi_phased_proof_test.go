@@ -31,7 +31,7 @@ func TestFlywheelProof_InjectRetrievesCrossSession(t *testing.T) {
 	}
 
 	// Session 2: process the learning (simulating inject retrieval)
-	l, ok := processLearningFile(path, "", time.Now())
+	l, ok := processLearningFile(path, nil, time.Now())
 	if !ok {
 		t.Fatal("processLearningFile returned ok=false; expected the learning to be included")
 	}
@@ -75,12 +75,12 @@ func TestFlywheelProof_QualityGateFilters(t *testing.T) {
 
 	now := time.Now()
 
-	sourced, okS := processLearningFile(sourcedPath, "", now)
+	sourced, okS := processLearningFile(sourcedPath, nil, now)
 	if !okS {
 		t.Fatal("processLearningFile returned ok=false for sourced learning")
 	}
 
-	unsourced, okU := processLearningFile(unsourcedPath, "", now)
+	unsourced, okU := processLearningFile(unsourcedPath, nil, now)
 	if !okU {
 		t.Fatal("processLearningFile returned ok=false for unsourced learning")
 	}
@@ -153,12 +153,12 @@ func TestFlywheelProof_DecayReducesScore(t *testing.T) {
 
 	now := time.Now()
 
-	recent, okR := processLearningFile(recentPath, "", now)
+	recent, okR := processLearningFile(recentPath, nil, now)
 	if !okR {
 		t.Fatal("processLearningFile returned ok=false for recent file")
 	}
 
-	old, okO := processLearningFile(oldPath, "", now)
+	old, okO := processLearningFile(oldPath, nil, now)
 	if !okO {
 		t.Fatal("processLearningFile returned ok=false for old file")
 	}
@@ -180,7 +180,7 @@ func TestFlywheelProof_DecayReducesScore(t *testing.T) {
 	if err := os.WriteFile(noUtilPath, []byte(noUtilContent), 0644); err != nil {
 		t.Fatal(err)
 	}
-	noUtil, okNU := processLearningFile(noUtilPath, "", now)
+	noUtil, okNU := processLearningFile(noUtilPath, nil, now)
 	if !okNU {
 		t.Fatal("processLearningFile returned ok=false for no-utility file")
 	}

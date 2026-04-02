@@ -650,7 +650,7 @@ func TestInjectLearnings_processLearningFile_SkipsSuperseded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ok := processLearningFile(path, "", time.Now())
+	_, ok := processLearningFile(path, nil, time.Now())
 	if ok {
 		t.Error("expected ok=false for superseded learning")
 	}
@@ -665,13 +665,13 @@ func TestInjectLearnings_processLearningFile_FiltersByQuery(t *testing.T) {
 	}
 
 	// Matching query
-	_, ok := processLearningFile(path, "authentication", time.Now())
+	_, ok := processLearningFile(path, []string{"authentication"}, time.Now())
 	if !ok {
 		t.Error("expected ok=true for matching query")
 	}
 
 	// Non-matching query (not in title, summary, or body)
-	_, ok = processLearningFile(path, "kubernetes", time.Now())
+	_, ok = processLearningFile(path, []string{"kubernetes"}, time.Now())
 	if ok {
 		t.Error("expected ok=false for non-matching query")
 	}
@@ -687,12 +687,104 @@ func TestInjectLearnings_processLearningFile_BodyTextSearch(t *testing.T) {
 	}
 
 	// Query matches body but not title/summary
-	l, ok := processLearningFile(path, "flywheel", time.Now())
+	l, ok := processLearningFile(path, []string{"flywheel"}, time.Now())
 	if !ok {
 		t.Error("expected ok=true when query matches body text")
 	}
 	if l.BodyText == "" {
 		t.Error("expected BodyText to be populated")
+	}
+}
+
+func TestInjectLearnings_processLearningFile_TokenOverlapQuery(t *testing.T) {
+	tmp := t.TempDir()
+	content := "---\nmaturity: provisional\nsource_bead: test\nutility: 0.8\n---\n# Git Hooks Authoring Guide\n\nConfiguring hooks for CI pipelines.\n"
+	path := filepath.Join(tmp, "hooks.md")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// "hook authoring" should match — both tokens appear in title
+	_, ok := processLearningFile(path, queryTokens("hook authoring"), time.Now())
+	if !ok {
+		t.Error("expected ok=true: both 'hook' and 'authoring' appear in title")
+	}
+
+	// Single token that appears as substring should match
+	_, ok = processLearningFile(path, queryTokens("hooks"), time.Now())
+	if !ok {
+		t.Error("expected ok=true: 'hooks' appears in title")
+	}
+
+	// "CI pipeline" — both "ci" and "pipeline" appear in body
+	_, ok = processLearningFile(path, queryTokens(strings.ToLower("CI pipeline")), time.Now())
+	if !ok {
+		t.Error("expected ok=true: both 'ci' and 'pipeline' appear in body")
+	}
+
+	// Partial match — only one of two tokens present — should NOT match
+	_, ok = processLearningFile(path, queryTokens("hook migration"), time.Now())
+	if ok {
+		t.Error("expected ok=false: 'migration' not found, AND semantics requires all tokens")
+	}
+
+	// Completely unrelated tokens should not match
+	_, ok = processLearningFile(path, queryTokens("database migration"), time.Now())
+	if ok {
+		t.Error("expected ok=false: no token overlap with hooks content")
+	}
+}
+
+func TestQueryTokens(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"hook authoring", []string{"hook", "authoring"}},
+		{"CI pipeline", []string{"ci", "pipeline"}},
+		{"a b cd efg", []string{"cd", "efg"}},
+		{"", nil},
+	}
+	for _, tt := range tests {
+		got := queryTokens(strings.ToLower(tt.input))
+		if len(got) == 0 && len(tt.want) == 0 {
+			continue
+		}
+		if len(got) != len(tt.want) {
+			t.Errorf("queryTokens(%q) = %v, want %v", tt.input, got, tt.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tt.want[i] {
+				t.Errorf("queryTokens(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+			}
+		}
+	}
+}
+
+func TestMatchesQuery(t *testing.T) {
+	title := "Hook Authoring Guide"
+	summary := "Best practices"
+	body := "Configuring hooks for CI pipelines"
+
+	// All tokens present → match
+	if !matchesQuery([]string{"hook", "authoring"}, title, summary, body) {
+		t.Error("expected match: both tokens present")
+	}
+
+	// One token missing → no match (AND semantics)
+	if matchesQuery([]string{"hook", "database"}, title, summary, body) {
+		t.Error("expected no match: 'database' not present")
+	}
+
+	// Empty tokens → match everything
+	if !matchesQuery(nil, title, summary, body) {
+		t.Error("expected match: nil tokens should match all")
+	}
+
+	// 2-char token "ci" should work
+	if !matchesQuery([]string{"ci", "pipeline"}, title, summary, body) {
+		t.Error("expected match: both 'ci' and 'pipeline' present")
 	}
 }
 
@@ -730,7 +822,7 @@ func TestInjectLearnings_processLearningFile_SetsDefaultUtility(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	l, ok := processLearningFile(path, "", time.Now())
+	l, ok := processLearningFile(path, nil, time.Now())
 	if !ok {
 		t.Fatal("expected ok=true")
 	}

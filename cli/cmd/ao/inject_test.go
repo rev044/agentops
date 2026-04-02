@@ -927,7 +927,7 @@ func TestProcessLearningFile_QualityGateFilters(t *testing.T) {
 		"utility": "0.9",
 	}, "# Good content\nBut no maturity\n")
 
-	_, included := processLearningFile(noMaturity, "", time.Now())
+	_, included := processLearningFile(noMaturity, nil, time.Now())
 	if !included {
 		t.Error("expected learning without maturity to pass quality gate (empty defaults to provisional)")
 	}
@@ -938,7 +938,7 @@ func TestProcessLearningFile_QualityGateFilters(t *testing.T) {
 		"utility":  "0.8",
 	}, "# Good Learning\nHas maturity and utility\n")
 
-	l, included := processLearningFile(good, "", time.Now())
+	l, included := processLearningFile(good, nil, time.Now())
 	if !included {
 		t.Error("expected provisional learning with utility 0.8 to pass quality gate")
 	}
@@ -956,7 +956,7 @@ func TestProcessLearningFile_QualityGateUtilityBoundary(t *testing.T) {
 		"utility":  "0.3",
 	}, "# Borderline\nExactly at threshold\n")
 
-	_, included := processLearningFile(borderline, "", time.Now())
+	_, included := processLearningFile(borderline, nil, time.Now())
 	if included {
 		t.Error("expected learning with utility=0.3 to be filtered (gate requires > 0.3)")
 	}
