@@ -10,8 +10,16 @@ AO="$REPO_ROOT/cli/bin/ao"
 ERRORS=0
 WARNINGS=0
 PASSED=0
-STDERR_TMP=$(mktemp)
-trap 'rm -f "$STDERR_TMP"' EXIT
+WORK_DIR=$(mktemp -d)
+STDERR_TMP="$WORK_DIR/stderr"
+
+cleanup() {
+  if [[ -n "${WORK_DIR:-}" && -d "${WORK_DIR:-}" ]]; then
+    rm -rf "$WORK_DIR"
+  fi
+}
+
+trap 'cleanup' EXIT
 
 pass() { echo -e "\033[0;32m✓\033[0m $1"; PASSED=$((PASSED + 1)); }
 fail() { echo -e "\033[0;31m✗\033[0m $1"; ERRORS=$((ERRORS + 1)); }
@@ -123,8 +131,5 @@ fi
 echo ""
 echo "=== JSON Flag Consistency ==="
 echo "Passed: $PASSED  Warnings: $WARNINGS  Errors: $ERRORS"
-
-# Clean up temp file
-rm -f "$STDERR_TMP"
 
 exit $((ERRORS > 0 ? 1 : 0))
