@@ -110,7 +110,7 @@ After all phases complete, write the structured report to `.agents/council/YYYY-
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2a through 2f plus 2.5 (prior findings check, constraint tests, metadata checks, OL validation, knowledge search, bug hunt, Codex review) and jump to Step 4 with inline council after Steps 2.3, 2.4, 2g, and Step 3. Domain checklists, compiled-prevention loading, test-pyramid inventory, and inline product context are cheap and high-value, so they still run in quick mode. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2a through 2e as heavy pre-processing, plus 2.5 and 2f, and jump to Step 4 with inline council after Steps 2.3, 2.4, 2g, and Step 3. Domain checklists, compiled-prevention loading, test-pyramid inventory, and inline product context are cheap and high-value, so they still run in quick mode. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
 **Why:** Steps 2.5 and 2a–2f add 30–90 seconds of pre-processing that mainly feed multi-judge council packets. In --quick mode (single inline agent), those inputs are not worth the cost, but test-pyramid and product-context checks still shape the inline review meaningfully.
 
@@ -210,7 +210,7 @@ Skip silently if no patterns match. This step runs in both `--quick` and full mo
 
 ### Step 3: Product Context
 
-When `PRODUCT.md` exists and the user did not pass an explicit `--preset` override, always load it. In `--quick` mode, include DX expectations inline in the single-agent review. In non-quick modes, add a DX (developer experience) judge: 2 independent + 1 DX judge (3 judges total). The DX judge evaluates whether the code aligns with the product's stated personas and value propositions.
+**Skip if `--quick` as a separate judge-fanout step.** When `PRODUCT.md` exists and the user did not pass an explicit `--preset` override, quick mode still loads DX expectations inline in the single-agent review. In non-quick modes, add a DX (developer experience) judge: 2 independent + 1 DX judge (3 judges total). The DX judge evaluates whether the code aligns with the product's stated personas and value propositions.
 
 ### Step 2g: Test Pyramid Inventory (MANDATORY)
 

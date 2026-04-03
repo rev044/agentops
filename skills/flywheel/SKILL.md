@@ -18,11 +18,8 @@ metadata:
 ---
 
 # Flywheel Skill
-
 Monitor the knowledge flywheel health.
-
 ## The Flywheel Model
-
 ```
 Sessions → Transcripts → Forge → Pool → Promote → Knowledge
      ↑                                               │
@@ -34,21 +31,14 @@ Sessions → Transcripts → Forge → Pool → Promote → Knowledge
 **Friction** = Bottlenecks slowing the flywheel
 
 ## Execution Steps
-
 Given `/flywheel`:
-
 ### Step 1: Measure Knowledge Pools
-
 ```bash
 # Count top-level artifact files (avoid counting directories)
 LEARNINGS=$(find .agents/learnings -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 PATTERNS=$(find .agents/patterns -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 RESEARCH=$(find .agents/research -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 RETROS=$(find .agents/retros -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 echo "Learnings: $LEARNINGS"
 echo "Patterns: $PATTERNS"
 echo "Research: $RESEARCH"
@@ -56,24 +46,18 @@ echo "Retros: $RETROS"
 ```
 
 ### Step 2: Check Recent Activity
-
 ```bash
 # Recent learnings (last 7 days)
 find .agents/learnings -maxdepth 1 -type f -mtime -7 2>/dev/null | wc -l
-
 # Recent research
 find .agents/research -maxdepth 1 -type f -mtime -7 2>/dev/null | wc -l
 ```
-
 ### Step 3: Detect Staleness
-
 ```bash
 # Old artifacts (> 30 days without modification)
 find .agents/ -name "*.md" -mtime +30 2>/dev/null | wc -l
 ```
-
 ### Step 3.5: Check Cache Health
-
 ```bash
 if command -v ao &>/dev/null; then
   # Get citation report (cache metrics)
@@ -281,23 +265,15 @@ ao flywheel status --json       # machine-readable
 | **compounding** | Maintain cadence. Consider capturing baselines (`ao metrics baseline`) for trend tracking |
 
 ## Cache Eviction
-
 Read `references/cache-eviction.md` for the full eviction pipeline (passive tracking → confidence decay → maturity scan → archive).
-
 ## Key Rules
-
 - **Monitor regularly** - flywheel needs attention; address bottlenecks early
 - **Feed the flywheel** - run /retro and /post-mortem
 - **Prune stale knowledge** - archive old artifacts
-
 ## Examples
-
 **User says:** `/flywheel` — Counts pool depths, checks recent activity, validates artifact consistency, writes health report to `.agents/flywheel-status.md`.
-
 **Hook trigger:** After `/post-mortem` — Compares current vs historical metrics, flags velocity drops and friction points.
-
 ## Troubleshooting
-
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | All pool counts zero | `.agents/` directory missing or empty | Run `/post-mortem` or `/retro` to seed knowledge pools |
@@ -306,6 +282,5 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 | Stale artifacts >50% | Long time since last session or inactive repo | Run `/provenance --stale` to audit and archive old artifacts |
 
 ## Reference Documents
-
 - [references/artifact-consistency.md](references/artifact-consistency.md)
 - [references/promotion-tiers.md](references/promotion-tiers.md)

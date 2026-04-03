@@ -2,14 +2,9 @@
 name: flywheel
 description: 'Knowledge flywheel health monitoring. Checks velocity, pool depths, staleness. Triggers: "flywheel status", "knowledge health", "is knowledge compounding".'
 ---
-
-
 # Flywheel Skill
-
 Monitor the knowledge flywheel health.
-
 ## The Flywheel Model
-
 ```
 Sessions → Transcripts → Forge → Pool → Promote → Knowledge
      ↑                                               │
@@ -21,21 +16,14 @@ Sessions → Transcripts → Forge → Pool → Promote → Knowledge
 **Friction** = Bottlenecks slowing the flywheel
 
 ## Execution Steps
-
 Given `$flywheel`:
-
 ### Step 1: Measure Knowledge Pools
-
 ```bash
 # Count top-level artifact files (avoid counting directories)
 LEARNINGS=$(find .agents/learnings -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 PATTERNS=$(find .agents/patterns -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 RESEARCH=$(find .agents/research -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 RETROS=$(find .agents/retros -maxdepth 1 -type f 2>/dev/null | wc -l)
-
 echo "Learnings: $LEARNINGS"
 echo "Patterns: $PATTERNS"
 echo "Research: $RESEARCH"
@@ -231,11 +219,8 @@ Tell the user:
 | Cache hit rate | >80% | 50-80% | <50% |
 
 ## Cache Eviction
-
 Read `references/cache-eviction.md` for the full eviction pipeline (passive tracking → confidence decay → maturity scan → archive).
-
 ## Key Rules
-
 - **Monitor regularly** - flywheel needs attention
 - **Address friction** - bottlenecks slow compounding
 - **Feed the flywheel** - run $retro and $post-mortem

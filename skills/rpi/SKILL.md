@@ -21,25 +21,15 @@ metadata:
 ---
 
 # /rpi — Full RPI Lifecycle Orchestrator
-
 > **Quick Ref:** One command, full lifecycle. `/discovery` → `/crank` → `/validation`. Thin wrapper that delegates to phase orchestrators.
-
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
-
 **THREE-PHASE RULE + FULLY AUTONOMOUS.** Read `references/autonomous-execution.md` — it defines the mandatory 3-phase lifecycle, autonomous execution rules, anti-patterns, and phase completion logging. Unless `--interactive` is set, RPI runs hands-free. Do NOT stop after Phase 2. Do NOT ask the user anything between phases.
-
 ## Quick Start
-
 Run `/rpi "<goal>"` for the full lifecycle. For resume, loop, fast-path, and deep examples, read `references/examples.md`.
-
 ## Lifecycle Ownership
-
 Phase orchestrators own all sub-skill sequencing, retry gates, and phase budgets. `/discovery` handles brainstorm → design (when PRODUCT.md exists) → search → research → plan → pre-mortem and writes the execution packet; `/crank` owns wave-based implementation and implementation retries; `/validation` owns vibe → post-mortem → retro → forge and validation retries. `/rpi` stays thin: it owns setup, complexity classification, phase routing, the implementation gate, the validation-fail-to-crank loop, and the final report.
-
 ## Execution Steps
-
 ### Step 0: Setup + Classify
-
 ```bash
 mkdir -p .agents/rpi
 ```
@@ -57,7 +47,6 @@ mkdir -p .agents/rpi
   - use `.agents/rpi/execution-packet.json` as the phase-2 handoff when discovery does not yield an epic
   - default to Phase 1 unless the user explicitly set `--from`
 - Do not infer epic scope from `ag-*` alone.
-
 **Classify complexity:**
 
 | Level | Criteria | Behavior |
@@ -71,7 +60,6 @@ mkdir -p .agents/rpi
 **Scope keywords:** `all`, `entire`, `across`, `everywhere`, `every file`, `every module`, `system-wide`, `global`, `throughout`, `codebase`
 
 **Overrides:** `--deep` forces `full`. `--fast-path` forces `fast`.
-
 Log:
 ```
 RPI mode: rpi-phased (complexity: <level>)
@@ -92,9 +80,7 @@ rpi_state = {
 ```
 
 ### Phase 1: Discovery
-
 Delegate to `/discovery`:
-
 ```
 Skill(skill="discovery", args="<goal> [--interactive] --complexity=<level>")
 ```
@@ -107,15 +93,12 @@ After `/discovery` completes:
 5. Log: `PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2`
 
 ### Phase 2: Implementation
-
 If the execution packet has `epic_id`:
-
 ```
 Skill(skill="crank", args="<epic-id> [--test-first] [--no-test-first]")
 ```
 
 Otherwise:
-
 ```
 Skill(skill="crank", args=".agents/rpi/execution-packet.json [--test-first] [--no-test-first]")
 ```
@@ -139,17 +122,13 @@ Log: `PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3`
 **DO NOT STOP HERE.** Do not ask the user to commit. Do not summarize and wait. Proceed IMMEDIATELY to Phase 3. Implementation without validation is incomplete work — the flywheel does not turn, learnings are not captured, and quality is unverified.
 
 ### Phase 3: Validation
-
 **MANDATORY for all complexity levels.** `/validation` is the Phase 3 orchestrator — it wraps `/vibe` + `/post-mortem` + `/retro` + `/forge`. Do NOT call `/vibe` directly from `/rpi` — call `/validation` which handles the full sequence. `fast` complexity uses inline `--quick` gates inside `/validation`; it does not skip closeout.
-
 If the execution packet has `epic_id`:
-
 ```
 Skill(skill="validation", args="<epic-id> --complexity=<level> [--strict-surfaces if --quality]")
 ```
 
 Otherwise:
-
 ```
 Skill(skill="validation", args="--complexity=<level> [--strict-surfaces if --quality]")
 ```
@@ -170,9 +149,7 @@ ao ratchet record vibe 2>/dev/null || true
 Log: `PHASE 3 COMPLETE ✓ (validation) — RPI DONE`
 
 ### Step Final: Report + Loop
-
 **Report:** Summarize all phase verdicts and epic status.
-
 **Optional loop (`--loop`):** If validation verdict is FAIL and `cycle < max_cycles`:
 1. Extract 3 concrete fixes from the post-mortem report
 2. Increment `rpi_state.cycle`
@@ -186,9 +163,7 @@ Log: `PHASE 3 COMPLETE ✓ (validation) — RPI DONE`
 
 Read `references/report-template.md` for full output format.
 Read `references/error-handling.md` for failure semantics.
-
 ## Flags
-
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--from=<phase>` | `discovery` | Start from `discovery`, `implementation`, or `validation` |
@@ -207,9 +182,7 @@ Read `references/error-handling.md` for failure semantics.
 
 ## Phase Data Contracts
 All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json` as the latest alias, plus `.agents/rpi/runs/<run-id>/execution-packet.json` as the per-run archive) carries the repo execution profile via `contract_surfaces`, plus `done_criteria` and queue claim/finalize metadata between phases. For detailed schemas, read `references/phase-data-contracts.md`.
-
 ## Complexity-Scaled Council Gates
-
 ### Pre-mortem
 - `complexity == "low"` or `complexity == "fast"`: inline review, no spawning (`--quick`)
 - `complexity == "medium"` or `complexity == "standard"`: inline fast default (`--quick`)
@@ -227,14 +200,10 @@ All transitions use filesystem artifacts (no in-memory coupling). The execution 
 
 ## Examples
 Read `references/examples.md` for full lifecycle, resume, and interactive examples. `--fast-path` still runs validation; it only forces the fast/inline gate profile.
-
 ## Troubleshooting
 Read `references/troubleshooting.md` for common problems and solutions.
-
 ## Runtime Compatibility
-
 RPI runs in two runtime modes. Both must produce identical phase artifacts.
-
 | Concern | Hook-capable (Claude Code) | Hook-less (Codex) |
 |---------|---------------------------|-------------------|
 | Session start | `session-start.sh` hook fires automatically | `ao codex start` called explicitly |
@@ -246,9 +215,7 @@ RPI runs in two runtime modes. Both must produce identical phase artifacts.
 **Minimal contract across both modes:** phase state is always written to `.agents/rpi/phased-state.json`; phase numbering stays `1=discovery`, `2=implementation`, `3=validation`; `ao ratchet check` reads that shared state unchanged; the close-loop flywheel still runs at stop time.
 
 Hook-less runtimes skip hook-only side effects (e.g., automatic knowledge injection at session start). Use `ao codex start --query` to get equivalent startup context.
-
 ## Reference Documents
-
 - [references/complexity-scaling.md](references/complexity-scaling.md)
 - [references/context-windowing.md](references/context-windowing.md)
 - [references/gate-retry-logic.md](references/gate-retry-logic.md)

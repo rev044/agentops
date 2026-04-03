@@ -190,7 +190,7 @@ log "Testing flywheel loop (next-work round-trip)..."
 
 NEXTWORK_DIR="$REPO_ROOT/.agents/rpi"
 NEXTWORK_FILE="$NEXTWORK_DIR/next-work.jsonl"
-NEXTWORK_SCHEMA="$NEXTWORK_DIR/next-work.schema.md"
+NEXTWORK_SCHEMA="$REPO_ROOT/docs/contracts/next-work.schema.md"
 
 # Check schema contract exists
 if [[ -f "$NEXTWORK_SCHEMA" ]]; then

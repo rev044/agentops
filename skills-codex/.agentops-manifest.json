@@ -610,7 +610,7 @@
       "name": "flywheel",
       "source_skill": "skills/flywheel",
       "source_hash": "01f08265b10ec432c4044e0a0d68ec7bbd735f69ae86d01aa56c749e74ab148e",
-      "generated_hash": "7faa6c4b7567647c65705f633c890cd835ecb4f1807c1a9b9317291b7b3c3886"
+      "generated_hash": "c270dd664637f76f973b51bef901e777a07ffc9308ce73723229a333977257ab"
     },
     {
       "name": "forge",
@@ -652,7 +652,7 @@
       "name": "implement",
       "source_skill": "skills/implement",
       "source_hash": "2ab197d1810fd3eb56f73aac4645c02edc01aa41e524064b12b993c6861ebc32",
-      "generated_hash": "4c198930626ad030f159cbc4d3b128a852c40aaefb4f28c3ffed5c7234ee26f6"
+      "generated_hash": "be19a465d00a14bc8cf9b53ed9a538793946745b0f5298b1f13e97782fb61978"
     },
     {
       "name": "inject",
@@ -736,7 +736,7 @@
       "name": "pre-mortem",
       "source_skill": "skills/pre-mortem",
       "source_hash": "9ed2f0290ccc16ce45a79d0a22b2dae54f525875fa2a8375bf470de54c08912d",
-      "generated_hash": "9e583ea20af7b9ce9614f722f7757580b1efbc362fea297999d15a417f7b016c"
+      "generated_hash": "d4fdab5dc3cd17dabcf26c0f8197fb11fceb7be327c1701af6120772bd31b180"
     },
     {
       "name": "product",
@@ -826,7 +826,7 @@
       "name": "rpi",
       "source_skill": "skills/rpi",
       "source_hash": "c433dc12380733af9b7db7e942873b1143033cb0887d2c8945728cba174b5495",
-      "generated_hash": "b1c0f99ec5dd21f6c4cfab77b061e18425612a65f4e9b684e0112771ef0256f7"
+      "generated_hash": "d7806f312b4172f2f7d8cc9b63f66f34b50cc5e6d9ca7f2cdb58e68f790b01be"
     },
     {
       "name": "scaffold",
@@ -904,7 +904,7 @@
       "name": "vibe",
       "source_skill": "skills/vibe",
       "source_hash": "16b6b0f61dc91dfb1c90627594728a6ec345a876d7895b9a8e0dbe9010575af3",
-      "generated_hash": "9d56e2b6c3a7a0f8ba1c36221767096e304a7ef1a3fa5f4604dd04b356c06a1e"
+      "generated_hash": "ce987a31cdf1f27daa1003e7649d870df4601ea82078d8a1156a28254622101c"
     }
   ]
 }

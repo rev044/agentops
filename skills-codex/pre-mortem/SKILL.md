@@ -81,7 +81,7 @@ Use the same ranked packet contract as `$plan`: compiled checks first, then acti
 
 **By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).
 
-In `--quick` mode, skip Step 1a and the extra multi-judge expansion of Step 1b. If `PRODUCT.md` exists, still load it inline and include its context in the quick review. The mandatory `ao lookup` retrieval in Step 1.4 and compiled prevention load in Step 1.4b still run in quick mode. `--deep`, `--mixed`, `--debate`, and `--explorers` add the dedicated product perspective and wider council fan-out.
+In `--quick` mode, skip Steps 1a and 1b as standalone pre-processing phases. If `PRODUCT.md` exists, Step 1b's product context is still loaded inline during the quick review. The mandatory `ao lookup` retrieval in Step 1.4 and compiled prevention load in Step 1.4b still run in quick mode. `--deep`, `--mixed`, `--debate`, and `--explorers` add the dedicated product perspective and wider council fan-out.
 
 To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (cross-vendor).
 
@@ -122,7 +122,7 @@ If ao returns prior plan review findings, include them as context for the counci
 
 ### Step 1b: Check for Product Context
 
-Run this step whenever `PRODUCT.md` exists and the user did not pass an explicit `--preset` override. In `--quick` mode, include the product context inline without spawning an extra judge. In non-quick modes, add the dedicated product perspective.
+**Skip if `--quick` as a separate pre-processing phase.** In quick mode, the same product context is still loaded inline during review. In non-quick modes, add the dedicated product perspective.
 
 ```bash
 if [ -f PRODUCT.md ]; then

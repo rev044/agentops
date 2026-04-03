@@ -4,11 +4,8 @@ description: 'Full RPI lifecycle orchestrator. Delegates to $discovery, $crank, 
 ---
 
 # $rpi — Full RPI Lifecycle Orchestrator
-
 > **Quick Ref:** One command, full lifecycle. `$discovery` → `$crank` → `$validation`. Thin wrapper that delegates to phase orchestrators.
-
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
-
 **THREE-PHASE RULE + FULLY AUTONOMOUS.** Read `references/autonomous-execution.md` — it defines the mandatory 3-phase lifecycle, autonomous execution rules, anti-patterns, and phase completion logging. Unless `--interactive` is set, RPI runs hands-free. Do NOT stop after Phase 2. Do NOT ask the user anything between phases.
 
 ## Codex Lifecycle Guard
@@ -184,7 +181,6 @@ $rpi --fast-path "fix typo in readme"                  # force fast inline gates
 ```
 
 ## Complexity-Scaled Council Gates
-
 ### Pre-mortem (STEP 5 in discovery)
 complexity == "fast": inline review, no spawning (--quick) | complexity == "standard": inline fast default (--quick) | complexity == "full": full council, 2-judge minimum. Retry gate: max 3 total attempts.
 
@@ -199,13 +195,9 @@ complexity == "fast": inline review, no spawning (--quick) | complexity == "stan
 All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json` as the latest alias, plus `.agents/rpi/runs/<run-id>/execution-packet.json` as the per-run archive) carries `contract_surfaces` (repo execution profile), `done_criteria`, and queue claim/finalize metadata between phases. Sub-skills include `$plan`, `$vibe`, `$post-mortem`, and `$pre-mortem`. For detailed contract schemas, read `references/phase-data-contracts.md`.
 
 ## Examples
-
 Read `references/examples.md` for full lifecycle, resume, and interactive examples.
-
 ## Troubleshooting
-
 Read `references/troubleshooting.md` for common problems and solutions.
-
 **See also:** [discovery](../discovery/SKILL.md), [crank](../crank/SKILL.md), [validation](../validation/SKILL.md)
 
 ## Reference Documents
