@@ -700,6 +700,79 @@ func TestCodexEnsureStopJSONSkipsDuplicateCloseoutForSameSession(t *testing.T) {
 	}
 }
 
+func TestCodexEnsureStopRunsSessionEndMaintenanceParity(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CODEX_THREAD_ID", "019d1bf7-58ea-79e1-9f5d-02109d930082")
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex Desktop")
+
+	sessionID := "019d1bf7-58ea-79e1-9f5d-02109d930082"
+	historyPath := filepath.Join(home, ".codex", "history.jsonl")
+	indexPath := filepath.Join(home, ".codex", "session_index.jsonl")
+	if err := os.MkdirAll(filepath.Dir(historyPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	history := []string{
+		`{"session_id":"` + sessionID + `","ts":1766945655,"text":"Close out Codex session with maintenance parity"}`,
+		`{"session_id":"` + sessionID + `","ts":1766945658,"text":"Archive stale uncited low-signal learnings automatically"}`,
+	}
+	if err := os.WriteFile(historyPath, []byte(strings.Join(history, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(indexPath, []byte(`{"id":"`+sessionID+`","thread_name":"Lifecycle maintenance parity","updated_at":"2026-03-23T12:00:00Z"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := t.TempDir()
+	learningsDir := filepath.Join(repo, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stalePath := filepath.Join(learningsDir, "stale-fragment.md")
+	staleLearning := `---
+id: stale-fragment
+type: learning
+date: 2026-01-01
+source: codex-test
+maturity: provisional
+utility: 0.5000
+confidence: 0.0000
+reward_count: 0
+helpful_count: 0
+harmful_count: 0
+---
+
+# Stale Fragment
+
+let me force the revert because the goals agent is still running and re-wrote it.
+`
+	if err := os.WriteFile(stalePath, []byte(staleLearning), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().AddDate(0, 0, -91)
+	if err := os.Chtimes(stalePath, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	out, err := executeCommand("codex", "ensure-stop", "--json")
+	if err != nil {
+		t.Fatalf("codex ensure-stop --json: %v\noutput: %s", err, out)
+	}
+
+	if _, err := os.Stat(filepath.Join(repo, ".agents", "archive", "learnings", "stale-fragment.md")); err != nil {
+		t.Fatalf("expected stale learning archived by hookless closeout maintenance: %v", err)
+	}
+}
+
 func TestCodexStatusJSONReflectsHooklessHealthAndSearchCitations(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

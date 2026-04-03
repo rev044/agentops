@@ -470,6 +470,9 @@ func performCodexStop(cwd string) (codexStopResult, error) {
 		}
 		closeLoop = &result
 	}
+	if err := performHooklessSessionEndMaintenance(cwd); err != nil {
+		VerbosePrintf("Warning: codex session-end maintenance: %v\n", err)
+	}
 
 	memoryPath, err := syncCodexMemory(cwd)
 	if err != nil {

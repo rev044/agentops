@@ -42,7 +42,17 @@ ls -lt .agents/specs/ 2>/dev/null | head -3
 
 Use the most recent file. If nothing found, ask user.
 
-### Step 1.4: Load Compiled Prevention First (Mandatory)
+### Step 1.4: Retrieve Prior Learnings (Mandatory)
+
+Before review, retrieve learnings relevant to this plan's domain:
+```bash
+if command -v ao &>/dev/null; then
+    ao lookup --query "<plan goal or title>" --limit 5 2>/dev/null | head -30
+fi
+```
+If learnings are returned, include them as `known_context` in the review packet. Cite any learning by filename when it influences a prediction. Skip silently if ao is unavailable or returns no results.
+
+### Step 1.4b: Load Compiled Prevention First (Mandatory)
 
 Before quick or deep review, load compiled checks from `.agents/pre-mortem-checks/*.md` when they exist. This is separate from flywheel search and does NOT get skipped by `--quick`.
 
@@ -71,7 +81,7 @@ Use the same ranked packet contract as `$plan`: compiled checks first, then acti
 
 **By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).
 
-In `--quick` mode, **skip Steps 1a and 1b** (knowledge search, product context) unless `--deep`, `--mixed`, `--debate`, or `--explorers` is set. These pre-processing steps are for multi-judge council packets only.
+In `--quick` mode, **skip Steps 1a and 1b** (knowledge search, product context) unless `--deep`, `--mixed`, `--debate`, or `--explorers` is set. The mandatory `ao lookup` retrieval in Step 1.4 and compiled prevention load in Step 1.4b still run in quick mode.
 
 To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (cross-vendor).
 
@@ -486,5 +496,4 @@ $pre-mortem                    ← You are here
 ### scripts/
 
 - `scripts/validate.sh`
-
 
