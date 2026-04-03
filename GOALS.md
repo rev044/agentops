@@ -64,19 +64,21 @@ CI catches codex drift at push time, but 40% of fix commits in the March 2026 in
 
 **Steer:** decrease (codex parity findings count)
 
-## Three-Gap Proof Surface
+## Three-Gap Contract Proof Surface
 
-AgentOps closes three gaps that prevent coding agents from compounding. This section maps each gap to measurable gates so fitness checks can verify the claim is true, not just stated.
+AgentOps defines a three-gap contract ([context lifecycle](docs/context-lifecycle.md)) covering the failure modes that persist after prompt construction and agent routing. Every gate below maps to at least one gap. If a gap has no gate, it is an unproven promise.
 
-| Gap | Definition | Gate | Check |
-|-----|-----------|------|-------|
-| Judgment validation | Plans and code are reviewed before commit; regressions are blocked, not advised | `hook-preflight`, `go-cli-tests`, `go-complexity-ceiling` | All three must pass on every push |
-| Durable learning | Knowledge captured in one session is retrievable and applied in the next; decay rate does not exceed usage | `flywheel-compounding` (σρ > δ), `flywheel-lifecycle` (capture → index → inject → retrieval) | Both gates must pass; lifecycle must trace ≥ 4 stages |
-| Loop closure | Completed work feeds back into constraints and goals; every cycle produces better next work | `flywheel-proof`, `athena-freshness`, `athena-no-oscillation` | Proof passes, defrag report fresh, zero oscillating goals |
+| Gap | What fails without it | Proving gates | Coverage |
+|-----|-----------------------|---------------|----------|
+| **1. Judgment validation** — agents ship without risk context | Plans skip architecture fit; implementations pass happy path but miss edge cases | `hook-preflight`, `go-vet-clean`, `go-complexity-ceiling`, `security-gate`, `wiring-closure`, `contract-compatibility` | Mechanically enforced via hooks and static analysis; `/pre-mortem` and `/vibe` supply the non-mechanical judgment layer |
+| **2. Durable learning** — solved problems recur | Same auth bug fixed Monday returns Wednesday; agents re-run dead-end investigations | `flywheel-compounding`, `flywheel-proof`, `athena-freshness`, `athena-no-oscillation` | Flywheel escape velocity proves compounding; Athena gates prove curation and freshness |
+| **3. Loop closure** — completed work doesn't produce better next work | Sessions end with diffs but no extracted lessons; next session starts cold | `flywheel-proof`, `goals-validate`, `wiring-closure`, `release-cadence` | `flywheel-proof` traces capture-to-retrieval; `goals-validate` ensures findings become directives; `wiring-closure` proves registries stay connected |
+
+**Design rule:** prefer current gates over new scripts unless a true gap is found. New gates are justified only when a gap row shows no proving gate.
 
 **Canonical reference:** `docs/context-lifecycle.md` — evidence map and mechanism inventory for all three gaps.
 
-The three-gap contract is satisfied when all nine gates above pass simultaneously. `ao goals measure` checks this on demand.
+The three-gap contract is satisfied when the mapped gates below remain green together. `ao goals measure` checks the current set on demand.
 
 ## Gates
 
