@@ -688,13 +688,13 @@
       "name": "plan",
       "source_skill": "skills/plan",
       "source_hash": "1a60effff3f0e9380dc55a0816dfb3256d0f5ad6d72d1a269c210668860184d9",
-      "generated_hash": "0c4d62ba85f6973f193931dce5e0402b6b6de68d49f8b0027d419c4caa0e83f9"
+      "generated_hash": "7cbd6649fa94a5347e24f024cc76bcc0657a23f258dd8c4823c92ac92665f8b7"
     },
     {
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "afce1fac76a1e506e9405b76886ecdf390c3eead5d863d82b8311286ad00d6a4",
-      "generated_hash": "08cb9afe0ddff13ca3ce1f36e1a845a632d60d44cb67ff2a476db9a14b72d022"
+      "generated_hash": "baa66a6e7b84fc6615542a7dc5304bfafbcd16059ffb36927848491b3e9464a3"
     },
     {
       "name": "pr-implement",
@@ -736,7 +736,7 @@
       "name": "pre-mortem",
       "source_skill": "skills/pre-mortem",
       "source_hash": "9ed2f0290ccc16ce45a79d0a22b2dae54f525875fa2a8375bf470de54c08912d",
-      "generated_hash": "b1119d8dce1e33cf7ead78bbad6dc1a189baca2462d498d71b9415111b04d647"
+      "generated_hash": "941aa864abd34ac7bf0372bede4366e5e72fe85a5e0d53a4837515abad9dd7d2"
     },
     {
       "name": "product",
@@ -796,7 +796,7 @@
       "name": "release",
       "source_skill": "skills/release",
       "source_hash": "63fe063bd3603ae67c191fcb3e9fbbe522efb662c3b2bac8ac06f6f35e010de2",
-      "generated_hash": "0264402116d637fdde187e2966af68ca1aa61916cdb256bf9bfdbe65794e809c"
+      "generated_hash": "3637adc0a4271281b98551c88874c14f34270be1cecbdaea135b84f17b1c1a70"
     },
     {
       "name": "research",
@@ -826,7 +826,7 @@
       "name": "rpi",
       "source_skill": "skills/rpi",
       "source_hash": "c433dc12380733af9b7db7e942873b1143033cb0887d2c8945728cba174b5495",
-      "generated_hash": "ac0abcfa1a9645c322c89bf06fa2138b86a303ed8759b4f8d9be8ae7531836c9"
+      "generated_hash": "840f4407be46a6727a85ba3e6ce1689c5e7091d8fa57199b1d74db0beb153c81"
     },
     {
       "name": "scaffold",
@@ -892,7 +892,7 @@
       "name": "using-agentops",
       "source_skill": "skills/using-agentops",
       "source_hash": "7f5cc28fcf68821caddf4fbb323e630fc3be0c32ad46121086a7be3e2b5752b3",
-      "generated_hash": "d33f0bf4d5e8546c95cc6a16dfa77a33cd309c8c2c7562746830d83bee736ce7"
+      "generated_hash": "9de35bdfe9dcabbf2b910418a266545d5316c886a1c7a6481bc38589af65d451"
     },
     {
       "name": "validation",

@@ -3,7 +3,7 @@
 ## Schema Validation
 
 Before writing, validate each harvested item against the tracked schema
-contract in [../../../.agents/rpi/next-work.schema.md](../../../.agents/rpi/next-work.schema.md):
+contract in [../../../docs/contracts/next-work.schema.md](../../../docs/contracts/next-work.schema.md):
 
 ```bash
 validate_next_work_item() {
@@ -79,7 +79,7 @@ for i in "${!VALID_ITEMS[@]}"; do
   fi
 done
 
-# Append one entry per epic (schema v1.3: .agents/rpi/next-work.schema.md)
+# Append one entry per epic (schema v1.3: docs/contracts/next-work.schema.md)
 # Only include VALID_ITEMS that passed schema validation
 # Each item: {title, type, severity, source, description, evidence, target_repo}
 # Entry aggregate fields: source_epic, timestamp, items[], consumed: false,

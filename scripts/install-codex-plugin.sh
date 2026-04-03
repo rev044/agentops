@@ -27,7 +27,7 @@ UPDATE_CMD="${AGENTOPS_UPDATE_COMMAND:-curl -fsSL https://raw.githubusercontent.
 PLUGIN_SKILLS_SRC=""
 
 PLUGIN_MANIFEST="${REPO_ROOT}/.codex-plugin/plugin.json"
-MARKETPLACE_FILE="${REPO_ROOT}/.agents/plugins/marketplace.json"
+MARKETPLACE_FILE="${REPO_ROOT}/plugins/marketplace.json"
 PLUGIN_CACHE_ROOT="${CODEX_HOME}/plugins/cache/${MARKETPLACE_NAME}/${PLUGIN_NAME}/local"
 PLUGIN_SKILLS_DST="${PLUGIN_CACHE_ROOT}/skills-codex"
 LEGACY_SKILLS_DIR="${CODEX_HOME}/skills"
@@ -122,7 +122,7 @@ if [[ "$CODEX_HOME" != /* ]]; then
 fi
 
 PLUGIN_MANIFEST="${REPO_ROOT}/.codex-plugin/plugin.json"
-MARKETPLACE_FILE="${REPO_ROOT}/.agents/plugins/marketplace.json"
+MARKETPLACE_FILE="${REPO_ROOT}/plugins/marketplace.json"
 if [[ -z "$PLUGIN_SKILLS_SRC" ]]; then
   PLUGIN_SKILLS_SRC="${REPO_ROOT}/skills-codex"
 fi

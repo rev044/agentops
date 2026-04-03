@@ -441,6 +441,37 @@ func qualifyAutoExtract(content string) bool {
 	return sentenceEnders >= 2
 }
 
+func autoExtractTitle(content string) string {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return "Auto-Extracted Learning"
+	}
+
+	line := trimmed
+	if idx := strings.IndexAny(line, "\n.!?"); idx > 0 {
+		line = line[:idx]
+	}
+
+	words := strings.Fields(line)
+	if len(words) > 10 {
+		words = words[:10]
+	}
+
+	title := strings.Trim(strings.Join(words, " "), " -.,:;")
+	if title == "" {
+		return "Auto-Extracted Learning"
+	}
+	return title
+}
+
+func stripAutoExtractHeading(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) >= 3 && strings.HasPrefix(strings.TrimSpace(lines[0]), "# ") && strings.TrimSpace(lines[1]) == "" {
+		return strings.TrimSpace(strings.Join(lines[2:], "\n"))
+	}
+	return strings.TrimSpace(content)
+}
+
 // autoExtractResult holds counts from writeAutoExtractedLearnings.
 type autoExtractResult struct {
 	written  int
@@ -487,7 +518,7 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 			if readErr != nil {
 				continue
 			}
-			existingContent := extractBodyAfterFrontmatter(string(body))
+			existingContent := stripAutoExtractHeading(extractBodyAfterFrontmatter(string(body)))
 			if len(existingContent) > 80 && len(it.content) > 80 &&
 				existingContent[:80] == it.content[:80] {
 				isDuplicate = true
@@ -508,10 +539,12 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 		filename := fmt.Sprintf("%s-auto-%s.md", datePrefix, slug)
 		target := filepath.Join(dir, filename)
 
+		title := autoExtractTitle(it.content)
+
 		// Escape bare "---" lines in body to prevent YAML multi-document parsing issues.
 		safeBody := strings.ReplaceAll(it.content, "\n---\n", "\n- - -\n")
 		researchSources := renderResearchSourcesFrontmatter(gatherResearchSources(it.content))
-		content := fmt.Sprintf("---\ntype: learning\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\n%scategory: %s\n---\n\n%s\n", researchSources, it.category, safeBody)
+		content := fmt.Sprintf("---\ntype: learning\ntitle: %q\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\nutility: 0.5\n%scategory: %s\n---\n\n# %s\n\n%s\n", title, researchSources, it.category, title, safeBody)
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
 			return result, fmt.Errorf("write learning %s: %w", filename, err)
 		}

@@ -317,12 +317,12 @@ AgentOps does not enforce a minimum wait between releases. Maintainers can cut a
 When cutting a release:
 
 1. Ensure CHANGELOG.md `[Unreleased]` section has all changes
-2. Write curated release notes to `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
+2. Write curated release notes to `docs/releases/YYYY-MM-DD-v<version>-notes.md`
 3. Run `/release <version>` — handles changelog, version bumps, tag, and draft GitHub Release
 4. Push tag: `git push origin main --tags`
 5. CI builds, validates, and publishes automatically
 
-The release pipeline reads curated notes from `.agents/releases/` and shows them as highlights on the GitHub Release page, with the full changelog in a collapsible section.
+The release pipeline reads curated notes from `docs/releases/` and shows them as highlights on the GitHub Release page, with the full changelog in a collapsible section.
 
 ## Code of Conduct
 

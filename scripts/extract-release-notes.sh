@@ -6,7 +6,7 @@
 #   $1 = current tag (required)
 #   $2 = previous tag (optional, for footer link)
 #
-# Expects: .agents/releases/YYYY-MM-DD-v<version>-notes.md for curated highlights.
+# Expects: docs/releases/YYYY-MM-DD-v<version>-notes.md for curated highlights.
 # Falls back to CHANGELOG.md extraction if no curated notes exist.
 #
 # Output: writes release-notes.md to repo root
@@ -42,7 +42,7 @@ fi
 # Check for curated release notes (written by /release skill or manually).
 # These are plain-English highlights, not the raw changelog.
 CURATED_NOTES=""
-NOTES_FILE=$(find .agents/releases -name "*-v${VERSION}-notes.md" 2>/dev/null | head -1 || true)
+NOTES_FILE=$(find docs/releases -name "*-v${VERSION}-notes.md" 2>/dev/null | head -1 || true)
 if [[ -n "$NOTES_FILE" && -f "$NOTES_FILE" ]]; then
   CURATED_NOTES=$(cat "$NOTES_FILE")
   CURATED_NOTES="$(printf '%s' "$CURATED_NOTES" \

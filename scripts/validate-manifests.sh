@@ -279,7 +279,7 @@ validate_manifest \
     "Codex plugin manifest"
 
 validate_manifest \
-    "$REPO_ROOT/.agents/plugins/marketplace.json" \
+    "$REPO_ROOT/plugins/marketplace.json" \
     "$REPO_ROOT/schemas/codex-marketplace.v1.schema.json" \
     "Codex marketplace manifest"
 

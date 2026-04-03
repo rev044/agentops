@@ -14,7 +14,7 @@ you want to cut.
 ## Curated Release Notes
 
 Every published release should have curated notes at
-`.agents/releases/YYYY-MM-DD-v<version>-notes.md`. The CI pipeline
+`docs/releases/YYYY-MM-DD-v<version>-notes.md`. The CI pipeline
 (`scripts/extract-release-notes.sh`) uses these as the GitHub Release page
 highlights, with the full CHANGELOG in a collapsible `<details>` block.
 

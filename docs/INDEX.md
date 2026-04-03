@@ -193,6 +193,7 @@
 - [Autodev Program Contract](contracts/autodev-program.md) — Repo-local operational contract for bounded autonomous development
 - [Repo Execution Profile Schema](contracts/repo-execution-profile.schema.json) — Machine-readable schema for repo execution profiles
 - [RPI Run Registry](contracts/rpi-run-registry.md) — RPI run registry specification
+- [Next-Work Queue Schema](contracts/next-work.schema.md) — Contract for `.agents/rpi/next-work.jsonl`
 - [RPI Phase Result Schema](contracts/rpi-phase-result.schema.json) — Machine-readable schema for RPI phase results
 - [RPI C2 Events Schema](contracts/rpi-c2-events.schema.json) — Machine-readable schema for per-run `.agents/rpi/runs/<run-id>/events.jsonl`
 - [RPI C2 Commands Schema](contracts/rpi-c2-commands.schema.json) — Machine-readable schema for per-run `.agents/rpi/runs/<run-id>/commands.jsonl`

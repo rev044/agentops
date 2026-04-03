@@ -47,7 +47,8 @@ setup_fixture() {
 }
 EOF
 
-  cat > "$fixture/.agents/plugins/marketplace.json" <<'EOF'
+  mkdir -p "$fixture/plugins"
+  cat > "$fixture/plugins/marketplace.json" <<'EOF'
 {
   "name": "agentops-marketplace",
   "plugins": [

@@ -40,9 +40,10 @@ Use Grep to search `.agents/` for related content. If research exists, read it t
 ```bash
 if command -v ao &>/dev/null; then
     ao search "<topic> plan decomposition patterns" 2>/dev/null | head -10
+    ao lookup --query "<goal>" --limit 5 2>/dev/null | head -30
 fi
 ```
-If ao returns relevant learnings or patterns, incorporate them into the plan. Skip silently if ao is unavailable or returns no results.
+If ao returns relevant learnings or patterns, incorporate them into the plan. Cite any retrieved learning by filename when it influences a planning decision. Skip silently if ao is unavailable or returns no results.
 
 ### Step 2.1: Load Compiled Prevention First (Mandatory)
 
@@ -742,5 +743,4 @@ See [references/examples.md](references/examples.md) for more troubleshooting sc
 ### scripts/
 
 - `scripts/validate.sh`
-
 

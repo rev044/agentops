@@ -312,14 +312,14 @@ Read `references/release-notes.md` for the full release notes format, quality ba
 
 - Release notes are **not the changelog** — they're user-facing, plain-English, no jargon
 - Structure: Highlights → What's New → All Changes (condensed) → link to full CHANGELOG
-- Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
+- Write to `docs/releases/YYYY-MM-DD-v<version>-notes.md`
 - Show to the user as part of Step 8 review
 
 ### Step 13: GitHub Release (CI handles this)
 
 **Do NOT create a draft GitHub Release locally.** GoReleaser in CI is the sole release creator. A local `gh release create --draft` conflicts with GoReleaser and results in an empty release body.
 
-The curated release notes at `.agents/releases/YYYY-MM-DD-v<version>-notes.md` are committed to the repo. The CI pipeline (`extract-release-notes.sh` at repo root) reads them and passes them to GoReleaser via `--release-notes`.
+The curated release notes at `docs/releases/YYYY-MM-DD-v<version>-notes.md` are committed to the repo. The CI pipeline (`extract-release-notes.sh` at repo root) reads them and passes them to GoReleaser via `--release-notes`.
 CI also publishes security artifacts to the GitHub Release assets:
 - `sbom-cyclonedx-go-mod.json`
 - `security-gate-summary.json`
@@ -327,7 +327,7 @@ CI also publishes security artifacts to the GitHub Release assets:
 Tell the user:
 
 ```
-Release notes written to .agents/releases/YYYY-MM-DD-v<version>-notes.md
+Release notes written to docs/releases/YYYY-MM-DD-v<version>-notes.md
 CI will use these as highlights on the GitHub Release page.
 CI will attach SBOM and security scan report assets.
 ```
@@ -344,14 +344,14 @@ Next steps:
 
 CI publisher will handle: release publish, GitHub Release page, SBOM/security assets, provenance
   (detected: .github/workflows/release.yml, .goreleaser.yml)
-  Curated release notes: .agents/releases/YYYY-MM-DD-v1.7.0-notes.md
+  Curated release notes: docs/releases/YYYY-MM-DD-v1.7.0-notes.md
 ```
 
 If no CI detected:
 ```
 Next steps:
   git push origin main --tags     # push commit + tag
-  gh release create v1.7.0 --title "v1.7.0" --notes-file .agents/releases/YYYY-MM-DD-v1.7.0-notes.md
+  gh release create v1.7.0 --title "v1.7.0" --notes-file docs/releases/YYYY-MM-DD-v1.7.0-notes.md
 
 No release CI detected. Consider adding a workflow for automated publishing.
 ```
@@ -361,12 +361,12 @@ No release CI detected. Consider adding a workflow for automated publishing.
 Write an internal release record (separate from the public release notes written in Step 12):
 
 ```bash
-mkdir -p .agents/releases
+mkdir -p docs/releases
 ARTIFACT_JSON="$(./scripts/resolve-release-artifacts.sh <version>)"
 ARTIFACT_DIR="$(echo "$ARTIFACT_JSON" | jq -r '.artifact_dir')"
 ```
 
-Write to `.agents/releases/YYYY-MM-DD-v<version>-audit.md`:
+Write to `docs/releases/YYYY-MM-DD-v<version>-audit.md`:
 
 ```markdown
 # Release v<version> — Audit
@@ -440,7 +440,7 @@ Everything this skill does is local and reversible:
 - Bad changelog → edit the file
 - Wrong version bump → `git reset HEAD~1`
 - Bad tag → `git tag -d v<version>`
-- Bad release notes → edit `.agents/releases/*-notes.md` before push
+- Bad release notes → edit `docs/releases/*-notes.md` before push
 
 ---
 

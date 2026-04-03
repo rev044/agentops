@@ -28,7 +28,7 @@ if [[ "$ROOT" != /* ]]; then
   ROOT="$(cd "$ROOT" && pwd)"
 fi
 
-SCHEMA="$ROOT/.agents/rpi/next-work.schema.md"
+SCHEMA="$ROOT/docs/contracts/next-work.schema.md"
 HARVEST_REF="$ROOT/skills/post-mortem/references/harvest-next-work.md"
 POST_MORTEM_SKILL="$ROOT/skills/post-mortem/SKILL.md"
 POST_MORTEM_CODEX_SKILL="$ROOT/skills-codex/post-mortem/SKILL.md"
@@ -210,13 +210,13 @@ for value in available in_progress consumed; do
     "runtime next-work logic missing claim_status value $value"
 done
 
-require_contains "$HARVEST_REF" ".agents/rpi/next-work.schema.md" \
+require_contains "$HARVEST_REF" "docs/contracts/next-work.schema.md" \
   "harvest-next-work must reference the tracked next-work schema"
-require_contains "$POST_MORTEM_SKILL" ".agents/rpi/next-work.schema.md" \
+require_contains "$POST_MORTEM_SKILL" "docs/contracts/next-work.schema.md" \
   "post-mortem skill must reference the tracked next-work schema"
-require_contains "$POST_MORTEM_CODEX_SKILL" ".agents/rpi/next-work.schema.md" \
+require_contains "$POST_MORTEM_CODEX_SKILL" "docs/contracts/next-work.schema.md" \
   "generated Codex post-mortem skill must reference the tracked next-work schema"
-require_contains "$GATE4" ".agents/rpi/next-work.schema.md" \
+require_contains "$GATE4" "docs/contracts/next-work.schema.md" \
   "rpi gate4 reference must point at the tracked next-work schema"
 require_contains "$PHASE_CONTRACT" "item lifecycle as authoritative" \
   "phase-data-contracts must describe item lifecycle authority"
@@ -234,7 +234,7 @@ require_contains "$RUNTIME" 'omitted item `claim_status` semantically' \
 
 for skill in "$POST_MORTEM_SKILL" "$POST_MORTEM_CODEX_SKILL"; do
   require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
-    ".agents/rpi/next-work.schema.md" \
+    "docs/contracts/next-work.schema.md" \
     "${skill#$ROOT/} ACT.3 must reference the tracked next-work schema"
   require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     "source_epic:" \

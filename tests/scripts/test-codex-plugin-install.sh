@@ -23,7 +23,7 @@ setup_fixture() {
 
   mkdir -p \
     "$fixture/.codex-plugin" \
-    "$fixture/.agents/plugins" \
+    "$fixture/plugins" \
     "$fixture/skills-codex/research" \
     "$fixture/skills-codex/heal-skill/scripts"
 
@@ -34,7 +34,7 @@ setup_fixture() {
 }
 EOF
 
-  cat > "$fixture/.agents/plugins/marketplace.json" <<'EOF'
+  cat > "$fixture/plugins/marketplace.json" <<'EOF'
 {
   "name": "agentops-marketplace",
   "plugins": [

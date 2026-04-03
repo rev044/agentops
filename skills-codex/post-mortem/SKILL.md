@@ -7,7 +7,7 @@ description: 'Wrap up completed work. Council validates the implementation, then
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
 >
-> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex sessions should finish closeout with `ao codex stop`.
+> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex sessions should finish closeout with `ao codex ensure-stop`.
 
 Six phases:
 1. **Council** — Did we implement it correctly?
@@ -37,11 +37,11 @@ Six phases:
 In Codex hookless mode, run these after the post-mortem workflow writes learnings and next work:
 
 ```bash
-ao codex stop
+ao codex ensure-stop --auto-extract
 ao codex status
 ```
 
-`ao codex stop` uses the latest transcript or history fallback to queue/persist learnings and run close-loop maintenance without runtime hooks.
+`ao codex ensure-stop` is idempotent for the current Codex thread. It uses the latest transcript or history fallback to queue/persist learnings and run close-loop maintenance without runtime hooks.
 
 ---
 
@@ -445,7 +445,7 @@ This promotes registry rows into `.agents/findings/*.md`, refreshes `.agents/pla
 
 Actionable improvements identified during processing -> append one schema v1.3
 batch entry to `.agents/rpi/next-work.jsonl` using the tracked contract in
-[`../../.agents/rpi/next-work.schema.md`](../../.agents/rpi/next-work.schema.md)
+[`../../docs/contracts/next-work.schema.md`](../../docs/contracts/next-work.schema.md)
 and the write procedure in
 [`references/harvest-next-work.md`](references/harvest-next-work.md).
 Follow the claim/finalize lifecycle documented in `references/harvest-next-work.md`.
