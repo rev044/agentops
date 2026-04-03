@@ -35,7 +35,7 @@ create_fixture() {
   local fixture="$TMP_DIR/fixture-$1"
   mkdir -p "$fixture"
 
-  copy_target "$fixture" ".agents/rpi/next-work.schema.md"
+  copy_target "$fixture" "docs/contracts/next-work.schema.md"
   copy_target "$fixture" "skills/post-mortem/references/harvest-next-work.md"
   copy_target "$fixture" "skills/post-mortem/SKILL.md"
   copy_target "$fixture" "skills-codex/post-mortem/SKILL.md"
@@ -135,7 +135,7 @@ test_repo_baseline_passes_without_rg() {
 test_schema_version_drift_fails() {
   local fixture
   fixture="$(create_fixture "schema-version")"
-  python3 - <<'PY' "$fixture/.agents/rpi/next-work.schema.md"
+  python3 - <<'PY' "$fixture/docs/contracts/next-work.schema.md"
 from pathlib import Path
 path = Path(__import__("sys").argv[1])
 path.write_text(path.read_text().replace("schema_version: 1.3", "schema_version: 1.2"))

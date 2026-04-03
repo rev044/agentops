@@ -88,12 +88,12 @@ loading reference docs only when needed.
 **Always write release notes to a file immediately after generating:**
 
 ```bash
-mkdir -p .agents/releases
+mkdir -p docs/releases
 ```
 
-Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` — this is the **public-facing** file that CI uses for the GitHub Release page. It contains ONLY the Highlights + What's New + All Changes structure above, ending with a link to the full CHANGELOG.md. No internal metadata, no pre-flight results, no next steps, no issue IDs, no file paths.
+Write to `docs/releases/YYYY-MM-DD-v<version>-notes.md` — this is the **public-facing** file that CI uses for the GitHub Release page. It contains ONLY the Highlights + What's New + All Changes structure above, ending with a link to the full CHANGELOG.md. No internal metadata, no pre-flight results, no next steps, no issue IDs, no file paths.
 
-**IMPORTANT:** This file must be committed in the release commit (before tagging). CI checks out the tagged commit and reads this file from the repo. `.agents/releases/` must NOT be gitignored. If it is, CI falls back to CHANGELOG-only mode (no curated highlights).
+**IMPORTANT:** This file must be committed in the release commit (before tagging). CI checks out the tagged commit and reads this file from the repo. `docs/releases/` must stay tracked in git. If it does not, CI falls back to CHANGELOG-only mode (no curated highlights).
 
 **Show the release notes to the user** as part of Step 8 review, alongside the changelog and version bumps.
 
@@ -101,7 +101,7 @@ Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` — this is the **pub
 
 The CI release pipeline (`scripts/extract-release-notes.sh`) generates the GitHub Release body:
 
-1. It looks for curated notes at `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
+1. It looks for curated notes at `docs/releases/YYYY-MM-DD-v<version>-notes.md`
 2. If found: curated highlights up top, full CHANGELOG section in a collapsible `<details>` block
 3. If not found: raw CHANGELOG section only (no commit dump — missing CHANGELOG entry is an error)
 4. GoReleaser consumes the generated `release-notes.md` via `--release-notes`

@@ -82,7 +82,7 @@ INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-plugin.sh"
 PUBLIC_INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex.sh"
 HEAL_SCRIPT="$REPO_ROOT/skills/heal-skill/scripts/heal.sh"
 CODEX_MANIFEST="$REPO_ROOT/.codex-plugin/plugin.json"
-CODEX_MARKETPLACE="$REPO_ROOT/.agents/plugins/marketplace.json"
+CODEX_MARKETPLACE="$REPO_ROOT/plugins/marketplace.json"
 CODEX_SKILL_MANIFEST="$REPO_ROOT/skills-codex/.agentops-manifest.json"
 
 require_file "$INSTALL_SCRIPT"

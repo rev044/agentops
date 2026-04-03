@@ -107,7 +107,7 @@ bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
 
 Actionable improvements identified during processing -> append one schema v1.3
 batch entry to `.agents/rpi/next-work.jsonl` using the tracked contract in
-[`../../.agents/rpi/next-work.schema.md`](../../../.agents/rpi/next-work.schema.md)
+[`../../docs/contracts/next-work.schema.md`](../../../docs/contracts/next-work.schema.md)
 and the write procedure in
 [`references/harvest-next-work.md`](harvest-next-work.md):
 
@@ -409,7 +409,7 @@ Scan the council report and extracted learnings for actionable follow-up items:
 | 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
 ```
 
-6. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the tracked contract in [`.agents/rpi/next-work.schema.md`](../../../.agents/rpi/next-work.schema.md). Read `references/harvest-next-work.md` for the validation function and write procedure. Drop invalid items; do NOT block the entire harvest.
+6. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the tracked contract in [`docs/contracts/next-work.schema.md`](../../../docs/contracts/next-work.schema.md). Read `references/harvest-next-work.md` for the validation function and write procedure. Drop invalid items; do NOT block the entire harvest.
 
 7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`). Read `references/harvest-next-work.md` for the write procedure (target_repo assignment, claim/finalize lifecycle, JSONL format, required fields).
 

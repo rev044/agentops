@@ -226,7 +226,7 @@ Manual dispatch is a rerun path, not the primary publish path for a new version.
 
 - AgentOps does not enforce a minimum gap between releases.
 - Draft releases do not notify watchers and can be used freely for CI testing.
-- Curated release notes are written to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` before tagging.
+- Curated release notes are written to `docs/releases/YYYY-MM-DD-v<version>-notes.md` before tagging.
 
 ### Release Commands
 

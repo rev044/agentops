@@ -97,7 +97,7 @@ tar -xf "$ARCHIVE_FILE" -C "$BUNDLE_DIR"
 
 for required_path in \
     "$BUNDLE_DIR/.codex-plugin/plugin.json" \
-    "$BUNDLE_DIR/.agents/plugins/marketplace.json" \
+    "$BUNDLE_DIR/plugins/marketplace.json" \
     "$BUNDLE_DIR/skills-codex" \
     "$BUNDLE_DIR/scripts/validate-codex-generated-manifest.sh" \
     "$BUNDLE_DIR/scripts/validate-codex-generated-artifacts.sh" \

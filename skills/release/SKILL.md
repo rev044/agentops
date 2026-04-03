@@ -304,13 +304,13 @@ Read `references/release-notes.md` for the full release notes format, quality ba
 
 - Release notes are **not the changelog** — they're user-facing, plain-English, no jargon
 - Structure: Highlights → What's New → All Changes (condensed) → link to full CHANGELOG
-- Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
+- Write to `docs/releases/YYYY-MM-DD-v<version>-notes.md`
 
 **CRITICAL:** Release notes MUST be written and staged BEFORE the release commit. GoReleaser checks out the tagged commit — if notes are committed after the tag, CI won't find them and falls back to raw changelog extraction.
 
 ### Step 11: Write audit trail
 
-Resolve the full local-CI artifact set that backs this release, then write the internal release audit record to `.agents/releases/YYYY-MM-DD-v<version>-audit.md` (see Step 16 format). Stage it alongside the release notes.
+Resolve the full local-CI artifact set that backs this release, then write the internal release audit record to `docs/releases/YYYY-MM-DD-v<version>-audit.md` (see Step 16 format). Stage it alongside the release notes.
 
 ```bash
 ARTIFACT_JSON="$(./scripts/resolve-release-artifacts.sh <version>)"
@@ -322,7 +322,7 @@ ARTIFACT_DIR="$(echo "$ARTIFACT_JSON" | jq -r '.artifact_dir')"
 Stage and commit all release changes together:
 
 ```bash
-git add CHANGELOG.md <version-files...> .agents/releases/YYYY-MM-DD-v<version>-notes.md .agents/releases/YYYY-MM-DD-v<version>-audit.md
+git add CHANGELOG.md <version-files...> docs/releases/YYYY-MM-DD-v<version>-notes.md docs/releases/YYYY-MM-DD-v<version>-audit.md
 git commit -m "Release v<version>"
 ```
 
@@ -340,7 +340,7 @@ git tag -a v<version> -m "Release v<version>"
 
 **Do NOT create a draft GitHub Release locally.** GoReleaser in CI is the sole release creator. A local `gh release create --draft` conflicts with GoReleaser and results in an empty release body.
 
-The curated release notes at `.agents/releases/YYYY-MM-DD-v<version>-notes.md` are included in the release commit (Step 12), so CI finds them in the tagged tree. The pipeline (`extract-release-notes.sh`) reads them and passes them to GoReleaser via `--release-notes`.
+The curated release notes at `docs/releases/YYYY-MM-DD-v<version>-notes.md` are included in the release commit (Step 12), so CI finds them in the tagged tree. The pipeline (`extract-release-notes.sh`) reads them and passes them to GoReleaser via `--release-notes`.
 CI also publishes security artifacts to the GitHub Release assets:
 - `sbom-cyclonedx-go-mod.json`
 - `security-gate-summary.json`
@@ -357,14 +357,14 @@ Next steps:
 
 CI publisher will handle: release publish, GitHub Release page, SBOM/security assets, provenance
   (detected: .github/workflows/release.yml, .goreleaser.yml)
-  Curated release notes: .agents/releases/YYYY-MM-DD-v1.7.0-notes.md
+  Curated release notes: docs/releases/YYYY-MM-DD-v1.7.0-notes.md
 ```
 
 If no CI detected:
 ```
 Next steps:
   git push origin main --tags     # push commit + tag
-  gh release create v1.7.0 --title "v1.7.0" --notes-file .agents/releases/YYYY-MM-DD-v1.7.0-notes.md
+  gh release create v1.7.0 --title "v1.7.0" --notes-file docs/releases/YYYY-MM-DD-v1.7.0-notes.md
 
 No release CI detected. Consider adding a workflow for automated publishing.
 ```
@@ -374,10 +374,10 @@ No release CI detected. Consider adding a workflow for automated publishing.
 The audit record (written in Step 11, committed in Step 12) uses this format:
 
 ```bash
-mkdir -p .agents/releases
+mkdir -p docs/releases
 ```
 
-Write to `.agents/releases/YYYY-MM-DD-v<version>-audit.md`:
+Write to `docs/releases/YYYY-MM-DD-v<version>-audit.md`:
 
 ```markdown
 # Release v<version> — Audit
@@ -452,7 +452,7 @@ Everything this skill does is local and reversible:
 - Bad changelog → edit the file
 - Wrong version bump → `git reset HEAD~1`
 - Bad tag → `git tag -d v<version>`
-- Bad release notes → edit `.agents/releases/*-notes.md` before push
+- Bad release notes → edit `docs/releases/*-notes.md` before push
 
 ---
 

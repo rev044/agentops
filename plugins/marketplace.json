@@ -1,0 +1,12 @@
+{
+  "name": "agentops-marketplace",
+  "plugins": [
+    {
+      "name": "agentops",
+      "source": {
+        "source": "local",
+        "path": "./"
+      }
+    }
+  ]
+}

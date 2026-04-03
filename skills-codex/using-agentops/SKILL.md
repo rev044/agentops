@@ -65,7 +65,7 @@ $release --check       # Readiness validation only (GO/NO-GO)
 $release --dry-run     # Preview without writing
 ```
 
-**Output:** Updated CHANGELOG.md, version bumps, git tag, `.agents/releases/`
+**Output:** Updated CHANGELOG.md, version bumps, git tag, `docs/releases/`
 
 ## Phase-to-Skill Mapping
 

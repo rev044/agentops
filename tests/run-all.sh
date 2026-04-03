@@ -48,7 +48,7 @@ fi
 for jf in \
     "$REPO_ROOT/.claude-plugin/plugin.json" \
     "$REPO_ROOT/.codex-plugin/plugin.json" \
-    "$REPO_ROOT/.agents/plugins/marketplace.json" \
+    "$REPO_ROOT/plugins/marketplace.json" \
     "$REPO_ROOT/hooks/hooks.json"
 do
     if [[ ! -f "$jf" ]]; then

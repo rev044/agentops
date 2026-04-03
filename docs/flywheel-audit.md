@@ -1,6 +1,6 @@
 # Knowledge Flywheel: Five-Month Empirical Audit
 
-> **Date:** 2026-04-02 | **Evidence:** [.agents/evidence/2026-04-02-flywheel-five-month-audit.md](../.agents/evidence/2026-04-02-flywheel-five-month-audit.md)
+> **Date:** 2026-04-02 | **Evidence:** [docs/evidence/2026-04-02-flywheel-five-month-audit.md](evidence/2026-04-02-flywheel-five-month-audit.md)
 
 ## TL;DR
 
@@ -32,7 +32,7 @@ Within a single RPI session, the flywheel compounds reliably:
 | Failures become learnings | Novel discoveries captured with source beads |
 | Post-mortem seeds next work | Follow-up items harvested to next-work.jsonl |
 
-**Source:** [ag-470 case study](../.agents/evidence/2026-04-02-flywheel-case-study.md)
+**Source:** [ag-470 case study](evidence/2026-04-02-flywheel-case-study.md)
 
 ## What Breaks (Cross-Session)
 

@@ -599,7 +599,7 @@ func TestSessionClose_AutoExtract_ProducesLearnings(t *testing.T) {
 		t.Fatalf("read first learning: %v", err)
 	}
 	content := string(data)
-	for _, want := range []string{"type: learning", "source: auto-extract", "confidence: medium", "maturity: provisional"} {
+	for _, want := range []string{"type: learning", "title:", "source: auto-extract", "confidence: medium", "maturity: provisional", "utility: 0.5", "# "} {
 		if !strings.Contains(content, want) {
 			t.Errorf("expected learning to contain %q, got:\n%s", want, content)
 		}
