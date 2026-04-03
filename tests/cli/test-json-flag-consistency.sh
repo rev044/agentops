@@ -10,7 +10,9 @@ AO="$REPO_ROOT/cli/bin/ao"
 ERRORS=0
 WARNINGS=0
 PASSED=0
-WORK_DIR=$(mktemp -d)
+TMP_BASE="${TMPDIR:-/tmp}"
+mkdir -p "$TMP_BASE"
+WORK_DIR=$(mktemp -d "$TMP_BASE/ao-json-flag-consistency.XXXXXX")
 STDERR_TMP="$WORK_DIR/stderr"
 
 cleanup() {

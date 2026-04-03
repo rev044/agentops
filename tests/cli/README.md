@@ -6,4 +6,5 @@ Validates that the `ao` CLI's `--json` flag produces valid JSON output across al
 
 ```bash
 bash tests/cli/test-json-flag-consistency.sh
+bash tests/cli/test-json-flag-consistency-tempdir.sh
 ```

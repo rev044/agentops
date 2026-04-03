@@ -660,6 +660,7 @@ run_step_bg "Coverage ratchet check" ./scripts/coverage-ratchet.sh --check
 run_step_bg "Skill schema validation" ./scripts/validate-skill-schema.sh --verbose
 run_step_bg "Learning coherence" ./scripts/validate-learning-coherence.sh
 run_step_bg "JSON flag consistency" ./tests/cli/test-json-flag-consistency.sh
+run_step_bg "JSON flag temp workspace" ./tests/cli/test-json-flag-consistency-tempdir.sh
 
 collect_parallel
 
