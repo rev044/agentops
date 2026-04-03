@@ -79,10 +79,10 @@ If research files exist, read the most recent one and verify it contains substan
 LATEST_RESEARCH=$(ls -t .agents/research/*.md 2>/dev/null | head -1)
 if [ -n "$LATEST_RESEARCH" ]; then
     # Verify research has substantive content (not just frontmatter)
-    if grep -qE '^## (Key Findings|Architecture|Executive Summary|Recommendations|Part [0-9])' "$LATEST_RESEARCH"; then
+    if grep -qE '^## (Summary|Key Files|Findings|Key Findings|Architecture|Executive Summary|Recommendations|Part [0-9])' "$LATEST_RESEARCH"; then
         echo "Research validated: $LATEST_RESEARCH"
     else
-        echo "WARNING: Research file exists but lacks standard sections (Key Findings, Architecture, Executive Summary, or Recommendations)."
+        echo "WARNING: Research file exists but lacks standard sections (Summary, Key Files, Findings, Key Findings, Architecture, Executive Summary, or Recommendations)."
         echo "Consider running $research first for a thorough exploration."
     fi
 fi
@@ -632,7 +632,7 @@ bd create --title "<task>" --body "Description...
 
 **`bd ready` returns the current wave** - all unblocked issues that can run in parallel.
 
-Without bd issues, the ratchet validator cannot track gate progress. This is required for `$crank` autonomous execution and `$post-mortem` validation.
+Beads-backed issues are the preferred path because they give `$crank` richer dependency data and make ratchet progress easier to inspect. When bd is unavailable or degraded, keep the plan file + execution packet path accurate and continue in file-backed mode for `$crank` and `$validation`.
 
 ### Step 7b: Verify Validation Blocks (Post-Creation Check)
 
@@ -685,7 +685,7 @@ Tell the user:
 1. Plan document location
 2. Number of issues identified
 3. Wave structure for parallel execution
-4. Tasks created (in-session task IDs)
+4. Tasks created (beads issue IDs or file-backed task refs)
 5. Next step: `$pre-mortem` for failure simulation, then `$crank` for execution
 
 ## Key Rules
@@ -743,4 +743,3 @@ See [references/examples.md](references/examples.md) for more troubleshooting sc
 ### scripts/
 
 - `scripts/validate.sh`
-

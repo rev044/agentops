@@ -93,7 +93,7 @@ Use the same ranked packet contract as `/plan`: compiled checks first, then acti
 
 **By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).
 
-In `--quick` mode, **skip Steps 1a and 1b** (knowledge search, product context) unless `--deep`, `--mixed`, `--debate`, or `--explorers` is set. These pre-processing steps are for multi-judge council packets only.
+In `--quick` mode, skip Step 1a and the extra multi-judge expansion of Step 1b. If `PRODUCT.md` exists, still load it inline and include its context in the quick review. `--deep`, `--mixed`, `--debate`, and `--explorers` add the dedicated product perspective and wider council fan-out.
 
 To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (cross-vendor).
 
@@ -134,7 +134,7 @@ If ao returns prior plan review findings, include them as context for the counci
 
 ### Step 1b: Check for Product Context
 
-**Skip if `--quick`.** Only run this step for `--deep`, `--mixed`, or `--debate`.
+Run this step whenever `PRODUCT.md` exists and the user did not pass an explicit `--preset` override. In `--quick` mode, include the product context inline without spawning an extra judge. In non-quick modes, add the dedicated product perspective.
 
 ```bash
 if [ -f PRODUCT.md ]; then
@@ -144,12 +144,13 @@ fi
 
 When `PRODUCT.md` exists in the project root AND the user did NOT pass an explicit `--preset` override:
 1. Read `PRODUCT.md` content and include in the council packet via `context.files`
-2. Add a single consolidated `product` perspective to the council invocation:
+2. In `--quick` mode, keep the review inline and require the reviewer to assess user-value, adoption-barriers, and competitive-position directly from `PRODUCT.md`.
+3. In non-quick modes, add a single consolidated `product` perspective to the council invocation:
    ```
    /council --preset=plan-review --perspectives="product" validate <plan-path>
    ```
    This yields 3 judges total (2 plan-review + 1 product). The product judge covers user-value, adoption-barriers, and competitive-position in a single review.
-3. With `--deep`: 5 judges (4 plan-review + 1 product).
+4. With `--deep`: 5 judges (4 plan-review + 1 product).
 
 When `PRODUCT.md` exists BUT the user passed an explicit `--preset`: skip product auto-include (user's explicit preset takes precedence).
 

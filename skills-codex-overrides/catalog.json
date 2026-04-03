@@ -411,7 +411,7 @@
           "In Codex hookless mode, run `ao codex ensure-start` before research; the CLI records startup once per thread and skips duplicates automatically.",
           "Prefer `spawn_agent` / `send_input` / `wait` for parallel exploration.",
           "Write findings to `.agents/research/` with file-level references and concrete evidence.",
-          "Keep backend fallback logic explicit: codex sub-agents, then inline."
+          "Keep backend fallback logic explicit: codex sub-agents, then background-task-fallback, then inline."
         ]
       }
     },

@@ -131,6 +131,7 @@ Before implementing, write tests that define the expected behavior:
 - **L3 (Component):** Write if the change affects a full subsystem workflow (with mocked external deps)
 
 If the issue includes `test_levels` metadata from `$plan`, use those levels. Otherwise, default to L1 + any applicable higher levels from the decision tree above.
+When delegating to `$test`, carry those selected levels and any BF expectations into the request context. `--quick` is not permission to collapse to L1-only coverage.
 
 **Bug-Finding Level Selection (alongside L0–L3):**
 
@@ -156,6 +157,18 @@ Or use `$test <feature>` to auto-generate test candidates, then hand-refine.
 - No test framework detected in the project
 
 **Note:** Tests written here are MUTABLE — unlike GREEN mode's immutable tests, you may adjust these tests during implementation if you discover the initial test design was wrong. The goal is to think about behavior before code, not to be rigid.
+
+### Step 3.6a: Auto-Generate Tests via $test (lifecycle integration)
+
+If skip conditions above are NOT met AND `--no-lifecycle` is NOT set:
+
+```
+Skill(skill="test", args="generate <feature-scope> --quick")
+```
+
+The generated test request must preserve the selected `test_levels` and BF expectations from Step 3.6. Review the generated tests. Adjust as needed (tests are MUTABLE in this context). If `$test` fails to produce useful output or is unavailable, fall back to manual test writing in Step 3.6 above.
+
+**Skip if:** `--no-lifecycle` flag, GREEN mode active, issue type is chore/docs/ci, or `$test` is unavailable.
 
 **CI-safe tests:** If the function under test shells out to an external CLI (`bd`, `ao`, `gh`), do NOT test the wrapper. Instead, test the underlying function that performs the testable work (event emission, state mutation, file I/O). See the Go standards (Testing section) for examples.
 
@@ -414,7 +427,7 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-Tell user: "Implementation complete. Run $vibe to validate before pushing."
+Tell user: "Implementation complete. Run $validation to validate before pushing."
 
 ### Step 8: Report to User
 

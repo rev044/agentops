@@ -324,7 +324,7 @@ func updatePhaseResultArtifacts(cwd string, state *phasedState, phaseNum int, ex
 }
 
 func updateExecutionPacketProof(cwd string, state *phasedState) error {
-	packetPath := filepath.Join(cwd, ".agents", "rpi", "execution-packet.json")
+	packetPath := filepath.Join(cwd, ".agents", "rpi", executionPacketFile)
 	packet := make(map[string]any)
 
 	data, err := os.ReadFile(packetPath)
@@ -394,7 +394,7 @@ func updateExecutionPacketProof(cwd string, state *phasedState) error {
 		return fmt.Errorf("marshal execution packet proof: %w", err)
 	}
 	updated = append(updated, '\n')
-	if err := os.WriteFile(packetPath, updated, 0o600); err != nil {
+	if err := writeExecutionPacketData(cwd, state, runID, updated); err != nil {
 		return fmt.Errorf("write execution packet proof: %w", err)
 	}
 	return nil

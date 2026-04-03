@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/boshu2/agentops/cli/internal/autodev"
 )
+
+const executionPacketFile = "execution-packet.json"
 
 type executionPacket struct {
 	SchemaVersion      int                     `json:"schema_version"`
@@ -78,18 +81,57 @@ func writeExecutionPacketSeed(cwd string, state *phasedState) error {
 		}
 	}
 
-	stateDir := filepath.Join(cwd, ".agents", "rpi")
-	if err := os.MkdirAll(stateDir, 0o750); err != nil {
-		return fmt.Errorf("create execution packet directory: %w", err)
-	}
 	data, err := json.MarshalIndent(packet, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal execution packet: %w", err)
 	}
 	data = append(data, '\n')
-	path := filepath.Join(stateDir, "execution-packet.json")
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := writeExecutionPacketData(cwd, state, state.RunID, data); err != nil {
 		return fmt.Errorf("write execution packet: %w", err)
 	}
+	return nil
+}
+
+func writeExecutionPacketData(cwd string, state *phasedState, runID string, data []byte) error {
+	roots := []string{cwd}
+	if state != nil {
+		roots = artifactRootsForState(cwd, state)
+	}
+
+	runID = strings.TrimSpace(runID)
+	for i, root := range roots {
+		if err := writeExecutionPacketDataToRoot(root, runID, data); err != nil {
+			if i == 0 {
+				return err
+			}
+			VerbosePrintf("Warning: mirror execution packet write skipped for %s: %v\n", root, err)
+		}
+	}
+	return nil
+}
+
+func writeExecutionPacketDataToRoot(root, runID string, data []byte) error {
+	stateDir := filepath.Join(root, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0o750); err != nil {
+		return fmt.Errorf("create execution packet directory: %w", err)
+	}
+
+	flatPath := filepath.Join(stateDir, executionPacketFile)
+	if err := writePhasedStateAtomic(flatPath, data); err != nil {
+		return fmt.Errorf("write execution packet latest alias: %w", err)
+	}
+
+	if runID != "" {
+		runDir := rpiRunRegistryDir(root, runID)
+		if err := os.MkdirAll(runDir, 0o750); err != nil {
+			return fmt.Errorf("create execution packet run archive directory: %w", err)
+		}
+		archivePath := filepath.Join(runDir, executionPacketFile)
+		if err := writePhasedStateAtomic(archivePath, data); err != nil {
+			return fmt.Errorf("write execution packet run archive: %w", err)
+		}
+	}
+
+	VerbosePrintf("Execution packet saved to %s\n", flatPath)
 	return nil
 }

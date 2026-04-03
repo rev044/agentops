@@ -44,7 +44,7 @@ STEP 1.5 ── if PRODUCT.md exists in repo root
               (not a bug fix, chore, or docs task — i.e., goal does NOT start with
                "fix", "chore", "docs", "typo", "bump", "update dep", "lint", "format"):
                 Skill(skill="design", args="<goal> [--quick]")
-                FAIL verdict? → log warning, continue (design is advisory, not blocking).
+                FAIL verdict? → output <promise>BLOCKED</promise>, stop (design is a blocking product-alignment gate).
               Skip silently if PRODUCT.md does not exist or goal is non-feature.
 
 STEP 2  ──  if ao available:
@@ -71,14 +71,15 @@ STEP 4.5 ── if --no-lifecycle is NOT set
                 Scaffold output becomes input context for pre-mortem.
               Skip if: --no-lifecycle flag, no new project/module detected in plan.
 
-STEP 5  ──  Skill(skill="pre-mortem", args="[--quick]")
+STEP 5  ──  Skill(skill="pre-mortem", args="<plan-path> [--quick]")
               Use --quick for fast/standard. Full council for full.
               PASS/WARN? → continue to STEP 6
               FAIL?      → re-plan with findings, re-run pre-mortem (max 3 total)
                            Still FAIL after 3? → output <promise>BLOCKED</promise>, stop
 
-STEP 6  ──  Write execution-packet.json + phase summary to .agents/rpi/
-              Include test_levels, ranked packet, epic-id, complexity.
+STEP 6  ──  Write execution-packet.json (latest alias) + per-run packet archive
+              to .agents/rpi/ and .agents/rpi/runs/<run-id>/ when run_id exists.
+              Include plan_path, test_levels, ranked_packet_path, epic-id, complexity.
               ao ratchet record discovery 2>/dev/null || true
               Output <promise>DONE</promise>
 ```
@@ -110,24 +111,30 @@ if command -v ao &>/dev/null; then AO_AVAILABLE=true; else AO_AVAILABLE=false; f
 
 ## Gate Detail
 
-**STEP 5 (pre-mortem) is the only gate.** Max 3 attempts with plan→pre-mortem retry loop.
+**Discovery has two blocking gates.**
 
-- **PASS/WARN:** Store verdict, proceed to STEP 6.
-- **FAIL:** Log `"Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"`. Re-invoke `/plan` with findings context, then re-invoke `/pre-mortem`. After 3 total failures: output `<promise>BLOCKED</promise>`, stop.
+- **STEP 1.5 (design gate):** `FAIL` blocks discovery immediately for feature/capability goals when `PRODUCT.md` exists.
+- **STEP 5 (pre-mortem gate):** Max 3 attempts with plan→pre-mortem retry loop.
+  - **PASS/WARN:** Store verdict, apply any required pre-mortem hardening back into the plan issues or file-backed task specs, then proceed to STEP 6.
+  - **FAIL:** Log `"Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"`. Re-invoke `/plan` with findings context, then re-invoke `/pre-mortem`. After 3 total failures: output `<promise>BLOCKED</promise>`, stop.
 
 ## Step Detail
 
 **STEP 1 (brainstorm):** Skip if `--skip-brainstorm`, or goal >50 chars with no vague keywords (`improve`, `better`, `something`, `somehow`, `maybe`), or brainstorm artifact already exists in `.agents/brainstorm/`.
 
-**STEP 1.5 (design gate):** Optional. Runs `/design` when PRODUCT.md exists at repo root and the goal is a feature or capability (not a bug fix, chore, or docs task). Design verdict FAIL logs a warning but does not block discovery. Skipped silently when PRODUCT.md is absent.
+**STEP 1.5 (design gate):** Optional. Runs `/design` when PRODUCT.md exists at repo root and the goal is a feature or capability (not a bug fix, chore, or docs task). Design verdict `FAIL` blocks discovery; `PASS` or `WARN` continues. Skipped silently when PRODUCT.md is absent.
 
 **STEP 2 (search history):** Ranked packet assembly — match compiled planning rules, active findings from `.agents/findings/*.md`, and unconsumed high-severity items from `.agents/rpi/next-work.jsonl`. Rank by goal-text overlap → issue-type overlap → file-path overlap.
 
 **STEP 3.1 (test levels):** After research, determine L0-L3 applicability. External APIs/I/O → L0+L1+L2 min. Cross-module → add L2. Full subsystem → add L3. Record in `discovery_state.test_levels`.
 
-**STEP 4 (plan):** After plan, extract epic-id via `bd list --type epic --status open` or TaskList. Auto-detect complexity from issue count if not overridden.
+**STEP 4 (plan):** After plan, record the exact `plan_path` for STEP 5. If tracker probes are healthy, extract epic-id via `bd list --type epic --status open`. If tracker probes are degraded, keep the objective + `plan_path` in `.agents/rpi/execution-packet.json` and continue in `tasklist` mode without inventing an epic.
 
-**STEP 6 (output):** Write execution packet and phase summary per `references/output-templates.md`. Include `test_levels` and ranked packet in the execution packet for `/crank` consumption.
+**STEP 5 (pre-mortem):** Pass the recorded `plan_path` into `/pre-mortem`. Do not rely on “most recent” plan/spec selection during discovery retries.
+
+**STEP 5.5 (pre-mortem fix propagation):** Before STEP 6, copy any required pseudocode fixes from the pre-mortem report into the affected plan issues or file-backed task specs. Workers read issue/task bodies, not the pre-mortem report.
+
+**STEP 6 (output):** Write execution packet and phase summary per `references/output-templates.md`. Keep `.agents/rpi/execution-packet.json` as the latest alias and archive the same packet to `.agents/rpi/runs/<run-id>/execution-packet.json` when `run_id` exists. Include `plan_path`, `test_levels`, and `ranked_packet_path` in the execution packet for `/crank` and standalone `/validation` consumption.
 
 ## Flags
 

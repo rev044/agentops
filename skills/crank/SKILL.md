@@ -22,7 +22,7 @@ metadata:
 
 # Crank Skill
 
-> **Quick Ref:** Autonomous epic execution. `/swarm` for each wave with runtime-native spawning. Output: closed issues + final vibe.
+> **Quick Ref:** Autonomous epic execution. `/swarm` for each wave with runtime-native spawning. Output: closed issues + phase-2 handoff for `/validation`.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -76,7 +76,7 @@ When a task fails during wave execution, classify as **RETRY** (transient — re
 
 ## Execution Steps
 
-Given `/crank [epic-id | plan-file.md | "description"]`:
+Given `/crank [epic-id | .agents/rpi/execution-packet.json | plan-file.md | "description"]`:
 
 ### Recovery Hooks
 
@@ -662,7 +662,7 @@ If hooks or `lib/hook-helpers.sh` were modified, verify embedded copies are in s
 
 ### Step 8: Write Phase-2 Summary
 
-Before extracting learnings, write a phase-2 summary for downstream `/post-mortem` consumption:
+Before extracting learnings, write a phase-2 summary for downstream `/validation` consumption:
 
 ```bash
 mkdir -p .agents/rpi
@@ -679,11 +679,11 @@ cat > ".agents/rpi/phase-2-summary-$(date +%Y-%m-%d)-crank.md" <<PHASE2
 PHASE2
 ```
 
-This summary is consumed by `/post-mortem` Step 2.2 for scope reconciliation.
+This summary is consumed by `/validation` closeout (and its internal `/post-mortem`) for scope reconciliation.
 
 ### Step 8.5: Extract Learnings (ao Integration)
 
-If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao metrics flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `/post-mortem` manually.
+If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao metrics flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `/validation` manually.
 
 ### Step 8.6: Archive Shared Task Notes
 
@@ -715,7 +715,7 @@ Tell the user:
 3. Total iterations used (of 50 max)
 4. Final vibe results
 5. Flywheel status (if ao available)
-6. Suggest running `/post-mortem` to review and promote learnings
+6. Suggest running `/validation` to complete closeout and promote learnings
 
 **Output completion marker:**
 ```

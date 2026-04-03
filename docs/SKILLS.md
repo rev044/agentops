@@ -35,9 +35,9 @@ What are you trying to do?
 │   └─ Large (7+ issues) ─────────► /rpi (full pipeline)
 │
 ├─ "Validate something"
-│   ├─ Code ready to ship? ───────► /vibe
+│   ├─ Work ready to close? ──────► /validation
+│   ├─ Code quality only? ───────► /vibe
 │   ├─ Plan ready to build? ──────► /pre-mortem
-│   ├─ Work ready to close? ──────► /post-mortem
 │   └─ Quick sanity check? ───────► /council --quick validate
 │
 ├─ "Explore or research"
@@ -118,7 +118,7 @@ Full RPI lifecycle orchestrator. Discovery → Implementation → Validation in 
 /rpi --from=implementation ag-1234
 ```
 
-**Phases:** Discovery (research + plan + pre-mortem) → Implementation (crank) → Validation (vibe + post-mortem)
+**Phases:** Discovery (`/discovery`) → Implementation (`/crank`) → Validation (`/validation`)
 
 ### /crank
 
@@ -129,6 +129,17 @@ Autonomous multi-issue execution. Runs until epic is CLOSED.
 ```
 
 **Execution model:** Wave-based orchestration via `/swarm` with runtime-native workers.
+
+### /validation
+
+Full validation close-out. Wraps `/vibe` + `/post-mortem` + `/retro` + `/forge`.
+
+```bash
+/validation
+/validation ag-1234
+```
+
+**Use when:** The work is ready for final review, closeout, and learning capture.
 
 ### /vibe
 

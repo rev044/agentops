@@ -15,6 +15,18 @@ detect complexity from execution-packet or --complexity flag (default: standard)
 detect ao CLI availability
 ```
 
+### Step 0: Load Prior Validation Context
+
+Before running the validation pipeline, pull relevant learnings from prior reviews:
+
+```bash
+if command -v ao &>/dev/null; then
+    ao lookup --query "<epic or goal context> validation review patterns" --limit 5 2>/dev/null || true
+fi
+```
+
+Incorporate any relevant prior findings (for example recurring vibe failures or known anti-patterns for this scope) as context for the review cycle.
+
 **Run every step in order. Do not stop between steps.**
 
 ```
@@ -37,7 +49,7 @@ STEP 1.5 ── Four-Surface Closure (mandatory)
 STEP 1.6 ── Test pyramid coverage audit (advisory, append to summary)
               Check L0-L3 + BF1/BF4 per modified file. WARN only, not FAIL.
 
-STEP 1.7 ── Lifecycle Checks (advisory, WARN-only, never FAIL)
+STEP 1.7 ── Lifecycle Checks (advisory except critical dependency findings)
               Skip entire step if: --no-lifecycle flag.
               Each sub-step uses --quick mode to limit context consumption.
               On budget expiry: skip remaining sub-steps, write [TIME-BOXED].
@@ -64,7 +76,11 @@ STEP 1.7 ── Lifecycle Checks (advisory, WARN-only, never FAIL)
 
 STEP 2  ──  if epic_id:
               Skill(skill="post-mortem", args="<epic-id> [--quick]")
+            else:
+              Skill(skill="post-mortem", args="recent [--quick]")
               Use --quick for fast/standard. Full council for full.
+              PASS/WARN? → continue
+              FAIL?      → write summary, output <promise>FAIL</promise>, stop
 
 STEP 3  ──  if not --no-retro:
               Skill(skill="retro")
@@ -100,14 +116,15 @@ validation_state = {
 }
 ```
 
-**Load execution packet** (if available): read `complexity`, `contract_surfaces`, `done_criteria` from `.agents/rpi/execution-packet.json`.
+**Load execution packet** (if available): read `complexity`, `contract_surfaces`, and `done_criteria` from `.agents/rpi/execution-packet.json`. When a current `run_id` is known, prefer the matching `.agents/rpi/runs/<run-id>/execution-packet.json` archive over the latest alias.
 
 ## Gate Detail
 
-**STEP 1 (vibe) is the only gate.** Validation cannot fix code — it can only report.
+**Validation has multiple blocking conditions.** Validation cannot fix code — it can only report and fail closeout when the lifecycle contract is not met.
 
-- **PASS/WARN:** Log verdict, continue to STEP 2.
-- **FAIL:** Extract findings from `ls -t .agents/council/*vibe*.md | head -1`, write phase summary with FAIL status, output `<promise>FAIL</promise>` with findings attached. Suggest: `"Vibe FAIL. Fix findings, then re-run $validation [epic-id]"`.
+- **Blocking FAIL conditions:** `$vibe` FAIL, code-surface failure in STEP 1.5, `--strict-surfaces` failure on any closure surface, CVSS >= 9.0 dependency findings in STEP 1.7b unless `--allow-critical-deps`, and post-mortem FAIL in STEP 2.
+- **PASS/WARN:** Log verdicts, continue through the remaining steps.
+- **FAIL:** Extract findings from the latest evaluator output, write phase summary with FAIL status, output `<promise>FAIL</promise>` with findings attached. Suggest: `"Validation FAIL. Fix findings, then re-run $validation [epic-id]"`.
 
 **Why no internal retry:** Retries require re-implementation (`$crank`). The caller (`$rpi` or human) decides whether to loop back.
 
@@ -144,9 +161,9 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--complexity=<level>` | auto | Force complexity level (fast/standard/full) |
-| `--no-lifecycle` | off | Skip ALL lifecycle checks in STEP 1.6 (test, deps, review, perf) |
+| `--no-lifecycle` | off | Skip ALL lifecycle checks in STEP 1.7 (test, deps, review, perf) |
 | `--lifecycle=<tier>` | matches complexity | Controls which lifecycle skills fire: `minimal` (test only), `standard` (+deps, +review), `full` (+perf) |
-| `--no-retro` | off | Skip retro + forge steps |
+| `--no-retro` | off | Skip retro step only |
 | `--no-forge` | off | Skip forge step only |
 | `--no-budget` | off | Disable phase time budgets |
 | `--strict-surfaces` | off | Make all 4 surface failures blocking (FAIL instead of WARN). Passed automatically by `$rpi --quality`. |
@@ -158,7 +175,7 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 $validation ag-5k2                        # validate epic with full close-out
 $validation                               # validate recent work (no epic)
 $validation --complexity=full ag-5k2      # force full council ceremony
-$validation --no-retro ag-5k2             # skip retro + forge
+$validation --no-retro ag-5k2             # skip retro only
 $validation --no-forge ag-5k2             # skip forge only
 ```
 
@@ -174,7 +191,7 @@ $validation --no-forge ag-5k2             # skip forge only
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | Vibe FAIL on first run | Implementation has quality issues | Fix findings via `$crank`, then re-run `$validation` |
-| Post-mortem skipped unexpectedly | No epic-id provided | Pass epic-id: `$validation ag-5k2` |
+| Post-mortem reviewed recent work instead of an epic | No epic-id provided | Pass epic-id for epic-scoped closeout: `$validation ag-5k2` |
 | Codex closeout missing | Codex has no session-end hook surface | Let `$validation` run `ao codex ensure-stop`, or run `ao codex ensure-stop` manually before leaving the session |
 | Forge produces no output | No ao CLI or no transcript content | Install ao CLI or run `$retro` manually |
 | Stale execution-packet | Packet from a previous RPI cycle | Delete `.agents/rpi/execution-packet.json` and pass `--complexity` explicitly |
@@ -194,7 +211,7 @@ $validation --no-forge ag-5k2             # skip forge only
 - [skills/crank/SKILL.md](../crank/SKILL.md) — previous phase (implementation)
 - [skills/discovery/SKILL.md](../discovery/SKILL.md) — first phase (discovery)
 - [skills/rpi/SKILL.md](../rpi/SKILL.md) — full lifecycle orchestrator
-- [skills/test/SKILL.md](../test/SKILL.md) — test coverage (lifecycle STEP 1.6a)
-- [skills/deps/SKILL.md](../deps/SKILL.md) — dependency vuln scan (lifecycle STEP 1.6b)
-- [skills/review/SKILL.md](../review/SKILL.md) — structured review (lifecycle STEP 1.6c)
-- [skills/perf/SKILL.md](../perf/SKILL.md) — performance profiling (lifecycle STEP 1.6d)
+- [skills/test/SKILL.md](../test/SKILL.md) — test coverage (lifecycle STEP 1.7a)
+- [skills/deps/SKILL.md](../deps/SKILL.md) — dependency vuln scan (lifecycle STEP 1.7b)
+- [skills/review/SKILL.md](../review/SKILL.md) — structured review (lifecycle STEP 1.7c)
+- [skills/perf/SKILL.md](../perf/SKILL.md) — performance profiling (lifecycle STEP 1.7d)

@@ -133,6 +133,7 @@ Before implementing, write tests that define the expected behavior:
 - **L3 (Component):** Write if the change affects a full subsystem workflow (with mocked external deps)
 
 If the issue includes `test_levels` metadata from `/plan`, use those levels. Otherwise, default to L1 + any applicable higher levels from the decision tree above.
+When delegating to `/test`, carry those selected levels and any BF expectations into the request context. `--quick` is not permission to collapse to L1-only coverage.
 
 **Bug-Finding Level Selection (alongside L0–L3):**
 
@@ -171,7 +172,7 @@ If skip conditions above are NOT met AND `--no-lifecycle` is NOT set:
 Skill(skill="test", args="generate <feature-scope> --quick")
 ```
 
-Review the generated tests. Adjust as needed (tests are MUTABLE in this context). If `/test` fails to produce useful output or is unavailable, fall back to manual test writing in Step 3.6 above.
+The generated test request must preserve the selected `test_levels` and BF expectations from Step 3.6. Review the generated tests. Adjust as needed (tests are MUTABLE in this context). If `/test` fails to produce useful output or is unavailable, fall back to manual test writing in Step 3.6 above.
 
 **Skip if:** `--no-lifecycle` flag, GREEN mode active, issue type is chore/docs/ci, or `/test` is unavailable.
 
@@ -466,7 +467,7 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-Tell user: "Implementation complete. Run /vibe to validate before pushing."
+Tell user: "Implementation complete. Run /validation to validate before pushing."
 
 ### Step 8: Report to User
 

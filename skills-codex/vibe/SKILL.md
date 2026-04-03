@@ -69,9 +69,9 @@ Do NOT spawn agents for empty file lists.
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2a through 2e plus 2.5/2f/2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Steps 2.3 (domain checklists) and 2.4 (finding registry check) still run in quick mode — domain checklists are cheap to load and high-value, and reusable review findings are mandatory context. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2a through 2f plus 2.5 (prior findings check, constraint tests, metadata checks, OL validation, knowledge search, bug hunt, Codex review) and jump to Step 4 with inline council after Steps 2.3, 2.4, 2g, and Step 3. Domain checklists, compiled-prevention loading, test-pyramid inventory, and inline product context are cheap and high-value, so they still run in quick mode. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
-**Why:** Steps 2.5 and 2a–2g add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
+**Why:** Steps 2.5 and 2a–2f add 30–90 seconds of pre-processing that mainly feed multi-judge council packets. In --quick mode (single inline agent), those inputs are not worth the cost, but test-pyramid and product-context checks still shape the inline review meaningfully.
 
 ### Step 2: Run Complexity Analysis
 
@@ -417,7 +417,7 @@ When coverage gaps are found, run `$test <module>` to generate test candidates f
 
 ### Step 2g: Check for Product Context
 
-**Skip if `--quick` (see Step 1.5).**
+Run this step whenever `PRODUCT.md` exists and the user did not pass an explicit `--preset` override. In `--quick` mode, include DX expectations inline without spawning an extra judge. In non-quick modes, add the dedicated `developer-experience` perspective.
 
 ```bash
 if [ -f PRODUCT.md ]; then
@@ -427,11 +427,12 @@ fi
 
 When `PRODUCT.md` exists in the project root AND the user did NOT pass an explicit `--preset` override:
 1. Read `PRODUCT.md` content and include in the council packet via `context.files`
-2. Add a single consolidated `developer-experience` perspective to the council invocation:
+2. In `--quick` mode, keep the review inline and require the reviewer to assess api-clarity, error-experience, and discoverability directly from `PRODUCT.md`.
+3. In non-quick modes, add a single consolidated `developer-experience` perspective to the council invocation:
    - **With spec:** `$council --preset=code-review --perspectives="developer-experience" validate <target>` (3 judges: 2 code-review + 1 DX)
    - **Without spec:** `$council --perspectives="developer-experience" validate <target>` (3 judges: 2 independent + 1 DX)
    The DX judge covers api-clarity, error-experience, and discoverability in a single review.
-3. With `--deep`: adds 1 more judge per mode (4 judges total).
+4. With `--deep`: adds 1 more judge per mode (4 judges total).
 
 When `PRODUCT.md` exists BUT the user passed an explicit `--preset`: skip DX auto-include (user's explicit preset takes precedence).
 
@@ -792,5 +793,3 @@ See `references/examples.md` for additional examples: security audit with spec c
 - `scripts/ol-validate.sh`
 - `scripts/prescan.sh`
 - `scripts/validate.sh`
-
-

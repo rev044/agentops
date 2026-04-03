@@ -14,6 +14,6 @@ Run repository research with Codex-native agents and concise artifact output.
 
 ## Guardrails
 
-1. Keep backend fallback logic explicit: codex sub-agents, then inline.
+1. Keep backend fallback logic explicit: codex sub-agents, then background-task-fallback, then inline.
 
 <!-- END AGENTOPS OPERATOR CONTRACT -->

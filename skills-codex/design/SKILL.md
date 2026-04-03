@@ -1,11 +1,11 @@
 ---
 name: design
-description: 'Product validation gate for RPI pipeline. Validates goal alignment with PRODUCT.md before discovery. Checks: gap alignment, persona fit, competitive differentiation, precedent, scope boundaries. Triggers: "design", "product validation", "validate product fit", "design gate".'
+description: 'Product validation gate for RPI pipeline. Validates goal alignment with PRODUCT.md before discovery. Checks: gap alignment, persona fit, competitive differentiation, precedent, scope boundaries. Council-gated with --preset=product. Triggers: "design", "product validation", "validate product fit", "design gate".'
 ---
 
 # $design -- Product Validation Gate (Codex Native)
 
-> **Quick Ref:** Validates that a proposed goal aligns with the product's strategic direction before discovery begins major work.
+> **Quick Ref:** Validates that a proposed goal aligns with the product's strategic direction before discovery begins major work. Council-gated with `--preset=product`.
 
 ---
 
@@ -58,19 +58,17 @@ Evaluate the proposed goal against five dimensions. Use the scoring rubric in [r
 
 Compute the average score across all five dimensions.
 
-### Step 3: Run Inline Council Review
+### Step 3: Run Council
 
-Perform an inline multi-perspective review using three product-strategy perspectives. See [references/product-council-preset.md](references/product-council-preset.md) for judge configuration.
+Invoke council with the product preset. See [references/product-council-preset.md](references/product-council-preset.md) for judge configuration.
 
-**Perspective 1 -- User Value:** Does this goal deliver meaningful value to defined personas? Evaluate which personas benefit, whether it solves a real user problem, impact on workflows, and whether value is immediate.
+```
+Skill(skill="council", args="--preset=product validate design alignment for: <goal>")
+```
 
-**Perspective 2 -- Adoption Barriers:** What prevents this goal from succeeding in practice? Evaluate implementation complexity, dependencies, migration risk, documentation needs, and new concepts users must learn.
+Pass the alignment matrix from Step 2 as context to the council judges.
 
-**Perspective 3 -- Competitive Position:** Does this goal strengthen or weaken competitive standing? Evaluate differentiation vs parity, how competitors approached similar problems, lock-in advantages, and alignment with stated competitive strategy.
-
-For each perspective, produce a verdict (PASS/WARN/FAIL), confidence (high/medium/low), and one-sentence key concern.
-
-If `--quick` flag is set, combine all three perspectives into a single inline assessment.
+If `--quick` flag is set, skip council spawning and perform inline assessment instead.
 
 ### Step 4: Write Design Artifact
 

@@ -13,7 +13,7 @@ Execute epics hands-free with Codex-native wave progression.
 
 ## Guardrails
 
-1. Prefer Codex sub-agents through `$swarm` for parallel issue execution.
+1. Prefer direct Codex session-agent orchestration for parallel issue execution; do not reintroduce `$swarm` as a required wrapper.
 2. Do not blur done/partial/blocked status boundaries.
 3. Include validation metadata checks in worker instructions when available.
 4. Leave `ao codex ensure-stop` to closeout skills after the execution loop completes.

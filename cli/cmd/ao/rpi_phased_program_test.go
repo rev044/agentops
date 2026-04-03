@@ -140,6 +140,7 @@ func TestWriteExecutionPacketSeed_UsesProgramContract(t *testing.T) {
 	state := newTestPhasedState().WithGoal("build the loop")
 	state.Complexity = ComplexityStandard
 	state.ProgramPath = "PROGRAM.md"
+	state.RunID = "program-contract-run"
 
 	if err := writeExecutionPacketSeed(tmp, state); err != nil {
 		t.Fatalf("writeExecutionPacketSeed() error = %v", err)
@@ -149,6 +150,13 @@ func TestWriteExecutionPacketSeed_UsesProgramContract(t *testing.T) {
 	data, err := os.ReadFile(packetPath)
 	if err != nil {
 		t.Fatalf("read execution packet: %v", err)
+	}
+	archivedData, err := os.ReadFile(filepath.Join(tmp, ".agents", "rpi", "runs", state.RunID, executionPacketFile))
+	if err != nil {
+		t.Fatalf("read archived execution packet: %v", err)
+	}
+	if string(archivedData) != string(data) {
+		t.Fatalf("archived execution packet does not match latest alias:\nlatest:\n%s\narchived:\n%s", data, archivedData)
 	}
 
 	var packet map[string]any
@@ -255,6 +263,13 @@ func TestRunPhasedEngine_DryRunUsesResolvedProgramContract(t *testing.T) {
 			packetData, err := os.ReadFile(packetPath)
 			if err != nil {
 				t.Fatalf("read execution packet: %v", err)
+			}
+			archivedPacketData, err := os.ReadFile(filepath.Join(tmpDir, ".agents", "rpi", "runs", state.RunID, executionPacketFile))
+			if err != nil {
+				t.Fatalf("read archived execution packet: %v", err)
+			}
+			if string(archivedPacketData) != string(packetData) {
+				t.Fatalf("archived execution packet does not match latest alias:\nlatest:\n%s\narchived:\n%s", packetData, archivedPacketData)
 			}
 			var packet struct {
 				ContractSurfaces []string `json:"contract_surfaces"`

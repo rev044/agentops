@@ -6,7 +6,7 @@ description: 'Interactive PRODUCT.md generation. Interviews you about mission, p
 
 # $product — Interactive PRODUCT.md Generation
 
-> **Purpose:** Guide the user through creating a `PRODUCT.md` that unlocks product-aware council reviews in `$pre-mortem` and `$vibe`.
+> **Purpose:** Guide the user through creating a `PRODUCT.md` that unlocks product-aware reviews in `$pre-mortem` and `$vibe`, including the default quick-mode inline paths.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -220,10 +220,10 @@ last_reviewed: YYYY-MM-DD
 
 ## Usage
 
-This file enables product-aware council reviews:
+This file enables product-aware reviews:
 
-- **`$pre-mortem`** — Automatically includes `product` perspectives (user-value, adoption-barriers, competitive-position) alongside plan-review judges when this file exists.
-- **`$vibe`** — Automatically includes `developer-experience` perspectives (api-clarity, error-experience, discoverability) alongside code-review judges when this file exists.
+- **`$pre-mortem`** — Automatically loads product context when this file exists. Default `--quick` mode includes the context inline; deeper modes add a dedicated `product` perspective alongside plan-review judges.
+- **`$vibe`** — Automatically loads developer-experience context when this file exists. Default `--quick` mode includes the context inline; deeper modes add a dedicated `developer-experience` perspective alongside code-review judges.
 - **`$council --preset=product`** — Run product review on demand.
 - **`$council --preset=developer-experience`** — Run DX review on demand.
 
@@ -238,8 +238,8 @@ Tell the user:
 
 1. **What was created:** `PRODUCT.md` at `{path}`
 2. **What it unlocks:**
-   - `$pre-mortem` will now auto-include product perspectives (user-value, adoption-barriers, competitive-position)
-   - `$vibe` will now auto-include developer-experience perspectives (api-clarity, error-experience, discoverability)
+   - `$pre-mortem` will now load product context by default, including in `--quick` mode; deeper modes add a dedicated product perspective
+   - `$vibe` will now load developer-experience context by default, including in `--quick` mode; deeper modes add a dedicated DX perspective
    - `$council --preset=product` and `$council --preset=developer-experience` are available on demand
 3. **Next steps:** Suggest running `$pre-mortem` on their next plan to see product perspectives in action
 
@@ -297,5 +297,3 @@ Tell the user:
 ### scripts/
 
 - `scripts/validate.sh`
-
-

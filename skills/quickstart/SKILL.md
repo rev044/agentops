@@ -39,9 +39,9 @@ AgentOps gives your coding agent three things it doesn't have by default:
 
   Memory    — sessions accumulate learnings in .agents/ and surface them back
   Judgment  — /council spawns independent judges to validate plans and code
-  Workflow  — /rpi chains research → plan → implement → validate in one command
+  Workflow  — /rpi delegates /discovery → /crank → /validation in one command
 
-Key skills: /rpi  /research  /plan  /implement  /vibe  /council  /swarm  /status
+Key skills: /rpi  /discovery  /validation  /implement  /research  /council  /swarm  /status
 Full reference: /quickstart --catalog
 ```
 
@@ -56,8 +56,8 @@ Match the first row that applies. Output only that message — nothing else.
 | AO=false | "📦 Install ao CLI first:\n  brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops\n  brew install agentops\n  ao init --hooks && ao seed\nThen: `/rpi \"a small goal\"` to run your first cycle." |
 | AGENTS=false + CODEX=true | "🌱 ao is installed but not initialized here.\n  Run `/bootstrap` to set up GOALS.md, PRODUCT.md, .agents/, and hooks.\n  Or manually: `ao init && ao seed && ao codex start`\nThen: `/rpi \"a small goal\"` to run your first cycle." |
 | AGENTS=false | "🌱 ao is installed but not initialized here.\n  Run `/bootstrap` to set up GOALS.md, PRODUCT.md, .agents/, and hooks.\n  Or manually: `ao init --hooks && ao seed`\nThen: `/rpi \"a small goal\"` to run your first cycle." |
-| BD=false + CODEX=true | "✅ Codex fallback ready.\n  `ao codex start` — surface prior context and run safe maintenance\n  `/rpi \"your goal\"` — full research → plan → implement pipeline\n  `ao codex stop` — close out the session and queue learnings\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
-| BD=false | "✅ Flywheel active. Start now:\n  `/rpi \"your goal\"` — full research → plan → implement pipeline\n  `/vibe recent` — validate recent changes\n  `/research <topic>` — explore the codebase\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
+| BD=false + CODEX=true | "✅ Codex fallback ready.\n  `ao codex start` — surface prior context and run safe maintenance\n  `/rpi \"your goal\"` — full /discovery → /crank → /validation pipeline\n  `ao codex stop` — close out the session and queue learnings\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
+| BD=false | "✅ Flywheel active. Start now:\n  `/rpi \"your goal\"` — full /discovery → /crank → /validation pipeline\n  `/validation` — close out recent work and capture learnings\n  `/research <topic>` — explore the codebase\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
 | BD=true + CODEX=true | "✅ Codex full stack ready.\n  `ao codex start` — start with prior context\n  `bd ready` — see open work\n  `/rpi \"your goal\"` — start a new goal from scratch\n  `ao codex stop` — close out the session cleanly" |
 | BD=true | "✅ Full stack ready.\n  `bd ready` — see open work\n  `/rpi \"your goal\"` — start a new goal from scratch\n  `/status` — see current session state" |
 

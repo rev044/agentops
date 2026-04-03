@@ -104,6 +104,13 @@ exit 1
 	if err != nil {
 		t.Fatalf("read execution packet: %v", err)
 	}
+	archivedData, err := os.ReadFile(filepath.Join(rpiDir, "runs", state.RunID, executionPacketFile))
+	if err != nil {
+		t.Fatalf("read archived execution packet: %v", err)
+	}
+	if string(archivedData) != string(data) {
+		t.Fatalf("archived execution packet does not match latest alias:\nlatest:\n%s\narchived:\n%s", data, archivedData)
+	}
 	var packet executionPacket
 	if err := json.Unmarshal(data, &packet); err != nil {
 		t.Fatalf("parse execution packet: %v", err)

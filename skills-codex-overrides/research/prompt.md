@@ -11,5 +11,5 @@ Run repository research with Codex-native agents and concise artifact output.
 ## Guardrails
 
 1. Do not require Claude-native team primitives for baseline operation.
-2. Keep backend fallback logic explicit: codex sub-agents, then inline.
+2. Keep backend fallback logic explicit: codex sub-agents, then background-task-fallback, then inline.
 3. Keep output scoped to actionable codebase implications.

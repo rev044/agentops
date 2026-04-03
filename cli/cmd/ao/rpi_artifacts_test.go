@@ -101,6 +101,13 @@ func TestRPIExecutionPacketProofPreservesExistingFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	archivedData, err := os.ReadFile(filepath.Join(rpiDir, "runs", runID, executionPacketFile))
+	if err != nil {
+		t.Fatalf("read archived execution packet: %v", err)
+	}
+	if string(archivedData) != string(data) {
+		t.Fatalf("archived execution packet does not match latest alias:\nlatest:\n%s\narchived:\n%s", data, archivedData)
+	}
 	var parsed map[string]any
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatal(err)

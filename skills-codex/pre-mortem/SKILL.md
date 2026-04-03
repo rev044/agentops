@@ -81,7 +81,7 @@ Use the same ranked packet contract as `$plan`: compiled checks first, then acti
 
 **By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).
 
-In `--quick` mode, **skip Steps 1a and 1b** (knowledge search, product context) unless `--deep`, `--mixed`, `--debate`, or `--explorers` is set. The mandatory `ao lookup` retrieval in Step 1.4 and compiled prevention load in Step 1.4b still run in quick mode.
+In `--quick` mode, skip Step 1a and the extra multi-judge expansion of Step 1b. If `PRODUCT.md` exists, still load it inline and include its context in the quick review. The mandatory `ao lookup` retrieval in Step 1.4 and compiled prevention load in Step 1.4b still run in quick mode. `--deep`, `--mixed`, `--debate`, and `--explorers` add the dedicated product perspective and wider council fan-out.
 
 To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (cross-vendor).
 
@@ -122,7 +122,7 @@ If ao returns prior plan review findings, include them as context for the counci
 
 ### Step 1b: Check for Product Context
 
-**Skip if `--quick`.** Only run this step for `--deep`, `--mixed`, or `--debate`.
+Run this step whenever `PRODUCT.md` exists and the user did not pass an explicit `--preset` override. In `--quick` mode, include the product context inline without spawning an extra judge. In non-quick modes, add the dedicated product perspective.
 
 ```bash
 if [ -f PRODUCT.md ]; then
@@ -132,12 +132,13 @@ fi
 
 When `PRODUCT.md` exists in the project root AND the user did NOT pass an explicit `--preset` override:
 1. Read `PRODUCT.md` content and include in the council packet via `context.files`
-2. Add a single consolidated `product` perspective to the council invocation:
+2. In `--quick` mode, keep the review inline and require the reviewer to assess user-value, adoption-barriers, and competitive-position directly from `PRODUCT.md`.
+3. In non-quick modes, add a single consolidated `product` perspective to the council invocation:
    ```
    $council --preset=plan-review --perspectives="product" validate <plan-path>
    ```
    This yields 3 judges total (2 plan-review + 1 product). The product judge covers user-value, adoption-barriers, and competitive-position in a single review.
-3. With `--deep`: 5 judges (4 plan-review + 1 product).
+4. With `--deep`: 5 judges (4 plan-review + 1 product).
 
 When `PRODUCT.md` exists BUT the user passed an explicit `--preset`: skip product auto-include (user's explicit preset takes precedence).
 
@@ -293,6 +294,18 @@ Report test pyramid findings in a "Test Coverage Gaps" section.
 
 **Auto-triggered** when any issue in the plan modifies source code files (`.go`, `.py`, `.ts`, `.rs`, `.js`).
 
+### Step 2.8: Input Validation Check (Mandatory for enum-like fields)
+
+When the plan introduces or modifies fields with a bounded set of valid values (enums, tier names, mode strings, status codes), verify the plan includes validation logic.
+
+| Question | Expected | Finding if Missing |
+|----------|----------|--------------------|
+| Does every new enum-like field have a validation guard? | Yes | severity=significant: "No validation for enum field — invalid values pass silently" |
+| Is there a defined fallback for unrecognized values? | Yes | severity=moderate: "No fallback behavior specified for invalid input" |
+| Are valid values defined as a constant set (not inline strings)? | Yes | severity=low: "Valid values are inline strings — extract to named constant set" |
+
+**Auto-triggered** when the plan introduces struct fields with comments mentioning valid values, config fields with bounded options, or string fields parsed from user input.
+
 ### Step 3: Interpret Council Verdict
 
 | Council Verdict | Pre-Mortem Result | Action |
@@ -325,6 +338,27 @@ prediction_ids:
 | pm-YYYYMMDD-001 | Missing-Requirements | ... | significant | <what will go wrong> |
 | pm-YYYYMMDD-002 | Feasibility | ... | significant | <what will go wrong> |
 | pm-YYYYMMDD-003 | Scope | ... | moderate | <what will go wrong> |
+
+## Pseudocode Fixes
+
+**Every finding that implies a code change MUST include implementation-ready pseudocode**, not prose-only descriptions. Write the pseudocode in the language of the target file. Workers read issue descriptions, not pre-mortem reports — vague prose leads to workers reimplementing the bug.
+
+Format each code-fix finding as:
+
+```
+Finding: F1 — <concise description>
+Severity: <severity>
+Fix (pseudocode):
+  ```<language>
+  // pseudocode in the target file's language
+  if tier == "inherit" || tier == "" {
+      return "balanced"  // inherit always resolves to balanced
+  }
+  ```
+Affected files: <path(s)>
+```
+
+Prose-only fix descriptions (e.g., "The inherit tier should fall back to balanced") are insufficient when the fix involves specific logic. If a finding is purely architectural or process-related with no code change, prose is acceptable.
 
 ## Shared Findings
 - ...
@@ -367,6 +401,15 @@ bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
 ```
 
 This refreshes `.agents/findings/*.md`, `.agents/planning-rules/*.md`, `.agents/pre-mortem-checks/*.md`, and draft constraint metadata in the same session. `session-end-maintenance.sh` remains the idempotent backstop.
+
+### Step 4.6: Copy Pseudocode Fixes into Plan Issues
+
+When pre-mortem findings are applied to plan issues (via `bd update` or manual issue/task edits), **copy the pseudocode block verbatim into the issue body**. Workers read issue descriptions — they do not read pre-mortem reports. If the pseudocode lives only in the pre-mortem report, workers will reimplement the fix from scratch and often get it wrong.
+
+For each finding with a pseudocode fix:
+1. Identify which plan issue the finding applies to
+2. Append a `## Pre-Mortem Fix` section to that issue's description containing the pseudocode block and affected file paths
+3. If no matching issue exists, note the gap in the report's Recommendation section
 
 ### Step 5: Record Ratchet Progress
 
@@ -496,4 +539,3 @@ $pre-mortem                    ← You are here
 ### scripts/
 
 - `scripts/validate.sh`
-

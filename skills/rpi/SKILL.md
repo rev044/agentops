@@ -49,13 +49,20 @@ mkdir -p .agents/rpi
 - `--from=implementation` (aliases: `crank`) → skip to Phase 2
 - `--from=validation` (aliases: `vibe`, `post-mortem`) → skip to Phase 3
 - aliases `research`, `plan`, `pre-mortem`, `brainstorm` map to `discovery`
-- If input looks like an epic ID (`ag-*`) and `--from` is not set, start at implementation.
+- If input is a bead ID and `--from` is not set, resolve it before routing:
+  - `bd show <id>` says `issue_type=epic` → Phase 2 using that epic ID
+  - child issue with `parent` → Phase 2 using the parent epic ID
+- If beads are absent or the input is plain goal text:
+  - preserve the goal as the lifecycle objective
+  - use `.agents/rpi/execution-packet.json` as the phase-2 handoff when discovery does not yield an epic
+  - default to Phase 1 unless the user explicitly set `--from`
+- Do not infer epic scope from `ag-*` alone.
 
 **Classify complexity:**
 
 | Level | Criteria | Behavior |
 |-------|----------|----------|
-| `fast` | Goal <=30 chars, no complex/scope keywords | Discovery → crank only. Skip validation. |
+| `fast` | Goal <=30 chars, no complex/scope keywords | Full 3-phase. Gates use `--quick` throughout. |
 | `standard` | Goal 31-120 chars, or 1 scope keyword | Full 3-phase. Gates use `--quick`. |
 | `full` | Complex-operation keyword, 2+ scope keywords, or >120 chars | Full 3-phase. Gates use full council. |
 
@@ -95,25 +102,31 @@ Skill(skill="discovery", args="<goal> [--interactive] --complexity=<level>")
 After `/discovery` completes:
 1. Check completion marker: `<promise>DONE</promise>` or `<promise>BLOCKED</promise>`
 2. If BLOCKED: stop. Discovery handles its own retries (max 3 pre-mortem attempts). Manual intervention needed.
-3. If DONE: extract epic-id from `.agents/rpi/execution-packet.json`
-4. Store `rpi_state.epic_id` and `rpi_state.verdicts.pre_mortem`
+3. If DONE: read `.agents/rpi/execution-packet.json` (or the matching run archive when `run_id` is known), preserve the execution-packet objective spine, and extract `epic_id` only when it exists
+4. Store `rpi_state.epic_id` when present and `rpi_state.verdicts.pre_mortem`
 5. Log: `PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2`
 
 ### Phase 2: Implementation
 
-Requires `rpi_state.epic_id`.
+If the execution packet has `epic_id`:
 
 ```
 Skill(skill="crank", args="<epic-id> [--test-first] [--no-test-first]")
 ```
 
+Otherwise:
+
+```
+Skill(skill="crank", args=".agents/rpi/execution-packet.json [--test-first] [--no-test-first]")
+```
+
 **Implementation gate (max 3 attempts):**
 - `<promise>DONE</promise>`: proceed to validation
 - `<promise>BLOCKED</promise>`: retry with block context (max 2 retries)
-  - Re-invoke `/crank` with epic-id + block reason
+  - Re-invoke `/crank` on the same lifecycle objective + block reason
   - If still BLOCKED after 3 total: stop, manual intervention needed
 - `<promise>PARTIAL</promise>`: retry remaining (max 2 retries)
-  - Re-invoke `/crank` with epic-id (picks up unclosed issues)
+  - Re-invoke `/crank` on the same epic or execution packet (picks up remaining work)
   - If still PARTIAL after 3 total: stop, manual intervention needed
 
 Record:
@@ -127,19 +140,25 @@ Log: `PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3`
 
 ### Phase 3: Validation
 
-**Skip if:** complexity == `fast` (fast-path runs discovery + crank only).
+**MANDATORY for all complexity levels.** `/validation` is the Phase 3 orchestrator — it wraps `/vibe` + `/post-mortem` + `/retro` + `/forge`. Do NOT call `/vibe` directly from `/rpi` — call `/validation` which handles the full sequence. `fast` complexity uses inline `--quick` gates inside `/validation`; it does not skip closeout.
 
-**MANDATORY for `standard` and `full` complexity.** This is not optional. `/validation` is the Phase 3 orchestrator — it wraps `/vibe` + `/post-mortem` + `/retro` + `/forge`. Do NOT call `/vibe` directly from `/rpi` — call `/validation` which handles the full sequence.
+If the execution packet has `epic_id`:
 
 ```
 Skill(skill="validation", args="<epic-id> --complexity=<level> [--strict-surfaces if --quality]")
+```
+
+Otherwise:
+
+```
+Skill(skill="validation", args="--complexity=<level> [--strict-surfaces if --quality]")
 ```
 
 **Validation-to-crank loop (max 3 total attempts):**
 - `<promise>DONE</promise>`: finish RPI
 - `<promise>FAIL</promise>`: vibe found defects
   1. Extract findings from validation output
-  2. Re-invoke `/crank` with epic-id + findings context (preserve `--test-first` / `--no-test-first` from original invocation)
+  2. Re-invoke `/crank` on the same epic or execution packet + findings context (preserve `--test-first` / `--no-test-first` from original invocation)
   3. Re-invoke `/validation`
   4. If still FAIL after 3 total: stop, manual intervention needed
 
@@ -180,14 +199,14 @@ Read `references/error-handling.md` for failure semantics.
 | `--spawn-next` | off | Surface follow-up work after completion |
 | `--test-first` | on | Strict-quality (passed to `/crank`) |
 | `--no-test-first` | off | Opt out of strict-quality |
-| `--fast-path` | auto | Force fast complexity |
+| `--fast-path` | auto | Force fast complexity (uses quick inline gates, still runs full lifecycle) |
 | `--deep` | auto | Force full complexity |
 | `--quality` | off | Pass `--strict-surfaces` to `/validation`, making all 4 surface failures blocking |
 | `--dry-run` | off | Report without mutating queue |
 | `--no-budget` | off | Disable phase time budgets (passed to phase skills) |
 
 ## Phase Data Contracts
-All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries the repo execution profile via `contract_surfaces`, plus `done_criteria` and queue claim/finalize metadata between phases. For detailed schemas, read `references/phase-data-contracts.md`.
+All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json` as the latest alias, plus `.agents/rpi/runs/<run-id>/execution-packet.json` as the per-run archive) carries the repo execution profile via `contract_surfaces`, plus `done_criteria` and queue claim/finalize metadata between phases. For detailed schemas, read `references/phase-data-contracts.md`.
 
 ## Complexity-Scaled Council Gates
 
@@ -207,7 +226,7 @@ All transitions use filesystem artifacts (no in-memory coupling). The execution 
 - `complexity == "high"` or `complexity == "full"`: full council, 2-judge minimum; retry gate max 3 total attempts
 
 ## Examples
-Read `references/examples.md` for full lifecycle, resume, and interactive examples.
+Read `references/examples.md` for full lifecycle, resume, and interactive examples. `--fast-path` still runs validation; it only forces the fast/inline gate profile.
 
 ## Troubleshooting
 Read `references/troubleshooting.md` for common problems and solutions.
