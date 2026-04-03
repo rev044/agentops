@@ -195,7 +195,7 @@ fi
 if [ "${AGENTOPS_GITIGNORE_AUTO:-1}" != "0" ] && [ -d "$ROOT/.git" ]; then
     GITIGNORE="$ROOT/.gitignore"
     if [ -f "$GITIGNORE" ]; then
-        grep -q '\.agents/' "$GITIGNORE" 2>/dev/null || \
+        grep -q '^\.agents/$' "$GITIGNORE" 2>/dev/null || \
             printf '\n# AgentOps session artifacts\n.agents/\n' >> "$GITIGNORE" 2>/dev/null
     else
         printf '# AgentOps session artifacts\n.agents/\n' > "$GITIGNORE" 2>/dev/null
@@ -206,69 +206,8 @@ if [ ! -f "$ROOT/.agents/.gitignore" ]; then
 # Deny all by default — session artifacts must not leak to git.
 *
 
-# Allow this file and navigation signposts
+# Allow only this file for local deny-by-default semantics.
 !.gitignore
-!README.md
-!AGENTS.md
-
-# Allow AGENTS.md signposts in subdirectories
-!council/
-council/*
-!council/AGENTS.md
-
-!defrag/
-defrag/*
-
-!evolve/
-evolve/*
-!evolve/cycle-history.jsonl
-!evolve/fitness-0-baseline.json
-!evolve/active-baseline.txt
-!evolve/baselines/
-evolve/baselines/*
-!evolve/baselines/index.jsonl
-!evolve/baselines/*.json
-
-!handoff/
-handoff/*
-!handoff/AGENTS.md
-
-!learnings/
-learnings/*
-!learnings/AGENTS.md
-
-!patterns/
-patterns/*
-!patterns/AGENTS.md
-
-!plans/
-plans/*
-!plans/AGENTS.md
-
-!plugins/
-plugins/*
-!plugins/marketplace.json
-
-!releases/
-releases/*
-!releases/*.md
-!releases/evidence-only-closures/
-releases/evidence-only-closures/*
-!releases/evidence-only-closures/*.json
-
-!research/
-research/*
-
-!retro/
-retro/*
-
-!retros/
-retros/*
-
-!rpi/
-rpi/*
-!rpi/AGENTS.md
-!rpi/next-work.schema.md
 EOF
 fi
 

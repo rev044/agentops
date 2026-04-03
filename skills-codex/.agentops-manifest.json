@@ -610,7 +610,7 @@
       "name": "flywheel",
       "source_skill": "skills/flywheel",
       "source_hash": "01f08265b10ec432c4044e0a0d68ec7bbd735f69ae86d01aa56c749e74ab148e",
-      "generated_hash": "34ea135da42c4aabd89225c2c9ff5ce03bd8e807d21e74ecd0859b97e2880dc6"
+      "generated_hash": "7faa6c4b7567647c65705f633c890cd835ecb4f1807c1a9b9317291b7b3c3886"
     },
     {
       "name": "forge",
@@ -736,7 +736,7 @@
       "name": "pre-mortem",
       "source_skill": "skills/pre-mortem",
       "source_hash": "9ed2f0290ccc16ce45a79d0a22b2dae54f525875fa2a8375bf470de54c08912d",
-      "generated_hash": "941aa864abd34ac7bf0372bede4366e5e72fe85a5e0d53a4837515abad9dd7d2"
+      "generated_hash": "33853a12787bb221fb03dbd8cff3b12bdd2134919f91313b29d6ad9b5fae93ae"
     },
     {
       "name": "product",
