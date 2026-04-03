@@ -141,13 +141,15 @@ func buildRPIStatusOutput(cwd string) rpiStatusOutput {
 	allRuns := make([]rpiRunInfo, 0, len(active)+len(historical))
 	allRuns = append(allRuns, active...)
 	allRuns = append(allRuns, historical...)
+	logRuns := filterLogRunsAgainstRegistry(discoverLogRuns(cwd), allRuns)
+	liveStatuses := filterLiveStatusesToActiveRuns(discoverLiveStatuses(cwd), active)
 
 	return rpiStatusOutput{
 		Active:       active,
 		Historical:   historical,
 		Runs:         allRuns,
-		LogRuns:      discoverLogRuns(cwd),
-		LiveStatuses: discoverLiveStatuses(cwd),
+		LogRuns:      logRuns,
+		LiveStatuses: liveStatuses,
 		Count:        len(allRuns),
 	}
 }
@@ -651,6 +653,48 @@ func parseOrchestrationLogBounded(logPath string) ([]rpiRun, error) {
 		return nil, fmt.Errorf("skip oversized orchestration log %s (%d bytes)", logPath, info.Size())
 	}
 	return parseOrchestrationLog(logPath)
+}
+
+func filterLogRunsAgainstRegistry(logRuns []rpiRun, registryRuns []rpiRunInfo) []rpiRun {
+	if len(logRuns) == 0 || len(registryRuns) == 0 {
+		return logRuns
+	}
+	registryIDs := make(map[string]struct{}, len(registryRuns))
+	for _, run := range registryRuns {
+		if strings.TrimSpace(run.RunID) == "" {
+			continue
+		}
+		registryIDs[run.RunID] = struct{}{}
+	}
+	filtered := make([]rpiRun, 0, len(logRuns))
+	for _, run := range logRuns {
+		if _, ok := registryIDs[run.RunID]; ok {
+			continue
+		}
+		filtered = append(filtered, run)
+	}
+	return filtered
+}
+
+func filterLiveStatusesToActiveRuns(liveStatuses []liveStatusSnapshot, activeRuns []rpiRunInfo) []liveStatusSnapshot {
+	if len(liveStatuses) == 0 || len(activeRuns) == 0 {
+		return nil
+	}
+	activePaths := make(map[string]struct{}, len(activeRuns))
+	for _, run := range activeRuns {
+		if strings.TrimSpace(run.Worktree) == "" {
+			continue
+		}
+		activePaths[filepath.Clean(filepath.Join(run.Worktree, ".agents", "rpi", "live-status.md"))] = struct{}{}
+	}
+	filtered := make([]liveStatusSnapshot, 0, len(liveStatuses))
+	for _, snapshot := range liveStatuses {
+		if _, ok := activePaths[filepath.Clean(snapshot.Path)]; !ok {
+			continue
+		}
+		filtered = append(filtered, snapshot)
+	}
+	return filtered
 }
 
 func discoverLiveStatuses(cwd string) []liveStatusSnapshot {

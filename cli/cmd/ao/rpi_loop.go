@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -53,6 +54,19 @@ var (
 )
 
 var errQueueClaimConflict = errors.New("next-work item no longer available for this consumer")
+
+type queuePreflightDecision struct {
+	Consume bool
+	Reason  string
+}
+
+var (
+	queueFileTokenPattern        = regexp.MustCompile(`(?i)\b(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.(?:go|py|ts|tsx|js|jsx|json|md|ya?ml|sh|rb|rs|java|c|cc|cpp|h|hpp)\b`)
+	queueConsolidationVerb       = regexp.MustCompile(`(?i)\b(merge|merged|remove|delete|rename|fold|consolidate|dedupe|deduplicate|retire|archive|purge)\b`)
+	preflightQueueSelectionFn    = preflightQueueSelection
+	queuePreflightConsumedBy     = "ao-rpi-loop:preflight"
+	defaultQueuePreflightTimeout = 30 * time.Second
+)
 
 func init() {
 	loopCmd := &cobra.Command{
@@ -253,7 +267,10 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 			return err
 		}
 
-		goal, sel, action := resolveLoopGoal(explicitGoal, nextWorkPath)
+		goal, sel, action, err := resolveLoopGoal(cwd, explicitGoal, nextWorkPath, cfg)
+		if err != nil {
+			return err
+		}
 		if action == loopBreak {
 			break
 		}
@@ -347,27 +364,52 @@ func applyCycleDelay(cycle int, cfg rpiLoopSupervisorConfig) (bool, error) {
 
 // resolveLoopGoal determines the goal and queue selection for a cycle.
 // Returns the goal string, optional queue selection, and a loop action.
-func resolveLoopGoal(explicitGoal, nextWorkPath string) (string, *queueSelection, loopCycleResult) {
+func resolveLoopGoal(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSupervisorConfig) (string, *queueSelection, loopCycleResult, error) {
 	goal := explicitGoal
 	var sel *queueSelection
 
 	if goal == "" {
-		entries, err := readQueueEntries(nextWorkPath)
-		if err != nil {
-			VerbosePrintf("Warning: %v\n", err)
+		for {
+			entries, err := readQueueEntries(nextWorkPath)
+			if err != nil {
+				VerbosePrintf("Warning: %v\n", err)
+			}
+			sel = selectHighestSeverityEntry(entries, rpiRepoFilter)
+			if sel == nil {
+				fmt.Println("No unconsumed work in queue. Flywheel stable.")
+				return "", nil, loopBreak, nil
+			}
+			if GetDryRun() {
+				goal = sel.Item.Title
+				fmt.Printf("From queue: %s\n", goal)
+				break
+			}
+			decision, preflightErr := preflightQueueSelectionFn(cwd, sel, cfg)
+			if preflightErr != nil {
+				return "", nil, loopReturn, preflightErr
+			}
+			if !decision.Consume {
+				goal = sel.Item.Title
+				fmt.Printf("From queue: %s\n", goal)
+				break
+			}
+			if err := markItemConsumed(nextWorkPath, sel.EntryIndex, sel.ItemIndex, queuePreflightConsumedBy); err != nil {
+				if errors.Is(err, errQueueClaimConflict) {
+					continue
+				}
+				return "", nil, loopReturn, fmt.Errorf("consume preflight queue item %q: %w", sel.Item.Title, err)
+			}
+			reason := strings.TrimSpace(decision.Reason)
+			if reason == "" {
+				reason = "repo preflight indicates the work is already satisfied"
+			}
+			fmt.Printf("Queue preflight consumed %q: %s\n", sel.Item.Title, reason)
 		}
-		sel = selectHighestSeverityEntry(entries, rpiRepoFilter)
-		if sel == nil {
-			fmt.Println("No unconsumed work in queue. Flywheel stable.")
-			return "", nil, loopBreak
-		}
-		goal = sel.Item.Title
-		fmt.Printf("From queue: %s\n", goal)
 	}
 
 	if goal == "" {
 		fmt.Println("No goal and empty queue. Nothing to do.")
-		return "", nil, loopBreak
+		return "", nil, loopBreak, nil
 	}
 
 	if GetDryRun() {
@@ -375,10 +417,112 @@ func resolveLoopGoal(explicitGoal, nextWorkPath string) (string, *queueSelection
 		if explicitGoal == "" {
 			fmt.Println("[dry-run] Queue not consumed in dry-run. Showing first cycle only.")
 		}
-		return goal, sel, loopBreak
+		return goal, sel, loopBreak, nil
 	}
 
-	return goal, sel, loopContinue
+	return goal, sel, loopContinue, nil
+}
+
+func preflightQueueSelection(cwd string, sel *queueSelection, cfg rpiLoopSupervisorConfig) (queuePreflightDecision, error) {
+	if sel == nil {
+		return queuePreflightDecision{}, nil
+	}
+	text := strings.TrimSpace(strings.Join([]string{sel.Item.Title, sel.Item.Description, sel.Item.Evidence}, " "))
+	if !queueConsolidationVerb.MatchString(text) {
+		return queuePreflightDecision{}, nil
+	}
+	tokens := extractQueuePathTokens(text)
+	if len(tokens) == 0 {
+		return queuePreflightDecision{}, nil
+	}
+	timeout := cfg.CommandTimeout
+	if timeout <= 0 {
+		timeout = defaultQueuePreflightTimeout
+	}
+	exists, err := queueTokensExistInRepo(cwd, tokens, timeout)
+	if err != nil || exists {
+		return queuePreflightDecision{}, err
+	}
+	seenInHistory, err := queueTokensSeenInHistory(cwd, tokens, timeout)
+	if err != nil || !seenInHistory {
+		return queuePreflightDecision{}, err
+	}
+	return queuePreflightDecision{
+		Consume: true,
+		Reason:  fmt.Sprintf("all referenced file tokens are absent from the repo but still present in git history (%s)", strings.Join(tokens, ", ")),
+	}, nil
+}
+
+func extractQueuePathTokens(text string) []string {
+	matches := queueFileTokenPattern.FindAllString(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	tokens := make([]string, 0, len(matches))
+	seen := make(map[string]struct{}, len(matches))
+	for _, match := range matches {
+		token := strings.TrimSpace(match)
+		if token == "" {
+			continue
+		}
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		tokens = append(tokens, token)
+	}
+	return tokens
+}
+
+func queueTokensExistInRepo(cwd string, tokens []string, timeout time.Duration) (bool, error) {
+	for _, token := range tokens {
+		exists, err := queueTokenExistsInRepo(cwd, token, timeout)
+		if err != nil {
+			return false, err
+		}
+		if exists {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func queueTokenExistsInRepo(cwd, token string, timeout time.Duration) (bool, error) {
+	if strings.Contains(token, "/") {
+		if _, err := os.Stat(filepath.Join(cwd, token)); err == nil {
+			return true, nil
+		} else if !os.IsNotExist(err) {
+			return false, err
+		}
+	}
+	out, err := loopCommandOutputRunner(cwd, timeout, "git", append([]string{"ls-files", "--cached", "--others", "--exclude-standard", "--"}, queueGitPathspecs(token)...)...)
+	if err != nil {
+		return false, nil
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+func queueTokensSeenInHistory(cwd string, tokens []string, timeout time.Duration) (bool, error) {
+	args := []string{"log", "--all", "--format=%H", "-n", "1", "--"}
+	for _, token := range tokens {
+		args = append(args, queueGitPathspecs(token)...)
+	}
+	out, err := loopCommandOutputRunner(cwd, timeout, "git", args...)
+	if err != nil {
+		return false, nil
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+func queueGitPathspecs(token string) []string {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil
+	}
+	if strings.Contains(token, "/") {
+		return []string{token}
+	}
+	return []string{token, ":(glob)**/" + token}
 }
 
 // runCycleWithRetries executes a single cycle with retry logic and handles

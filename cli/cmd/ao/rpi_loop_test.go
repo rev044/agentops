@@ -311,6 +311,97 @@ func TestWorkTypeRank(t *testing.T) {
 	}
 }
 
+func TestPreflightQueueSelection_ConsumesAbsentHistoricalMergeTargets(t *testing.T) {
+	prevRunner := loopCommandOutputRunner
+	defer func() { loopCommandOutputRunner = prevRunner }()
+
+	loopCommandOutputRunner = func(_ string, _ time.Duration, name string, args ...string) (string, error) {
+		if name != "git" {
+			return "", fmt.Errorf("unexpected command %q", name)
+		}
+		switch args[0] {
+		case "ls-files":
+			return "", nil
+		case "log":
+			return "deadbeef\n", nil
+		default:
+			return "", fmt.Errorf("unexpected git args: %v", args)
+		}
+	}
+
+	decision, err := preflightQueueSelection(t.TempDir(), &queueSelection{
+		Item: nextWorkItem{
+			Title: "Merge maturity_deep_test.go and fire_deep_test.go into canonical test files",
+		},
+	}, rpiLoopSupervisorConfig{CommandTimeout: time.Second})
+	if err != nil {
+		t.Fatalf("preflightQueueSelection returned error: %v", err)
+	}
+	if !decision.Consume {
+		t.Fatal("expected preflight to consume stale merge item")
+	}
+	if !strings.Contains(decision.Reason, "git history") {
+		t.Fatalf("unexpected preflight reason: %q", decision.Reason)
+	}
+}
+
+func TestResolveLoopGoal_PreflightConsumesSkippedItemAndAdvances(t *testing.T) {
+	prevPreflight := preflightQueueSelectionFn
+	defer func() { preflightQueueSelectionFn = prevPreflight }()
+	preflightQueueSelectionFn = func(_ string, sel *queueSelection, _ rpiLoopSupervisorConfig) (queuePreflightDecision, error) {
+		if sel != nil && sel.Item.Title == "Already done" {
+			return queuePreflightDecision{Consume: true, Reason: "already satisfied"}, nil
+		}
+		return queuePreflightDecision{}, nil
+	}
+
+	prevDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = prevDryRun }()
+
+	prevRepoFilter := rpiRepoFilter
+	rpiRepoFilter = ""
+	defer func() { rpiRepoFilter = prevRepoFilter }()
+
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "next-work.jsonl")
+	writeJSONL(t, queuePath, []nextWorkEntry{
+		{
+			SourceEpic: "ag-skip",
+			Items:      []nextWorkItem{{Title: "Already done", Severity: "high"}},
+		},
+		{
+			SourceEpic: "ag-next",
+			Items:      []nextWorkItem{{Title: "Do this now", Severity: "medium"}},
+		},
+	})
+
+	goal, sel, action, err := resolveLoopGoal(tmpDir, "", queuePath, rpiLoopSupervisorConfig{})
+	if err != nil {
+		t.Fatalf("resolveLoopGoal returned error: %v", err)
+	}
+	if action != loopContinue {
+		t.Fatalf("action = %v, want %v", action, loopContinue)
+	}
+	if goal != "Do this now" {
+		t.Fatalf("goal = %q, want %q", goal, "Do this now")
+	}
+	if sel == nil || sel.Item.Title != "Do this now" {
+		t.Fatalf("selected item = %+v, want Do this now", sel)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if !after[0].Items[0].Consumed {
+		t.Fatal("expected preflight-skipped item to be consumed")
+	}
+	if after[0].Items[0].ConsumedBy == nil || *after[0].Items[0].ConsumedBy != queuePreflightConsumedBy {
+		t.Fatalf("consumed_by = %v, want %q", after[0].Items[0].ConsumedBy, queuePreflightConsumedBy)
+	}
+	if after[1].Items[0].Consumed {
+		t.Fatal("expected next actionable item to remain unconsumed before execution")
+	}
+}
+
 func TestReadUnconsumedItems_MalformedLines(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")

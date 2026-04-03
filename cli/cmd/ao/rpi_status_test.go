@@ -1440,6 +1440,14 @@ func TestBuildRPIStatusOutput_WithRegistryRuns(t *testing.T) {
 func TestBuildRPIStatusOutput_WithLogAndLiveStatus(t *testing.T) {
 	tmpDir := t.TempDir()
 
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "active-live",
+		phase:  1,
+		schema: 1,
+		goal:   "active live goal",
+		hbAge:  30 * time.Second,
+	})
+
 	// Create orchestration log
 	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
 	if err := os.MkdirAll(rpiDir, 0755); err != nil {
@@ -1463,6 +1471,73 @@ func TestBuildRPIStatusOutput_WithLogAndLiveStatus(t *testing.T) {
 	}
 	if len(output.LiveStatuses) == 0 {
 		t.Error("expected LiveStatuses to be populated from live-status.md")
+	}
+}
+
+func TestBuildRPIStatusOutput_FiltersRegistryDuplicateLogRuns(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "dup-run",
+		phase:  1,
+		schema: 1,
+		goal:   "registry goal",
+		hbAge:  30 * time.Second,
+	})
+
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	logContent := `[2026-02-15T10:00:00Z] [dup-run] start: goal="registry goal" from=discovery
+[2026-02-15T10:05:00Z] [dup-run] discovery: completed in 5m0s
+`
+	if err := os.WriteFile(filepath.Join(rpiDir, "phased-orchestration.log"), []byte(logContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output := buildRPIStatusOutput(tmpDir)
+	if len(output.LogRuns) != 0 {
+		t.Fatalf("expected registry-duplicate log runs to be filtered, got %d", len(output.LogRuns))
+	}
+}
+
+func TestBuildRPIStatusOutput_FiltersLiveStatusesToActiveRuns(t *testing.T) {
+	parent := t.TempDir()
+	cwd := filepath.Join(parent, "repo")
+	sibling := filepath.Join(parent, "repo-rpi-stale")
+	for _, dir := range []string{cwd, sibling} {
+		if err := os.MkdirAll(filepath.Join(dir, ".agents", "rpi"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeRegistryRun(t, cwd, registryRunSpec{
+		runID:  "active-run",
+		phase:  1,
+		schema: 1,
+		goal:   "active",
+		hbAge:  30 * time.Second,
+	})
+	writeRegistryRun(t, sibling, registryRunSpec{
+		runID:  "stale-run",
+		phase:  1,
+		schema: 1,
+		goal:   "stale",
+		hbAge:  0,
+	})
+	if err := os.WriteFile(filepath.Join(cwd, ".agents", "rpi", "live-status.md"), []byte("# active"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sibling, ".agents", "rpi", "live-status.md"), []byte("# stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output := buildRPIStatusOutput(cwd)
+	if len(output.LiveStatuses) != 1 {
+		t.Fatalf("expected only active live status snapshot, got %d", len(output.LiveStatuses))
+	}
+	if output.LiveStatuses[0].Path != filepath.Join(cwd, ".agents", "rpi", "live-status.md") {
+		t.Fatalf("unexpected live status path: %s", output.LiveStatuses[0].Path)
 	}
 }
 

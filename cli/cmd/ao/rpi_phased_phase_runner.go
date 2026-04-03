@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var phaseHeartbeatInterval = time.Minute
+
 // isPhaseTimeoutError returns true when err was produced by a phase wall-clock timeout.
 // It matches the error strings produced by both directExecutor and streamExecutor.
 func isPhaseTimeoutError(err error) bool {
@@ -42,6 +44,31 @@ func rescuePhaseOnTimeout(spawnCwd string, p phase, timeoutErr error) bool {
 	fmt.Printf("Phase %d (%s): timed out, but the phase summary was written — session completed its work before the watchdog fired.\n", p.Num, p.Name)
 	fmt.Printf("Continuing to post-phase validation. Use --phase-timeout=<duration> to raise the limit.\n")
 	return true
+}
+
+func startPhaseHeartbeat(ctx context.Context, spawnCwd, runID string) func() {
+	if runID == "" || phaseHeartbeatInterval <= 0 {
+		return func() {}
+	}
+	hbCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(phaseHeartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-hbCtx.Done():
+				return
+			case <-ticker.C:
+				updateRunHeartbeat(spawnCwd, runID)
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
 // handlePostPhaseGate runs post-phase gate checking and retry logic.
@@ -116,6 +143,8 @@ func executePhaseSession(ctx context.Context, spawnCwd string, state *phasedStat
 	fmt.Printf("Phase %d: spawning %s session...\n", p.Num, effectiveRuntimeCommand(state.Opts.RuntimeCommand))
 	start := time.Now()
 	updateRunHeartbeat(spawnCwd, state.RunID)
+	stopHeartbeat := startPhaseHeartbeat(ctx, spawnCwd, state.RunID)
+	defer stopHeartbeat()
 	retryKey := fmt.Sprintf("phase_%d", p.Num)
 
 	if err := executor.Execute(ctx, prompt, spawnCwd, state.RunID, p.Num); err != nil {

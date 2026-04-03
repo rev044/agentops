@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // --- handleDryRunPhase ---
@@ -78,6 +79,84 @@ func TestMaybeLiveStatus_Disabled(t *testing.T) {
 	if _, err := os.Stat(statusPath); !os.IsNotExist(err) {
 		t.Error("status file should NOT be created when LiveStatus is disabled")
 	}
+}
+
+type blockingPhaseExecutor struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (b *blockingPhaseExecutor) Name() string { return "blocking" }
+
+func (b *blockingPhaseExecutor) Execute(_ context.Context, _, _, _ string, _ int) error {
+	close(b.started)
+	<-b.release
+	return nil
+}
+
+func TestExecutePhaseSession_RefreshesHeartbeatWhileRunning(t *testing.T) {
+	prevInterval := phaseHeartbeatInterval
+	phaseHeartbeatInterval = 10 * time.Millisecond
+	defer func() { phaseHeartbeatInterval = prevInterval }()
+
+	tmp := t.TempDir()
+	rpiDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	state := newTestPhasedState().WithRunID("heartbeat-refresh")
+	executor := &blockingPhaseExecutor{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- executePhaseSession(context.Background(), tmp, state, phases[0], phasedEngineOptions{}, filepath.Join(rpiDir, "live-status.md"), buildAllPhases(phases), filepath.Join(rpiDir, "phased-orchestration.log"), "prompt", executor)
+	}()
+
+	<-executor.started
+	heartbeatPath := filepath.Join(tmp, ".agents", "rpi", "runs", "heartbeat-refresh", "heartbeat.txt")
+	initial := waitForHeartbeatContent(t, heartbeatPath)
+	refreshed := waitForHeartbeatChange(t, heartbeatPath, initial)
+
+	close(executor.release)
+	if err := <-done; err != nil {
+		t.Fatalf("executePhaseSession returned error: %v", err)
+	}
+	if refreshed == initial {
+		t.Fatal("expected heartbeat content to refresh while phase executor was still running")
+	}
+}
+
+func waitForHeartbeatContent(t *testing.T, path string) string {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		data, err := os.ReadFile(path)
+		if err == nil && strings.TrimSpace(string(data)) != "" {
+			return strings.TrimSpace(string(data))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("heartbeat %s was not written before timeout", path)
+	return ""
+}
+
+func waitForHeartbeatChange(t *testing.T, path, initial string) string {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			current := strings.TrimSpace(string(data))
+			if current != "" && current != initial {
+				return current
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("heartbeat %s did not change before timeout", path)
+	return ""
 }
 
 // --- writeFinalPhasedReport ---
