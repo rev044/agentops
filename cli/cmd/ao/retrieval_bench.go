@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	benchCorpus  string
-	benchJSON    bool
-	benchK       int
-	benchLive    bool
-	benchGlobal  bool
+	benchCorpus string
+	benchJSON   bool
+	benchK      int
+	benchLive   bool
+	benchGlobal bool
 )
 
 // benchQuery defines a single benchmark query with expected results.
@@ -36,32 +36,34 @@ type benchResult struct {
 
 // benchReport holds the overall benchmark report.
 type benchReport struct {
-	Queries    int            `json:"queries"`
-	K          int            `json:"k"`
-	AvgPAtK    float64        `json:"avg_precision_at_k"`
-	AvgMRR     float64        `json:"avg_mrr"`
-	TargetPAtK float64        `json:"target_precision_at_k"`
-	TargetMRR  float64        `json:"target_mrr"`
-	Results    []benchResult  `json:"results"`
+	Queries    int           `json:"queries"`
+	K          int           `json:"k"`
+	AvgPAtK    float64       `json:"avg_precision_at_k"`
+	AvgMRR     float64       `json:"avg_mrr"`
+	TargetPAtK float64       `json:"target_precision_at_k"`
+	TargetMRR  float64       `json:"target_mrr"`
+	Results    []benchResult `json:"results"`
 }
 
 // liveQueryResult holds the result of a single query against the live corpus.
 type liveQueryResult struct {
-	Query      string   `json:"query"`
-	Count      int      `json:"count"`
-	TopIDs     []string `json:"top_ids"`
-	MinScore   float64  `json:"min_score"`
-	MaxScore   float64  `json:"max_score"`
-	MeanScore  float64  `json:"mean_score"`
+	Query     string   `json:"query"`
+	Count     int      `json:"count"`
+	TopIDs    []string `json:"top_ids"`
+	MinScore  float64  `json:"min_score"`
+	MaxScore  float64  `json:"max_score"`
+	MeanScore float64  `json:"mean_score"`
 }
 
 // liveReport holds results from benchmarking against the real .agents/learnings/ directory.
 type liveReport struct {
-	Mode           string            `json:"mode"`
-	TotalLearnings int               `json:"total_learnings"`
-	Queries        int               `json:"queries"`
-	K              int               `json:"k"`
-	Results        []liveQueryResult `json:"results"`
+	Mode            string            `json:"mode"`
+	TotalLearnings  int               `json:"total_learnings"`
+	Queries         int               `json:"queries"`
+	K               int               `json:"k"`
+	QueriesWithHits int               `json:"queries_with_hits"`
+	Coverage        float64           `json:"coverage"`
+	Results         []liveQueryResult `json:"results"`
 }
 
 // liveQueries are broad queries that exercise real-world retrieval patterns.
@@ -80,33 +82,10 @@ var liveQueries = []string{
 
 // runLiveBench benchmarks against the actual .agents/learnings/ directory.
 // When global is true, benchmarks against ~/.agents/learnings/ (cross-rig aggregated store).
-func runLiveBench(k int, asJSON, global bool) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("getting working directory: %w", err)
-	}
-
-	globalDir := ""
-	if global {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("resolving home directory: %w", err)
-		}
-		globalDir = filepath.Join(home, ".agents", "learnings")
-		if _, err := os.Stat(globalDir); err != nil {
-			return fmt.Errorf("global knowledge store not found at %s — run 'ao harvest' first", globalDir)
-		}
-	}
-
-	// Count total learnings available
+func buildLiveReport(cwd, globalDir, mode string, k int) (liveReport, error) {
 	allLearnings, err := collectLearnings(cwd, "", 1000, globalDir, 1.0)
 	if err != nil {
-		return fmt.Errorf("collecting all learnings: %w", err)
-	}
-
-	mode := "live-local"
-	if global {
-		mode = "live-global"
+		return liveReport{}, fmt.Errorf("collecting all learnings: %w", err)
 	}
 	report := liveReport{
 		Mode:           mode,
@@ -118,7 +97,7 @@ func runLiveBench(k int, asJSON, global bool) error {
 	for _, q := range liveQueries {
 		results, err := collectLearnings(cwd, q, k*3, globalDir, 1.0)
 		if err != nil {
-			return fmt.Errorf("collectLearnings(%q): %w", q, err)
+			return liveReport{}, fmt.Errorf("collectLearnings(%q): %w", q, err)
 		}
 
 		lr := liveQueryResult{
@@ -135,6 +114,7 @@ func runLiveBench(k int, asJSON, global bool) error {
 			for _, r := range results[:topN] {
 				lr.TopIDs = append(lr.TopIDs, r.ID)
 			}
+			report.QueriesWithHits++
 
 			lr.MinScore = results[len(results)-1].CompositeScore
 			lr.MaxScore = results[0].CompositeScore
@@ -147,6 +127,55 @@ func runLiveBench(k int, asJSON, global bool) error {
 
 		report.Results = append(report.Results, lr)
 	}
+	if report.Queries > 0 {
+		report.Coverage = float64(report.QueriesWithHits) / float64(report.Queries)
+	}
+	return report, nil
+}
+
+func runLiveBench(k int, asJSON, global bool, corpusDir string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting working directory: %w", err)
+	}
+
+	globalDir := ""
+	mode := "live-local"
+	storeLabel := ".agents/learnings/"
+	modeLabel := "Live (local)"
+	benchCwd := cwd
+	if corpusDir != "" {
+		if _, err := os.Stat(corpusDir); err != nil {
+			return fmt.Errorf("live benchmark corpus not found at %s", corpusDir)
+		}
+		tmpDir, err := os.MkdirTemp("", "retrieval-live-*")
+		if err != nil {
+			return fmt.Errorf("creating temp dir: %w", err)
+		}
+		defer os.RemoveAll(tmpDir)
+		benchCwd = tmpDir
+		globalDir = corpusDir
+		mode = "live-corpus"
+		storeLabel = corpusDir
+		modeLabel = "Live (fixture)"
+	} else if global {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolving home directory: %w", err)
+		}
+		globalDir = filepath.Join(home, ".agents", "learnings")
+		if _, err := os.Stat(globalDir); err != nil {
+			return fmt.Errorf("global knowledge store not found at %s — run 'ao harvest' first", globalDir)
+		}
+		mode = "live-global"
+		storeLabel = "~/.agents/learnings/ (cross-rig)"
+		modeLabel = "Live (global)"
+	}
+
+	report, err := buildLiveReport(benchCwd, globalDir, mode, k)
+	if err != nil {
+		return err
+	}
 
 	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
@@ -154,17 +183,12 @@ func runLiveBench(k int, asJSON, global bool) error {
 		return enc.Encode(report)
 	}
 
-	modeLabel := "Live (local)"
-	storeLabel := ".agents/learnings/"
-	if global {
-		modeLabel = "Live (global)"
-		storeLabel = "~/.agents/learnings/ (cross-rig)"
-	}
 	fmt.Printf("Retrieval Quality Report (%s)\n", modeLabel)
 	fmt.Println("================================")
 	fmt.Printf("Corpus:      %d learnings in %s\n", report.TotalLearnings, storeLabel)
 	fmt.Printf("Queries:     %d\n", report.Queries)
 	fmt.Printf("K:           %d\n", k)
+	fmt.Printf("Coverage:    %.0f%% (%d/%d queries with hits)\n", report.Coverage*100, report.QueriesWithHits, report.Queries)
 	fmt.Println()
 
 	if report.TotalLearnings == 0 {
@@ -196,13 +220,13 @@ func defaultBenchQueries() []benchQuery {
 }
 
 var retrievalBenchCmd = &cobra.Command{
-	Use:   "retrieval-bench",
-	Short: "Run retrieval quality benchmarks",
-	Long:  "Measure Precision@K and MRR against a curated corpus of learning artifacts.",
+	Use:     "retrieval-bench",
+	Short:   "Run retrieval quality benchmarks",
+	Long:    "Measure Precision@K and MRR against a curated corpus of learning artifacts.",
 	GroupID: "knowledge",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if benchLive {
-			return runLiveBench(benchK, benchJSON, benchGlobal)
+			return runLiveBench(benchK, benchJSON, benchGlobal, benchCorpus)
 		}
 
 		corpusDir := benchCorpus

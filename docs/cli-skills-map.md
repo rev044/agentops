@@ -2,7 +2,7 @@
 
 > Which `ao` commands are called by which skills and hooks — and vice versa.
 
-Auto-audited 2026-03-24. 53 CLI commands, 52 source skills, 7 runtime hook event sections.
+Auto-audited 2026-04-03. 53 CLI commands, 52 source skills, 7 runtime hook event sections.
 
 Source-of-truth note: `hooks/hooks.json` currently declares 7 runtime hook event sections. Repository hook scripts such as `worktree-setup.sh` are support/setup scripts and are listed separately when relevant.
 
@@ -12,8 +12,8 @@ Registry-first note: `/plan`, `/pre-mortem`, `/vibe`, and `/post-mortem` now als
 
 | Category | Count |
 |----------|-------|
-| CLI commands with skill/hook callers | 30 |
-| Orphan commands (user utilities, hidden, CI-only) | 20 |
+| CLI commands with skill/hook callers | 31 |
+| Orphan commands (user utilities, hidden, CI-only) | 19 |
 | Phantom subcommands (bugs) | 2 |
 
 ---
@@ -30,24 +30,25 @@ Every `ao` command that is actively called by at least one skill or hook.
 | `ao goals` | goals, evolve | — |
 | `ao search` | crank, inject, plan, pre-mortem, provenance, research, using-agentops, vibe | session-start.sh |
 | `ao rpi` | council, crank, plan, quickstart, research, rpi, shared, swarm | — |
-| `ao flywheel` | crank, evolve, flywheel, post-mortem, quickstart, retro, status | ao-flywheel-close.sh |
+| `ao flywheel` | crank, evolve, flywheel, post-mortem, quickstart, retro, status | ao-flywheel-close.sh, session-end-maintenance.sh |
 | `ao pool` | crank, status | session-end-maintenance.sh |
-| `ao lookup` | crank, implement, inject, plan, research, using-agentops | session-start.sh |
+| `ao lookup` | crank, implement, inject, plan, pre-mortem, research, using-agentops | session-start.sh |
 | `ao context` | crank, implement, swarm | context-guard.sh |
 | `ao codex` | brainstorm, crank, discovery, handoff, implement, post-mortem, quickstart, recover, research, rpi, status, using-agentops, validation | — |
 | `ao maturity` | flywheel | session-end-maintenance.sh |
 | `ao constraint` | flywheel, post-mortem, retro | — |
 | `ao badge` | flywheel, status | — |
+| `ao retrieval-bench` | flywheel | — |
 | `ao seed` | quickstart | — |
 | `ao notebook` | retro | session-start.sh |
 | `ao memory` | — | session-end-maintenance.sh |
 | `ao dedup` | flywheel | session-end-maintenance.sh |
 | `ao contradict` | flywheel | session-end-maintenance.sh |
-| `ao metrics` | flywheel | — |
+| `ao metrics` | flywheel | session-end-maintenance.sh |
 | `ao extract` | — | session-start.sh |
 | `ao hooks` | quickstart | — |
 | `ao init` | quickstart | — |
-| `ao session` | post-mortem, retro | — |
+| `ao session` | post-mortem, retro | session-end-maintenance.sh |
 | `ao temper` | post-mortem | — |
 | `ao curate` | flywheel | — |
 | `ao status` | flywheel, quickstart | — |
@@ -67,15 +68,15 @@ Which `ao` commands each skill invokes.
 | **crank** | `codex ensure-start`, `context assemble`, `flywheel close-loop`, `flywheel status`, `forge transcript`, `inject`, `lookup`, `pool list`, `ratchet record`, `ratchet status`, `rpi phased`, `search` |
 | **discovery** | `codex ensure-start` |
 | **evolve** | `forge`, `goals measure`, `inject` |
-| **flywheel** | `badge`, `constraint review`, `contradict`, `curate status`, `dedup`, `maturity`, `metrics cite-report`, `metrics health`, `anti-patterns`, `status` |
+| **flywheel** | `badge`, `constraint review`, `contradict`, `curate status`, `dedup`, `maturity`, `metrics cite-report`, `metrics health`, `anti-patterns`, `retrieval-bench`, `status` |
 | **forge** | `forge markdown`, `forge transcript` |
 | **goals** | `goals add`, `goals drift`, `goals export`, `goals history`, `goals init`, `goals measure`, `goals meta`, `goals migrate`, `goals prune`, `goals steer`, `goals validate` |
 | **handoff** | `codex ensure-stop`, `ratchet status` |
 | **implement** | `codex ensure-start`, `context assemble`, `lookup`, `ratchet record`, `ratchet skip`, `ratchet spec`, `ratchet status` |
 | **inject** | `inject`, `lookup`, `search` |
-| **plan** | `ratchet record`, `rpi cleanup`, `rpi status`, `search` |
+| **plan** | `lookup`, `ratchet record`, `rpi cleanup`, `rpi status`, `search` |
 | **post-mortem** | `codex ensure-stop`, `constraint activate`, `flywheel close-loop`, `forge`, `forge markdown`, `session close`, `temper validate` |
-| **pre-mortem** | `ratchet record`, `search` |
+| **pre-mortem** | `lookup`, `ratchet record`, `search` |
 | **provenance** | `search` |
 | **quickstart** | `codex ensure-start`, `codex ensure-stop`, `codex status`, `flywheel status`, `hooks install`, `hooks test`, `init`, `rpi phased`, `seed`, `status` |
 | **ratchet** | `ratchet check`, `ratchet record`, `ratchet skip`, `ratchet status` |
@@ -189,11 +190,12 @@ During Session
 
 Session End
   → session-end-maintenance.sh
+      → ao session close --auto-extract
       → ao forge transcript
-      → ao notebook update
+      → ao flywheel close-loop
+      → ao metrics baseline
       → ao memory sync
-      → ao pool ingest
-      → ao maturity --expire --evict
+      → ao maturity --expire --evict --curate
       → ao dedup
       → ao contradict
 
@@ -232,6 +234,9 @@ Codex Thread Closeout
       → later calls no-op for the same thread
       → ao forge transcript (archived transcript or history fallback)
       → ao flywheel close-loop
+      → ao dedup
+      → ao contradict
+      → ao maturity --expire --evict --curate
 
 Codex Health
   → ao codex status

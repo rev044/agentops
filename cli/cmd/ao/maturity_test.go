@@ -926,6 +926,156 @@ func TestMaturity_reportEvictionCandidates_jsonOutput(t *testing.T) {
 	}
 }
 
+func TestNormalizeLearningMarkdownMetadata_AddsDefaults(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "legacy.md")
+	if err := os.WriteFile(path, []byte("# Legacy Learning\n\nThis legacy learning keeps enough body text to survive curation.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	changed, err := normalizeLearningMetadata(path, false)
+	if err != nil {
+		t.Fatalf("normalizeLearningMetadata: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected markdown normalization to report a change")
+	}
+
+	fields, err := parseFrontmatterFields(path, "utility", "maturity", "confidence", "reward_count", "helpful_count", "harmful_count")
+	if err != nil {
+		t.Fatalf("parseFrontmatterFields: %v", err)
+	}
+	for key, want := range defaultLearningMetadataFields() {
+		if got := fields[key]; got != want {
+			t.Errorf("%s = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestNormalizeLearningJSONLMetadata_AddsDefaults(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "legacy.jsonl")
+	if err := os.WriteFile(path, []byte(`{"id":"L-legacy","title":"Legacy"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	changed, err := normalizeLearningMetadata(path, false)
+	if err != nil {
+		t.Fatalf("normalizeLearningMetadata: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected JSONL normalization to report a change")
+	}
+
+	data, ok := readLearningJSONLData(path)
+	if !ok {
+		t.Fatal("expected normalized JSONL data to be readable")
+	}
+	if got := floatValueFromData(data, "utility", 0); got != types.InitialUtility {
+		t.Errorf("utility = %.2f, want %.2f", got, types.InitialUtility)
+	}
+	if got := nonEmptyStringFromData(data, "maturity", ""); got != "provisional" {
+		t.Errorf("maturity = %q, want provisional", got)
+	}
+}
+
+func TestShouldArchiveUncitedLearning(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "old.md")
+	if err := os.WriteFile(path, []byte("# Old Learning\n\nThis learning has enough content to exercise uncited archival logic.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().AddDate(0, 0, -90)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -60)
+	if !shouldArchiveUncitedLearning(tmp, path, "provisional", old, map[string]time.Time{}, cutoff) {
+		t.Fatal("expected uncited provisional learning older than cutoff to archive")
+	}
+	if shouldArchiveUncitedLearning(tmp, path, "established", old, map[string]time.Time{}, cutoff) {
+		t.Fatal("established learning should not archive via uncited policy")
+	}
+	if shouldArchiveUncitedLearning(tmp, path, "candidate", old, map[string]time.Time{
+		canonicalArtifactPath(tmp, path): time.Now().AddDate(0, 0, -1),
+	}, cutoff) {
+		t.Fatal("recently cited learning should not archive")
+	}
+}
+
+func TestIsLowSignalLearningBody(t *testing.T) {
+	if !isLowSignalLearningBody("didn't work because the goals agent rewrote it.") {
+		t.Fatal("expected short fragment to be low signal")
+	}
+	if isLowSignalLearningBody("The session-end cleanup should normalize metadata before archiving stale learnings. It also needs citation-aware retention so uncited fragments do not accumulate forever.") {
+		t.Fatal("expected substantive body to survive low-signal check")
+	}
+}
+
+func TestBuildCurationCandidate_LowSignalAndUncited(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(learningsDir, "legacy.md")
+	if err := os.WriteFile(path, []byte("didn't work because the goals agent rewrote it.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().AddDate(0, 0, -90)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	oldDryRun := dryRun
+	oldUncitedDays := maturityUncitedDays
+	dryRun = false
+	maturityUncitedDays = 60
+	defer func() {
+		dryRun = oldDryRun
+		maturityUncitedDays = oldUncitedDays
+	}()
+
+	candidate, ok, normalized, err := buildCurationCandidate(tmp, path, map[string]time.Time{}, time.Now().AddDate(0, 0, -60))
+	if err != nil {
+		t.Fatalf("buildCurationCandidate: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected curation candidate")
+	}
+	if !normalized {
+		t.Fatal("expected candidate build to normalize missing metadata")
+	}
+	if got := strings.Join(candidate.Reasons, ","); got != "low-signal-body,uncited-60d" {
+		t.Fatalf("reasons = %q, want %q", got, "low-signal-body,uncited-60d")
+	}
+}
+
+func TestArchiveCurationCandidates(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(learningsDir, "archive-me.md")
+	if err := os.WriteFile(path, []byte("# Archive Me\n\nThis learning is ready to move.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+
+	err := archiveCurationCandidates(tmp, []curationCandidate{{Path: path, Name: "archive-me.md"}})
+	if err != nil {
+		t.Fatalf("archiveCurationCandidates: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".agents", "archive", "learnings", "archive-me.md")); os.IsNotExist(err) {
+		t.Fatal("expected curated learning in archive")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // displayMaturityDistribution (smoke test, output only)
 // ---------------------------------------------------------------------------

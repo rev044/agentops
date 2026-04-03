@@ -81,7 +81,7 @@ Use the same ranked packet contract as `$plan`: compiled checks first, then acti
 
 **By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).
 
-In `--quick` mode, **skip Steps 1a and 1b** (knowledge search, product context) unless `--deep`, `--mixed`, `--debate`, or `--explorers` is set. These pre-processing steps are for multi-judge council packets only.
+In `--quick` mode, **skip Steps 1a and 1b** (knowledge search, product context) unless `--deep`, `--mixed`, `--debate`, or `--explorers` is set. The mandatory `ao lookup` retrieval in Step 1.4 and compiled prevention load in Step 1.4b still run in quick mode.
 
 To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (cross-vendor).
 

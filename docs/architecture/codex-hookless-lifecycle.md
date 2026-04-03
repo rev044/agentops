@@ -13,7 +13,7 @@ AgentOps originally assumed a hook-capable runtime lifecycle such as Claude/Open
 | Mode | Detection | Start path | Closeout path | Guarantees |
 |------|-----------|------------|---------------|------------|
 | `hook-capable` | Claude/OpenCode runtime plus installed hook surfaces | SessionStart hook or explicit `ao inject` | SessionEnd/Stop hooks or explicit `ao forge transcript` + `ao flywheel close-loop` | Startup injection and close-loop maintenance can be automatic when hooks are installed |
-| `codex-hookless-fallback` | Codex env/session metadata and no hook surface under `~/.codex` | `ao codex start` or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | Explicit startup context, transcript discovery fallback, citation capture, close-loop maintenance, and persisted lifecycle state |
+| `codex-hookless-fallback` | Codex env/session metadata and no hook surface under `~/.codex` | `ao codex start` or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | Explicit startup context, transcript discovery fallback, citation capture, session-end-equivalent maintenance, and persisted lifecycle state |
 | `manual` | No hooks and no Codex-specific runtime detection | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Portable low-level workflow with no hidden lifecycle assumptions |
 
 ## Command Responsibilities
@@ -41,6 +41,7 @@ AgentOps originally assumed a hook-capable runtime lifecycle such as Claude/Open
 - Fall back to a synthesized transcript from `~/.codex/history.jsonl` when no archive exists.
 - Forge/extract from the resolved transcript and queue or persist learnings safely.
 - Run close-loop maintenance unless `--no-close-loop` is set.
+- Run the same post-close hygiene that SessionEnd owns in hook-capable runtimes: deduplication, contradiction scan, expiry/eviction/curation maintenance, finding-compiler refresh, and auto-prune.
 - Sync `MEMORY.md` and persist stop state to `.agents/ao/codex/state.json`.
 
 ### `ao codex ensure-stop`

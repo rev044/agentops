@@ -134,9 +134,15 @@ if command -v ao &>/dev/null; then
   ao metrics health 2>/dev/null || true
   ao metrics cite-report --days 30 2>/dev/null || true
 
-  # Active pruning: archive stale, evict low-utility
+  # Active pruning: archive stale, evict low-utility, and curate noisy uncited learnings
   ao maturity --expire --archive 2>/dev/null || true
   ao maturity --evict --archive 2>/dev/null || true
+  ao maturity --curate --archive 2>/dev/null || true
+
+  # Retrieval quality: use the representative live corpus when it exists
+  if [ -d cli/cmd/ao/testdata/retrieval-bench-live ]; then
+    ao retrieval-bench --live --corpus cli/cmd/ao/testdata/retrieval-bench-live --json 2>/dev/null || true
+  fi
 else
   echo "ao CLI not available — using file-based metrics"
 
@@ -200,6 +206,11 @@ Health indicator: >90% = Healthy, 70-90% = Warning, <70% = Critical.
 - Hit rate: <percentage>%
 - Uncited learnings: <count>
 - Stale (90d uncited): <count>
+- Status: <Healthy/Warning/Critical>
+
+## Retrieval Quality
+- Live corpus coverage: <percentage or unavailable>
+- Live corpus learnings: <count or unavailable>
 - Status: <Healthy/Warning/Critical>
 
 ## Health Status

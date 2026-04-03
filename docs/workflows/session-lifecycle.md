@@ -60,7 +60,8 @@ ao codex stop
 
 For normal Codex skill usage, entry skills drive the same startup path with
 `ao codex ensure-start`, and closeout-owner skills drive the same closeout path
-with `ao codex ensure-stop`.
+with `ao codex ensure-stop`, including the post-close maintenance that hook-capable
+SessionEnd would normally run.
 
 ### Option 4: Slash Commands (Hook-Capable Power Users)
 
@@ -84,7 +85,7 @@ with `ao codex ensure-stop`.
 | Mode | Start | Closeout | Notes |
 |------|-------|----------|-------|
 | Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed; `CLAUDE.md` is the startup surface and hooks stage state silently |
-| Codex hookless fallback | `ao factory start --goal "<goal>"`, `ao codex start`, or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit |
+| Codex hookless fallback | `ao factory start --goal "<goal>"`, `ao codex start`, or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit, and closeout owns the same curation hygiene as SessionEnd |
 | Manual fallback | `ao inject`, `ao lookup` | `ao forge transcript`, `ao flywheel close-loop` | Lowest-level portable path |
 
 ---
