@@ -12,6 +12,75 @@ import (
 	"time"
 )
 
+func writeCompletedLoopRegistryRun(t *testing.T, rootDir, runID, epicID, goal string) {
+	t.Helper()
+	runDir := filepath.Join(rootDir, ".agents", "rpi", "runs", runID)
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatalf("mkdir registry run dir: %v", err)
+	}
+
+	state := map[string]any{
+		"schema_version": 1,
+		"run_id":         runID,
+		"epic_id":        epicID,
+		"goal":           goal,
+		"phase":          3,
+		"started_at":     time.Now().Add(-30 * time.Minute).UTC().Format(time.RFC3339),
+	}
+	data, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("marshal registry state: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, phasedStateFile), data, 0o644); err != nil {
+		t.Fatalf("write registry state: %v", err)
+	}
+}
+
+func writeEvidenceOnlyClosurePacket(t *testing.T, rootDir, targetID string) string {
+	t.Helper()
+	packetDir := filepath.Join(rootDir, ".agents", "releases", "evidence-only-closures")
+	if err := os.MkdirAll(packetDir, 0o755); err != nil {
+		t.Fatalf("mkdir evidence-only closure dir: %v", err)
+	}
+
+	packetPath := filepath.Join(packetDir, strings.ReplaceAll(targetID, "/", "_")+".json")
+	packet := map[string]any{
+		"schema_version": 1,
+		"artifact_id":    "evidence-only-closure-" + targetID,
+		"target_id":      targetID,
+		"target_type":    "task",
+		"created_at":     time.Now().UTC().Format(time.RFC3339),
+		"producer":       "rpi-loop-test",
+		"evidence_mode":  "staged",
+		"validation_commands": []string{
+			"bash scripts/validate-go-fast.sh",
+		},
+		"repo_state": map[string]any{
+			"repo_root":       ".",
+			"git_branch":      "main",
+			"git_dirty":       false,
+			"head_sha":        "deadbeef",
+			"modified_files":  []string{},
+			"staged_files":    []string{},
+			"unstaged_files":  []string{},
+			"untracked_files": []string{},
+		},
+		"evidence": map[string]any{
+			"summary":   "proof-backed closure",
+			"artifacts": []string{".agents/releases/evidence-only-closures/" + strings.ReplaceAll(targetID, "/", "_") + ".json"},
+			"notes":     []string{},
+		},
+	}
+	data, err := json.Marshal(packet)
+	if err != nil {
+		t.Fatalf("marshal evidence-only closure packet: %v", err)
+	}
+	if err := os.WriteFile(packetPath, data, 0o644); err != nil {
+		t.Fatalf("write evidence-only closure packet: %v", err)
+	}
+	return packetPath
+}
+
 func TestReadUnconsumedItems_NoFile(t *testing.T) {
 	items, err := readUnconsumedItems("/nonexistent/path/next-work.jsonl", "")
 	if err != nil {
@@ -311,37 +380,61 @@ func TestWorkTypeRank(t *testing.T) {
 	}
 }
 
-func TestPreflightQueueSelection_ConsumesAbsentHistoricalMergeTargets(t *testing.T) {
-	prevRunner := loopCommandOutputRunner
-	defer func() { loopCommandOutputRunner = prevRunner }()
+func TestPreflightQueueSelection_ConsumesMatchingCompletedRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeCompletedLoopRegistryRun(t, tmpDir, "run-stale", "ag-stale", "Already done goal")
 
-	loopCommandOutputRunner = func(_ string, _ time.Duration, name string, args ...string) (string, error) {
-		if name != "git" {
-			return "", fmt.Errorf("unexpected command %q", name)
-		}
-		switch args[0] {
-		case "ls-files":
-			return "", nil
-		case "log":
-			return "deadbeef\n", nil
-		default:
-			return "", fmt.Errorf("unexpected git args: %v", args)
-		}
-	}
-
-	decision, err := preflightQueueSelection(t.TempDir(), &queueSelection{
+	decision, err := preflightQueueSelection(tmpDir, &queueSelection{
 		Item: nextWorkItem{
-			Title: "Merge maturity_deep_test.go and fire_deep_test.go into canonical test files",
+			Title: "Already done goal",
 		},
-	}, rpiLoopSupervisorConfig{CommandTimeout: time.Second})
+		SourceEpic: "ag-stale",
+	}, rpiLoopSupervisorConfig{})
 	if err != nil {
 		t.Fatalf("preflightQueueSelection returned error: %v", err)
 	}
 	if !decision.Consume {
-		t.Fatal("expected preflight to consume stale merge item")
+		t.Fatal("expected preflight to consume queue item backed by completed run proof")
 	}
-	if !strings.Contains(decision.Reason, "git history") {
+	if !strings.Contains(decision.Reason, "completed RPI run run-stale") {
 		t.Fatalf("unexpected preflight reason: %q", decision.Reason)
+	}
+}
+
+func TestPreflightQueueSelection_ConsumesMatchingEvidenceOnlyClosurePacket(t *testing.T) {
+	tmpDir := t.TempDir()
+	packetPath := writeEvidenceOnlyClosurePacket(t, tmpDir, "ag-proof.2")
+
+	decision, err := preflightQueueSelection(tmpDir, &queueSelection{
+		Item: nextWorkItem{
+			Title:       "Close already-proven follow-up",
+			Description: "Closure evidence is stored in .agents/releases/evidence-only-closures/ag-proof.2.json.",
+		},
+		SourceEpic: "ag-parent",
+	}, rpiLoopSupervisorConfig{})
+	if err != nil {
+		t.Fatalf("preflightQueueSelection returned error: %v", err)
+	}
+	if !decision.Consume {
+		t.Fatal("expected preflight to consume queue item backed by evidence-only closure proof")
+	}
+	if !strings.Contains(decision.Reason, packetPath) {
+		t.Fatalf("unexpected preflight reason: %q", decision.Reason)
+	}
+}
+
+func TestPreflightQueueSelection_DoesNotConsumeWithoutExplicitProof(t *testing.T) {
+	decision, err := preflightQueueSelection(t.TempDir(), &queueSelection{
+		Item: nextWorkItem{
+			Title: "Merge maturity_deep_test.go and fire_deep_test.go into canonical test files",
+		},
+		SourceEpic: "ag-bn9",
+	}, rpiLoopSupervisorConfig{})
+	if err != nil {
+		t.Fatalf("preflightQueueSelection returned error: %v", err)
+	}
+	if decision.Consume {
+		t.Fatalf("expected proof-less merge item to remain actionable, got decision %+v", decision)
 	}
 }
 
@@ -2043,6 +2136,184 @@ func TestRPILoop_ExplicitGoalReportsExecutedCycles(t *testing.T) {
 	}
 	if !strings.Contains(output, "RPI loop finished after 1 cycle(s).") {
 		t.Fatalf("expected cycle count message, got:\n%s", output)
+	}
+}
+
+func TestRPILoop_PreflightCompletedRunConsumesStaleItemAndAdvances(t *testing.T) {
+	prevGlobals := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prevGlobals)
+
+	prevDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = prevDryRun }()
+
+	prevRunCycle := runRPISupervisedCycleFn
+	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 2
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	queuePath := filepath.Join(rpiDir, "next-work.jsonl")
+	writeJSONL(t, queuePath, []nextWorkEntry{
+		{
+			SourceEpic: "ag-stale",
+			Items:      []nextWorkItem{{Title: "Already done goal", Severity: "high"}},
+			Consumed:   false,
+		},
+		{
+			SourceEpic: "ag-fresh",
+			Items:      []nextWorkItem{{Title: "Fresh goal", Severity: "medium"}},
+			Consumed:   false,
+		},
+	})
+	writeCompletedLoopRegistryRun(t, tmpDir, "run-stale", "ag-stale", "Already done goal")
+
+	rpiSupervisor = false
+	rpiFailurePolicy = loopFailurePolicyStop
+	rpiCycleRetries = 0
+	rpiRetryBackoff = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiLeaseTTL = 2 * time.Minute
+	rpiGatePolicy = loopGatePolicyOff
+	rpiLandingPolicy = loopLandingPolicyOff
+	rpiBDSyncPolicy = loopBDSyncPolicyAuto
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiCommandTimeout = time.Minute
+
+	var goals []string
+	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+		goals = append(goals, goal)
+		return nil
+	}
+
+	output, err := captureStdout(t, func() error {
+		return runRPILoop(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("runRPILoop returned error: %v", err)
+	}
+	if len(goals) != 1 || goals[0] != "Fresh goal" {
+		t.Fatalf("expected only fresh goal to execute, got %v", goals)
+	}
+	if !strings.Contains(output, `Queue preflight consumed "Already done goal": matched completed RPI run run-stale`) {
+		t.Fatalf("expected completed-run preflight consume message, got:\n%s", output)
+	}
+	if !strings.Contains(output, "RPI loop finished after 1 cycle(s).") {
+		t.Fatalf("expected executed cycle count to stay at 1, got:\n%s", output)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if !after[0].Consumed || !after[0].Items[0].Consumed {
+		t.Fatalf("expected stale entry consumed, got %+v", after[0])
+	}
+	if after[0].Items[0].ConsumedBy == nil || *after[0].Items[0].ConsumedBy != queuePreflightConsumedBy {
+		t.Fatalf("expected stale item consumed_by preflight marker, got %+v", after[0].Items[0])
+	}
+	if !after[1].Consumed || !after[1].Items[0].Consumed {
+		t.Fatalf("expected fresh entry consumed after execution, got %+v", after[1])
+	}
+}
+
+func TestRPILoop_PreflightEvidenceOnlyClosureConsumesStaleItemAndAdvances(t *testing.T) {
+	prevGlobals := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prevGlobals)
+
+	prevDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = prevDryRun }()
+
+	prevRunCycle := runRPISupervisedCycleFn
+	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 2
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	queuePath := filepath.Join(rpiDir, "next-work.jsonl")
+	writeJSONL(t, queuePath, []nextWorkEntry{
+		{
+			SourceEpic: "ag-parent",
+			Items: []nextWorkItem{
+				{
+					Title:       "Already proven item",
+					Severity:    "high",
+					Description: "See .agents/releases/evidence-only-closures/ag-proof.2.json.",
+				},
+				{Title: "Fresh sibling", Severity: "medium"},
+			},
+			Consumed: false,
+		},
+	})
+	writeEvidenceOnlyClosurePacket(t, tmpDir, "ag-proof.2")
+
+	rpiSupervisor = false
+	rpiFailurePolicy = loopFailurePolicyStop
+	rpiCycleRetries = 0
+	rpiRetryBackoff = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiLeaseTTL = 2 * time.Minute
+	rpiGatePolicy = loopGatePolicyOff
+	rpiLandingPolicy = loopLandingPolicyOff
+	rpiBDSyncPolicy = loopBDSyncPolicyAuto
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiCommandTimeout = time.Minute
+
+	var goals []string
+	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+		goals = append(goals, goal)
+		return nil
+	}
+
+	output, err := captureStdout(t, func() error {
+		return runRPILoop(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("runRPILoop returned error: %v", err)
+	}
+	if len(goals) != 1 || goals[0] != "Fresh sibling" {
+		t.Fatalf("expected only fresh sibling to execute after proof-backed preflight, got %v", goals)
+	}
+	if !strings.Contains(output, `Queue preflight consumed "Already proven item": matched evidence-only closure proof for ag-proof.2`) {
+		t.Fatalf("expected evidence-only preflight consume message, got:\n%s", output)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if !after[0].Items[0].Consumed {
+		t.Fatalf("expected proof-backed sibling consumed, got %+v", after[0].Items[0])
+	}
+	if after[0].Items[0].ConsumedBy == nil || *after[0].Items[0].ConsumedBy != queuePreflightConsumedBy {
+		t.Fatalf("expected stale sibling consumed_by preflight marker, got %+v", after[0].Items[0])
+	}
+	if !after[0].Items[1].Consumed {
+		t.Fatalf("expected fresh sibling to execute and be consumed, got %+v", after[0].Items[1])
+	}
+	if !after[0].Consumed {
+		t.Fatalf("expected parent batch to be consumed after both sibling items resolved, got %+v", after[0])
 	}
 }
 

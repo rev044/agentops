@@ -61,11 +61,10 @@ type queuePreflightDecision struct {
 }
 
 var (
-	queueFileTokenPattern        = regexp.MustCompile(`(?i)\b(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.(?:go|py|ts|tsx|js|jsx|json|md|ya?ml|sh|rb|rs|java|c|cc|cpp|h|hpp)\b`)
-	queueConsolidationVerb       = regexp.MustCompile(`(?i)\b(merge|merged|remove|delete|rename|fold|consolidate|dedupe|deduplicate|retire|archive|purge)\b`)
-	preflightQueueSelectionFn    = preflightQueueSelection
-	queuePreflightConsumedBy     = "ao-rpi-loop:preflight"
-	defaultQueuePreflightTimeout = 30 * time.Second
+	queueProofTargetPattern     = regexp.MustCompile(`\b[A-Za-z][A-Za-z0-9]*-[A-Za-z0-9][A-Za-z0-9-]*(?:\.[0-9]+)?\b`)
+	queueProofPacketPathPattern = regexp.MustCompile(`\.agents/(?:releases|council)/evidence-only-closures/([^/\s]+)\.json`)
+	preflightQueueSelectionFn   = preflightQueueSelection
+	queuePreflightConsumedBy    = "ao-rpi-loop:preflight"
 )
 
 func init() {
@@ -184,6 +183,7 @@ type queueSelection struct {
 	Item       nextWorkItem
 	EntryIndex int // 0-based index among parseable JSON entries in next-work.jsonl
 	ItemIndex  int // index of the selected item within the entry
+	SourceEpic string
 	ClaimedBy  string
 }
 
@@ -424,105 +424,168 @@ func resolveLoopGoal(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSupervis
 }
 
 func preflightQueueSelection(cwd string, sel *queueSelection, cfg rpiLoopSupervisorConfig) (queuePreflightDecision, error) {
+	_ = cfg
 	if sel == nil {
 		return queuePreflightDecision{}, nil
 	}
-	text := strings.TrimSpace(strings.Join([]string{sel.Item.Title, sel.Item.Description, sel.Item.Evidence}, " "))
-	if !queueConsolidationVerb.MatchString(text) {
-		return queuePreflightDecision{}, nil
+	if run := findCompletedRunForQueueSelection(cwd, sel); run != nil {
+		return queuePreflightDecision{
+			Consume: true,
+			Reason:  fmt.Sprintf("matched completed RPI run %s for source_epic %s", run.RunID, sel.SourceEpic),
+		}, nil
 	}
-	tokens := extractQueuePathTokens(text)
-	if len(tokens) == 0 {
-		return queuePreflightDecision{}, nil
+	if proof := findEvidenceOnlyClosureProofForQueueSelection(cwd, sel); proof != nil {
+		return queuePreflightDecision{
+			Consume: true,
+			Reason:  fmt.Sprintf("matched evidence-only closure proof for %s (%s)", proof.TargetID, proof.PacketPath),
+		}, nil
 	}
-	timeout := cfg.CommandTimeout
-	if timeout <= 0 {
-		timeout = defaultQueuePreflightTimeout
-	}
-	exists, err := queueTokensExistInRepo(cwd, tokens, timeout)
-	if err != nil || exists {
-		return queuePreflightDecision{}, err
-	}
-	seenInHistory, err := queueTokensSeenInHistory(cwd, tokens, timeout)
-	if err != nil || !seenInHistory {
-		return queuePreflightDecision{}, err
-	}
-	return queuePreflightDecision{
-		Consume: true,
-		Reason:  fmt.Sprintf("all referenced file tokens are absent from the repo but still present in git history (%s)", strings.Join(tokens, ", ")),
-	}, nil
+	return queuePreflightDecision{}, nil
 }
 
-func extractQueuePathTokens(text string) []string {
-	matches := queueFileTokenPattern.FindAllString(text, -1)
-	if len(matches) == 0 {
+func findCompletedRunForQueueSelection(cwd string, sel *queueSelection) *rpiRunInfo {
+	if sel == nil {
 		return nil
 	}
-	tokens := make([]string, 0, len(matches))
-	seen := make(map[string]struct{}, len(matches))
-	for _, match := range matches {
-		token := strings.TrimSpace(match)
-		if token == "" {
-			continue
-		}
-		if _, ok := seen[token]; ok {
-			continue
-		}
-		seen[token] = struct{}{}
-		tokens = append(tokens, token)
-	}
-	return tokens
-}
 
-func queueTokensExistInRepo(cwd string, tokens []string, timeout time.Duration) (bool, error) {
-	for _, token := range tokens {
-		exists, err := queueTokenExistsInRepo(cwd, token, timeout)
-		if err != nil {
-			return false, err
-		}
-		if exists {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func queueTokenExistsInRepo(cwd, token string, timeout time.Duration) (bool, error) {
-	if strings.Contains(token, "/") {
-		if _, err := os.Stat(filepath.Join(cwd, token)); err == nil {
-			return true, nil
-		} else if !os.IsNotExist(err) {
-			return false, err
-		}
-	}
-	out, err := loopCommandOutputRunner(cwd, timeout, "git", append([]string{"ls-files", "--cached", "--others", "--exclude-standard", "--"}, queueGitPathspecs(token)...)...)
-	if err != nil {
-		return false, nil
-	}
-	return strings.TrimSpace(out) != "", nil
-}
-
-func queueTokensSeenInHistory(cwd string, tokens []string, timeout time.Duration) (bool, error) {
-	args := []string{"log", "--all", "--format=%H", "-n", "1", "--"}
-	for _, token := range tokens {
-		args = append(args, queueGitPathspecs(token)...)
-	}
-	out, err := loopCommandOutputRunner(cwd, timeout, "git", args...)
-	if err != nil {
-		return false, nil
-	}
-	return strings.TrimSpace(out) != "", nil
-}
-
-func queueGitPathspecs(token string) []string {
-	token = strings.TrimSpace(token)
-	if token == "" {
+	goal := strings.TrimSpace(sel.Item.Title)
+	sourceEpic := strings.TrimSpace(sel.SourceEpic)
+	if goal == "" || sourceEpic == "" {
 		return nil
 	}
-	if strings.Contains(token, "/") {
-		return []string{token}
+
+	_, historical := discoverRPIRunsRegistryFirst(cwd)
+	var best *rpiRunInfo
+	for i := range historical {
+		run := &historical[i]
+		if run.Status != "completed" {
+			continue
+		}
+		if strings.TrimSpace(run.Goal) != goal {
+			continue
+		}
+		runEpic := strings.TrimSpace(run.EpicID)
+		runID := strings.TrimSpace(run.RunID)
+		if sourceEpic != runEpic && sourceEpic != runID {
+			continue
+		}
+		if best == nil || run.StartedAt > best.StartedAt {
+			best = run
+		}
 	}
-	return []string{token, ":(glob)**/" + token}
+	return best
+}
+
+type evidenceOnlyClosureProof struct {
+	TargetID   string
+	PacketPath string
+}
+
+type evidenceOnlyClosurePacket struct {
+	TargetID     string `json:"target_id"`
+	EvidenceMode string `json:"evidence_mode"`
+	Evidence     struct {
+		Artifacts []string `json:"artifacts"`
+	} `json:"evidence"`
+}
+
+func findEvidenceOnlyClosureProofForQueueSelection(cwd string, sel *queueSelection) *evidenceOnlyClosureProof {
+	if sel == nil {
+		return nil
+	}
+
+	for _, targetID := range queueProofTargetIDs(sel) {
+		if packetPath, ok := findValidEvidenceOnlyClosurePacket(cwd, targetID); ok {
+			return &evidenceOnlyClosureProof{
+				TargetID:   targetID,
+				PacketPath: packetPath,
+			}
+		}
+	}
+	return nil
+}
+
+func queueProofTargetIDs(sel *queueSelection) []string {
+	if sel == nil {
+		return nil
+	}
+
+	texts := []string{
+		strings.TrimSpace(sel.SourceEpic),
+		strings.TrimSpace(sel.Item.Title),
+		strings.TrimSpace(sel.Item.Description),
+		strings.TrimSpace(sel.Item.Evidence),
+	}
+
+	candidates := make([]string, 0, len(texts))
+	seen := make(map[string]struct{}, 8)
+	add := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		if _, ok := seen[value]; ok {
+			return
+		}
+		seen[value] = struct{}{}
+		candidates = append(candidates, value)
+	}
+
+	add(sel.SourceEpic)
+	for _, text := range texts[1:] {
+		for _, match := range queueProofPacketPathPattern.FindAllStringSubmatch(text, -1) {
+			if len(match) >= 2 {
+				add(match[1])
+			}
+		}
+		for _, match := range queueProofTargetPattern.FindAllString(text, -1) {
+			add(match)
+		}
+	}
+
+	return candidates
+}
+
+func findValidEvidenceOnlyClosurePacket(cwd, targetID string) (string, bool) {
+	if strings.TrimSpace(targetID) == "" {
+		return "", false
+	}
+
+	safeTargetID := strings.ReplaceAll(strings.TrimSpace(targetID), "/", "_")
+	roots := collectSearchRoots(cwd)
+	for _, root := range roots {
+		for _, relPath := range []string{
+			filepath.Join(".agents", "releases", "evidence-only-closures", safeTargetID+".json"),
+			filepath.Join(".agents", "council", "evidence-only-closures", safeTargetID+".json"),
+		} {
+			packetPath := filepath.Join(root, relPath)
+			if packetIsValidForTarget(packetPath, targetID) {
+				return packetPath, true
+			}
+		}
+	}
+	return "", false
+}
+
+func packetIsValidForTarget(packetPath, targetID string) bool {
+	data, err := os.ReadFile(packetPath)
+	if err != nil {
+		return false
+	}
+
+	var packet evidenceOnlyClosurePacket
+	if err := json.Unmarshal(data, &packet); err != nil {
+		return false
+	}
+	if strings.TrimSpace(packet.TargetID) != strings.TrimSpace(targetID) {
+		return false
+	}
+	switch packet.EvidenceMode {
+	case "commit", "staged", "worktree":
+	default:
+		return false
+	}
+	return len(packet.Evidence.Artifacts) > 0
 }
 
 // runCycleWithRetries executes a single cycle with retry logic and handles
@@ -852,6 +915,7 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 		item       nextWorkItem
 		entryIndex int
 		itemIndex  int
+		sourceEpic string
 		severity   int
 		affinity   int
 		freshness  int
@@ -871,6 +935,7 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 				item:       item,
 				entryIndex: entry.QueueIndex,
 				itemIndex:  itemIdx,
+				sourceEpic: entry.SourceEpic,
 				severity:   severityRank(item.Severity),
 				affinity:   repoAffinityRank(item, repoFilter),
 				freshness:  freshnessRank(item),
@@ -903,7 +968,12 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 	})
 
 	best := candidates[0]
-	return &queueSelection{Item: best.item, EntryIndex: best.entryIndex, ItemIndex: best.itemIndex}
+	return &queueSelection{
+		Item:       best.item,
+		EntryIndex: best.entryIndex,
+		ItemIndex:  best.itemIndex,
+		SourceEpic: best.sourceEpic,
+	}
 }
 
 func freshnessRank(item nextWorkItem) int {
