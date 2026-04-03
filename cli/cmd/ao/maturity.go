@@ -19,11 +19,14 @@ import (
 var (
 	maturityApply       bool
 	maturityScan        bool
+	maturityCurate      bool
 	maturityExpire      bool
 	maturityArchive     bool
 	maturityEvict       bool
+	maturityGlobal      bool
 	maturityMigrateMd   bool
 	maturityRecalibrate bool
+	maturityUncitedDays int
 )
 
 var maturityCmd = &cobra.Command{
@@ -58,11 +61,14 @@ func init() {
 	rootCmd.AddCommand(maturityCmd)
 	maturityCmd.Flags().BoolVar(&maturityApply, "apply", false, "Apply maturity transitions")
 	maturityCmd.Flags().BoolVar(&maturityScan, "scan", false, "Scan all learnings for pending transitions")
+	maturityCmd.Flags().BoolVar(&maturityCurate, "curate", false, "Normalize metadata and identify low-signal or uncited stale learnings")
 	maturityCmd.Flags().BoolVar(&maturityExpire, "expire", false, "Scan for expired learnings")
-	maturityCmd.Flags().BoolVar(&maturityArchive, "archive", false, "Move expired/evicted files to archive (requires --expire or --evict)")
+	maturityCmd.Flags().BoolVar(&maturityArchive, "archive", false, "Move expired/evicted/curated files to archive (requires --expire, --evict, or --curate)")
 	maturityCmd.Flags().BoolVar(&maturityEvict, "evict", false, "Identify eviction candidates (composite criteria)")
+	maturityCmd.Flags().BoolVar(&maturityGlobal, "global", false, "Operate on ~/.agents/learnings instead of the local workspace learnings")
 	maturityCmd.Flags().BoolVar(&maturityMigrateMd, "migrate-md", false, "Add default frontmatter to .md learnings missing utility field")
 	maturityCmd.Flags().BoolVar(&maturityRecalibrate, "recalibrate", false, "Reset utility to 0.5 for all learnings")
+	maturityCmd.Flags().IntVar(&maturityUncitedDays, "uncited-days", 60, "Archive provisional/candidate learnings with zero citations older than this many days when used with --curate")
 }
 
 func runMaturitySingle(cwd string, learningID string) error {
@@ -120,6 +126,8 @@ func runMaturity(cmd *cobra.Command, args []string) error {
 		return runMaturityMigrateMd(learningsDir)
 	case maturityRecalibrate:
 		return runMaturityRecalibrate(learningsDir)
+	case maturityCurate:
+		return runMaturityCurate(cmd)
 	case maturityEvict:
 		return runMaturityEvict(cmd)
 	case maturityExpire:
@@ -150,78 +158,135 @@ func runMaturityMigrateMd(learningsDir string) error {
 
 	migrated := 0
 	for _, file := range mdFiles {
-		fields, err := parseFrontmatterFields(file, "utility")
-		if err != nil {
-			VerbosePrintf("Warning: could not read %s: %v\n", filepath.Base(file), err)
+		changed, normalizeErr := normalizeLearningMetadata(file, false)
+		if normalizeErr != nil {
+			VerbosePrintf("Warning: could not normalize %s: %v\n", filepath.Base(file), normalizeErr)
 			continue
 		}
-
-		if fields["utility"] != "" {
-			continue
+		if changed {
+			migrated++
 		}
-
-		// Check if file has frontmatter at all
-		content, err := os.ReadFile(file)
-		if err != nil {
-			VerbosePrintf("Warning: could not read %s: %v\n", filepath.Base(file), err)
-			continue
-		}
-
-		text := string(content)
-		hasFrontMatter := strings.HasPrefix(strings.TrimSpace(text), "---")
-
-		if hasFrontMatter {
-			// Has frontmatter but no utility — inject fields via updateFrontMatterFields
-			lines := strings.Split(text, "\n")
-			endIdx := -1
-			for i := 1; i < len(lines); i++ {
-				if strings.TrimSpace(lines[i]) == "---" {
-					endIdx = i
-					break
-				}
-			}
-			if endIdx == -1 {
-				VerbosePrintf("Warning: malformed frontmatter in %s\n", filepath.Base(file))
-				continue
-			}
-
-			fmLines := lines[1:endIdx]
-			fields := map[string]string{
-				"utility":       fmt.Sprintf("%.4f", types.InitialUtility),
-				"maturity":      "provisional",
-				"confidence":    "0.0000",
-				"reward_count":  "0",
-				"helpful_count": "0",
-				"harmful_count": "0",
-			}
-			updatedFM := updateFrontMatterFields(fmLines, fields)
-			rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
-			if err := os.WriteFile(file, []byte(rebuilt), 0600); err != nil {
-				VerbosePrintf("Warning: could not write %s: %v\n", filepath.Base(file), err)
-				continue
-			}
-		} else {
-			// No frontmatter at all — prepend it
-			var sb strings.Builder
-			sb.WriteString("---\n")
-			sb.WriteString(fmt.Sprintf("utility: %.4f\n", types.InitialUtility))
-			sb.WriteString("maturity: provisional\n")
-			sb.WriteString("confidence: 0.0000\n")
-			sb.WriteString("reward_count: 0\n")
-			sb.WriteString("helpful_count: 0\n")
-			sb.WriteString("harmful_count: 0\n")
-			sb.WriteString("---\n")
-			sb.WriteString(text)
-			if err := os.WriteFile(file, []byte(sb.String()), 0600); err != nil {
-				VerbosePrintf("Warning: could not write %s: %v\n", filepath.Base(file), err)
-				continue
-			}
-		}
-		migrated++
 	}
 
 	fmt.Printf("Migrated %d of %d .md learnings\n", migrated, len(mdFiles))
 	return nil
+}
+
+func defaultLearningMetadataFields() map[string]string {
+	return map[string]string{
+		"utility":       fmt.Sprintf("%.4f", types.InitialUtility),
+		"maturity":      "provisional",
+		"confidence":    "0.0000",
+		"reward_count":  "0",
+		"helpful_count": "0",
+		"harmful_count": "0",
+	}
+}
+
+func normalizeLearningMetadata(file string, dryRun bool) (bool, error) {
+	if strings.HasSuffix(file, ".jsonl") {
+		return normalizeLearningJSONLMetadata(file, dryRun)
+	}
+	return normalizeLearningMarkdownMetadata(file, dryRun)
+}
+
+func normalizeLearningMarkdownMetadata(file string, dryRun bool) (bool, error) {
+	fields, err := parseFrontmatterFields(file, "utility", "maturity", "confidence", "reward_count", "helpful_count", "harmful_count")
+	if err != nil {
+		return false, err
+	}
+
+	defaults := defaultLearningMetadataFields()
+	missing := make(map[string]string)
+	for key, value := range defaults {
+		if fields[key] == "" {
+			missing[key] = value
+		}
+	}
+	if len(missing) == 0 {
+		return false, nil
+	}
+	if dryRun {
+		return true, nil
+	}
+
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return false, err
+	}
+	text := string(content)
+	hasFrontMatter := strings.HasPrefix(strings.TrimSpace(text), "---")
+
+	if hasFrontMatter {
+		lines := strings.Split(text, "\n")
+		endIdx := -1
+		for i := 1; i < len(lines); i++ {
+			if strings.TrimSpace(lines[i]) == "---" {
+				endIdx = i
+				break
+			}
+		}
+		if endIdx == -1 {
+			return false, fmt.Errorf("malformed frontmatter")
+		}
+		fmLines := lines[1:endIdx]
+		updatedFM := updateFrontMatterFields(fmLines, missing)
+		rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
+		return true, atomicWriteFile(file, []byte(rebuilt), 0o600)
+	}
+
+	var sb strings.Builder
+	sb.WriteString("---\n")
+	for _, key := range []string{"utility", "maturity", "confidence", "reward_count", "helpful_count", "harmful_count"} {
+		sb.WriteString(fmt.Sprintf("%s: %s\n", key, defaults[key]))
+	}
+	sb.WriteString("---\n")
+	sb.WriteString(text)
+	return true, atomicWriteFile(file, []byte(sb.String()), 0o600)
+}
+
+func normalizeLearningJSONLMetadata(file string, dryRun bool) (bool, error) {
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return false, err
+	}
+	lines := strings.Split(string(content), "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
+		return false, nil
+	}
+
+	var data map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
+		return false, err
+	}
+
+	changed := false
+	for key, value := range map[string]any{
+		"utility":       types.InitialUtility,
+		"maturity":      "provisional",
+		"confidence":    0.0,
+		"reward_count":  0,
+		"helpful_count": 0,
+		"harmful_count": 0,
+	} {
+		if existing, ok := data[key]; !ok || existing == nil || existing == "" {
+			data[key] = value
+			changed = true
+		}
+	}
+	if !changed {
+		return false, nil
+	}
+	if dryRun {
+		return true, nil
+	}
+
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		return false, err
+	}
+	lines[0] = string(encoded)
+	return true, atomicWriteFile(file, []byte(strings.Join(lines, "\n")), 0o600)
 }
 
 // runMaturityRecalibrate resets utility to InitialUtility (0.5) for all learnings.
@@ -583,6 +648,30 @@ type evictionCandidate struct {
 	LastCited  string  `json:"last_cited,omitempty"`
 }
 
+type curationCandidate struct {
+	Path          string   `json:"path"`
+	Name          string   `json:"name"`
+	Utility       float64  `json:"utility"`
+	Confidence    float64  `json:"confidence"`
+	Maturity      string   `json:"maturity"`
+	LastCited     string   `json:"last_cited,omitempty"`
+	BodyChars     int      `json:"body_chars"`
+	Reasons       []string `json:"reasons"`
+	Normalized    bool     `json:"normalized,omitempty"`
+	WorkspaceRoot string   `json:"workspace_root,omitempty"`
+}
+
+func resolveMaturityRoot(cwd string) (string, string, error) {
+	if !maturityGlobal {
+		return cwd, filepath.Join(cwd, ".agents", "learnings"), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", "", fmt.Errorf("resolve home directory: %w", err)
+	}
+	return home, filepath.Join(home, ".agents", "learnings"), nil
+}
+
 // buildCitationMap returns a map of canonical artifact path to latest cited_at.
 func buildCitationMap(baseDir string) map[string]time.Time {
 	result := make(map[string]time.Time)
@@ -603,6 +692,240 @@ func buildCitationMap(baseDir string) map[string]time.Time {
 	}
 
 	return result
+}
+
+func runMaturityCurate(cmd *cobra.Command) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	baseDir, learningsDir, err := resolveMaturityRoot(cwd)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
+		fmt.Println("No learnings directory found.")
+		return nil
+	}
+
+	files, err := ratchet.GlobLearningFiles(learningsDir)
+	if err != nil {
+		return fmt.Errorf("glob learnings: %w", err)
+	}
+	lastCited := buildCitationMap(baseDir)
+	cutoff := time.Now().AddDate(0, 0, -maturityUncitedDays)
+
+	candidates := make([]curationCandidate, 0, len(files))
+	normalized := 0
+	for _, file := range files {
+		candidate, ok, changed, curateErr := buildCurationCandidate(baseDir, file, lastCited, cutoff)
+		if curateErr != nil {
+			VerbosePrintf("Warning: curate %s: %v\n", filepath.Base(file), curateErr)
+			continue
+		}
+		if changed {
+			normalized++
+		}
+		if ok {
+			candidates = append(candidates, candidate)
+		}
+	}
+
+	shouldArchive, err := reportCurationCandidates(files, normalized, candidates)
+	if err != nil {
+		return err
+	}
+	if !shouldArchive || !maturityArchive {
+		return nil
+	}
+
+	return archiveCurationCandidates(baseDir, candidates)
+}
+
+func buildCurationCandidate(baseDir, file string, lastCited map[string]time.Time, cutoff time.Time) (curationCandidate, bool, bool, error) {
+	info, statErr := os.Stat(file)
+	if statErr != nil {
+		return curationCandidate{}, false, false, statErr
+	}
+	originalModTime := info.ModTime()
+
+	normalized, err := normalizeLearningMetadata(file, GetDryRun())
+	if err != nil {
+		return curationCandidate{}, false, false, err
+	}
+
+	l, err := parseLearningFile(file)
+	if err != nil {
+		return curationCandidate{}, false, normalized, err
+	}
+	if l.Superseded {
+		return curationCandidate{}, false, normalized, nil
+	}
+
+	maturity := strings.TrimSpace(l.Maturity)
+	if maturity == "" {
+		maturity = "provisional"
+	}
+	body := strings.TrimSpace(stripLearningHeading(l.BodyText))
+	reasons := make([]string, 0, 2)
+	if isLowSignalLearningBody(body) {
+		reasons = append(reasons, "low-signal-body")
+	}
+
+	lastCitedStr := ""
+	if shouldArchiveUncitedLearning(baseDir, file, maturity, originalModTime, lastCited, cutoff) {
+		reasons = append(reasons, fmt.Sprintf("uncited-%dd", maturityUncitedDays))
+		if citedAt, ok := lastCited[canonicalArtifactPath(baseDir, file)]; ok {
+			lastCitedStr = citedAt.Format("2006-01-02")
+		} else {
+			lastCitedStr = "never"
+		}
+	}
+	if len(reasons) == 0 {
+		return curationCandidate{}, false, normalized, nil
+	}
+
+	data, ok := readLearningData(file)
+	if !ok {
+		data = map[string]any{}
+	}
+	if lastCitedStr == "" {
+		if citedAt, ok := lastCited[canonicalArtifactPath(baseDir, file)]; ok {
+			lastCitedStr = citedAt.Format("2006-01-02")
+		} else {
+			lastCitedStr = "never"
+		}
+	}
+
+	return curationCandidate{
+		Path:          file,
+		Name:          filepath.Base(file),
+		Utility:       floatValueFromData(data, "utility", types.InitialUtility),
+		Confidence:    floatValueFromData(data, "confidence", 0.0),
+		Maturity:      maturity,
+		LastCited:     lastCitedStr,
+		BodyChars:     len(body),
+		Reasons:       reasons,
+		Normalized:    normalized,
+		WorkspaceRoot: baseDir,
+	}, true, normalized, nil
+}
+
+func shouldArchiveUncitedLearning(baseDir, file, maturity string, modTime time.Time, lastCited map[string]time.Time, cutoff time.Time) bool {
+	switch maturity {
+	case "established", "anti-pattern":
+		return false
+	}
+	if modTime.After(cutoff) {
+		return false
+	}
+	_, cited := lastCited[canonicalArtifactPath(baseDir, file)]
+	return !cited
+}
+
+func isLowSignalLearningBody(body string) bool {
+	trimmed := strings.TrimSpace(body)
+	if trimmed == "" {
+		return true
+	}
+	if len(trimmed) < 50 {
+		return true
+	}
+	if len(strings.Fields(trimmed)) < 12 {
+		return true
+	}
+	lower := strings.ToLower(trimmed)
+	for _, prefix := range []string{
+		"till ", "still ", "will ", "let me ",
+		"and ", "but ", "or ", "however ", "therefore ",
+		"additionally ", "furthermore ",
+		"- ", "* ",
+	} {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	sentenceEnders := 0
+	runes := []rune(trimmed)
+	for i, ch := range runes {
+		if ch == '.' || ch == '!' || ch == '?' {
+			if i == len(runes)-1 || runes[i+1] == ' ' || runes[i+1] == '\n' {
+				sentenceEnders++
+			}
+		}
+	}
+	return sentenceEnders == 0
+}
+
+func stripLearningHeading(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) >= 3 && strings.HasPrefix(strings.TrimSpace(lines[0]), "# ") && strings.TrimSpace(lines[1]) == "" {
+		return strings.TrimSpace(strings.Join(lines[2:], "\n"))
+	}
+	return strings.TrimSpace(content)
+}
+
+func reportCurationCandidates(files []string, normalized int, candidates []curationCandidate) (bool, error) {
+	fmt.Printf("=== Corpus Curation ===\n")
+	fmt.Printf("  Learnings scanned:  %d\n", len(files))
+	fmt.Printf("  Metadata normalized: %d\n", normalized)
+	fmt.Printf("  Archive candidates: %d\n", len(candidates))
+	fmt.Println()
+
+	if len(candidates) == 0 {
+		fmt.Println("No curation candidates found.")
+		return false, nil
+	}
+
+	if GetOutput() == "json" {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return false, enc.Encode(candidates)
+	}
+
+	fmt.Printf("Candidates (low-signal body or uncited for %d days):\n", maturityUncitedDays)
+	for _, c := range candidates {
+		fmt.Printf("  %s  reasons=%s  body=%d  utility=%.3f  confidence=%.3f  maturity=%s  last_cited=%s\n",
+			c.Name,
+			strings.Join(c.Reasons, ","),
+			c.BodyChars,
+			c.Utility,
+			c.Confidence,
+			c.Maturity,
+			c.LastCited,
+		)
+	}
+
+	return true, nil
+}
+
+func archiveCurationCandidates(baseDir string, candidates []curationCandidate) error {
+	archiveDir := filepath.Join(baseDir, ".agents", "archive", "learnings")
+	if GetDryRun() {
+		fmt.Println()
+		for _, c := range candidates {
+			fmt.Printf("[dry-run] Would archive: %s -> .agents/archive/learnings/%s\n", c.Name, c.Name)
+		}
+		return nil
+	}
+	if err := os.MkdirAll(archiveDir, 0o750); err != nil {
+		return fmt.Errorf("create archive directory: %w", err)
+	}
+
+	fmt.Println()
+	archived := 0
+	for _, c := range candidates {
+		dst := filepath.Join(archiveDir, c.Name)
+		if err := os.Rename(c.Path, dst); err != nil {
+			fmt.Fprintf(os.Stderr, "Error moving %s: %v\n", c.Name, err)
+			continue
+		}
+		fmt.Printf("Archived: %s -> .agents/archive/learnings/%s\n", c.Name, c.Name)
+		archived++
+	}
+	fmt.Printf("\nArchived %d learning(s).\n", archived)
+	return nil
 }
 
 func runMaturityEvict(cmd *cobra.Command) error {
@@ -879,4 +1202,3 @@ func runAntiPatterns(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
-

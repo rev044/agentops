@@ -66,6 +66,7 @@ run_maintenance() {
     if [ "${AGENTOPS_EVICTION_DISABLED:-0}" != "1" ]; then
         run_ao_quick 4 maturity --expire --archive || true
         run_ao_quick 4 maturity --evict --archive || true
+        run_ao_quick 4 maturity --curate --archive || true
     fi
 
     # Always refresh compiled prevention outputs from the current finding ledger

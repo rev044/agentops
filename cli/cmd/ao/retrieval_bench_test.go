@@ -143,15 +143,15 @@ func TestRetrievalBench_MRR(t *testing.T) {
 	dir := seedCorpus(t)
 
 	tests := []struct {
-		query    string
-		bestID   string  // the single best expected result
-		minMRR   float64 // minimum acceptable MRR (1/rank)
+		query  string
+		bestID string  // the single best expected result
+		minMRR float64 // minimum acceptable MRR (1/rank)
 	}{
-		{"CI pipeline", "ci-1.md", 0.5},            // ci-1 is established + highest utility
-		{"session intelligence", "si-1.md", 0.5},    // si-1 is candidate + highest utility
-		{"hook authoring", "hook-1.md", 0.5},        // hook-1 is established + highest utility
-		{"database", "db-1.md", 0.5},                // db-1 has highest utility in the db set
-		{"swarm", "swarm-1.md", 0.5},                // swarm-1 is candidate + higher utility
+		{"CI pipeline", "ci-1.md", 0.5},          // ci-1 is established + highest utility
+		{"session intelligence", "si-1.md", 0.5}, // si-1 is candidate + highest utility
+		{"hook authoring", "hook-1.md", 0.5},     // hook-1 is established + highest utility
+		{"database", "db-1.md", 0.5},             // db-1 has highest utility in the db set
+		{"swarm", "swarm-1.md", 0.5},             // swarm-1 is candidate + higher utility
 	}
 
 	for _, tt := range tests {
@@ -313,6 +313,29 @@ A cross-rig learning about deployment practices and release management.
 	if results[0].Global {
 		t.Errorf("expected local learning to rank first, but got global (local score=%.3f, global score=%.3f)",
 			results[1].CompositeScore, results[0].CompositeScore)
+	}
+}
+
+func TestBuildLiveReport_FixtureCoverage(t *testing.T) {
+	fixtureDir := filepath.Join("testdata", "retrieval-bench-live")
+	report, err := buildLiveReport(t.TempDir(), fixtureDir, "live-corpus", 3)
+	if err != nil {
+		t.Fatalf("buildLiveReport: %v", err)
+	}
+
+	if report.TotalLearnings < len(liveQueries) {
+		t.Fatalf("total learnings = %d, want at least %d", report.TotalLearnings, len(liveQueries))
+	}
+	if report.QueriesWithHits != len(liveQueries) {
+		t.Fatalf("queries with hits = %d, want %d", report.QueriesWithHits, len(liveQueries))
+	}
+	if report.Coverage < 1.0 {
+		t.Fatalf("coverage = %.2f, want 1.0", report.Coverage)
+	}
+	for _, result := range report.Results {
+		if result.Count == 0 {
+			t.Errorf("query %q returned zero hits", result.Query)
+		}
 	}
 }
 
