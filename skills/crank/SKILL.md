@@ -140,6 +140,25 @@ fi
 | **Track retries** | `bd comments add` | Task description update |
 | **Epic tracking** | `bd update <epic-id> --append-notes` | In-memory wave counter |
 
+### Step 0.6: Detect gc Pool Backend
+
+```bash
+if command -v gc &>/dev/null && gc status --json 2>/dev/null | jq -e '.controller.state == "running"' >/dev/null 2>&1; then
+    GC_POOL_AVAILABLE=true
+    echo "gc pool detected — will use gc pool auto-scaling for worker dispatch"
+else
+    GC_POOL_AVAILABLE=false
+fi
+```
+
+When `GC_POOL_AVAILABLE=true`:
+- Instead of managing waves manually with Claude teams, let gc pool handle worker lifecycle
+- Pool auto-scales based on `scale_check = "bd ready --count"` from `packs/agentops/pack.toml`
+- Crank simplifies to: create issues → gc scales workers → workers close issues → crank validates
+- Use `gc session nudge <worker> "<task>"` to assign specific tasks to pool workers
+- Monitor progress via `gc status` (shows pool agent states)
+- Workers pick up work from `bd ready` — the bd integration doesn't change
+
 ### Step 1: Identify the Epic / Work Source
 
 **Beads mode:**
@@ -512,6 +531,42 @@ When creating TaskCreate for each wave issue, include cross-cutting constraints 
   }
 }
 ```
+
+**gc pool dispatch (when `GC_POOL_AVAILABLE=true`):**
+
+When `GC_POOL_AVAILABLE=true`, replace `/swarm` invocation with gc pool dispatch:
+- Workers are pre-started by gc pool (no spawn overhead)
+- Assign work via `gc session nudge <worker> "<issue prompt>"`
+- Poll completion via `gc status --json` + `bd show <id>` (check issue closed)
+- gc handles crash recovery and session restart automatically
+
+```bash
+if [[ "$GC_POOL_AVAILABLE" == "true" ]]; then
+    for issue in $READY_ISSUES; do
+        ISSUE_DETAIL=$(bd show "$issue" 2>/dev/null)
+        WORKER=$(gc status --json 2>/dev/null | jq -r '.pool.agents[] | select(.state == "idle") | .name' | head -1)
+        if [[ -n "$WORKER" ]]; then
+            gc session nudge "$WORKER" "Implement issue $issue: $ISSUE_DETAIL"
+        else
+            echo "No idle gc pool workers — waiting for pool auto-scale"
+            gc pool wait --min-idle 1 --timeout 300
+            WORKER=$(gc status --json 2>/dev/null | jq -r '.pool.agents[] | select(.state == "idle") | .name' | head -1)
+            gc session nudge "$WORKER" "Implement issue $issue: $ISSUE_DETAIL"
+        fi
+    done
+    # Poll until all wave issues are closed
+    while true; do
+        OPEN=$(bd ready 2>/dev/null | wc -l)
+        [[ "$OPEN" -eq 0 ]] && break
+        sleep 30
+    done
+else
+    # Standard /swarm invocation (existing behavior)
+    # Invoke /swarm with TaskCreate for each issue in the wave
+fi
+```
+
+When `GC_POOL_AVAILABLE=false`, the existing `/swarm` path is used unchanged.
 
 **For wave execution details (beads sync, TaskList bridging, swarm invocation), read `skills/crank/references/team-coordination.md`.**
 

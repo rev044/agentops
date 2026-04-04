@@ -212,6 +212,25 @@ or first-prompt hooks to inject briefings into the conversation.
 - **Before spawning workers:** Verify no file overlap across the wave (see swarm SKILL.md pre-flight). File collisions are the #1 swarm failure mode.
 - **Before proposing new capability:** Check `ao rpi serve --help`, `hooks/hooks.json`, and `GOALS.md` first.
 
+### Gas City Integration (gc bridge)
+
+The `ao` CLI has a Gas City (`gc`) bridge that enables RPI phases to run as gc sessions. Key files:
+
+| File | Purpose |
+|------|---------|
+| `cli/cmd/ao/gc_bridge.go` | Bridge primitives: availability, version, status/session parsing, city.toml discovery |
+| `cli/cmd/ao/gc_events.go` | Event emitters (`ao:phase`, `ao:gate`, `ao:failure`, `ao:metric`) to gc event bus |
+| `cli/cmd/ao/rpi_phased_gc.go` | `gcExecutor` — PhaseExecutor backend that runs phases as gc sessions |
+
+**How it works:**
+- `gcBridgeCityPath(cwd)` walks up from cwd looking for `city.toml` to locate the city root.
+- `gcBridgeReady(cityPath)` checks binary availability, version >= 0.13.0, and controller state.
+- `selectExecutorFromCaps` with `RuntimeMode: "gc"` creates a `gcExecutor` using city path from opts.
+- Phase events are emitted to the gc event bus for observability (`gcEmitPhaseEvent`, `gcEmitGateEvent`).
+- When gc is not available, event emission silently no-ops (graceful degradation).
+
+**Testing:** Run `go test ./cmd/ao/ -run "TestGC"` for all gc bridge tests (L1 unit + L2 integration).
+
 ### Execution Discipline
 
 - **Produce artifacts, not just plans.** When asked to research, plan, or investigate, always produce actionable output (code changes, tests, or concrete files) within the session. Do not spend an entire session only planning unless explicitly told to "just plan."

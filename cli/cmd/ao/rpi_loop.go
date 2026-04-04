@@ -1201,6 +1201,12 @@ func markItemConsumedOwned(path string, entryIndex int, itemIndex int, consumedB
 // markEntryFailed records a FailedAt timestamp on the entry at entryIndex without
 // setting Consumed. This leaves the entry recoverable: set consumed=false to retry.
 func markEntryFailed(path string, entryIndex int) error {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil // best-effort: missing file is a no-op
+		}
+		return fmt.Errorf("stat next-work.jsonl: %w", err)
+	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	targetFound := false
 	err := rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {

@@ -208,7 +208,8 @@ func probeBackendCapabilities(liveStatus bool, runtimeMode string) backendCapabi
 // Selection order (first match wins):
 //  1. runtime=stream — always stream
 //  2. runtime=direct — always direct
-//  3. runtime=auto   — stream when live-status enabled, otherwise direct
+//  3. runtime=gc     — Gas City session management
+//  4. runtime=auto   — stream when live-status enabled, otherwise direct
 func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhases []PhaseProgress, opts phasedEngineOptions) (PhaseExecutor, string) {
 	stdWriter := opts.StdoutWriter
 	if stdWriter == nil {
@@ -241,6 +242,12 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 			pollInterval:   5 * time.Second,
 			workerCount:    opts.TmuxWorkers,
 		}, "runtime=tmux"
+	case "gc":
+		return &gcExecutor{
+			cityPath:     gcCityPathFromOpts(opts),
+			phaseTimeout: opts.PhaseTimeout,
+			pollInterval: 10 * time.Second,
+		}, "runtime=gc"
 	default: // auto
 		// Always use stream for live JSONL output visibility.
 		// streamExecutor falls back to direct if the runtime does not

@@ -39,6 +39,7 @@ type phasedEngineOptions struct {
 	BDCommand            string
 	TmuxCommand          string
 	TmuxWorkers          int
+	GCCityPath           string // explicit city.toml directory for gc backend; empty = auto-discover
 	NoBudget             bool
 	BudgetSpec           string
 	WorkingDir           string `json:"-"` // runtime-only; base directory for repo/worktree resolution
@@ -275,10 +276,10 @@ func effectiveTmuxCommand(command string) string {
 
 func validateRuntimeMode(mode string) error {
 	switch normalizeRuntimeMode(mode) {
-	case "auto", "direct", "stream", "tmux":
+	case "auto", "direct", "stream", "tmux", "gc":
 		return nil
 	default:
-		return fmt.Errorf("invalid runtime %q (valid: auto|direct|stream|tmux)", mode)
+		return fmt.Errorf("invalid runtime %q (valid: auto|direct|stream|tmux|gc)", mode)
 	}
 }
 

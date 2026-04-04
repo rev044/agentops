@@ -35,7 +35,7 @@ Mayor (this session)
     |
     +-> Identify wave: tasks with no blockers
     |
-    +-> Select spawn backend (runtime-native first: Claude teams in Claude runtime, Codex sub-agents in Codex runtime; fallback tasks if unavailable)
+    +-> Select spawn backend (gc if available; runtime-native: Claude teams in Claude runtime, Codex sub-agents in Codex runtime; fallback tasks if unavailable)
     |
     +-> Assign: TaskUpdate(taskId, owner="worker-<id>", status="in_progress")
     |
@@ -72,6 +72,25 @@ See `skills/shared/SKILL.md` for the capability contract.
 - Inline (no spawn) → `references/backend-inline.md`
 
 See also `references/local-mode.md` for swarm-specific execution details (worktrees, validation, git commit policy, wave repeat).
+
+### Step 0.5: gc Backend Detection (Before Worker Dispatch)
+
+Before spawning workers via Claude teams or Codex sub-agents, check if gc is available:
+
+```bash
+if command -v gc &>/dev/null && gc status --json 2>/dev/null | jq -e '.controller.state == "running"' >/dev/null 2>&1; then
+    SWARM_BACKEND="gc"
+else
+    SWARM_BACKEND="native"  # fallback to Claude teams / Codex sub-agents
+fi
+```
+
+When `SWARM_BACKEND="gc"`:
+- Use `gc session nudge <worker-alias> "<task prompt>"` instead of `spawn_agent()`
+- Monitor workers via `gc session peek <worker-alias> --lines 50`
+- Workers already use `bd` for issue tracking — no change needed
+- Results still written to `.agents/swarm/results/` — no change needed
+- gc pool auto-scaling handles worker lifecycle (based on `scale_check = "bd ready --count"`)
 
 ### Step 1: Ensure Tasks Exist
 
@@ -236,6 +255,34 @@ done
 
 > **Platform pitfalls:** Include relevant pitfalls from `references/worker-pitfalls.md` in worker prompts for the target language/platform. For example, inject the Bash section for shell script tasks, the Go section for Go tasks, etc. This prevents common worker failures from known platform gotchas.
 
+#### gc Worker Dispatch (when `SWARM_BACKEND="gc"`)
+
+When gc is the selected backend, dispatch and monitor workers through gc sessions instead of Claude teams or Codex sub-agents:
+
+```bash
+# Dispatch a task to a gc-managed worker
+gc session nudge <worker-alias> "Implement task #<id>: <subject>. Files: <manifest>. Write results to .agents/swarm/results/<id>.json"
+
+# Monitor worker progress
+gc session peek <worker-alias> --lines 50
+
+# Check all worker statuses
+gc status --json | jq '.sessions[] | {alias, state, last_activity}'
+```
+
+**gc dispatch follows the same orchestration contract as native backends:**
+- Pre-assigned tasks (mayor assigns before nudge)
+- File manifest enforcement (included in nudge prompt)
+- Results written to `.agents/swarm/results/<id>.json`
+- Lead-only commit policy (workers do not commit)
+- Scope-escape protocol (workers append to `.agents/swarm/scope-escapes.jsonl`)
+
+**gc-specific behaviors:**
+- Worker lifecycle managed by gc pool auto-scaling — no explicit cleanup needed
+- Use `gc session peek` for progress checks instead of `SendMessage` / `send_input`
+- If a worker is idle or unresponsive, `gc session nudge` can re-prompt it
+- gc sessions persist across waves — the same worker alias can be reused without respawning
+
 ## Example Flow
 
 ```
@@ -272,7 +319,7 @@ The lead reviews scope escapes after each wave and creates follow-up tasks as ne
 
 ## Key Points
 
-- **Runtime-native local mode** - Auto-selects the native backend for the current runtime (Claude teams or Codex sub-agents)
+- **Runtime-native local mode** - Auto-selects the native backend for the current runtime (gc pool, Claude teams, or Codex sub-agents)
 - **Universal orchestration contract** - Same swarm behavior across Claude and Codex sessions
 - **Pre-assigned tasks** - Mayor assigns tasks before spawning; workers never race-claim
 - **Fresh worker contexts** - New sub-agents/teammates per wave preserve Ralph isolation
@@ -515,6 +562,7 @@ In Claude runtime, first verify teammate profiles with `claude agents` and use a
 |---------|-------------------|--------------|
 | **Claude teams** (`Task` with `team_name`) | `isolation: worktree` in agent definition | Runtime creates an isolated git worktree per teammate; changes are invisible to other agents and the main tree until merged |
 | **Background tasks** (`Task` with `run_in_background`) | `isolation: worktree` in agent definition | Same worktree isolation as teams; each background agent gets its own worktree |
+| **gc pool** (`gc session nudge`) | gc-managed sessions | Each gc worker runs in its own session; isolation is managed by gc pool lifecycle and bd issue ownership |
 | **Inline** (no spawn) | None | Operates directly on the main working tree; no isolation possible |
 
 **Sparse checkout for large repos:** Set `worktree.sparsePaths` in project settings to limit worktree checkouts to relevant directories. This reduces clone time and disk usage for monorepos where workers only need a subset of the tree.
@@ -709,6 +757,10 @@ Solution: Break tasks into smaller units. Add timeout metadata to worker tasks.
 ### OL wave integration fails with "ol CLI required"
 Cause: `--from-wave` used but `ol` CLI not on PATH.
 Solution: Install Olympus CLI or run swarm without `--from-wave` flag.
+
+### gc backend detected but workers unresponsive
+Cause: gc controller is running but worker sessions are idle or not accepting nudges.
+Solution: Run `gc status --json` to check session states. Use `gc session peek <alias> --lines 50` to inspect last activity. If a session is stuck, restart it via gc pool commands. Verify `scale_check = "bd ready --count"` returns pending work.
 
 ### Tasks assigned but workers never spawn
 Cause: Backend selection failed or spawning API unavailable.
