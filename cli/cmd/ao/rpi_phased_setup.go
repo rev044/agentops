@@ -85,12 +85,13 @@ func mergeExistingStateFields(state *phasedState, existing *phasedState, opts ph
 	if goal == "" {
 		state.EpicID = existing.EpicID
 		state.Goal = existing.Goal
-	} else if strings.HasPrefix(goal, "ag-") {
+	} else if strings.HasPrefix(goal, "ag-") && len(goal) > 3 {
 		// Explicit bead ID as goal overrides carried epic_id.
+		// len > 3 guards against bare "ag-" prefix with no actual ID suffix.
 		state.EpicID = goal
 	} else {
-		// Explicit free-text goal: clear stale epic_id so downstream
-		// discovery or crank can resolve the correct one.
+		// Explicit free-text goal (or bare "ag-" without ID): clear stale
+		// epic_id so downstream discovery or crank can resolve the correct one.
 		state.EpicID = ""
 	}
 	if existing.TrackerMode != "" {

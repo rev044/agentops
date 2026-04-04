@@ -208,6 +208,22 @@ func TestMergeExistingStateFields_FreeTextGoalClearsEpic(t *testing.T) {
 	}
 }
 
+func TestMergeExistingStateFields_BareAgPrefixClearsEpic(t *testing.T) {
+	// Bare "ag-" without an ID suffix should NOT be treated as a bead ID.
+	state := newPhasedState(phasedEngineOptions{}, 2, "ag-")
+	existing := &phasedState{
+		EpicID:   "ag-stale",
+		Verdicts: map[string]string{},
+		Attempts: map[string]int{},
+	}
+
+	mergeExistingStateFields(state, existing, phasedEngineOptions{}, "ag-")
+
+	if state.EpicID != "" {
+		t.Errorf("EpicID = %q, want empty (bare ag- prefix is not a valid bead ID)", state.EpicID)
+	}
+}
+
 func TestMergeExistingStateFields_InheritsGoalWhenEmpty(t *testing.T) {
 	state := newPhasedState(phasedEngineOptions{}, 2, "")
 	existing := &phasedState{
