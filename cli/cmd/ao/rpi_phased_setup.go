@@ -79,7 +79,20 @@ func newPhasedState(opts phasedEngineOptions, startPhase int, goal string) *phas
 // mergeExistingStateFields copies relevant fields from a previous run's state
 // into the current state for phase resumption.
 func mergeExistingStateFields(state *phasedState, existing *phasedState, opts phasedEngineOptions, goal string) {
-	state.EpicID = existing.EpicID
+	// Only carry forward epic_id when the user did NOT provide an explicit goal.
+	// An explicit goal (especially a bead ID like "ag-xyz") signals new intent
+	// and must not be overridden by stale state from a previous run.
+	if goal == "" {
+		state.EpicID = existing.EpicID
+		state.Goal = existing.Goal
+	} else if strings.HasPrefix(goal, "ag-") {
+		// Explicit bead ID as goal overrides carried epic_id.
+		state.EpicID = goal
+	} else {
+		// Explicit free-text goal: clear stale epic_id so downstream
+		// discovery or crank can resolve the correct one.
+		state.EpicID = ""
+	}
 	if existing.TrackerMode != "" {
 		state.TrackerMode = existing.TrackerMode
 	}
@@ -93,9 +106,6 @@ func mergeExistingStateFields(state *phasedState, existing *phasedState, opts ph
 	}
 	if existing.Attempts != nil {
 		state.Attempts = existing.Attempts
-	}
-	if goal == "" {
-		state.Goal = existing.Goal
 	}
 }
 

@@ -144,7 +144,7 @@ func TestNewPhasedState_RunIDEmpty(t *testing.T) {
 // --- mergeExistingStateFields ---
 
 func TestMergeExistingStateFields_CopiesFields(t *testing.T) {
-	state := newPhasedState(phasedEngineOptions{}, 2, "new goal")
+	state := newPhasedState(phasedEngineOptions{}, 2, "ag-42")
 	existing := &phasedState{
 		EpicID:   "ag-42",
 		FastPath: true,
@@ -152,7 +152,7 @@ func TestMergeExistingStateFields_CopiesFields(t *testing.T) {
 		Attempts: map[string]int{"phase_1": 2},
 	}
 
-	mergeExistingStateFields(state, existing, phasedEngineOptions{}, "new goal")
+	mergeExistingStateFields(state, existing, phasedEngineOptions{}, "ag-42")
 
 	if state.EpicID != "ag-42" {
 		t.Errorf("EpicID = %q, want %q", state.EpicID, "ag-42")
@@ -166,8 +166,45 @@ func TestMergeExistingStateFields_CopiesFields(t *testing.T) {
 	if state.Attempts["phase_1"] != 2 {
 		t.Errorf("Attempts[phase_1] = %d, want 2", state.Attempts["phase_1"])
 	}
-	if state.Goal != "new goal" {
-		t.Errorf("Goal should remain %q when provided", "new goal")
+	if state.Goal != "ag-42" {
+		t.Errorf("Goal should remain %q when provided", "ag-42")
+	}
+}
+
+func TestMergeExistingStateFields_ExplicitBeadOverridesCarried(t *testing.T) {
+	// When user passes an explicit bead ID that differs from carried state,
+	// the explicit ID must win — prevents cross-epic contamination (ag-8a5d).
+	state := newPhasedState(phasedEngineOptions{}, 2, "ag-pv9")
+	existing := &phasedState{
+		EpicID:   "ag-md3",
+		Goal:     "old goal from previous run",
+		Verdicts: map[string]string{},
+		Attempts: map[string]int{},
+	}
+
+	mergeExistingStateFields(state, existing, phasedEngineOptions{}, "ag-pv9")
+
+	if state.EpicID != "ag-pv9" {
+		t.Errorf("EpicID = %q, want %q (explicit bead should override carried)", state.EpicID, "ag-pv9")
+	}
+	if state.Goal != "ag-pv9" {
+		t.Errorf("Goal = %q, want %q", state.Goal, "ag-pv9")
+	}
+}
+
+func TestMergeExistingStateFields_FreeTextGoalClearsEpic(t *testing.T) {
+	// Free-text goal should clear stale epic_id so downstream can resolve fresh.
+	state := newPhasedState(phasedEngineOptions{}, 2, "fix auth module")
+	existing := &phasedState{
+		EpicID:   "ag-old",
+		Verdicts: map[string]string{},
+		Attempts: map[string]int{},
+	}
+
+	mergeExistingStateFields(state, existing, phasedEngineOptions{}, "fix auth module")
+
+	if state.EpicID != "" {
+		t.Errorf("EpicID = %q, want empty (free-text goal should clear stale epic)", state.EpicID)
 	}
 }
 
