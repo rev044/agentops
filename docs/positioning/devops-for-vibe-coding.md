@@ -20,7 +20,7 @@
 
 ## Elevator Pitch (30 seconds)
 
-> 12-Factor AgentOps is DevOps for coding agents. It shifts validation left, but it also does the two things most tooling still misses: durable repo memory and loop closure. Pre-mortem before you implement. Vibe check before you commit. Findings and learnings written back into the environment so the next session starts smarter.
+> AgentOps is DevOps for coding agents. The 12-factor doctrine is supporting doctrine for the lifecycle/control plane, not the product definition. It shifts validation left, but it also does the two things most tooling still misses: durable repo memory and loop closure. Pre-mortem before you implement. Vibe check before you commit. Findings and learnings written back into the environment so the next session starts smarter.
 
 ### One-Liner (10 seconds)
 
@@ -300,11 +300,11 @@ Steve Yegge and Gene Kim's "Vibe Coding" popularized the term. We embrace it and
 
 ### 12-Factor App
 
-Heroku's original 12-factor methodology for SaaS apps. We adapt the philosophy (operational principles) to the new domain (coding agents).
+Heroku's original 12-factor methodology for SaaS apps. We adapt the philosophy as supporting doctrine for the lifecycle/control-plane contract, not as the product definition.
 
 ### 12-Factor Agents
 
-Dex Horthy's framework for general autonomous agents. Complementary work—we cite them for users who need general agent patterns.
+Dex Horthy's framework for general autonomous agents. Complementary work—we cite them for users who need general agent patterns, while AgentOps stays focused on the coding-agent lifecycle and three-gap contract.
 
 ### DevOps Handbook
 
