@@ -40,6 +40,7 @@ type phasedEngineOptions struct {
 	TmuxCommand          string
 	TmuxWorkers          int
 	GCCityPath           string // explicit city.toml directory for gc backend; empty = auto-discover
+	Mixed                bool   // opt-in cross-vendor mixed-model execution
 	NoBudget             bool
 	BudgetSpec           string
 	WorkingDir           string `json:"-"` // runtime-only; base directory for repo/worktree resolution

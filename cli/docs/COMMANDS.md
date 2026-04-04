@@ -1391,6 +1391,7 @@ ao rpi phased <goal> [flags]
       --interactive                       Enable human gates at research and plan phases
       --live-status                       Stream phase progress to a live-status.md file
       --max-retries int                   Maximum retry attempts per gate (default: 3) (default 3)
+      --mixed                             Enable cross-vendor mixed-model execution (planner and reviewer from different vendors)
       --no-budget                         Disable all phase budgets and run without time-box transitions
       --no-dashboard                      Disable auto-opening the web dashboard
       --no-test-first                     Opt out of strict-quality spec-first execution (do not pass --test-first to /crank)

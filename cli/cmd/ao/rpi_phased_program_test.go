@@ -320,3 +320,61 @@ func containsProgramContract(items []string, want string) bool {
 	}
 	return false
 }
+
+func TestExecutionPacket_MixedProvenanceFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	state := &phasedState{
+		Goal:  "test mixed",
+		RunID: "test-run",
+		Opts:  phasedEngineOptions{Mixed: true},
+	}
+
+	if err := writeExecutionPacketSeed(tmpDir, state); err != nil {
+		t.Fatalf("writeExecutionPacketSeed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpDir, ".agents", "rpi", "execution-packet.json"))
+	if err != nil {
+		t.Fatalf("read packet: %v", err)
+	}
+
+	var packet executionPacket
+	if err := json.Unmarshal(data, &packet); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if !packet.MixedModeRequested {
+		t.Error("MixedModeRequested should be true when opts.Mixed is set")
+	}
+	// MixedModeEffective is not set at seed time — downstream phases populate it.
+	if packet.MixedModeEffective {
+		t.Error("MixedModeEffective should be false at seed time")
+	}
+}
+
+func TestExecutionPacket_MixedNotSetByDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	state := &phasedState{
+		Goal:  "test no mixed",
+		RunID: "test-run-2",
+		Opts:  phasedEngineOptions{},
+	}
+
+	if err := writeExecutionPacketSeed(tmpDir, state); err != nil {
+		t.Fatalf("writeExecutionPacketSeed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpDir, ".agents", "rpi", "execution-packet.json"))
+	if err != nil {
+		t.Fatalf("read packet: %v", err)
+	}
+
+	var packet executionPacket
+	if err := json.Unmarshal(data, &packet); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if packet.MixedModeRequested {
+		t.Error("MixedModeRequested should be false when opts.Mixed is not set")
+	}
+}

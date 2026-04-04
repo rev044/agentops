@@ -41,6 +41,7 @@ var (
 	phasedNoBudget             bool
 	phasedBudgetSpec           string
 	phasedNoDashboard          bool
+	phasedMixed                bool
 )
 
 // phaseFailureReason classifies why a phase spawn failed.
@@ -102,6 +103,7 @@ Examples:
 	phasedCmd.Flags().StringVar(&phasedRuntimeCommand, "runtime-cmd", "claude", "Runtime command used for phase prompts (Claude uses '-p'; Codex uses 'exec')")
 	phasedCmd.Flags().IntVar(&phasedTmuxWorkers, "tmux-workers", 1, "When --runtime tmux, number of worker sessions spawned per phase")
 	phasedCmd.Flags().BoolVar(&phasedNoDashboard, "no-dashboard", false, "Disable auto-opening the web dashboard")
+	phasedCmd.Flags().BoolVar(&phasedMixed, "mixed", false, "Enable cross-vendor mixed-model execution (planner and reviewer from different vendors)")
 
 	rpiCmd.AddCommand(phasedCmd)
 }
@@ -144,6 +146,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		NoBudget:             phasedNoBudget,
 		BudgetSpec:           phasedBudgetSpec,
 		NoDashboard:          phasedNoDashboard,
+		Mixed:                phasedMixed,
 	}
 	if phasedNoTestFirst {
 		opts.TestFirst = false

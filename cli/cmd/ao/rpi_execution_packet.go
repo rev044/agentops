@@ -26,8 +26,13 @@ type executionPacket struct {
 	Complexity         string                  `json:"complexity,omitempty"`
 	ProofArtifacts     []string                `json:"proof_artifacts,omitempty"`
 	EvaluatorArtifacts map[string]string       `json:"evaluator_artifacts,omitempty"`
-	ProofUpdatedAt     string                  `json:"proof_updated_at,omitempty"`
-	AutodevProgram     *executionPacketProgram `json:"autodev_program,omitempty"`
+	ProofUpdatedAt         string                  `json:"proof_updated_at,omitempty"`
+	AutodevProgram         *executionPacketProgram `json:"autodev_program,omitempty"`
+	MixedModeRequested     bool                    `json:"mixed_mode_requested,omitempty"`
+	MixedModeEffective     bool                    `json:"mixed_mode_effective,omitempty"`
+	PlannerVendor          string                  `json:"planner_vendor,omitempty"`
+	ReviewerVendor         string                  `json:"reviewer_vendor,omitempty"`
+	MixedModeDegradedReason string                 `json:"mixed_mode_degraded_reason,omitempty"`
 }
 
 type executionPacketProgram struct {
@@ -50,7 +55,8 @@ func writeExecutionPacketSeed(cwd string, state *phasedState) error {
 		ContractSurfaces: []string{},
 		TrackerMode:      tracker.Mode,
 		TrackerHealth:    &tracker,
-		Complexity:       string(state.Complexity),
+		Complexity:         string(state.Complexity),
+		MixedModeRequested: state.Opts.Mixed,
 	}
 	if isPlanFileEpic(state.EpicID) {
 		packet.PlanPath = planFileFromEpic(state.EpicID)

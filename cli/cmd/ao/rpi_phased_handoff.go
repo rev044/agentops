@@ -28,6 +28,13 @@ type phaseHandoff struct {
 	EpicID   string            `json:"epic_id,omitempty"`
 	Verdicts map[string]string `json:"verdicts"`
 
+	// Mixed-model provenance
+	MixedModeRequested      bool   `json:"mixed_mode_requested,omitempty"`
+	MixedModeEffective      bool   `json:"mixed_mode_effective,omitempty"`
+	PlannerVendor           string `json:"planner_vendor,omitempty"`
+	ReviewerVendor          string `json:"reviewer_vendor,omitempty"`
+	MixedModeDegradedReason string `json:"mixed_mode_degraded_reason,omitempty"`
+
 	// What happened
 	ArtifactsProduced []string `json:"artifacts_produced"`
 	DecisionsMade     []string `json:"decisions_made"`
@@ -559,9 +566,10 @@ func buildPhaseHandoffFromState(state *phasedState, phaseNum int, cwd string) *p
 		PhaseName:     phaseNames[phaseNum],
 		Status:        "completed",
 		Goal:          state.Goal,
-		EpicID:        state.EpicID,
-		Verdicts:      make(map[string]string),
-		CompletedAt:   time.Now().UTC().Format(time.RFC3339),
+		EpicID:             state.EpicID,
+		Verdicts:           make(map[string]string),
+		MixedModeRequested: state.Opts.Mixed,
+		CompletedAt:        time.Now().UTC().Format(time.RFC3339),
 	}
 
 	// Copy accumulated verdicts
