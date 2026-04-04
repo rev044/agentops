@@ -149,8 +149,10 @@ type nextWorkEntry struct {
 	ClaimedAt   *string        `json:"claimed_at,omitempty"`
 	ConsumedBy  *string        `json:"consumed_by"`
 	ConsumedAt  *string        `json:"consumed_at"`
-	FailedAt    *string        `json:"failed_at,omitempty"`
-	LegacyID    string         `json:"id,omitempty"`
+	FailedAt            *string `json:"failed_at,omitempty"`
+	CompletionEvidence  string  `json:"completion_evidence,omitempty"`  // proof-backed: "bead_closed", "commit_ref", "evidence_packet"
+	CompletionEvidenceAt *string `json:"completion_evidence_at,omitempty"`
+	LegacyID            string  `json:"id,omitempty"`
 	CreatedAt   string         `json:"created_at,omitempty"`
 	Title       string         `json:"title,omitempty"`
 	Type        string         `json:"type,omitempty"`
@@ -912,10 +914,20 @@ func hasQueueItemLifecycleMetadata(item nextWorkItem) bool {
 		item.FailedAt != nil
 }
 
+// shouldSkipLegacyFailedEntry returns true when a failed entry has proof-backed
+// completion evidence (bead_closed, commit_ref, evidence_packet) indicating the
+// work was completed despite the failure marker. Entries without completion
+// evidence remain available for retry even if FailedAt is set.
 func shouldSkipLegacyFailedEntry(entry nextWorkEntry) bool {
 	if entry.FailedAt == nil {
 		return false
 	}
+	// Proof-backed: skip only when explicit completion evidence exists.
+	if entry.CompletionEvidence != "" {
+		return true
+	}
+	// Legacy heuristic fallback: skip entries with no lifecycle metadata at all
+	// (pre-v2.33 entries that lack the CompletionEvidence field).
 	if entry.ClaimStatus != "" || entry.ClaimedBy != nil || entry.ClaimedAt != nil {
 		return false
 	}
@@ -1139,6 +1151,8 @@ func markEntryConsumed(path string, entryIndex int, consumedBy string) error {
 		entry.ConsumedAt = &now
 		entry.ConsumedBy = &consumedBy
 		entry.FailedAt = nil
+		entry.CompletionEvidence = "bead_closed"
+		entry.CompletionEvidenceAt = &now
 		return nil
 	})
 }

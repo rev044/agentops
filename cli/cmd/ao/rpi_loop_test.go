@@ -817,9 +817,46 @@ func TestQueueMarkConsumed_Basic(t *testing.T) {
 	if got[0].ConsumedBy == nil || *got[0].ConsumedBy != "test-runner" {
 		t.Errorf("entry 0: expected ConsumedBy=test-runner")
 	}
+	if got[0].CompletionEvidence != "bead_closed" {
+		t.Errorf("entry 0: expected CompletionEvidence=bead_closed, got %q", got[0].CompletionEvidence)
+	}
+	if got[0].CompletionEvidenceAt == nil {
+		t.Errorf("entry 0: expected CompletionEvidenceAt to be set")
+	}
 	// Entry 1 should be untouched.
 	if got[1].Consumed {
 		t.Errorf("entry 1: should not be consumed")
+	}
+}
+
+func strPtr(s string) *string { return &s }
+
+func TestShouldSkipLegacyFailedEntry_ProofBacked(t *testing.T) {
+	// Entries with CompletionEvidence should be skipped regardless of other metadata.
+	failedAt := "2026-04-04T00:00:00Z"
+	worker := "worker-1"
+	entry := nextWorkEntry{
+		FailedAt:           &failedAt,
+		CompletionEvidence: "bead_closed",
+		ClaimStatus:        "available",
+		Items:              []nextWorkItem{{Title: "done", ClaimedBy: &worker}},
+	}
+	if !shouldSkipLegacyFailedEntry(entry) {
+		t.Error("entry with CompletionEvidence should be skipped")
+	}
+}
+
+func TestShouldSkipLegacyFailedEntry_NoProofKeepsAvailable(t *testing.T) {
+	// Entries with FailedAt but lifecycle metadata and no CompletionEvidence remain available.
+	failedAt := "2026-04-04T00:00:00Z"
+	worker := "worker-1"
+	entry := nextWorkEntry{
+		FailedAt:    &failedAt,
+		ClaimStatus: "available",
+		Items:       []nextWorkItem{{Title: "retry me", ClaimedBy: &worker}},
+	}
+	if shouldSkipLegacyFailedEntry(entry) {
+		t.Error("entry with lifecycle metadata but no CompletionEvidence should remain available")
 	}
 }
 
