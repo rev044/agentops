@@ -163,6 +163,183 @@ func matchRatio(tokens []string, title, summary, body string) float64 {
 	return float64(matched) / float64(len(tokens))
 }
 
+const (
+	sectionCoverageBonusCap    = 0.15
+	sectionCoverageBonusWeight = 0.15
+	sectionSnippetMaxChars     = 160
+)
+
+type learningSectionCandidate struct {
+	Heading string
+	Locator string
+	Content string
+	Snippet string
+	Score   float64
+	Index   int
+}
+
+func applyLearningSectionEvidence(l *learning, queryTokensList []string) bool {
+	l.SectionHeading = ""
+	l.SectionLocator = ""
+	l.MatchedSnippet = ""
+	l.MatchConfidence = 0
+	l.MatchProvenance = ""
+
+	if len(queryTokensList) == 0 {
+		return true
+	}
+
+	query := strings.Join(queryTokensList, " ")
+	sections := buildLearningSectionCandidates(*l)
+	if len(sections) == 0 {
+		ratio := matchRatio(queryTokensList, l.Title, l.Summary, l.BodyText)
+		if ratio == 0 {
+			return false
+		}
+		l.MatchConfidence = ratio
+		l.MatchProvenance = "whole-file"
+		l.MatchedSnippet = compactText(createSearchSnippet(strings.TrimSpace(l.BodyText), query, sectionSnippetMaxChars))
+		return true
+	}
+
+	useWeighted := !isPrimaryMetricNamespace(defaultCitationMetricNamespace())
+	matched := make([]learningSectionCandidate, 0, len(sections))
+	for _, section := range sections {
+		if useWeighted {
+			section.Score = weightedSectionScore(queryTokensList, section.Heading, section.Content, section.Index, len(sections))
+		} else {
+			section.Score = matchRatio(queryTokensList, section.Heading, "", section.Content)
+		}
+		if section.Score == 0 {
+			continue
+		}
+		section.Snippet = compactText(createSearchSnippet(section.Content, query, sectionSnippetMaxChars))
+		matched = append(matched, section)
+	}
+	if len(matched) == 0 {
+		return false
+	}
+
+	slices.SortFunc(matched, func(a, b learningSectionCandidate) int {
+		if diff := cmp.Compare(b.Score, a.Score); diff != 0 {
+			return diff
+		}
+		return cmp.Compare(a.Index, b.Index)
+	})
+
+	best := matched[0]
+	corroboratingScore := 0.0
+	for _, section := range matched[1:] {
+		if section.Locator != best.Locator {
+			corroboratingScore = section.Score
+			break
+		}
+	}
+
+	confidence := best.Score + math.Min(sectionCoverageBonusCap, corroboratingScore*sectionCoverageBonusWeight)
+	if confidence > 1.0 {
+		confidence = 1.0
+	}
+
+	l.SectionHeading = best.Heading
+	l.SectionLocator = best.Locator
+	l.MatchedSnippet = best.Snippet
+	l.MatchConfidence = confidence
+	if useWeighted {
+		l.MatchProvenance = "section-rollup-weighted"
+	} else {
+		l.MatchProvenance = "section-rollup"
+	}
+	return true
+}
+
+func buildLearningSectionCandidates(l learning) []learningSectionCandidate {
+	body := strings.TrimSpace(l.BodyText)
+	if body == "" {
+		body = strings.TrimSpace(strings.Join([]string{l.Title, l.Summary}, "\n\n"))
+	}
+	if body == "" {
+		return nil
+	}
+
+	rawSections := splitMarkdownSections(body)
+	if len(rawSections) == 0 {
+		rawSections = []string{body}
+	}
+
+	candidates := make([]learningSectionCandidate, 0, len(rawSections))
+	seenLocators := make(map[string]int, len(rawSections))
+	for idx, raw := range rawSections {
+		heading, content := extractLearningSectionHeading(raw, l.Title, idx)
+		locator := buildLearningSectionLocator(heading, idx, seenLocators)
+		candidates = append(candidates, learningSectionCandidate{
+			Heading: heading,
+			Locator: locator,
+			Content: content,
+			Index:   idx,
+		})
+	}
+	return candidates
+}
+
+func extractLearningSectionHeading(section, fallbackTitle string, index int) (string, string) {
+	lines := strings.Split(section, "\n")
+	heading := strings.TrimSpace(fallbackTitle)
+	bodyStart := 0
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "#") {
+			heading = strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
+			bodyStart = i + 1
+		} else {
+			bodyStart = i
+		}
+		break
+	}
+
+	if heading == "" {
+		heading = fmt.Sprintf("Section %d", index+1)
+	}
+
+	content := strings.TrimSpace(strings.Join(lines[bodyStart:], "\n"))
+	if content == "" {
+		content = strings.TrimSpace(section)
+	}
+	return heading, content
+}
+
+func buildLearningSectionLocator(heading string, index int, seen map[string]int) string {
+	slug := slugifyLearningSectionHeading(heading)
+	if slug == "" {
+		slug = fmt.Sprintf("section-%d", index+1)
+	}
+	seen[slug]++
+	if seen[slug] == 1 {
+		return "heading:" + slug
+	}
+	return fmt.Sprintf("heading:%s#%d", slug, seen[slug])
+}
+
+func slugifyLearningSectionHeading(heading string) string {
+	var sb strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(heading)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			sb.WriteRune(r)
+			lastDash = false
+		case !lastDash && sb.Len() > 0:
+			sb.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(sb.String(), "-")
+}
+
 // processLearningFile parses, filters, and scores a single learning file.
 // Returns the learning and true if it should be included, false otherwise.
 func processLearningFile(file string, queryTokensList []string, now time.Time) (learning, bool) {
@@ -174,8 +351,7 @@ func processLearningFile(file string, queryTokensList []string, now time.Time) (
 		VerbosePrintf("Skipping superseded learning: %s\n", l.ID)
 		return l, false
 	}
-	ratio := matchRatio(queryTokensList, l.Title, l.Summary, l.BodyText)
-	if ratio == 0 {
+	if !applyLearningSectionEvidence(&l, queryTokensList) {
 		return l, false
 	}
 
@@ -183,8 +359,8 @@ func processLearningFile(file string, queryTokensList []string, now time.Time) (
 
 	// Partial matches (OR fallback) get proportionally lower utility.
 	// Full AND match = 1.0x, half tokens matched = 0.5x.
-	if ratio < 1.0 {
-		l.Utility *= ratio
+	if l.MatchConfidence > 0 && l.MatchConfidence < 1.0 {
+		l.Utility *= l.MatchConfidence
 	}
 
 	if l.Utility == 0 {

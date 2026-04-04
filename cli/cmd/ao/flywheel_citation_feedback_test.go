@@ -212,6 +212,101 @@ func TestProcessCitationFeedback_UsesAdaptiveReward(t *testing.T) {
 	}
 }
 
+func TestDeduplicateCitationFeedbackTargets_SeparatesMetricNamespaces(t *testing.T) {
+	tmp := t.TempDir()
+	citations := []types.CitationEvent{
+		{ArtifactPath: ".agents/learnings/test-learning.jsonl", CitationType: "reference", MetricNamespace: "primary"},
+		{ArtifactPath: ".agents/learnings/test-learning.jsonl", CitationType: "reference", MetricNamespace: "shadow"},
+	}
+
+	unique := deduplicateCitationFeedbackTargets(tmp, citations)
+	if len(unique) != 2 {
+		t.Fatalf("expected 2 deduped citations, got %d", len(unique))
+	}
+}
+
+func TestProcessCitationFeedback_ShadowNamespaceAuditOnly(t *testing.T) {
+	tmp := t.TempDir()
+
+	fakeHome := filepath.Join(tmp, "fakehome")
+	if err := os.MkdirAll(fakeHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", fakeHome)
+
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	learningPath := filepath.Join(learningsDir, "shadow-learning.jsonl")
+	if err := os.WriteFile(learningPath, []byte(`{"id":"shadow-learning","title":"Shadow Learning","utility":0.6}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	citations := []types.CitationEvent{
+		{
+			ArtifactPath:    ".agents/learnings/shadow-learning.jsonl",
+			CitationType:    "reference",
+			MetricNamespace: "shadow",
+			FeedbackGiven:   false,
+		},
+	}
+	var citationLines []string
+	for _, c := range citations {
+		data, _ := json.Marshal(c)
+		citationLines = append(citationLines, string(data))
+	}
+	if err := os.WriteFile(filepath.Join(aoDir, "citations.jsonl"), []byte(strings.Join(citationLines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	total, rewarded, skipped := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 0 || skipped != 1 {
+		t.Fatalf("expected (1,0,1), got (%d,%d,%d)", total, rewarded, skipped)
+	}
+
+	updatedData, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatalf("failed to read updated learning: %v", err)
+	}
+	var parsed map[string]any
+	firstLine := strings.Split(string(updatedData), "\n")[0]
+	if err := json.Unmarshal([]byte(firstLine), &parsed); err != nil {
+		t.Fatalf("failed to parse updated learning: %v", err)
+	}
+	if utility := parsed["utility"].(float64); utility != 0.6 {
+		t.Fatalf("utility = %f, want unchanged 0.6", utility)
+	}
+
+	feedbackData, err := os.ReadFile(filepath.Join(aoDir, "feedback.jsonl"))
+	if err != nil {
+		t.Fatalf("failed to read feedback log: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(feedbackData)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 feedback event, got %d", len(lines))
+	}
+
+	var event FeedbackEvent
+	if err := json.Unmarshal([]byte(lines[0]), &event); err != nil {
+		t.Fatalf("failed to parse feedback event: %v", err)
+	}
+	if event.Decision != "audited" {
+		t.Fatalf("decision = %q, want audited", event.Decision)
+	}
+	if event.Reason != "non-primary-namespace" {
+		t.Fatalf("reason = %q, want non-primary-namespace", event.Reason)
+	}
+	if event.MetricNamespace != "shadow" {
+		t.Fatalf("metric namespace = %q, want shadow", event.MetricNamespace)
+	}
+}
+
 func TestProcessCitationFeedback_WritesFeedbackEvents(t *testing.T) {
 	// Verify that processCitationFeedback writes FeedbackEvent entries to feedback.jsonl.
 	tmp := t.TempDir()

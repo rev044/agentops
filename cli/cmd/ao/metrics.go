@@ -111,10 +111,11 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: runMetricsCite,
 	}
-	var citeType, citeSession, citeQuery string
+	var citeType, citeSession, citeQuery, citeVendor string
 	citeCmd.Flags().StringVar(&citeType, "type", "reference", "Citation type: recall, reference, applied")
 	citeCmd.Flags().StringVar(&citeSession, "session", "", "Session ID (auto-detected if not provided)")
 	citeCmd.Flags().StringVar(&citeQuery, "query", "", "Search query that surfaced this artifact")
+	citeCmd.Flags().StringVar(&citeVendor, "vendor", "", "Model vendor attribution: claude, codex")
 	metricsCmd.AddCommand(citeCmd)
 }
 
@@ -227,6 +228,10 @@ func countBypassCitations(citations []types.CitationEvent) int {
 
 // computeMetrics calculates flywheel metrics for a period.
 func computeMetrics(baseDir string, days int) (*types.FlywheelMetrics, error) {
+	return computeMetricsForNamespace(baseDir, days, primaryMetricNamespace)
+}
+
+func computeMetricsForNamespace(baseDir string, days int, namespace string) (*types.FlywheelMetrics, error) {
 	now := time.Now()
 	periodStart := now.AddDate(0, 0, -days)
 
@@ -256,7 +261,9 @@ func computeMetrics(baseDir string, days int) (*types.FlywheelMetrics, error) {
 	for i := range citations {
 		citations[i].ArtifactPath = canonicalArtifactPath(baseDir, citations[i].ArtifactPath)
 		citations[i].SessionID = canonicalSessionID(citations[i].SessionID)
+		citations[i].MetricNamespace = canonicalMetricNamespace(citations[i].MetricNamespace)
 	}
+	citations = filterCitationsByMetricNamespace(citations, namespace)
 	stats := filterCitationsForPeriod(citations, periodStart, now)
 	metrics.CitationsThisPeriod = len(stats.citations)
 	metrics.UniqueCitedArtifacts = len(stats.uniqueCited)

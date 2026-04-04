@@ -110,6 +110,8 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
+**Apply retrieved knowledge:** If learnings are returned, check each for applicability to the recovery context. Cite applicable learnings by filename and record: `ao metrics cite "<path>" --type applied 2>/dev/null || true`
+
 If Codex hookless mode is detected, also ensure startup context once for the current thread:
 
 ```bash

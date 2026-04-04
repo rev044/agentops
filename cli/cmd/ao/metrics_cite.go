@@ -32,6 +32,7 @@ func runMetricsCite(cmd *cobra.Command, args []string) error {
 	citeType, _ := cmd.Flags().GetString("type")
 	citeSession, _ := cmd.Flags().GetString("session")
 	citeQuery, _ := cmd.Flags().GetString("query")
+	citeVendor, _ := cmd.Flags().GetString("vendor")
 
 	// Auto-detect session ID if not provided
 	if citeSession == "" {
@@ -39,12 +40,19 @@ func runMetricsCite(cmd *cobra.Command, args []string) error {
 	}
 	citeSession = resolveSessionID(citeSession)
 
+	// Auto-detect vendor from runtime environment if not provided
+	if citeVendor == "" {
+		citeVendor = detectModelVendor()
+	}
+
 	event := types.CitationEvent{
-		ArtifactPath: artifactPath,
-		SessionID:    citeSession,
-		CitedAt:      time.Now(),
-		CitationType: citeType,
-		Query:        citeQuery,
+		ArtifactPath:    artifactPath,
+		SessionID:       citeSession,
+		CitedAt:         time.Now(),
+		CitationType:    citeType,
+		ModelVendor:     citeVendor,
+		Query:           citeQuery,
+		MetricNamespace: defaultCitationMetricNamespace(),
 	}
 
 	if GetDryRun() {
@@ -52,6 +60,9 @@ func runMetricsCite(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  Artifact: %s\n", artifactPath)
 		fmt.Printf("  Session: %s\n", citeSession)
 		fmt.Printf("  Type: %s\n", citeType)
+		if citeVendor != "" {
+			fmt.Printf("  Vendor: %s\n", citeVendor)
+		}
 		return nil
 	}
 
@@ -66,4 +77,25 @@ func runMetricsCite(cmd *cobra.Command, args []string) error {
 // detectSessionID tries to detect the current session ID.
 func detectSessionID() string {
 	return resolveSessionID("")
+}
+
+// detectModelVendor infers the model vendor from the runtime environment.
+// Returns "claude", "codex", or "" (unknown).
+func detectModelVendor() string {
+	// Codex sets CODEX_SESSION or runs as codex CLI
+	if os.Getenv("CODEX_SESSION") != "" || os.Getenv("CODEX_SANDBOX_TYPE") != "" {
+		return "codex"
+	}
+	// Claude Code sets CLAUDE_CODE_SESSION or similar
+	if os.Getenv("CLAUDE_CODE_SESSION") != "" || os.Getenv("CLAUDE_SESSION_ID") != "" {
+		return "claude"
+	}
+	// Check for parent process hints
+	if os.Getenv("OPENAI_API_KEY") != "" && os.Getenv("ANTHROPIC_API_KEY") == "" {
+		return "codex"
+	}
+	if os.Getenv("ANTHROPIC_API_KEY") != "" && os.Getenv("OPENAI_API_KEY") == "" {
+		return "claude"
+	}
+	return ""
 }

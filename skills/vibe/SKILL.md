@@ -61,7 +61,19 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-Incorporate any relevant prior findings (e.g., recurring issues in the same files, known anti-patterns) as context for the review.
+**Apply retrieved knowledge (mandatory when results returned):**
+
+If learnings or patterns are returned, do NOT just load them as passive context. For each returned item:
+1. Check: does this learning apply to the code under review? (answer yes/no)
+2. If yes: include it as a `known_risk` in your review — state the pattern, what to look for, and whether the code exhibits it
+3. Cite the learning by filename in your review output when it influences a finding
+
+After applying, record the citation:
+```bash
+ao metrics cite "<learning-path>" --type applied 2>/dev/null || true
+```
+
+Skip silently if ao is unavailable or returns no results.
 
 **Project reviewer config:** If `.agents/reviewer-config.md` exists, its full config (`reviewers`, `plan_reviewers`, `skip_reviewers`) is passed to council for judge selection. See `skills/council/SKILL.md` Step 1b.
 

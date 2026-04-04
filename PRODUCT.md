@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-03-15
+last_reviewed: 2026-04-03
 ---
 
 # PRODUCT.md
@@ -12,7 +12,21 @@ AgentOps closes the three gaps that prevent coding agents from compounding: **ju
 
 ## Vision
 
-Make coding agents feel like a real engineering organization: validated work, institutional memory, and continuous improvement by default.
+The software factory that gets better with each use. Every session produces code, lessons, and stronger constraints — so the next session starts with more knowledge, tighter gates, and less wasted work. The model stays the same; the environment around it compounds.
+
+This is the direction the industry is converging on. Anthropic's internal Claude Code architecture validates the same three primitives AgentOps shipped months earlier: a learning loop (memory extraction → off-session consolidation → future injection), self-programming skills (pattern extraction into reusable capabilities), and adversarial verification (independent agents auditing other agents' output). AgentOps is already there — the work now is deepening the flywheel and making it autonomous.
+
+## Market Convergence
+
+The April 2026 Claude Code source analysis confirmed that Anthropic's internal tooling follows the same architecture AgentOps implements:
+
+| Anthropic Concept | AgentOps Equivalent | Status |
+|---|---|---|
+| **Learning Loop** — memory extraction, dream cycle consolidation, future session injection | Knowledge Flywheel — `/retro` → `/forge` → `/harvest` → `ao inject`, tiered promotion (learning → pattern → rule) | Shipped. On-demand today; dream cycle (automated nightly consolidation) is the next step. |
+| **Skillify** — AI watches patterns, packages them as reusable skills, compound growth | Skills system — 54 skills, `/heal-skill` audit, `/converter` cross-runtime export, SKILL-TIERS classification | Shipped. Manual authoring today; pattern-to-skill pipeline is the next step. |
+| **Verification Agent** — adversarial AI auditing AI, VERDICT system for human review | Council architecture — `/council`, `/pre-mortem`, `/vibe`, `/post-mortem` with multi-model consensus, prediction tracking | Shipped. On-demand invocation today; always-on verification layer is the next step. |
+
+The gap between "architecture exists for compound growth" (what others describe) and "compound growth is actually happening" (what AgentOps delivers with harvest/forge/evolve) is the moat.
 
 ## Target Personas
 

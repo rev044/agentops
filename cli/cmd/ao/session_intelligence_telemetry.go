@@ -42,6 +42,7 @@ func normalizeCitationEventForRuntime(baseDir string, event types.CitationEvent)
 	event.WorkspacePath = canonicalWorkspacePath(baseDir, event.WorkspacePath)
 	event.SessionID = canonicalSessionID(event.SessionID)
 	event.CitationType = canonicalCitationType(event.CitationType)
+	event.MetricNamespace = canonicalMetricNamespace(event.MetricNamespace)
 	return event
 }
 

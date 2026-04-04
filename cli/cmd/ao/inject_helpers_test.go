@@ -83,7 +83,13 @@ func TestFormatKnowledgeMarkdown(t *testing.T) {
 	t.Run("with learnings", func(t *testing.T) {
 		k := &injectedKnowledge{
 			Learnings: []learning{
-				{ID: "L1", Title: "Auth Pattern", Summary: "Use middleware"},
+				{
+					ID:             "L1",
+					Title:          "Auth Pattern",
+					Summary:        "Use middleware",
+					SectionHeading: "Middleware",
+					MatchedSnippet: "Use middleware at the HTTP boundary.",
+				},
 				{ID: "L2", Title: "No Summary"},
 			},
 			Timestamp: time.Date(2026, 2, 10, 12, 0, 0, 0, time.UTC),
@@ -97,6 +103,12 @@ func TestFormatKnowledgeMarkdown(t *testing.T) {
 		}
 		if !strings.Contains(got, "Use middleware") {
 			t.Error("expected summary in output")
+		}
+		if !strings.Contains(got, "Middleware") {
+			t.Error("expected section evidence heading in output")
+		}
+		if !strings.Contains(got, "HTTP boundary") {
+			t.Error("expected matched snippet in output")
 		}
 		// L2 has no summary, should use title
 		if !strings.Contains(got, "No Summary") {
@@ -146,6 +158,53 @@ func TestFormatKnowledgeMarkdown(t *testing.T) {
 			t.Error("expected 'Olympus Constraints' section")
 		}
 	})
+}
+
+func TestRecordCitationsInNamespace_IncludesSectionMetadata(t *testing.T) {
+	dir := t.TempDir()
+	aoDir := filepath.Join(dir, ".agents", "ao")
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	learnings := []learning{
+		{
+			Source:          filepath.Join(dir, ".agents", "learnings", "l1.md"),
+			SectionHeading:  "Shadow Rollback",
+			SectionLocator:  "heading:shadow-rollback",
+			MatchConfidence: 0.72,
+			MatchProvenance: "section-rollup",
+		},
+	}
+
+	if err := recordCitationsInNamespace(dir, learnings, "test-session", "shadow metrics rollback", "shadow"); err != nil {
+		t.Fatalf("recordCitationsInNamespace: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(aoDir, "citations.jsonl"))
+	if err != nil {
+		t.Fatalf("read citations: %v", err)
+	}
+
+	var event map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &event); err != nil {
+		t.Fatalf("parse citation: %v", err)
+	}
+	if got := event["section_heading"]; got != "Shadow Rollback" {
+		t.Fatalf("section_heading = %v, want Shadow Rollback", got)
+	}
+	if got := event["section_locator"]; got != "heading:shadow-rollback" {
+		t.Fatalf("section_locator = %v, want heading:shadow-rollback", got)
+	}
+	if got := event["match_provenance"]; got != "section-rollup" {
+		t.Fatalf("match_provenance = %v, want section-rollup", got)
+	}
+	if got := event["match_confidence"]; got != 0.72 {
+		t.Fatalf("match_confidence = %v, want 0.72", got)
+	}
+	if got := event["metric_namespace"]; got != "shadow" {
+		t.Fatalf("metric_namespace = %v, want shadow", got)
+	}
 }
 
 func TestTrimToCharBudget(t *testing.T) {

@@ -152,13 +152,24 @@ func checkPromotionCriteria(baseDir string, entry pool.PoolEntry, minAge time.Du
 		return fmt.Sprintf("too young (%s < %s)", entry.AgeString, minAge)
 	}
 
-	// Check citations
-	if citationCounts[entry.Candidate.ID] < 1 {
-		// Also check by file path in case citations reference the pool file
-		entryPath := canonicalArtifactKey(baseDir, entry.FilePath)
-		if entry.FilePath == "" || (citationCounts[entry.FilePath] < 1 && citationCounts[entryPath] < 1) {
-			return "no citations"
+	// Check citations (minimum 2 required for signal-based promotion)
+	totalCitations := citationCounts[entry.Candidate.ID]
+	entryPath := canonicalArtifactKey(baseDir, entry.FilePath)
+	if entry.FilePath != "" {
+		if c := citationCounts[entry.FilePath]; c > totalCitations {
+			totalCitations = c
 		}
+		if c := citationCounts[entryPath]; c > totalCitations {
+			totalCitations = c
+		}
+	}
+	if totalCitations < 2 {
+		return fmt.Sprintf("insufficient citations (%d < 2)", totalCitations)
+	}
+
+	// Check utility threshold (must show positive signal)
+	if entry.Candidate.Utility < 0.5 {
+		return fmt.Sprintf("utility too low (%.2f < 0.50)", entry.Candidate.Utility)
 	}
 
 	// Check for duplicate content

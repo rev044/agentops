@@ -4,8 +4,10 @@ The local DevOps layer for coding agents — skills, CLI, and knowledge flywheel
 
 ## North Stars
 
+- The knowledge flywheel is the product — every session makes the next session smarter
 - Skills work identically across Claude Code, Codex CLI, Cursor, and OpenCode
 - Knowledge captured in one session is retrieved and applied in the next
+- The flywheel runs autonomously between sessions (dream cycle), not just on-demand
 - A new user goes from install to first validated workflow in under 5 minutes
 
 ## Anti Stars
@@ -63,6 +65,22 @@ Competitive analysis docs (`docs/comparisons/vs-*.md`) must stay fresh. GSD, Com
 CI catches codex drift at push time, but 40% of fix commits in the March 2026 integration were codex parity issues caught too late. The PreToolUse hook warns during editing; the goal gate blocks push if drift exists.
 
 **Steer:** decrease (codex parity findings count)
+
+### 8. Automate the dream cycle (nightly flywheel consolidation)
+
+Today harvest/forge/inject are on-demand — an operator runs them when they remember to. Anthropic's "dream cycle" concept validates what we've known: consolidation should happen automatically between sessions. Ship a GitHub Action (or scheduled Claude task) that runs nightly: harvest new learnings from recent sessions, forge patterns from accumulated learnings, defrag stale knowledge, and report flywheel health. The dream cycle is what turns the flywheel from "useful when invoked" to "always compounding."
+
+**Progress:** Not started. Existing primitives (`ao harvest`, `ao forge`, `ao athena mine/grow/defrag`) are all CLI-invocable and could be composed into a workflow. No nightly automation exists yet.
+
+**Steer:** increase (automated consolidation runs per week)
+
+### 9. Build the pattern-to-skill pipeline (self-programming)
+
+When the same pattern appears across 3+ sessions — a debugging technique, a validation sequence, a refactoring approach — the system should propose a new skill. Today skills are hand-authored. The next step is semi-automated: `/athena` or `/forge` detects recurring patterns, drafts a skill skeleton (SKILL.md + frontmatter), and presents it for human review before promotion. This is Anthropic's "Skillify" concept — compound growth without manual authoring.
+
+**Progress:** Not started. `/athena grow` already synthesizes cross-domain insights and `/forge` extracts learnings. The gap is the last mile: turning a promoted pattern into a SKILL.md draft with correct frontmatter, references, and tier classification.
+
+**Steer:** increase (auto-proposed skill drafts)
 
 ## Three-Gap Contract Proof Surface
 

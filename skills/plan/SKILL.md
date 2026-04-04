@@ -59,7 +59,24 @@ if command -v ao &>/dev/null; then
     ao lookup --query "<goal>" --limit 5 2>/dev/null | head -30
 fi
 ```
-If ao returns relevant learnings or patterns, incorporate them into the plan. Cite any retrieved learning by filename when it influences a planning decision. Skip silently if ao is unavailable or returns no results.
+**Apply retrieved knowledge (mandatory when results returned):**
+
+If ao returns relevant learnings or patterns, do NOT just load them as passive context. For each returned item:
+1. Check: does this learning apply to the current planning goal? (answer yes/no)
+2. If yes: incorporate as a planning constraint — does it warn about scope? suggest decomposition? flag a known pitfall?
+3. Cite applicable learnings by filename when they influence a planning decision
+
+After reviewing, record each citation with the correct type:
+```bash
+# Only use "applied" when the learning actually influenced your output.
+# Use "retrieved" for items that were loaded but not referenced in your work.
+ao metrics cite "<learning-path>" --type applied 2>/dev/null || true   # influenced a decision
+ao metrics cite "<learning-path>" --type retrieved 2>/dev/null || true # loaded but not used
+```
+
+**Section evidence:** When lookup results include `section_heading`, `matched_snippet`, or `match_confidence` fields, prefer the matched section over the whole file — it pinpoints the relevant portion. Higher `match_confidence` (>0.7) means the section is a strong match; lower values (<0.4) are weaker signals. Use the `matched_snippet` as the primary context rather than reading the full file.
+
+Skip silently if ao is unavailable or returns no results.
 
 ### Step 2.1: Load Compiled Prevention First (Mandatory)
 

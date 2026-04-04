@@ -65,6 +65,8 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
+**Apply retrieved knowledge:** If learnings are returned, check each for applicability to the current bug. For applicable learnings (e.g., prior bugs in same area, known fragile patterns), include as investigation leads and cite by filename. Record: `ao metrics cite "<path>" --type applied 2>/dev/null || true`
+
 Prior bug reports, fix patterns, and known fragile areas reduce investigation time.
 
 ---

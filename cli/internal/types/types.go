@@ -608,8 +608,29 @@ type CitationEvent struct {
 	// "reference" (manual citation).
 	CitationType string `json:"citation_type,omitempty"`
 
+	// ModelVendor identifies which model vendor surfaced or applied this artifact.
+	// Values: "claude", "codex", "" (unknown/unattributed).
+	// Enables per-vendor σ/ρ tracking and cross-vendor comparison.
+	ModelVendor string `json:"model_vendor,omitempty"`
+
 	// Query is the search query that surfaced this artifact (if applicable).
 	Query string `json:"query,omitempty"`
+
+	// MetricNamespace isolates experimental retrieval from the primary flywheel gate.
+	// Empty values are treated as "primary" by runtime readers for backward compatibility.
+	MetricNamespace string `json:"metric_namespace,omitempty"`
+
+	// MatchConfidence captures the scorer's confidence for this retrieval event.
+	MatchConfidence float64 `json:"match_confidence,omitempty"`
+
+	// MatchProvenance captures how the retrieval match was produced.
+	MatchProvenance string `json:"match_provenance,omitempty"`
+
+	// SectionHeading is the winning section heading when section-aware retrieval is used.
+	SectionHeading string `json:"section_heading,omitempty"`
+
+	// SectionLocator is a stable locator for the cited section/snippet within the artifact.
+	SectionLocator string `json:"section_locator,omitempty"`
 
 	// --- MemRL Feedback Tracking (Phase 5) ---
 

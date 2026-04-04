@@ -161,11 +161,12 @@ func recordSearchCitations(cwd string, results []searchResult, sessionID, query,
 			continue
 		}
 		event := types.CitationEvent{
-			ArtifactPath: canonicalArtifactPath(cwd, result.Path),
-			SessionID:    sessionID,
-			CitedAt:      time.Now(),
-			CitationType: citationType,
-			Query:        query,
+			ArtifactPath:    canonicalArtifactPath(cwd, result.Path),
+			SessionID:       sessionID,
+			CitedAt:         time.Now(),
+			CitationType:    citationType,
+			Query:           query,
+			MetricNamespace: defaultCitationMetricNamespace(),
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
 			VerbosePrintf("Warning: record citation for %s: %v\n", result.Path, err)

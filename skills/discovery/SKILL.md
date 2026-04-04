@@ -52,6 +52,8 @@ STEP 2  ──  if ao available:
               ao lookup --query "<goal keywords>" --limit 5 2>/dev/null || true
               Assemble ranked packet: compiled planning rules + active findings
               + unconsumed high-severity next-work items. Carry forward as context.
+              For each returned learning, check applicability to the goal. If applicable,
+              cite by filename and record: ao metrics cite "<path>" --type applied 2>/dev/null || true
 
 STEP 3  ──  Skill(skill="research", args="<goal> [--auto]")
               Pass --auto unless --interactive. Output lands in .agents/research/.

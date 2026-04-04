@@ -79,22 +79,27 @@ type injectedKnowledge struct {
 }
 
 type learning struct {
-	ID             string  `json:"id"`
-	Title          string  `json:"title"`
-	Summary        string  `json:"summary"`
-	Source         string  `json:"source,omitempty"`
-	SourceBead     string  `json:"source_bead,omitempty"`  // Bead ID that produced this learning
-	SourcePhase    string  `json:"source_phase,omitempty"` // RPI phase (research|plan|implement|validate)
-	FreshnessScore float64 `json:"freshness_score,omitempty"`
-	AgeWeeks       float64 `json:"age_weeks,omitempty"`
-	Utility        float64 `json:"utility,omitempty"`         // MemRL utility value
-	CompositeScore float64 `json:"composite_score,omitempty"` // Two-Phase ranking score
-	Maturity       string  `json:"maturity,omitempty"`        // CASS maturity level
-	SessionType    string  `json:"session_type,omitempty"`    // career, research, debug, implement, brainstorm
-	BodyText       string  `json:"-"`                         // Full body text for search (populated on demand)
-	Stability      string  `json:"-"`                         // "experimental" | "stable", default "stable"
-	Superseded     bool    `json:"-"`                         // Internal flag - not serialized
-	Global         bool    `json:"-"`                         // Internal flag: from global dir
+	ID              string  `json:"id"`
+	Title           string  `json:"title"`
+	Summary         string  `json:"summary"`
+	Source          string  `json:"source,omitempty"`
+	SourceBead      string  `json:"source_bead,omitempty"`  // Bead ID that produced this learning
+	SourcePhase     string  `json:"source_phase,omitempty"` // RPI phase (research|plan|implement|validate)
+	FreshnessScore  float64 `json:"freshness_score,omitempty"`
+	AgeWeeks        float64 `json:"age_weeks,omitempty"`
+	Utility         float64 `json:"utility,omitempty"`         // MemRL utility value
+	CompositeScore  float64 `json:"composite_score,omitempty"` // Two-Phase ranking score
+	Maturity        string  `json:"maturity,omitempty"`        // CASS maturity level
+	SessionType     string  `json:"session_type,omitempty"`    // career, research, debug, implement, brainstorm
+	SectionHeading  string  `json:"section_heading,omitempty"`
+	SectionLocator  string  `json:"section_locator,omitempty"`
+	MatchedSnippet  string  `json:"matched_snippet,omitempty"`
+	MatchConfidence float64 `json:"match_confidence,omitempty"`
+	MatchProvenance string  `json:"match_provenance,omitempty"`
+	BodyText        string  `json:"-"` // Full body text for search (populated on demand)
+	Stability       string  `json:"-"` // "experimental" | "stable", default "stable"
+	Superseded      bool    `json:"-"` // Internal flag - not serialized
+	Global          bool    `json:"-"` // Internal flag: from global dir
 }
 
 type pattern struct {
@@ -519,6 +524,13 @@ func writeLearningsSection(sb *strings.Builder, learnings []learning) {
 		if l.Summary != "" {
 			text = l.Summary
 		}
+		if l.SectionHeading != "" {
+			text += fmt.Sprintf(" (match: %s", l.SectionHeading)
+			if l.MatchedSnippet != "" {
+				text += fmt.Sprintf(" -> %s", compactText(l.MatchedSnippet))
+			}
+			text += ")"
+		}
 		sb.WriteString(fmt.Sprintf("- **%s**: %s\n", l.ID, text))
 	}
 	sb.WriteString("\n")
@@ -810,14 +822,24 @@ func collectOLConstraints(cwd, query string) ([]olConstraint, error) {
 // This is critical for closing the MemRL feedback loop (Phase 0).
 // Citations link: session → learning → feedback → utility update.
 func recordCitations(baseDir string, learnings []learning, sessionID, query string) error {
+	return recordCitationsInNamespace(baseDir, learnings, sessionID, query, defaultCitationMetricNamespace())
+}
+
+func recordCitationsInNamespace(baseDir string, learnings []learning, sessionID, query, namespace string) error {
 	canonicalSession := canonicalSessionID(sessionID)
+	canonicalNamespace := canonicalMetricNamespace(namespace)
 	for _, l := range learnings {
 		event := types.CitationEvent{
-			ArtifactPath: canonicalArtifactPath(baseDir, l.Source),
-			SessionID:    canonicalSession,
-			CitedAt:      time.Now(),
-			CitationType: "retrieved", // Will be upgraded to "applied" if session succeeds
-			Query:        query,
+			ArtifactPath:    canonicalArtifactPath(baseDir, l.Source),
+			SessionID:       canonicalSession,
+			CitedAt:         time.Now(),
+			CitationType:    "retrieved", // Will be upgraded to "applied" if session succeeds
+			Query:           query,
+			MetricNamespace: canonicalNamespace,
+			MatchConfidence: l.MatchConfidence,
+			MatchProvenance: l.MatchProvenance,
+			SectionHeading:  l.SectionHeading,
+			SectionLocator:  l.SectionLocator,
 		}
 
 		if err := ratchet.RecordCitation(baseDir, event); err != nil {
@@ -829,17 +851,23 @@ func recordCitations(baseDir string, learnings []learning, sessionID, query stri
 
 // recordPatternCitations records citation events for retrieved patterns.
 func recordPatternCitations(baseDir string, patterns []pattern, sessionID, query string) error {
+	return recordPatternCitationsInNamespace(baseDir, patterns, sessionID, query, defaultCitationMetricNamespace())
+}
+
+func recordPatternCitationsInNamespace(baseDir string, patterns []pattern, sessionID, query, namespace string) error {
 	canonicalSession := canonicalSessionID(sessionID)
+	canonicalNamespace := canonicalMetricNamespace(namespace)
 	for _, p := range patterns {
 		if p.FilePath == "" {
 			continue
 		}
 		event := types.CitationEvent{
-			ArtifactPath: canonicalArtifactPath(baseDir, p.FilePath),
-			SessionID:    canonicalSession,
-			CitedAt:      time.Now(),
-			CitationType: "retrieved",
-			Query:        query,
+			ArtifactPath:    canonicalArtifactPath(baseDir, p.FilePath),
+			SessionID:       canonicalSession,
+			CitedAt:         time.Now(),
+			CitationType:    "retrieved",
+			Query:           query,
+			MetricNamespace: canonicalNamespace,
 		}
 		if err := ratchet.RecordCitation(baseDir, event); err != nil {
 			return fmt.Errorf("record citation for pattern %s: %w", p.Name, err)

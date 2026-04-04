@@ -221,6 +221,63 @@ func TestMetricsHealth_WithCitations(t *testing.T) {
 	}
 }
 
+func TestMetricsHealth_FiltersByMetricNamespace(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	now := time.Now()
+
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	for _, name := range []string{"primary.md", "shadow.md"} {
+		if err := os.WriteFile(filepath.Join(learningsDir, name), []byte("# Learning"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeHealthCitations(t, dir, []types.CitationEvent{
+		{
+			ArtifactPath:    filepath.Join(learningsDir, "primary.md"),
+			SessionID:       "session-primary",
+			CitedAt:         now.Add(-time.Hour),
+			CitationType:    "reference",
+			MetricNamespace: "primary",
+		},
+		{
+			ArtifactPath:    filepath.Join(learningsDir, "shadow.md"),
+			SessionID:       "session-shadow",
+			CitedAt:         now.Add(-2 * time.Hour),
+			CitationType:    "retrieved",
+			MetricNamespace: "shadow",
+		},
+	})
+
+	primary, err := computeHealthMetricsForNamespace(dir, "")
+	if err != nil {
+		t.Fatalf("computeHealthMetricsForNamespace(primary): %v", err)
+	}
+	if primary.MetricNamespace != "primary" {
+		t.Fatalf("primary namespace = %q, want primary", primary.MetricNamespace)
+	}
+	if primary.Sigma < 0.49 || primary.Sigma > 0.51 {
+		t.Fatalf("primary sigma = %f, want ~0.5", primary.Sigma)
+	}
+	if primary.Rho < 0.99 || primary.Rho > 1.01 {
+		t.Fatalf("primary rho = %f, want ~1.0", primary.Rho)
+	}
+
+	shadow, err := computeHealthMetricsForNamespace(dir, "shadow")
+	if err != nil {
+		t.Fatalf("computeHealthMetricsForNamespace(shadow): %v", err)
+	}
+	if shadow.MetricNamespace != "shadow" {
+		t.Fatalf("shadow namespace = %q, want shadow", shadow.MetricNamespace)
+	}
+	if shadow.Sigma < 0.49 || shadow.Sigma > 0.51 {
+		t.Fatalf("shadow sigma = %f, want ~0.5", shadow.Sigma)
+	}
+	if shadow.Rho != 0 {
+		t.Fatalf("shadow rho = %f, want 0", shadow.Rho)
+	}
+}
+
 func TestMetricsHealth_FindingsParticipateInStockAndRetrieval(t *testing.T) {
 	dir := setupHealthTestDir(t)
 	now := time.Now()
@@ -660,5 +717,106 @@ func TestLastNSessions_MoreSessionsThanN(t *testing.T) {
 	}
 	if result[1] != "s2" {
 		t.Errorf("expected second session='s2', got %q", result[1])
+	}
+}
+
+func TestVerifyEscapeVelocity_AllPass(t *testing.T) {
+	hm := &healthMetrics{
+		MetricNamespace: "primary",
+		Sigma:           0.35,
+		Rho:             0.70,
+		Delta:           15.0,
+	}
+	targets := DefaultEscapeVelocityTargets()
+	v := VerifyEscapeVelocity(hm, targets)
+	if !v.AllPass {
+		t.Errorf("expected all pass, failures: %v", v.Failures)
+	}
+	if !v.SigmaPass {
+		t.Error("expected sigma pass")
+	}
+	if !v.RhoPass {
+		t.Error("expected rho pass")
+	}
+	if !v.SigmaRhoPass {
+		t.Error("expected sigma_rho pass")
+	}
+}
+
+func TestVerifyEscapeVelocity_SigmaFails(t *testing.T) {
+	hm := &healthMetrics{
+		MetricNamespace: "primary",
+		Sigma:           0.20,
+		Rho:             0.70,
+		Delta:           15.0,
+	}
+	v := VerifyEscapeVelocity(hm, DefaultEscapeVelocityTargets())
+	if v.AllPass {
+		t.Error("expected failure when sigma < target")
+	}
+	if v.SigmaPass {
+		t.Error("expected sigma fail")
+	}
+	if len(v.Failures) == 0 {
+		t.Error("expected at least one failure message")
+	}
+}
+
+func TestVerifyEscapeVelocity_RhoFails(t *testing.T) {
+	hm := &healthMetrics{
+		MetricNamespace: "primary",
+		Sigma:           0.40,
+		Rho:             0.50,
+		Delta:           15.0,
+	}
+	v := VerifyEscapeVelocity(hm, DefaultEscapeVelocityTargets())
+	if v.AllPass {
+		t.Error("expected failure when rho < target")
+	}
+	if v.RhoPass {
+		t.Error("expected rho fail")
+	}
+}
+
+func TestVerifyEscapeVelocity_SigmaRhoFails(t *testing.T) {
+	// sigma and rho individually pass thresholds but sigma*rho < delta/100
+	hm := &healthMetrics{
+		MetricNamespace: "primary",
+		Sigma:           0.30,
+		Rho:             0.65,
+		Delta:           25.0, // delta/100 = 0.25, sigma*rho = 0.195 < 0.25
+	}
+	v := VerifyEscapeVelocity(hm, DefaultEscapeVelocityTargets())
+	if v.SigmaRhoPass {
+		t.Errorf("expected sigma_rho fail: sigma*rho=%.3f, threshold=%.3f",
+			hm.Sigma*hm.Rho, escapeVelocityThreshold(hm.Delta))
+	}
+}
+
+func TestVerifyEscapeVelocity_CustomTargets(t *testing.T) {
+	hm := &healthMetrics{
+		MetricNamespace: "shadow",
+		Sigma:           0.50,
+		Rho:             0.80,
+		Delta:           10.0,
+	}
+	targets := EscapeVelocityTargets{
+		MinSigma:    0.45,
+		MinRho:      0.75,
+		MinSigmaRho: 0.30,
+	}
+	v := VerifyEscapeVelocity(hm, targets)
+	if !v.AllPass {
+		t.Errorf("expected all pass with custom targets, failures: %v", v.Failures)
+	}
+}
+
+func TestDefaultEscapeVelocityTargets(t *testing.T) {
+	targets := DefaultEscapeVelocityTargets()
+	if targets.MinSigma != 0.30 {
+		t.Errorf("MinSigma = %v, want 0.30", targets.MinSigma)
+	}
+	if targets.MinRho != 0.65 {
+		t.Errorf("MinRho = %v, want 0.65", targets.MinRho)
 	}
 }

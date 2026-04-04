@@ -121,6 +121,131 @@ func TestApplyCompositeScoring_SmallPool(t *testing.T) {
 	}
 }
 
+func TestWeightedSectionScore_EmptyTokens(t *testing.T) {
+	score := weightedSectionScore(nil, "Heading", "Some content", 0, 1)
+	if score != 1.0 {
+		t.Errorf("weightedSectionScore(nil tokens) = %v, want 1.0", score)
+	}
+}
+
+func TestWeightedSectionScore_SingleToken(t *testing.T) {
+	tokens := []string{"authentication"}
+	// Heading contains the token — should get high heading + substring + exact scores
+	score := weightedSectionScore(tokens, "Authentication Setup", "Configure authentication for the service", 0, 3)
+	if score < 0.5 {
+		t.Errorf("weightedSectionScore with matching heading = %v, want >= 0.5", score)
+	}
+}
+
+func TestWeightedSectionScore_HeadingBonus(t *testing.T) {
+	tokens := []string{"auth", "token"}
+	// Token in heading should score higher than same tokens only in content.
+	// Use identical content so the only difference is heading match.
+	content := "The auth token is configured here for the service"
+	headingScore := weightedSectionScore(tokens, "Auth Token Management", content, 0, 3)
+	noHeadingScore := weightedSectionScore(tokens, "General Configuration", content, 0, 3)
+	if headingScore <= noHeadingScore {
+		t.Errorf("heading match (%v) should outrank no-heading match (%v)", headingScore, noHeadingScore)
+	}
+}
+
+func TestWeightedSectionScore_AdjacencyBonus(t *testing.T) {
+	tokens := []string{"database", "migration"}
+	// Adjacent tokens should score higher than tokens far apart
+	adjacentScore := weightedSectionScore(tokens, "Overview", "Run the database migration script to update", 0, 1)
+	distantScore := weightedSectionScore(tokens, "Overview", "The database is large and after many steps we run migration", 0, 1)
+	if adjacentScore <= distantScore {
+		t.Errorf("adjacent tokens (%v) should outrank distant tokens (%v)", adjacentScore, distantScore)
+	}
+}
+
+func TestWeightedSectionScore_SectionProximity(t *testing.T) {
+	tokens := []string{"overview"}
+	// First section should get proximity bonus over last section
+	firstScore := weightedSectionScore(tokens, "Overview", "This is the overview of the system", 0, 5)
+	lastScore := weightedSectionScore(tokens, "Overview", "This is the overview of the system", 4, 5)
+	if firstScore <= lastScore {
+		t.Errorf("first section (%v) should outrank last section (%v)", firstScore, lastScore)
+	}
+}
+
+func TestWeightedSectionScore_NoMatch(t *testing.T) {
+	tokens := []string{"kubernetes", "deployment"}
+	score := weightedSectionScore(tokens, "Cooking Recipes", "How to make pasta and bread", 0, 1)
+	// Only proximity contributes (0.10 * 1.0 = 0.10)
+	if score > 0.15 {
+		t.Errorf("non-matching content score = %v, want <= 0.15", score)
+	}
+}
+
+func TestWeightedSectionScore_BoundedOutput(t *testing.T) {
+	tokens := []string{"test"}
+	score := weightedSectionScore(tokens, "Test", "test test test test test", 0, 1)
+	if score > 1.0 {
+		t.Errorf("score = %v, must be <= 1.0", score)
+	}
+	if score < 0.0 {
+		t.Errorf("score = %v, must be >= 0.0", score)
+	}
+}
+
+func TestTokenizeWords(t *testing.T) {
+	tests := []struct {
+		input string
+		want  int // minimum number of words
+	}{
+		{"hello world", 2},
+		{"it's a test!", 2}, // "it" is dropped (< 2 chars), "a" dropped
+		{"", 0},
+		{"word1, word2; word3.", 3},
+	}
+	for _, tt := range tests {
+		got := tokenizeWords(tt.input)
+		if len(got) < tt.want {
+			t.Errorf("tokenizeWords(%q) = %d words, want >= %d", tt.input, len(got), tt.want)
+		}
+	}
+}
+
+func TestComputeAdjacency_AdjacentTokens(t *testing.T) {
+	tokens := []string{"hello", "world"}
+	words := []string{"the", "hello", "world", "is", "great"}
+	score := computeAdjacency(tokens, words)
+	if score < 0.9 {
+		t.Errorf("adjacent tokens score = %v, want >= 0.9", score)
+	}
+}
+
+func TestComputeAdjacency_DistantTokens(t *testing.T) {
+	tokens := []string{"hello", "world"}
+	words := []string{"hello", "a", "b", "c", "d", "e", "f", "g", "h", "i", "world"}
+	score := computeAdjacency(tokens, words)
+	adjacentScore := computeAdjacency(tokens, []string{"hello", "world"})
+	if score >= adjacentScore {
+		t.Errorf("distant score (%v) should be less than adjacent score (%v)", score, adjacentScore)
+	}
+}
+
+func TestComputeAdjacency_SingleToken(t *testing.T) {
+	// Single token present → 1.0
+	score := computeAdjacency([]string{"hello"}, []string{"the", "hello", "world"})
+	if score != 1.0 {
+		t.Errorf("single present token adjacency = %v, want 1.0", score)
+	}
+	// Single token absent → 0.0
+	score = computeAdjacency([]string{"missing"}, []string{"the", "hello", "world"})
+	if score != 0.0 {
+		t.Errorf("single absent token adjacency = %v, want 0.0", score)
+	}
+}
+
+func TestComputeAdjacency_NoTokens(t *testing.T) {
+	score := computeAdjacency(nil, []string{"hello", "world"})
+	if score != 0.0 {
+		t.Errorf("no tokens adjacency = %v, want 0.0", score)
+	}
+}
+
 func TestApplyCompositeScoring_GlobalWeightPenalty(t *testing.T) {
 	// NOTE: The global weight penalty is NOT applied in applyCompositeScoringTo.
 	// It is applied upstream in collectLearnings (inject_learnings.go:87-98).

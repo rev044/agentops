@@ -1063,6 +1063,59 @@ func TestInjectLearnings_collectLearnings_GlobalWeightPenalty(t *testing.T) {
 	}
 }
 
+func TestInjectLearnings_collectLearnings_SectionRollupEvidence(t *testing.T) {
+	dir := t.TempDir()
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	content := `---
+maturity: provisional
+utility: 0.9
+source_bead: ag-9qm
+---
+# Flywheel Recovery
+
+Recovery plan for retrieval experiments.
+
+## Shadow Rollback
+
+Shadow rollback keeps the primary lane clean during retrieval experiments.
+
+## Metrics Audit
+
+Metrics audit compares shadow and primary before promotion.`
+	if err := os.WriteFile(filepath.Join(learningsDir, "recovery.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := collectLearnings(dir, "shadow metrics rollback", 10, "", 0)
+	if err != nil {
+		t.Fatalf("collectLearnings: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 rolled-up result, got %d", len(results))
+	}
+
+	got := results[0]
+	if got.SectionHeading != "Shadow Rollback" {
+		t.Fatalf("SectionHeading = %q, want %q", got.SectionHeading, "Shadow Rollback")
+	}
+	if got.SectionLocator == "" {
+		t.Fatal("expected non-empty SectionLocator")
+	}
+	if !strings.Contains(strings.ToLower(got.MatchedSnippet), "shadow rollback") {
+		t.Fatalf("MatchedSnippet = %q, want shadow rollback evidence", got.MatchedSnippet)
+	}
+	if got.MatchProvenance != "section-rollup" {
+		t.Fatalf("MatchProvenance = %q, want section-rollup", got.MatchProvenance)
+	}
+	if got.MatchConfidence <= (2.0 / 3.0) {
+		t.Fatalf("MatchConfidence = %.3f, want corroborating-section bonus over 0.667", got.MatchConfidence)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // validPhases map
 // ---------------------------------------------------------------------------

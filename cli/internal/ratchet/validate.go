@@ -868,15 +868,21 @@ func parseCitationLine(line []byte, baseDir string) (types.CitationEvent, bool) 
 		return types.CitationEvent{}, false
 	}
 	event := types.CitationEvent{
-		ArtifactPath:   firstCitationString(raw, "artifact_path", "learning_file"),
-		WorkspacePath:  firstCitationString(raw, "workspace_path", "workspace"),
-		SessionID:      firstCitationString(raw, "session_id", "session", "cited_by"),
-		CitationType:   firstCitationString(raw, "citation_type", "type"),
-		Query:          firstCitationString(raw, "query"),
-		FeedbackGiven:  citationBool(raw, "feedback_given"),
-		FeedbackReward: citationFloat(raw, "feedback_reward"),
-		UtilityBefore:  citationFloat(raw, "utility_before"),
-		UtilityAfter:   citationFloat(raw, "utility_after"),
+		ArtifactPath:    firstCitationString(raw, "artifact_path", "learning_file"),
+		WorkspacePath:   firstCitationString(raw, "workspace_path", "workspace"),
+		SessionID:       firstCitationString(raw, "session_id", "session", "cited_by"),
+		CitationType:    firstCitationString(raw, "citation_type", "type"),
+		ModelVendor:     firstCitationString(raw, "model_vendor", "vendor"),
+		Query:           firstCitationString(raw, "query"),
+		MetricNamespace: firstCitationString(raw, "metric_namespace"),
+		MatchConfidence: citationFloat(raw, "match_confidence"),
+		MatchProvenance: firstCitationString(raw, "match_provenance"),
+		SectionHeading:  firstCitationString(raw, "section_heading"),
+		SectionLocator:  firstCitationString(raw, "section_locator"),
+		FeedbackGiven:   citationBool(raw, "feedback_given"),
+		FeedbackReward:  citationFloat(raw, "feedback_reward"),
+		UtilityBefore:   citationFloat(raw, "utility_before"),
+		UtilityAfter:    citationFloat(raw, "utility_after"),
 	}
 	if citedAt, ok := citationTime(raw, "cited_at", "timestamp"); ok {
 		event.CitedAt = citedAt

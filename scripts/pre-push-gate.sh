@@ -42,6 +42,8 @@
 #  31. Plugin load test (symlink rejection)
 #  32. Learning coherence
 #  33. BATS orphan hooks audit
+#  34. Skill citation parity (ao lookup → ao metrics cite)
+#  35. Flywheel health (warn only, non-blocking)
 #
 # Usage:
 #   scripts/pre-push-gate.sh [--scope auto|upstream|staged|worktree|head]
@@ -74,6 +76,7 @@ run_without_git_env_and_stdin() {
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
 
 errors=0
@@ -83,6 +86,7 @@ FAST_MODE=false
 pass() { echo -e "${GREEN}  ok${NC}  $1"; }
 fail() { echo -e "${RED}FAIL${NC}  $1"; errors=$((errors + 1)); }
 skip() { echo -e "  --  $1 (skipped)"; skipped=$((skipped + 1)); }
+warn() { echo -e "${YELLOW}WARN${NC}  $1"; }
 indent_output() {
     while IFS= read -r line; do
         printf '    %s\n' "$line"
@@ -821,6 +825,40 @@ if needs_check hook; then
     fi
 else
     skip "orphan hooks"
+fi
+
+# --- 34. Skill citation parity ---
+if needs_check skill; then
+    if [[ -x tests/docs/validate-skill-citation-parity.sh ]]; then
+        if cite_output="$(bash tests/docs/validate-skill-citation-parity.sh 2>&1)"; then
+            pass "skill citation parity"
+        else
+            fail "skill citation parity"
+            indent_output "$cite_output"
+        fi
+    else
+        skip "skill citation parity (missing script)"
+    fi
+else
+    skip "skill citation parity"
+fi
+
+# --- 35. Flywheel health (warn only) ---
+if command -v ao >/dev/null 2>&1 && [[ -d .agents ]]; then
+    if health_output="$(ao metrics health --json 2>/dev/null)"; then
+        fly_status="$(echo "$health_output" | grep -o '"flywheel_status":"[^"]*"' | head -1 | cut -d'"' -f4)"
+        if [[ "$fly_status" == "DECAYING" ]]; then
+            warn "flywheel health: DECAYING — run /evolve or check citation flow"
+        elif [[ -n "$fly_status" ]]; then
+            pass "flywheel health ($fly_status)"
+        else
+            skip "flywheel health (no status in output)"
+        fi
+    else
+        skip "flywheel health (ao metrics health failed)"
+    fi
+else
+    skip "flywheel health (ao not available)"
 fi
 
 # --- Summary ---

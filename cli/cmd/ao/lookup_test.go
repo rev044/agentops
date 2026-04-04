@@ -424,6 +424,8 @@ func TestLookup_outputResults_withLearnings(t *testing.T) {
 			Utility:        0.75,
 			AgeWeeks:       2.0,
 			CompositeScore: 0.80,
+			SectionHeading: "Shadow Rollback",
+			MatchedSnippet: "Shadow rollback keeps the primary lane clean.",
 		},
 	}
 
@@ -450,6 +452,12 @@ func TestLookup_outputResults_withLearnings(t *testing.T) {
 	}
 	if !strings.Contains(out, "Test Learning") {
 		t.Errorf("expected learning title in output, got: %s", out)
+	}
+	if !strings.Contains(out, "Shadow Rollback") {
+		t.Errorf("expected section evidence heading in output, got: %s", out)
+	}
+	if !strings.Contains(out, "primary lane clean") {
+		t.Errorf("expected matched snippet in output, got: %s", out)
 	}
 }
 
@@ -858,7 +866,13 @@ func TestRecordLookupCitations(t *testing.T) {
 	}
 
 	learnings := []learning{
-		{Source: filepath.Join(dir, ".agents", "learnings", "l1.md")},
+		{
+			Source:          filepath.Join(dir, ".agents", "learnings", "l1.md"),
+			SectionHeading:  "Shadow Rollback",
+			SectionLocator:  "heading:shadow-rollback",
+			MatchConfidence: 0.72,
+			MatchProvenance: "section-rollup",
+		},
 	}
 	patterns := []pattern{
 		{FilePath: filepath.Join(dir, ".agents", "patterns", "p1.md")},
@@ -886,5 +900,58 @@ func TestRecordLookupCitations(t *testing.T) {
 		if got := event["citation_type"]; got != "retrieved" {
 			t.Fatalf("line %d: citation_type = %v, want retrieved", i, got)
 		}
+		if got := event["metric_namespace"]; got != "primary" {
+			t.Fatalf("line %d: metric_namespace = %v, want primary", i, got)
+		}
+	}
+}
+
+func TestRecordLookupCitationsInNamespace(t *testing.T) {
+	dir := t.TempDir()
+	aoDir := filepath.Join(dir, ".agents", "ao")
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	learnings := []learning{
+		{
+			Source:          filepath.Join(dir, ".agents", "learnings", "l1.md"),
+			SectionHeading:  "Shadow Rollback",
+			SectionLocator:  "heading:shadow-rollback",
+			MatchConfidence: 0.72,
+			MatchProvenance: "section-rollup",
+		},
+	}
+
+	recordLookupCitationsInNamespace(dir, learnings, nil, nil, "test-session", "test query", "retrieved", "shadow")
+
+	citPath := filepath.Join(aoDir, "citations.jsonl")
+	data, err := os.ReadFile(citPath)
+	if err != nil {
+		t.Fatalf("read citations: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 citation line, got %d", len(lines))
+	}
+
+	var event map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &event); err != nil {
+		t.Fatalf("parse citation: %v", err)
+	}
+	if got := event["metric_namespace"]; got != "shadow" {
+		t.Fatalf("metric_namespace = %v, want shadow", got)
+	}
+	if got := event["section_heading"]; got != "Shadow Rollback" {
+		t.Fatalf("section_heading = %v, want Shadow Rollback", got)
+	}
+	if got := event["section_locator"]; got != "heading:shadow-rollback" {
+		t.Fatalf("section_locator = %v, want heading:shadow-rollback", got)
+	}
+	if got := event["match_provenance"]; got != "section-rollup" {
+		t.Fatalf("match_provenance = %v, want section-rollup", got)
+	}
+	if got := event["match_confidence"]; got != 0.72 {
+		t.Fatalf("match_confidence = %v, want 0.72", got)
 	}
 }

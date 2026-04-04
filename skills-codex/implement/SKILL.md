@@ -44,6 +44,26 @@ Given `$implement <issue-id-or-description>`:
 ao lookup --bead <issue-id> --limit 3 2>/dev/null || true
 ```
 
+**Apply retrieved knowledge (mandatory when results returned):**
+
+If learnings or patterns are returned, do NOT just load them as passive context. For each returned item:
+1. Check: does this learning apply to the current issue? (answer yes/no)
+2. If yes: treat it as an implementation constraint — does it warn about an approach? suggest a pattern? flag a known pitfall?
+3. Reference applicable learnings in your implementation decisions (e.g., "per learning X, avoiding approach Y")
+4. Cite applicable learnings by filename in commit messages or PR descriptions
+
+After reviewing, record each citation with the correct type:
+```bash
+# Only use "applied" when the learning actually influenced your output.
+# Use "retrieved" for items that were loaded but not referenced in your work.
+ao metrics cite "<learning-path>" --type applied 2>/dev/null || true   # influenced a decision
+ao metrics cite "<learning-path>" --type retrieved 2>/dev/null || true # loaded but not used
+```
+
+**Section evidence:** When lookup results include `section_heading`, `matched_snippet`, or `match_confidence` fields, prefer the matched section over the whole file — it pinpoints the relevant portion. Higher `match_confidence` (>0.7) means the section is a strong match; lower values (<0.4) are weaker signals. Use the `matched_snippet` as the primary context rather than reading the full file.
+
+Skip silently if ao is unavailable or returns no results.
+
 ### Step 1: Get Issue Details
 
 **If beads issue ID provided** (e.g., `gt-123`):

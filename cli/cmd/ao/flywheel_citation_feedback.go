@@ -41,6 +41,34 @@ func processCitationFeedback(cwd string) (int, int, int) {
 	for _, c := range unique {
 		citationType := effectiveCitationFeedbackType(c.CitationType)
 		decision, reason, rewardable := classifyCitationFeedback(citationType)
+		metricNamespace := canonicalMetricNamespace(c.MetricNamespace)
+
+		if !isPrimaryMetricNamespace(metricNamespace) {
+			artifactPath := canonicalArtifactPath(cwd, c.ArtifactPath)
+			currentUtility := 0.0
+			if !isFindingArtifactPath(cwd, c.ArtifactPath) {
+				learningID := extractLearningID(c.ArtifactPath)
+				if path, err := res.Resolve(learningID); err == nil {
+					artifactPath = path
+					currentUtility = parseUtilityFromFile(path)
+				}
+			}
+			feedbackEvents = append(feedbackEvents, FeedbackEvent{
+				SessionID:       sessionID,
+				ArtifactPath:    artifactPath,
+				CitationType:    citationType,
+				MetricNamespace: metricNamespace,
+				Decision:        "audited",
+				Reason:          "non-primary-namespace",
+				Reward:          0,
+				UtilityBefore:   currentUtility,
+				UtilityAfter:    currentUtility,
+				Alpha:           0,
+				RecordedAt:      time.Now(),
+			})
+			skipped++
+			continue
+		}
 
 		if isFindingArtifactPath(cwd, c.ArtifactPath) {
 			if !rewardable {
@@ -64,12 +92,13 @@ func processCitationFeedback(cwd string) (int, int, int) {
 		path, err := res.Resolve(learningID)
 		if err != nil {
 			feedbackEvents = append(feedbackEvents, FeedbackEvent{
-				SessionID:    sessionID,
-				ArtifactPath: canonicalArtifactPath(cwd, c.ArtifactPath),
-				CitationType: citationType,
-				Decision:     "skipped",
-				Reason:       "artifact-not-resolved",
-				RecordedAt:   time.Now(),
+				SessionID:       sessionID,
+				ArtifactPath:    canonicalArtifactPath(cwd, c.ArtifactPath),
+				CitationType:    citationType,
+				MetricNamespace: metricNamespace,
+				Decision:        "skipped",
+				Reason:          "artifact-not-resolved",
+				RecordedAt:      time.Now(),
 			})
 			skipped++
 			continue
@@ -78,16 +107,17 @@ func processCitationFeedback(cwd string) (int, int, int) {
 		if !rewardable {
 			currentUtility := parseUtilityFromFile(path)
 			feedbackEvents = append(feedbackEvents, FeedbackEvent{
-				SessionID:     sessionID,
-				ArtifactPath:  path,
-				CitationType:  citationType,
-				Decision:      decision,
-				Reason:        reason,
-				Reward:        0,
-				UtilityBefore: currentUtility,
-				UtilityAfter:  currentUtility,
-				Alpha:         0,
-				RecordedAt:    time.Now(),
+				SessionID:       sessionID,
+				ArtifactPath:    path,
+				CitationType:    citationType,
+				MetricNamespace: metricNamespace,
+				Decision:        decision,
+				Reason:          reason,
+				Reward:          0,
+				UtilityBefore:   currentUtility,
+				UtilityAfter:    currentUtility,
+				Alpha:           0,
+				RecordedAt:      time.Now(),
 			})
 			skipped++
 			continue
@@ -100,32 +130,34 @@ func processCitationFeedback(cwd string) (int, int, int) {
 		if err != nil {
 			currentUtility := parseUtilityFromFile(path)
 			feedbackEvents = append(feedbackEvents, FeedbackEvent{
-				SessionID:     sessionID,
-				ArtifactPath:  path,
-				CitationType:  citationType,
-				Decision:      "skipped",
-				Reason:        "utility-update-failed",
-				Reward:        0,
-				UtilityBefore: currentUtility,
-				UtilityAfter:  currentUtility,
-				Alpha:         0,
-				RecordedAt:    time.Now(),
+				SessionID:       sessionID,
+				ArtifactPath:    path,
+				CitationType:    citationType,
+				MetricNamespace: metricNamespace,
+				Decision:        "skipped",
+				Reason:          "utility-update-failed",
+				Reward:          0,
+				UtilityBefore:   currentUtility,
+				UtilityAfter:    currentUtility,
+				Alpha:           0,
+				RecordedAt:      time.Now(),
 			})
 			skipped++
 			continue
 		}
 
 		feedbackEvents = append(feedbackEvents, FeedbackEvent{
-			SessionID:     sessionID,
-			ArtifactPath:  path,
-			CitationType:  citationType,
-			Decision:      decision,
-			Reason:        reason,
-			Reward:        reward,
-			UtilityBefore: oldUtility,
-			UtilityAfter:  newUtility,
-			Alpha:         alpha,
-			RecordedAt:    time.Now(),
+			SessionID:       sessionID,
+			ArtifactPath:    path,
+			CitationType:    citationType,
+			MetricNamespace: metricNamespace,
+			Decision:        decision,
+			Reason:          reason,
+			Reward:          reward,
+			UtilityBefore:   oldUtility,
+			UtilityAfter:    newUtility,
+			Alpha:           alpha,
+			RecordedAt:      time.Now(),
 		})
 		rewarded++
 	}
@@ -153,7 +185,8 @@ func deduplicateCitationFeedbackTargets(cwd string, citations []types.CitationEv
 		}
 		citation.ArtifactPath = canonicalArtifactPath(cwd, citation.ArtifactPath)
 		citation.CitationType = canonicalCitationType(citation.CitationType)
-		key := canonicalArtifactKey(cwd, citation.ArtifactPath)
+		citation.MetricNamespace = canonicalMetricNamespace(citation.MetricNamespace)
+		key := citationFeedbackNamespaceKey(cwd, citation.ArtifactPath, citation.MetricNamespace)
 		current, exists := byKey[key]
 		if !exists {
 			byKey[key] = indexedCitation{order: len(order), event: citation}
@@ -253,15 +286,16 @@ func markCitationsFeedbackGiven(cwd, citationsPath string, citations []types.Cit
 
 	feedbackByPath := make(map[string]FeedbackEvent, len(feedbackEvents))
 	for _, event := range feedbackEvents {
-		feedbackByPath[canonicalArtifactKey(cwd, event.ArtifactPath)] = event
+		feedbackByPath[citationFeedbackNamespaceKey(cwd, event.ArtifactPath, event.MetricNamespace)] = event
 	}
 
 	var lines []string
 	for _, c := range citations {
 		c.ArtifactPath = canonicalArtifactPath(cwd, c.ArtifactPath)
 		c.CitationType = canonicalCitationType(c.CitationType)
+		c.MetricNamespace = canonicalMetricNamespace(c.MetricNamespace)
 		c.FeedbackGiven = true
-		if event, ok := feedbackByPath[canonicalArtifactKey(cwd, c.ArtifactPath)]; ok {
+		if event, ok := feedbackByPath[citationFeedbackNamespaceKey(cwd, c.ArtifactPath, c.MetricNamespace)]; ok {
 			c.FeedbackReward = event.Reward
 			c.UtilityBefore = event.UtilityBefore
 			c.UtilityAfter = event.UtilityAfter

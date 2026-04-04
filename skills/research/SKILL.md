@@ -51,7 +51,20 @@ ao lookup --query "<topic>" --limit 5 2>/dev/null || \
   echo "ao not available, skipping knowledge search"
 ```
 
-**Review ao search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
+**Apply retrieved knowledge (mandatory when results returned):**
+
+If ao returns relevant learnings or patterns, do NOT just load them as passive context. For each returned item:
+1. Check: does this learning apply to the current research topic? (answer yes/no)
+2. If yes: note how it shapes your research direction — what questions does it answer? what areas does it warn about?
+3. Cross-reference prior findings against new discoveries in your research output
+4. Cite applicable learnings by filename in the research document's Findings section
+
+After applying, record each citation:
+```bash
+ao metrics cite "<learning-path>" --type applied 2>/dev/null || true
+```
+
+Also look for:
 - Prior research on this topic or related topics
 - Known patterns or anti-patterns
 - Lessons learned from similar investigations

@@ -77,6 +77,18 @@ Include matched entries in the council packet as `known_risks` with:
 
 Use the same ranked packet contract as `$plan`: compiled checks first, then active findings fallback, then matching high-severity next-work context when relevant. Avoid re-ranking with an unrelated heuristic inside pre-mortem; the point is consistent carry-forward, not a fresh retrieval policy per phase.
 
+**Record citations for applied knowledge:**
+
+After including matched entries as `known_risks`, record each citation so the flywheel feedback loop can track influence:
+```bash
+# Only use "applied" when the finding actually influenced the council packet.
+# Use "retrieved" for items loaded but not referenced in the risk assessment.
+ao metrics cite "<finding-path>" --type applied 2>/dev/null || true   # influenced risk assessment
+ao metrics cite "<finding-path>" --type retrieved 2>/dev/null || true # loaded but not used
+```
+
+**Section evidence:** When lookup results include `section_heading`, `matched_snippet`, or `match_confidence` fields, prefer the matched section over the whole file — it pinpoints the relevant portion. Higher `match_confidence` (>0.7) means the section is a strong match; lower values (<0.4) are weaker signals. Use the `matched_snippet` as the primary context rather than reading the full file.
+
 ### Step 1.5: Fast Path (--quick mode)
 
 **By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).

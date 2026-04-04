@@ -309,17 +309,26 @@ id: "f-startup-002"
 	if !strings.Contains(content, "Startup briefing") {
 		t.Fatalf("expected startup briefing in startup context, got:\n%s", content)
 	}
-	if !strings.Contains(content, "## Selected Context") {
-		t.Fatalf("expected ranked startup heading, got:\n%s", content)
+	if !strings.Contains(content, "## Operator Model") {
+		t.Fatalf("expected operator model heading, got:\n%s", content)
 	}
-	if !strings.Contains(content, "### Planning Rules") {
-		t.Fatalf("expected planning rules in startup context, got:\n%s", content)
+	if !strings.Contains(content, "## Startup Slots") {
+		t.Fatalf("expected startup slots heading, got:\n%s", content)
 	}
-	if !strings.Contains(content, "### Operating Beliefs") {
-		t.Fatalf("expected operating beliefs in startup context, got:\n%s", content)
+	if !strings.Contains(content, "### Core Beliefs") {
+		t.Fatalf("expected core beliefs in startup context, got:\n%s", content)
 	}
-	if !strings.Contains(content, "### Relevant Playbooks") {
-		t.Fatalf("expected relevant playbooks in startup context, got:\n%s", content)
+	if !strings.Contains(content, "### Relevant Playbook") {
+		t.Fatalf("expected relevant playbook in startup context, got:\n%s", content)
+	}
+	if !strings.Contains(content, "### Warnings / Blockers") {
+		t.Fatalf("expected warnings section in startup context, got:\n%s", content)
+	}
+	if !strings.Contains(content, "### Source Links") {
+		t.Fatalf("expected source links in startup context, got:\n%s", content)
+	}
+	if !strings.Contains(content, "## Degraded Mode") {
+		t.Fatalf("expected degraded mode section in startup context, got:\n%s", content)
 	}
 	if !strings.Contains(content, "## Excluded By Default") {
 		t.Fatalf("expected exclusion policy heading, got:\n%s", content)

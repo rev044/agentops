@@ -268,6 +268,21 @@ ao flywheel close-loop [flags]
       --threshold string     Minimum age for auto-promotion (default: 24h) (default "24h")
 ```
 
+#### `ao flywheel compare`
+
+Compare retrieval quality between primary and shadow namespaces.
+
+```
+ao flywheel compare [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help            help for compare
+      --shadow string   Shadow namespace to compare against primary (default "shadow")
+```
+
 #### `ao flywheel nudge`
 
 Returns structured JSON combining:
@@ -287,8 +302,9 @@ ao flywheel status [flags]
 **Flags:**
 
 ```
-      --days int   Period in days for metrics calculation (default 7)
-  -h, --help       help for status
+      --days int           Period in days for metrics calculation (default 7)
+  -h, --help               help for status
+      --namespace string   Citation namespace to evaluate (primary by default) (default "primary")
 ```
 
 ---
@@ -425,6 +441,7 @@ ao metrics cite <artifact-path> [flags]
       --query string     Search query that surfaced this artifact
       --session string   Session ID (auto-detected if not provided)
       --type string      Citation type: recall, reference, applied (default "reference")
+      --vendor string    Model vendor attribution: claude, codex
 ```
 
 #### `ao metrics cite-report`
@@ -449,6 +466,13 @@ Display flywheel health metrics including escape velocity status.
 
 ```
 ao metrics health [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help               help for health
+      --namespace string   Citation namespace to evaluate (primary by default) (default "primary")
 ```
 
 #### `ao metrics report`
@@ -1394,7 +1418,6 @@ ao rpi serve [goal | run-id] [flags]
 ```
   -h, --help                 help for serve
       --no-open              Do not open browser automatically
-      --open                 Open browser automatically (default true)
       --orchestrate          Treat first argument as a goal and run full RPI orchestration
       --port int             Port to listen on (default 7799)
       --run-id string        Run ID to watch explicitly (must match rpi-<8-12 hex> or <12 hex>)

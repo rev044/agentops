@@ -56,6 +56,20 @@ Load language-specific conventions from `/standards` based on file extensions in
 ao lookup --query "code review patterns $(basename "$PWD")" --limit 3 2>/dev/null || true
 ```
 
+**Apply retrieved knowledge (mandatory when results returned):**
+
+If learnings are returned, do NOT just load them as passive context. For each returned item:
+1. Check: does this learning apply to the code under review? (answer yes/no)
+2. If yes: include it as a `known_risk` — state the pattern, what to look for, and whether the diff exhibits it
+3. Cite the learning by filename in your review output when it influences a finding
+
+After applying, record the citation:
+```bash
+ao metrics cite "<learning-path>" --type applied 2>/dev/null || true
+```
+
+Skip silently if ao is unavailable or returns no results.
+
 ---
 
 ### Step 1: Fetch the Diff

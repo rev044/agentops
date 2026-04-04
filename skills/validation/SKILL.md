@@ -43,7 +43,19 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-Incorporate any relevant prior findings (e.g., recurring vibe failures, known anti-patterns for this scope) as context for the review cycle.
+**Apply retrieved knowledge (mandatory when results returned):**
+
+If learnings are returned, do NOT just load them as passive context. For each returned item:
+1. Check: does this learning apply to the current validation scope? (answer yes/no)
+2. If yes: include it as a `known_risk` — what pattern does it warn about? does the code exhibit it?
+3. Cite applicable learnings by filename when they influence a validation finding
+
+After applying, record each citation:
+```bash
+ao metrics cite "<learning-path>" --type applied 2>/dev/null || true
+```
+
+Skip silently if ao is unavailable or returns no results.
 
 **Run every step in order. Do not stop between steps.**
 

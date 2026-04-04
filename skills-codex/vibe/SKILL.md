@@ -308,7 +308,19 @@ if command -v ao &>/dev/null; then
     ao search "code review findings <target>" 2>/dev/null | head -10
 fi
 ```
-If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
+**Apply retrieved knowledge (mandatory when results returned):**
+
+If ao returns prior code review patterns, do NOT just load them as passive context. For each returned item:
+1. Check: does this learning apply to the code under review? (answer yes/no)
+2. If yes: include it as a `known_risk` in your review — state the pattern, what to look for, and whether the code exhibits it
+3. Cite the learning by filename in your review output when it influences a finding
+
+After applying, record the citation:
+```bash
+ao metrics cite "<learning-path>" --type applied 2>/dev/null || true
+```
+
+Skip silently if ao is unavailable or returns no results.
 
 ### Step 2f: Bug Hunt or Deep Audit Sweep
 

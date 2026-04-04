@@ -218,6 +218,7 @@ func outputLearning(cwd string, l learning) error {
 	if l.Summary != "" {
 		sb.WriteString(l.Summary + "\n\n")
 	}
+	sb.WriteString(formatLearningEvidenceBlock(l))
 
 	// Read full file content if available
 	if l.Source != "" {
@@ -243,11 +244,16 @@ func outputLearning(cwd string, l learning) error {
 	if !lookupNoCite && l.Source != "" {
 		sessionID := resolveSessionID(lookupSessionID)
 		event := types.CitationEvent{
-			ArtifactPath: canonicalArtifactPath(cwd, l.Source),
-			SessionID:    sessionID,
-			CitedAt:      time.Now(),
-			CitationType: canonicalCitationType(lookupCiteType),
-			Query:        l.ID,
+			ArtifactPath:    canonicalArtifactPath(cwd, l.Source),
+			SessionID:       sessionID,
+			CitedAt:         time.Now(),
+			CitationType:    canonicalCitationType(lookupCiteType),
+			Query:           l.ID,
+			MetricNamespace: defaultCitationMetricNamespace(),
+			MatchConfidence: l.MatchConfidence,
+			MatchProvenance: l.MatchProvenance,
+			SectionHeading:  l.SectionHeading,
+			SectionLocator:  l.SectionLocator,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
 			VerbosePrintf("Warning: failed to record citation: %v\n", err)
@@ -374,6 +380,7 @@ func outputResults(cwd string, learnings []learning, patterns []pattern, finding
 		if l.Summary != "" {
 			fmt.Printf("%s\n", l.Summary)
 		}
+		fmt.Print(formatLearningEvidenceBlock(l))
 		fmt.Printf("Source: %s\n\n", relPath(cwd, l.Source))
 	}
 
@@ -442,20 +449,30 @@ func formatLookupAge(ageWeeks float64) string {
 
 // recordLookupCitations records citations for lookup results.
 func recordLookupCitations(cwd string, learnings []learning, patterns []pattern, findings []knowledgeFinding, sessionID, query, citationType string) {
+	recordLookupCitationsInNamespace(cwd, learnings, patterns, findings, sessionID, query, citationType, defaultCitationMetricNamespace())
+}
+
+func recordLookupCitationsInNamespace(cwd string, learnings []learning, patterns []pattern, findings []knowledgeFinding, sessionID, query, citationType, namespace string) {
 	citationType = canonicalCitationType(citationType)
 	if citationType == "" {
 		citationType = "retrieved"
 	}
+	canonicalNamespace := canonicalMetricNamespace(namespace)
 	for _, l := range learnings {
 		if l.Source == "" {
 			continue
 		}
 		event := types.CitationEvent{
-			ArtifactPath: canonicalArtifactPath(cwd, l.Source),
-			SessionID:    sessionID,
-			CitedAt:      time.Now(),
-			CitationType: citationType,
-			Query:        query,
+			ArtifactPath:    canonicalArtifactPath(cwd, l.Source),
+			SessionID:       sessionID,
+			CitedAt:         time.Now(),
+			CitationType:    citationType,
+			Query:           query,
+			MetricNamespace: canonicalNamespace,
+			MatchConfidence: l.MatchConfidence,
+			MatchProvenance: l.MatchProvenance,
+			SectionHeading:  l.SectionHeading,
+			SectionLocator:  l.SectionLocator,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
 			VerbosePrintf("Warning: record citation for %s: %v\n", l.ID, err)
@@ -466,11 +483,12 @@ func recordLookupCitations(cwd string, learnings []learning, patterns []pattern,
 			continue
 		}
 		event := types.CitationEvent{
-			ArtifactPath: canonicalArtifactPath(cwd, p.FilePath),
-			SessionID:    sessionID,
-			CitedAt:      time.Now(),
-			CitationType: citationType,
-			Query:        query,
+			ArtifactPath:    canonicalArtifactPath(cwd, p.FilePath),
+			SessionID:       sessionID,
+			CitedAt:         time.Now(),
+			CitationType:    citationType,
+			Query:           query,
+			MetricNamespace: canonicalNamespace,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
 			VerbosePrintf("Warning: record citation for %s: %v\n", p.Name, err)
@@ -481,16 +499,45 @@ func recordLookupCitations(cwd string, learnings []learning, patterns []pattern,
 			continue
 		}
 		event := types.CitationEvent{
-			ArtifactPath: canonicalArtifactPath(cwd, f.Source),
-			SessionID:    sessionID,
-			CitedAt:      time.Now(),
-			CitationType: citationType,
-			Query:        query,
+			ArtifactPath:    canonicalArtifactPath(cwd, f.Source),
+			SessionID:       sessionID,
+			CitedAt:         time.Now(),
+			CitationType:    citationType,
+			Query:           query,
+			MetricNamespace: canonicalNamespace,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
 			VerbosePrintf("Warning: record citation for %s: %v\n", f.ID, err)
 		}
 	}
+}
+
+func formatLearningEvidenceBlock(l learning) string {
+	if l.SectionHeading == "" && l.MatchedSnippet == "" {
+		return ""
+	}
+
+	var sb strings.Builder
+	if l.SectionHeading != "" {
+		sb.WriteString("Evidence: ")
+		sb.WriteString(l.SectionHeading)
+		if l.SectionLocator != "" {
+			sb.WriteString(" (")
+			sb.WriteString(l.SectionLocator)
+			sb.WriteString(")")
+		}
+		if l.MatchConfidence > 0 {
+			sb.WriteString(fmt.Sprintf(" | Match: %.2f", l.MatchConfidence))
+		}
+		sb.WriteString("\n")
+	}
+	if l.MatchedSnippet != "" {
+		sb.WriteString("Snippet: ")
+		sb.WriteString(l.MatchedSnippet)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+	return sb.String()
 }
 
 func emptyIfMissing(v string) string {

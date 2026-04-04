@@ -860,6 +860,17 @@ func saveCodexLifecycleState(path string, state *codexLifecycleState) error {
 
 func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query string, briefings []codexArtifactRef, learnings []learning, patterns []pattern, findings []knowledgeFinding, recentSessions []session, nextWork []nextWorkItem, research []codexArtifactRef) (string, error) {
 	bundle := buildRankedContextBundle(cwd, query, codexStartLimit, learnings, patterns, findings, recentSessions, nextWork, research)
+	agentsRoot := knowledgeAgentsRoot(cwd)
+	beliefs := append([]string(nil), bundle.Beliefs...)
+	if len(beliefs) > 3 {
+		beliefs = beliefs[:3]
+	}
+	playbooks := append([]knowledgeContextPlaybook(nil), bundle.Playbooks...)
+	if len(playbooks) > 1 {
+		playbooks = playbooks[:1]
+	}
+	warnings := codexStartupWarnings(bundle, agentsRoot)
+	sourceLinks := codexStartupSourceLinks(cwd, agentsRoot, briefings, playbooks)
 	var sb strings.Builder
 	sb.WriteString("# Codex Startup Context\n\n")
 	sb.WriteString(fmt.Sprintf("- Runtime: %s\n", profile.Runtime))
@@ -879,9 +890,54 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 			sb.WriteString(fmt.Sprintf("- %s\n", item.Title))
 		}
 	}
-	sb.WriteString("\n## Selected Context\n")
-	sb.WriteString("The sections below favor stable operator surfaces and canonical runtime artifacts before recency-heavy history.\n\n")
-	sb.WriteString(renderRankedIntelSectionFromBundle(bundle, "startup", 4000))
+	sb.WriteString("\n## Operator Model\n")
+	sb.WriteString("- Canonical primitives: `fitness gradient`, `stateful environment`, `replaceable actors`, `stigmergic traces`, `selection gates`, `evolutionary promotion`, `governance`\n")
+	sb.WriteString("- Treat the control plane as the product; actors are replaceable executors and the environment carries memory, coordination, trust, and adaptation.\n")
+	operatorModelPath := filepath.Join(agentsRoot, "knowledge", "operator-model.md")
+	if fileExists(operatorModelPath) {
+		sb.WriteString(fmt.Sprintf("- Doctrine: `%s`\n", displayKnowledgeContextPath(cwd, operatorModelPath)))
+	}
+	sb.WriteString("\n## Startup Slots\n")
+	sb.WriteString("This startup surface is fixed-slot and file-backed: a few beliefs, one healthy playbook, concrete blockers, and source links.\n\n")
+	sb.WriteString("### Core Beliefs\n")
+	if len(beliefs) == 0 {
+		sb.WriteString("- No stable beliefs surfaced yet.\n")
+	} else {
+		for _, belief := range beliefs {
+			sb.WriteString(fmt.Sprintf("- %s\n", belief))
+		}
+	}
+	sb.WriteString("\n### Relevant Playbook\n")
+	if len(playbooks) == 0 {
+		sb.WriteString("- No healthy playbook matched this thread yet.\n")
+	} else {
+		for _, playbook := range playbooks {
+			summary := strings.TrimSpace(playbook.Summary)
+			if summary == "" {
+				summary = "Use the healthy operator playbook for bounded execution."
+			}
+			sb.WriteString(fmt.Sprintf("- %s: %s (`%s`)\n", playbook.Title, summary, displayKnowledgeContextPath(cwd, playbook.Path)))
+		}
+	}
+	sb.WriteString("\n### Warnings / Blockers\n")
+	if len(warnings) == 0 {
+		sb.WriteString("- No high-signal blockers surfaced from current operator artifacts.\n")
+	} else {
+		for _, warning := range warnings {
+			sb.WriteString(fmt.Sprintf("- %s\n", warning))
+		}
+	}
+	sb.WriteString("\n### Source Links\n")
+	if len(sourceLinks) == 0 {
+		sb.WriteString("- No source links surfaced.\n")
+	} else {
+		for _, source := range sourceLinks {
+			sb.WriteString(fmt.Sprintf("- %s\n", source))
+		}
+	}
+	sb.WriteString("\n## Degraded Mode\n")
+	sb.WriteString("- When CAS freshness is unhealthy, file-backed artifacts and lexical probes remain authoritative.\n")
+	sb.WriteString("- Startup context assembly stays file-backed and does not silently depend on a healthy CAS index.\n")
 	sb.WriteString("\n## Excluded By Default\n")
 	for _, bullet := range codexStartupExclusionBullets() {
 		sb.WriteString(fmt.Sprintf("- %s\n", bullet))
@@ -892,6 +948,62 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 		return "", err
 	}
 	return path, nil
+}
+
+func codexStartupWarnings(bundle rankedContextBundle, agentsRoot string) []string {
+	warnings := make([]string, 0, 4)
+	if warning := knowledgeSourceManifestWarning(agentsRoot); strings.TrimSpace(warning) != "" {
+		warnings = append(warnings, warning)
+	}
+	for _, item := range bundle.NextWork {
+		summary := firstNonEmptyTrimmed(strings.TrimSpace(item.Title), strings.TrimSpace(item.Description))
+		if summary == "" {
+			continue
+		}
+		warnings = appendKnowledgeCandidate(warnings, summary)
+	}
+	for _, risk := range bundle.Packet.KnownRisks {
+		warnings = appendKnowledgeCandidate(warnings, risk)
+	}
+	for _, finding := range bundle.Findings {
+		summary := firstNonEmptyTrimmed(strings.TrimSpace(finding.Summary), strings.TrimSpace(finding.Title))
+		if summary == "" {
+			continue
+		}
+		warnings = appendKnowledgeCandidate(warnings, summary)
+	}
+	if len(warnings) > 2 {
+		warnings = warnings[:2]
+	}
+	return warnings
+}
+
+func codexStartupSourceLinks(cwd, agentsRoot string, briefings []codexArtifactRef, playbooks []knowledgeContextPlaybook) []string {
+	links := make([]string, 0, 8)
+	operatorModelPath := filepath.Join(agentsRoot, "knowledge", "operator-model.md")
+	beliefBookPath := filepath.Join(agentsRoot, "knowledge", "book-of-beliefs.md")
+	if fileExists(operatorModelPath) {
+		links = append(links, fmt.Sprintf("Doctrine: `%s`", displayKnowledgeContextPath(cwd, operatorModelPath)))
+	}
+	if fileExists(beliefBookPath) {
+		links = append(links, fmt.Sprintf("Beliefs: `%s`", displayKnowledgeContextPath(cwd, beliefBookPath)))
+	}
+	for _, item := range briefings {
+		if strings.TrimSpace(item.Path) != "" {
+			links = append(links, fmt.Sprintf("Briefing: `%s`", displayKnowledgeContextPath(cwd, item.Path)))
+			continue
+		}
+		if strings.TrimSpace(item.Title) != "" {
+			links = append(links, "Briefing: "+item.Title)
+		}
+	}
+	for _, playbook := range playbooks {
+		if strings.TrimSpace(playbook.Path) == "" {
+			continue
+		}
+		links = append(links, fmt.Sprintf("Playbook: `%s`", displayKnowledgeContextPath(cwd, playbook.Path)))
+	}
+	return dedupeKnowledgeStrings(links)
 }
 
 func countGlobMatches(pattern string) int {

@@ -73,12 +73,13 @@ func TestCheckPromotionCriteria(t *testing.T) {
 		wantReason string // "" means qualifies
 	}{
 		{
-			name: "qualifies — old enough, cited, not duplicate",
+			name: "qualifies — old enough, cited, sufficient utility, not duplicate",
 			entry: pool.PoolEntry{
 				PoolEntry: types.PoolEntry{
 					Candidate: types.Candidate{
 						ID:      "cand-abc",
 						Content: "unique learning content",
+						Utility: 0.6,
 					},
 				},
 				Age:       48 * time.Hour,
@@ -111,6 +112,7 @@ func TestCheckPromotionCriteria(t *testing.T) {
 					Candidate: types.Candidate{
 						ID:      "cand-uncited",
 						Content: "uncited learning",
+						Utility: 0.6,
 					},
 				},
 				Age:       48 * time.Hour,
@@ -118,24 +120,60 @@ func TestCheckPromotionCriteria(t *testing.T) {
 			},
 			citations:  map[string]int{},
 			promoted:   map[string]bool{},
-			wantReason: "no citations",
+			wantReason: "insufficient citations",
 		},
 		{
-			name: "cited by file path",
+			name: "cited by file path with sufficient citations and utility",
 			entry: pool.PoolEntry{
 				PoolEntry: types.PoolEntry{
 					Candidate: types.Candidate{
 						ID:      "cand-filepath",
 						Content: "cited via file path",
+						Utility: 0.7,
 					},
 				},
 				FilePath:  "/path/to/cand-filepath.json",
 				Age:       48 * time.Hour,
 				AgeString: "48h",
 			},
-			citations:  map[string]int{"/path/to/cand-filepath.json": 1},
+			citations:  map[string]int{"/path/to/cand-filepath.json": 3},
 			promoted:   map[string]bool{},
 			wantReason: "",
+		},
+		{
+			name: "cited by file path but insufficient citations",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "cand-filepath-low",
+						Content: "cited via file path low",
+						Utility: 0.7,
+					},
+				},
+				FilePath:  "/path/to/cand-filepath-low.json",
+				Age:       48 * time.Hour,
+				AgeString: "48h",
+			},
+			citations:  map[string]int{"/path/to/cand-filepath-low.json": 1},
+			promoted:   map[string]bool{},
+			wantReason: "insufficient citations",
+		},
+		{
+			name: "utility too low",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "cand-lowutil",
+						Content: "low utility learning",
+						Utility: 0.3,
+					},
+				},
+				Age:       48 * time.Hour,
+				AgeString: "48h",
+			},
+			citations:  map[string]int{"cand-lowutil": 5},
+			promoted:   map[string]bool{},
+			wantReason: "utility too low",
 		},
 		{
 			name: "duplicate of promoted content",
@@ -144,12 +182,13 @@ func TestCheckPromotionCriteria(t *testing.T) {
 					Candidate: types.Candidate{
 						ID:      "cand-dup",
 						Content: "Already Promoted Learning",
+						Utility: 0.8,
 					},
 				},
 				Age:       48 * time.Hour,
 				AgeString: "48h",
 			},
-			citations:  map[string]int{"cand-dup": 1},
+			citations:  map[string]int{"cand-dup": 3},
 			promoted:   map[string]bool{normalizeContent("already promoted learning"): true},
 			wantReason: "duplicate of already-promoted content",
 		},

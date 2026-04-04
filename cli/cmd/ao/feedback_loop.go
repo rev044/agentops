@@ -20,18 +20,19 @@ import (
 
 // FeedbackEvent records a feedback loop closure event.
 type FeedbackEvent struct {
-	SessionID      string    `json:"session_id"`
-	ArtifactPath   string    `json:"artifact_path"`
-	WorkspacePath  string    `json:"workspace_path,omitempty"`
-	CitationType   string    `json:"citation_type,omitempty"`
-	Reward         float64   `json:"reward"`
-	UtilityBefore  float64   `json:"utility_before"`
-	UtilityAfter   float64   `json:"utility_after"`
-	Alpha          float64   `json:"alpha"`
-	RecordedAt     time.Time `json:"recorded_at"`
-	TranscriptPath string    `json:"transcript_path,omitempty"`
-	Decision       string    `json:"decision,omitempty"`
-	Reason         string    `json:"reason,omitempty"`
+	SessionID       string    `json:"session_id"`
+	ArtifactPath    string    `json:"artifact_path"`
+	WorkspacePath   string    `json:"workspace_path,omitempty"`
+	CitationType    string    `json:"citation_type,omitempty"`
+	MetricNamespace string    `json:"metric_namespace,omitempty"`
+	Reward          float64   `json:"reward"`
+	UtilityBefore   float64   `json:"utility_before"`
+	UtilityAfter    float64   `json:"utility_after"`
+	Alpha           float64   `json:"alpha"`
+	RecordedAt      time.Time `json:"recorded_at"`
+	TranscriptPath  string    `json:"transcript_path,omitempty"`
+	Decision        string    `json:"decision,omitempty"`
+	Reason          string    `json:"reason,omitempty"`
 }
 
 // FeedbackFilePath is the relative path to the feedback log.
@@ -135,6 +136,7 @@ func loadSessionCitations(cwd, sessionID, citationType string) ([]types.Citation
 		c.SessionID = canonicalSessionID(c.SessionID)
 		c.ArtifactPath = canonicalArtifactPath(cwd, c.ArtifactPath)
 		c.CitationType = canonicalCitationType(c.CitationType)
+		c.MetricNamespace = canonicalMetricNamespace(c.MetricNamespace)
 		if !targetAliases[c.SessionID] {
 			continue
 		}
@@ -173,7 +175,8 @@ func deduplicateCitations(baseDir string, citations []types.CitationEvent) []typ
 	var unique []types.CitationEvent
 	for _, c := range citations {
 		c.ArtifactPath = canonicalArtifactPath(baseDir, c.ArtifactPath)
-		key := canonicalArtifactKey(baseDir, c.ArtifactPath)
+		c.MetricNamespace = canonicalMetricNamespace(c.MetricNamespace)
+		key := citationFeedbackNamespaceKey(baseDir, c.ArtifactPath, c.MetricNamespace)
 		if !seen[key] {
 			seen[key] = true
 			unique = append(unique, c)
@@ -200,6 +203,28 @@ func processUniqueCitations(cwd, sessionID, transcriptPath string, citations []t
 			}
 		}
 
+		metricNamespace := canonicalMetricNamespace(citation.MetricNamespace)
+		if !isPrimaryMetricNamespace(metricNamespace) {
+			currentUtility := parseUtilityFromFile(learningPath)
+			events = append(events, FeedbackEvent{
+				SessionID:       canonicalSessionID(sessionID),
+				ArtifactPath:    learningPath,
+				WorkspacePath:   canonicalWorkspacePath(cwd, cwd),
+				CitationType:    canonicalCitationType(citation.CitationType),
+				MetricNamespace: metricNamespace,
+				Decision:        "audited",
+				Reason:          "non-primary-namespace",
+				Reward:          0,
+				UtilityBefore:   currentUtility,
+				UtilityAfter:    currentUtility,
+				Alpha:           0,
+				RecordedAt:      time.Now(),
+				TranscriptPath:  transcriptPath,
+			})
+			failedCount++
+			continue
+		}
+
 		oldUtility, newUtility, err := updateLearningUtility(learningPath, reward, alpha)
 		if err != nil {
 			VerbosePrintf("Warning: failed to update %s: %v\n", learningPath, err)
@@ -208,18 +233,19 @@ func processUniqueCitations(cwd, sessionID, transcriptPath string, citations []t
 		}
 
 		event := FeedbackEvent{
-			SessionID:      canonicalSessionID(sessionID),
-			ArtifactPath:   learningPath,
-			WorkspacePath:  canonicalWorkspacePath(cwd, cwd),
-			CitationType:   canonicalCitationType(citation.CitationType),
-			Decision:       "rewarded",
-			Reason:         "feedback-loop-manual",
-			Reward:         reward,
-			UtilityBefore:  oldUtility,
-			UtilityAfter:   newUtility,
-			Alpha:          alpha,
-			RecordedAt:     time.Now(),
-			TranscriptPath: transcriptPath,
+			SessionID:       canonicalSessionID(sessionID),
+			ArtifactPath:    learningPath,
+			WorkspacePath:   canonicalWorkspacePath(cwd, cwd),
+			CitationType:    canonicalCitationType(citation.CitationType),
+			MetricNamespace: metricNamespace,
+			Decision:        "rewarded",
+			Reason:          "feedback-loop-manual",
+			Reward:          reward,
+			UtilityBefore:   oldUtility,
+			UtilityAfter:    newUtility,
+			Alpha:           alpha,
+			RecordedAt:      time.Now(),
+			TranscriptPath:  transcriptPath,
 		}
 		events = append(events, event)
 		updatedCount++
@@ -323,7 +349,7 @@ func markCitationFeedback(baseDir, sessionID string, reward float64, events []Fe
 
 	eventByPath := make(map[string]FeedbackEvent, len(events))
 	for _, event := range events {
-		key := canonicalArtifactKey(baseDir, event.ArtifactPath)
+		key := citationFeedbackNamespaceKey(baseDir, event.ArtifactPath, event.MetricNamespace)
 		eventByPath[key] = event
 	}
 
@@ -332,13 +358,16 @@ func markCitationFeedback(baseDir, sessionID string, reward float64, events []Fe
 	for i := range citations {
 		citations[i].SessionID = canonicalSessionID(citations[i].SessionID)
 		citations[i].ArtifactPath = canonicalArtifactPath(baseDir, citations[i].ArtifactPath)
+		citations[i].MetricNamespace = canonicalMetricNamespace(citations[i].MetricNamespace)
 		if !targetAliases[citations[i].SessionID] {
 			continue
 		}
 		citations[i].FeedbackGiven = true
 		citations[i].FeedbackReward = reward
 		citations[i].FeedbackAt = now
-		if event, ok := eventByPath[canonicalArtifactKey(baseDir, citations[i].ArtifactPath)]; ok {
+		if event, ok := eventByPath[citationFeedbackNamespaceKey(baseDir, citations[i].ArtifactPath, citations[i].MetricNamespace)]; ok {
+			citations[i].FeedbackReward = event.Reward
+			citations[i].FeedbackAt = event.RecordedAt
 			citations[i].UtilityBefore = event.UtilityBefore
 			citations[i].UtilityAfter = event.UtilityAfter
 		}

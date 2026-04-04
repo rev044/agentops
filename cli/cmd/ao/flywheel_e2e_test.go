@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/harvest"
+	"github.com/boshu2/agentops/cli/internal/pool"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // TestFlywheelE2E_CreateHarvestPromoteRetrieveInject validates the full flywheel loop:
@@ -353,6 +355,141 @@ func TestFlywheelE2E_GarbageRejection(t *testing.T) {
 			if got != tc.passes {
 				t.Errorf("passesQualityGate(%q): got %v, want %v (maturity=%s, utility=%.2f, body=%d chars)",
 					tc.name, got, tc.passes, tc.learning.Maturity, tc.learning.Utility, len(tc.learning.BodyText))
+			}
+		})
+	}
+}
+
+// TestFlywheelE2E_CitationPromotionPipeline validates that the signal-based
+// promotion criteria work end-to-end: a candidate with sufficient citations
+// AND utility promotes, while candidates lacking either are rejected.
+func TestFlywheelE2E_CitationPromotionPipeline(t *testing.T) {
+	minAge := 24 * time.Hour
+
+	cases := []struct {
+		name       string
+		entry      pool.PoolEntry
+		citations  map[string]int
+		wantPass   bool
+		wantReason string // substring expected in skip reason
+	}{
+		{
+			name: "full pipeline pass — 3 citations, utility 0.7",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "pipeline-pass",
+						Content: "learning with strong signal from multiple sessions",
+						Utility: 0.7,
+					},
+				},
+				Age:       72 * time.Hour,
+				AgeString: "72h",
+			},
+			citations: map[string]int{"pipeline-pass": 3},
+			wantPass:  true,
+		},
+		{
+			name: "rejected — 1 citation below minimum 2",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "pipeline-low-cite",
+						Content: "learning with only one citation",
+						Utility: 0.8,
+					},
+				},
+				Age:       72 * time.Hour,
+				AgeString: "72h",
+			},
+			citations:  map[string]int{"pipeline-low-cite": 1},
+			wantPass:   false,
+			wantReason: "insufficient citations",
+		},
+		{
+			name: "rejected — utility 0.3 below 0.5 threshold",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "pipeline-low-util",
+						Content: "learning with low utility despite citations",
+						Utility: 0.3,
+					},
+				},
+				Age:       72 * time.Hour,
+				AgeString: "72h",
+			},
+			citations:  map[string]int{"pipeline-low-util": 5},
+			wantPass:   false,
+			wantReason: "utility too low",
+		},
+		{
+			name: "rejected — both citations and utility insufficient",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "pipeline-both-low",
+						Content: "learning with no signal at all",
+						Utility: 0.2,
+					},
+				},
+				Age:       72 * time.Hour,
+				AgeString: "72h",
+			},
+			citations:  map[string]int{},
+			wantPass:   false,
+			wantReason: "insufficient citations", // citations checked first
+		},
+		{
+			name: "boundary — exactly 2 citations and utility 0.5",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "pipeline-boundary",
+						Content: "learning at exact promotion boundary",
+						Utility: 0.5,
+					},
+				},
+				Age:       72 * time.Hour,
+				AgeString: "72h",
+			},
+			citations: map[string]int{"pipeline-boundary": 2},
+			wantPass:  true,
+		},
+		{
+			name: "boundary — utility 0.49 just below threshold",
+			entry: pool.PoolEntry{
+				PoolEntry: types.PoolEntry{
+					Candidate: types.Candidate{
+						ID:      "pipeline-just-under",
+						Content: "learning just below utility threshold",
+						Utility: 0.49,
+					},
+				},
+				Age:       72 * time.Hour,
+				AgeString: "72h",
+			},
+			citations:  map[string]int{"pipeline-just-under": 5},
+			wantPass:   false,
+			wantReason: "utility too low",
+		},
+	}
+
+	promoted := map[string]bool{}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reason := checkPromotionCriteria("/tmp", tc.entry, minAge, tc.citations, promoted)
+			if tc.wantPass {
+				if reason != "" {
+					t.Errorf("expected promotion, got skip: %q", reason)
+				}
+			} else {
+				if reason == "" {
+					t.Errorf("expected rejection containing %q, got promotion", tc.wantReason)
+				} else if !strings.Contains(reason, tc.wantReason) {
+					t.Errorf("skip reason %q does not contain %q", reason, tc.wantReason)
+				}
 			}
 		})
 	}

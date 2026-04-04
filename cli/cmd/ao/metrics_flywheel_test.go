@@ -43,6 +43,64 @@ func TestPrintFlywheelStatus_Compounding(t *testing.T) {
 	}
 }
 
+func TestComputeMetricsForNamespace_FiltersCitations(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now()
+
+	for _, rel := range []string{
+		filepath.Join(".agents", "ao"),
+		filepath.Join(".agents", "learnings"),
+	} {
+		if err := os.MkdirAll(filepath.Join(dir, rel), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"primary.md", "shadow.md"} {
+		if err := os.WriteFile(filepath.Join(dir, ".agents", "learnings", name), []byte("# L"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeHealthCitations(t, dir, []types.CitationEvent{
+		{
+			ArtifactPath:    filepath.Join(dir, ".agents", "learnings", "primary.md"),
+			SessionID:       "session-primary",
+			CitedAt:         now.Add(-time.Hour),
+			CitationType:    "reference",
+			MetricNamespace: "primary",
+		},
+		{
+			ArtifactPath:    filepath.Join(dir, ".agents", "learnings", "shadow.md"),
+			SessionID:       "session-shadow",
+			CitedAt:         now.Add(-2 * time.Hour),
+			CitationType:    "retrieved",
+			MetricNamespace: "shadow",
+		},
+	})
+
+	primary, err := computeMetricsForNamespace(dir, 7, "")
+	if err != nil {
+		t.Fatalf("computeMetricsForNamespace(primary): %v", err)
+	}
+	if primary.Sigma < 0.49 || primary.Sigma > 0.51 {
+		t.Fatalf("primary sigma = %f, want ~0.5", primary.Sigma)
+	}
+	if primary.Rho < 0.99 || primary.Rho > 1.01 {
+		t.Fatalf("primary rho = %f, want ~1.0", primary.Rho)
+	}
+
+	shadow, err := computeMetricsForNamespace(dir, 7, "shadow")
+	if err != nil {
+		t.Fatalf("computeMetricsForNamespace(shadow): %v", err)
+	}
+	if shadow.Sigma < 0.49 || shadow.Sigma > 0.51 {
+		t.Fatalf("shadow sigma = %f, want ~0.5", shadow.Sigma)
+	}
+	if shadow.Rho != 0 {
+		t.Fatalf("shadow rho = %f, want 0", shadow.Rho)
+	}
+}
+
 func TestPrintFlywheelStatus_NearEscape(t *testing.T) {
 	var buf bytes.Buffer
 	m := &types.FlywheelMetrics{
@@ -509,5 +567,90 @@ func TestPrintFlywheelStatus_ShowsPeriod(t *testing.T) {
 	}
 	if !strings.Contains(got, "14 days") {
 		t.Errorf("expected '14 days' in output, got: %q", got)
+	}
+}
+
+func TestBuildNamespaceComparison_PromotionReady(t *testing.T) {
+	primary := &types.FlywheelMetrics{
+		Sigma:    0.25,
+		Rho:      0.60,
+		SigmaRho: 0.15,
+		Velocity: -0.02,
+		Delta:    17.0,
+	}
+	shadow := &types.FlywheelMetrics{
+		Sigma:    0.35,
+		Rho:      0.65,
+		SigmaRho: 0.2275,
+		Velocity: 0.06,
+		Delta:    17.0,
+	}
+	comp := buildNamespaceComparison(primary, shadow, "experimental")
+	if !comp.PromotionReady {
+		t.Errorf("expected promotion ready: sigma %.3f > %.3f and rho %.3f >= %.3f, reason: %s",
+			shadow.Sigma, primary.Sigma, shadow.Rho, primary.Rho, comp.PromotionReason)
+	}
+	if comp.SigmaDelta <= 0 {
+		t.Errorf("expected positive sigma delta, got %v", comp.SigmaDelta)
+	}
+}
+
+func TestBuildNamespaceComparison_NotReady_SigmaWorse(t *testing.T) {
+	primary := &types.FlywheelMetrics{Sigma: 0.40, Rho: 0.60}
+	shadow := &types.FlywheelMetrics{Sigma: 0.30, Rho: 0.70}
+	comp := buildNamespaceComparison(primary, shadow, "shadow")
+	if comp.PromotionReady {
+		t.Error("expected promotion not ready when shadow sigma < primary sigma")
+	}
+	if !strings.Contains(comp.PromotionReason, "does not beat") {
+		t.Errorf("expected 'does not beat' in reason, got %q", comp.PromotionReason)
+	}
+}
+
+func TestBuildNamespaceComparison_NotReady_RhoRegressed(t *testing.T) {
+	primary := &types.FlywheelMetrics{Sigma: 0.30, Rho: 0.70}
+	shadow := &types.FlywheelMetrics{Sigma: 0.35, Rho: 0.50}
+	comp := buildNamespaceComparison(primary, shadow, "shadow")
+	if comp.PromotionReady {
+		t.Error("expected promotion not ready when shadow rho regressed")
+	}
+	if !strings.Contains(comp.PromotionReason, "regressed") {
+		t.Errorf("expected 'regressed' in reason, got %q", comp.PromotionReason)
+	}
+}
+
+func TestBuildNamespaceComparison_RollbackContract(t *testing.T) {
+	primary := &types.FlywheelMetrics{}
+	shadow := &types.FlywheelMetrics{}
+	comp := buildNamespaceComparison(primary, shadow, "shadow")
+	if comp.RollbackContract == "" {
+		t.Error("expected non-empty rollback contract")
+	}
+	if !strings.Contains(comp.RollbackContract, "Stop reading") {
+		t.Errorf("rollback contract should describe namespace routing, got %q", comp.RollbackContract)
+	}
+}
+
+func TestPrintNamespaceComparison_ContainsMetrics(t *testing.T) {
+	comp := &namespaceComparison{
+		Primary:          &types.FlywheelMetrics{Sigma: 0.25, Rho: 0.60, SigmaRho: 0.15, Velocity: -0.02, Delta: 17.0},
+		Shadow:           &types.FlywheelMetrics{Sigma: 0.35, Rho: 0.65, SigmaRho: 0.23, Velocity: 0.06, Delta: 17.0},
+		ShadowName:       "experimental",
+		SigmaDelta:       0.10,
+		RhoDelta:         0.05,
+		VelocityDelta:    0.08,
+		PromotionReady:   true,
+		PromotionReason:  "Shadow sigma beats primary",
+		RollbackContract: "Stop reading shadow namespace",
+	}
+	var buf bytes.Buffer
+	printNamespaceComparison(&buf, comp)
+	got := buf.String()
+
+	checks := []string{"experimental", "sigma", "rho", "PROMOTION: READY", "Rollback"}
+	for _, check := range checks {
+		if !strings.Contains(got, check) {
+			t.Errorf("expected %q in comparison output, got:\n%s", check, got)
+		}
 	}
 }
