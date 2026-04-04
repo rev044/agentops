@@ -4,15 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -188,7 +191,7 @@ type queueSelection struct {
 }
 
 var (
-	runRPISupervisedCycleFn = runRPISupervisedCycle
+	runRPISupervisedCycleFn func(context.Context, string, string, int, int, rpiLoopSupervisorConfig) error = runRPISupervisedCycle
 	runAthenaProducerTickFn = runAthenaProducerTick
 )
 
@@ -244,6 +247,9 @@ var errKillSwitchActivated = fmt.Errorf("kill switch activated")
 
 // executeLoopCycles runs the main RPI loop consuming from the next-work queue.
 func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSupervisorConfig) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	cycle := 0
 	executedCycles := 0
 	athenaState := athenaProducerState{}
@@ -254,7 +260,7 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 			fmt.Printf("\nReached max cycles (%d). Stopping.\n", rpiMaxCycles)
 			break
 		}
-		stop, err := applyCycleDelay(cycle, cfg)
+		stop, err := applyCycleDelay(ctx, cycle, cfg)
 		if err != nil {
 			return err
 		}
@@ -278,7 +284,7 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 		fmt.Printf("Running phased engine for: %q\n", goal)
 		executedCycles++
 
-		result, err := runCycleWithRetries(cwd, goal, cycle, executedCycles, nextWorkPath, sel, explicitGoal, cfg)
+		result, err := runCycleWithRetries(ctx, cwd, goal, cycle, executedCycles, nextWorkPath, sel, explicitGoal, cfg)
 		if err != nil {
 			return err
 		}
@@ -344,13 +350,21 @@ func runAthenaProducerTick(cwd string, cfg rpiLoopSupervisorConfig) error {
 	return nil
 }
 
+// cancelableSleep blocks for d or until ctx is canceled, whichever comes first.
+func cancelableSleep(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // applyCycleDelay handles inter-cycle delay and kill-switch checking.
 // Returns (true, nil) when the loop should stop.
-func applyCycleDelay(cycle int, cfg rpiLoopSupervisorConfig) (bool, error) {
-	if cycle > 1 && cfg.CycleDelay > 0 {
-		fmt.Printf("\nSleeping %s before next cycle...\n", cfg.CycleDelay.Round(time.Second))
-		time.Sleep(cfg.CycleDelay)
-	}
+func applyCycleDelay(ctx context.Context, cycle int, cfg rpiLoopSupervisorConfig) (bool, error) {
 	killSwitchSet, killErr := isLoopKillSwitchSet(cfg)
 	if killErr != nil {
 		return false, killErr
@@ -358,6 +372,12 @@ func applyCycleDelay(cycle int, cfg rpiLoopSupervisorConfig) (bool, error) {
 	if killSwitchSet {
 		fmt.Printf("Kill switch detected (%s). Stopping loop.\n", cfg.KillSwitchPath)
 		return true, nil
+	}
+	if cycle > 1 && cfg.CycleDelay > 0 {
+		fmt.Printf("\nSleeping %s before next cycle...\n", cfg.CycleDelay.Round(time.Second))
+		if err := cancelableSleep(ctx, cfg.CycleDelay); err != nil {
+			return true, nil
+		}
 	}
 	return false, nil
 }
@@ -590,7 +610,7 @@ func packetIsValidForTarget(packetPath, targetID string) bool {
 
 // runCycleWithRetries executes a single cycle with retry logic and handles
 // success/failure queue marking.
-func runCycleWithRetries(cwd, goal string, cycle, executedCycles int, nextWorkPath string, sel *queueSelection, explicitGoal string, cfg rpiLoopSupervisorConfig) (loopCycleResult, error) {
+func runCycleWithRetries(ctx context.Context, cwd, goal string, cycle, executedCycles int, nextWorkPath string, sel *queueSelection, explicitGoal string, cfg rpiLoopSupervisorConfig) (loopCycleResult, error) {
 	if err := claimQueueSelection(nextWorkPath, sel, cycle); err != nil {
 		if errors.Is(err, errQueueClaimConflict) && explicitGoal == "" {
 			fmt.Printf("Queue contention for %q; another consumer won the claim. Continuing.\n", goal)
@@ -600,7 +620,7 @@ func runCycleWithRetries(cwd, goal string, cycle, executedCycles int, nextWorkPa
 	}
 
 	start := time.Now()
-	cycleErr := executeCycleAttempts(cwd, goal, cycle, executedCycles, cfg)
+	cycleErr := executeCycleAttempts(ctx, cwd, goal, cycle, executedCycles, cfg)
 	elapsed := time.Since(start).Round(time.Second)
 
 	// Kill switch fired mid-retry: clean exit without queue mutation.
@@ -626,7 +646,7 @@ func runCycleWithRetries(cwd, goal string, cycle, executedCycles int, nextWorkPa
 // executeCycleAttempts runs the phased engine with retry attempts, checking
 // the kill switch before each attempt. Returns errKillSwitchActivated when
 // the kill switch fires mid-retry (clean exit, no queue mutation).
-func executeCycleAttempts(cwd, goal string, cycle, executedCycles int, cfg rpiLoopSupervisorConfig) error {
+func executeCycleAttempts(ctx context.Context, cwd, goal string, cycle, executedCycles int, cfg rpiLoopSupervisorConfig) error {
 	maxAttempts := cfg.MaxCycleAttempts()
 	var cycleErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
@@ -636,10 +656,9 @@ func executeCycleAttempts(cwd, goal string, cycle, executedCycles int, cfg rpiLo
 		}
 		if killSwitchSet {
 			fmt.Printf("Kill switch detected (%s). Stopping loop before cycle execution.\n", cfg.KillSwitchPath)
-			fmt.Printf("\nRPI loop finished after %d cycle(s).\n", executedCycles)
 			return errKillSwitchActivated
 		}
-		cycleErr = runRPISupervisedCycleFn(cwd, goal, cycle, attempt, cfg)
+		cycleErr = runRPISupervisedCycleFn(ctx, cwd, goal, cycle, attempt, cfg)
 		if cycleErr == nil {
 			return nil
 		}
@@ -649,7 +668,9 @@ func executeCycleAttempts(cwd, goal string, cycle, executedCycles int, cfg rpiLo
 		fmt.Printf("Cycle %d attempt %d/%d failed: %v\n", cycle, attempt, maxAttempts, cycleErr)
 		if cfg.RetryBackoff > 0 {
 			fmt.Printf("Retrying in %s...\n", cfg.RetryBackoff.Round(time.Second))
-			time.Sleep(cfg.RetryBackoff)
+			if err := cancelableSleep(ctx, cfg.RetryBackoff); err != nil {
+				return err // signal cancellation, not kill switch
+			}
 		}
 	}
 	return cycleErr
@@ -1181,10 +1202,12 @@ func markItemConsumedOwned(path string, entryIndex int, itemIndex int, consumedB
 // setting Consumed. This leaves the entry recoverable: set consumed=false to retry.
 func markEntryFailed(path string, entryIndex int) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {
+	targetFound := false
+	err := rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {
 		if idx != entryIndex {
 			return nil
 		}
+		targetFound = true
 		entry.FailedAt = &now
 		entry.ClaimStatus = "available"
 		entry.ClaimedBy = nil
@@ -1192,6 +1215,13 @@ func markEntryFailed(path string, entryIndex int) error {
 		entry.Consumed = false
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if !targetFound {
+		return errQueueClaimConflict
+	}
+	return nil
 }
 
 func markItemClaimed(path string, entryIndex int, itemIndex int, claimedBy string) error {
@@ -1407,5 +1437,134 @@ func severityRank(s string) int {
 		return 1
 	default:
 		return 0
+	}
+}
+
+// compactNextWorkFile removes entries from the JSONL queue where ALL items are
+// consumed and the consumed_at timestamp is older than maxConsumedAge. Returns
+// the number of compacted entries. If no entries qualify, the file is not
+// rewritten.
+func compactNextWorkFile(path string, maxConsumedAge time.Duration) (int, error) {
+	// Single-pass compaction under flock to avoid TOCTOU races.
+	rf, err := os.OpenFile(path, os.O_RDWR, 0600)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("open next-work.jsonl for compaction: %w", err)
+	}
+	defer func() { _ = rf.Close() }()
+	if err := flockLock(rf); err != nil {
+		return 0, fmt.Errorf("lock for compaction: %w", err)
+	}
+	defer func() { _ = flockUnlock(rf) }()
+
+	if _, err := rf.Seek(0, io.SeekStart); err != nil {
+		return 0, fmt.Errorf("seek for compaction read: %w", err)
+	}
+	data, err := io.ReadAll(rf)
+	if err != nil {
+		return 0, fmt.Errorf("read for compaction: %w", err)
+	}
+
+	cutoff := time.Now().Add(-maxConsumedAge)
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	var out bytes.Buffer
+	removed := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			out.WriteString(line)
+			out.WriteByte('\n')
+			continue
+		}
+		var entry nextWorkEntry
+		if json.Unmarshal([]byte(line), &entry) != nil {
+			// Preserve malformed lines.
+			out.WriteString(line)
+			out.WriteByte('\n')
+			continue
+		}
+		if isFullyConsumed(&entry) {
+			ts := entryConsumedTime(&entry)
+			if !ts.IsZero() && ts.Before(cutoff) {
+				removed++
+				continue
+			}
+		}
+		out.WriteString(line)
+		out.WriteByte('\n')
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, fmt.Errorf("scan for compaction rewrite: %w", err)
+	}
+
+	if err := rf.Truncate(0); err != nil {
+		return 0, fmt.Errorf("truncate for compaction: %w", err)
+	}
+	if _, err := rf.Seek(0, io.SeekStart); err != nil {
+		return 0, fmt.Errorf("seek for compaction: %w", err)
+	}
+	if _, err := rf.Write(out.Bytes()); err != nil {
+		return 0, fmt.Errorf("write for compaction: %w", err)
+	}
+	if err := rf.Sync(); err != nil {
+		return 0, fmt.Errorf("sync for compaction: %w", err)
+	}
+	if removed == 0 {
+		return 0, nil
+	}
+	return removed, nil
+}
+
+// isFullyConsumed returns true when the entry and all its items are consumed.
+func isFullyConsumed(entry *nextWorkEntry) bool {
+	if !entry.Consumed && normalizeClaimStatus(entry.Consumed, entry.ClaimStatus) != "consumed" {
+		return false
+	}
+	for _, item := range entry.Items {
+		if !item.Consumed && normalizeClaimStatus(item.Consumed, item.ClaimStatus) != "consumed" {
+			return false
+		}
+	}
+	return true
+}
+
+// entryConsumedTime returns the consumed_at time for the entry, falling back to
+// the latest item consumed_at.
+func entryConsumedTime(entry *nextWorkEntry) time.Time {
+	if entry.ConsumedAt != nil {
+		if t, err := time.Parse(time.RFC3339, *entry.ConsumedAt); err == nil {
+			return t
+		}
+	}
+	var latest time.Time
+	for _, item := range entry.Items {
+		if item.ConsumedAt != nil {
+			if t, err := time.Parse(time.RFC3339, *item.ConsumedAt); err == nil {
+				if t.After(latest) {
+					latest = t
+				}
+			}
+		}
+	}
+	return latest
+}
+
+// maybeCompactQueue runs queue compaction every `interval` cycles.
+func maybeCompactQueue(path string, cycle int, interval int, maxAge time.Duration) {
+	if interval <= 0 || cycle%interval != 0 {
+		return
+	}
+	n, err := compactNextWorkFile(path, maxAge)
+	if err != nil {
+		VerbosePrintf("Warning: queue compaction failed: %v\n", err)
+		return
+	}
+	if n > 0 {
+		fmt.Printf("Queue compacted: removed %d consumed entries\n", n)
 	}
 }

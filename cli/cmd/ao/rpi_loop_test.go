@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1153,12 +1154,12 @@ func TestRunCycleWithRetries_ClaimConflictContinuesQueue(t *testing.T) {
 	}
 
 	called := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		called++
 		return nil
 	}
 
-	result, err := runCycleWithRetries(tmpDir, sel.Item.Title, 1, 1, path, sel, "", rpiLoopSupervisorConfig{})
+	result, err := runCycleWithRetries(context.Background(), tmpDir, sel.Item.Title, 1, 1, path, sel, "", rpiLoopSupervisorConfig{})
 	if err != nil {
 		t.Fatalf("runCycleWithRetries error = %v, want nil", err)
 	}
@@ -1599,7 +1600,7 @@ func TestRPILoop_InfraFailure_DoesNotMarkQueueFailed(t *testing.T) {
 	rpiCommandTimeout = time.Minute
 
 	attempts := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		attempts++
 		return wrapCycleFailure(cycleFailureInfrastructure, "landing", fmt.Errorf("transient network"))
 	}
@@ -1663,7 +1664,7 @@ func TestRPILoop_InfraFailure_ContinuePolicy_RetriesUntilMaxCycles(t *testing.T)
 	rpiCommandTimeout = time.Minute
 
 	attempts := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		attempts++
 		return wrapCycleFailure(cycleFailureInfrastructure, "landing", fmt.Errorf("simulated rebase conflict"))
 	}
@@ -1725,7 +1726,7 @@ func TestRPILoop_TaskFailure_MarksQueueFailed(t *testing.T) {
 	rpiAutoCleanStaleAfter = 24 * time.Hour
 	rpiCommandTimeout = time.Minute
 
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		return wrapCycleFailure(cycleFailureTask, "phased engine", fmt.Errorf("validation failed"))
 	}
 
@@ -1800,7 +1801,7 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesAfterFailingEntry(t *testing
 	rpiCommandTimeout = time.Minute
 
 	var goals []string
-	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		goals = append(goals, goal)
 		if goal == "Task failing goal" {
 			return wrapCycleFailure(cycleFailureTask, "phased engine", fmt.Errorf("intentional task failure"))
@@ -1890,7 +1891,7 @@ func TestRPILoop_TaskFailure_StopPolicy_DoesNotAdvanceQueue(t *testing.T) {
 	rpiCommandTimeout = time.Minute
 
 	var goals []string
-	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		goals = append(goals, goal)
 		return wrapCycleFailure(cycleFailureTask, "phased engine", fmt.Errorf("intentional task failure"))
 	}
@@ -1964,7 +1965,7 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesToSiblingItemInSameEntry(t *
 	rpiCommandTimeout = time.Minute
 
 	var goals []string
-	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		goals = append(goals, goal)
 		if goal == "Failing item" {
 			return wrapCycleFailure(cycleFailureTask, "phased engine", fmt.Errorf("intentional task failure"))
@@ -2054,7 +2055,7 @@ func TestRPILoop_KillSwitchDuringRetry_StopsWithoutQueueMutation(t *testing.T) {
 	rpiKillSwitchPath = killPath
 
 	attempts := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		attempts++
 		if attempts == 1 {
 			if err := os.WriteFile(killPath, []byte("stop\n"), 0644); err != nil {
@@ -2121,7 +2122,7 @@ func TestRPILoop_ExplicitGoalReportsExecutedCycles(t *testing.T) {
 	rpiAutoCleanStaleAfter = 24 * time.Hour
 	rpiCommandTimeout = time.Minute
 
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		return nil
 	}
 
@@ -2194,7 +2195,7 @@ func TestRPILoop_PreflightCompletedRunConsumesStaleItemAndAdvances(t *testing.T)
 	rpiCommandTimeout = time.Minute
 
 	var goals []string
-	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		goals = append(goals, goal)
 		return nil
 	}
@@ -2284,7 +2285,7 @@ func TestRPILoop_PreflightEvidenceOnlyClosureConsumesStaleItemAndAdvances(t *tes
 	rpiCommandTimeout = time.Minute
 
 	var goals []string
-	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		goals = append(goals, goal)
 		return nil
 	}
@@ -2358,7 +2359,7 @@ func TestRPILoop_KillSwitchStopsBeforeCycleExecution(t *testing.T) {
 	rpiKillSwitchPath = killPath
 
 	attempts := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		attempts++
 		return nil
 	}
@@ -2450,7 +2451,7 @@ func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
 	}
 
 	executed := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		executed++
 		return nil
 	}
@@ -2524,7 +2525,7 @@ func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 	}
 
 	executed := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		executed++
 		return nil
 	}
@@ -2595,7 +2596,7 @@ func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
 	}
 
 	executed := 0
-	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+	runRPISupervisedCycleFn = func(_ context.Context, _ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
 		executed++
 		return nil
 	}
@@ -2878,3 +2879,194 @@ func TestRecomputeEntryLifecycle_FailedAtPropagated(t *testing.T) {
 		t.Errorf("expected claim_status='available', got %q", entry.ClaimStatus)
 	}
 }
+
+func TestCancelableSleep_NormalExpiry(t *testing.T) {
+	err := cancelableSleep(context.Background(), 10*time.Millisecond)
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+}
+
+func TestCancelableSleep_ImmediateCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := cancelableSleep(ctx, time.Second)
+	if err != context.Canceled {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestCancelableSleep_CancelDuringSleep(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	err := cancelableSleep(ctx, time.Second)
+	if err != context.DeadlineExceeded {
+		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
+	}
+}
+
+func TestApplyCycleDelay_KillSwitchBeforeSleep(t *testing.T) {
+	tmpDir := t.TempDir()
+	killPath := filepath.Join(tmpDir, "KILL")
+	if err := os.WriteFile(killPath, []byte("stop"), 0644); err != nil {
+		t.Fatalf("create kill switch: %v", err)
+	}
+
+	cfg := rpiLoopSupervisorConfig{
+		KillSwitchPath: killPath,
+		CycleDelay:     5 * time.Second,
+	}
+
+	start := time.Now()
+	stop, err := applyCycleDelay(context.Background(), 2, cfg)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if !stop {
+		t.Fatal("expected stop=true when kill switch is set")
+	}
+	if elapsed > time.Second {
+		t.Fatalf("kill switch did not short-circuit sleep; elapsed %s", elapsed)
+	}
+}
+
+func TestCompactNextWorkFile_RemovesOldConsumed(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "next-work.jsonl")
+
+	oldTime := time.Now().Add(-48 * time.Hour).UTC().Format(time.RFC3339)
+	recentTime := time.Now().Add(-1 * time.Minute).UTC().Format(time.RFC3339)
+
+	entries := []nextWorkEntry{
+		{
+			SourceEpic: "epic-1", Consumed: true, ClaimStatus: "consumed",
+			ConsumedAt: &oldTime,
+			Items: []nextWorkItem{
+				{Title: "old-item", Consumed: true, ClaimStatus: "consumed", ConsumedAt: &oldTime},
+			},
+		},
+		{
+			SourceEpic: "epic-2", Consumed: true, ClaimStatus: "consumed",
+			ConsumedAt: &recentTime,
+			Items: []nextWorkItem{
+				{Title: "recent-item", Consumed: true, ClaimStatus: "consumed", ConsumedAt: &recentTime},
+			},
+		},
+		{
+			SourceEpic: "epic-3", Consumed: false,
+			Items: []nextWorkItem{
+				{Title: "open-item"},
+			},
+		},
+	}
+	writeJSONL(t, path, entries)
+
+	n, err := compactNextWorkFile(path, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 compacted entry, got %d", n)
+	}
+
+	remaining := readJSONLEntries(t, path)
+	if len(remaining) != 2 {
+		t.Fatalf("expected 2 remaining entries, got %d", len(remaining))
+	}
+	if remaining[0].SourceEpic != "epic-2" {
+		t.Errorf("expected first remaining entry epic-2, got %s", remaining[0].SourceEpic)
+	}
+	if remaining[1].SourceEpic != "epic-3" {
+		t.Errorf("expected second remaining entry epic-3, got %s", remaining[1].SourceEpic)
+	}
+}
+
+func TestCompactNextWorkFile_KeepsAllRecent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "next-work.jsonl")
+
+	recentTime := time.Now().Add(-1 * time.Minute).UTC().Format(time.RFC3339)
+
+	entries := []nextWorkEntry{
+		{
+			SourceEpic: "epic-1", Consumed: true, ClaimStatus: "consumed",
+			ConsumedAt: &recentTime,
+			Items: []nextWorkItem{
+				{Title: "item-1", Consumed: true, ClaimStatus: "consumed", ConsumedAt: &recentTime},
+			},
+		},
+		{
+			SourceEpic: "epic-2", Consumed: true, ClaimStatus: "consumed",
+			ConsumedAt: &recentTime,
+			Items: []nextWorkItem{
+				{Title: "item-2", Consumed: true, ClaimStatus: "consumed", ConsumedAt: &recentTime},
+			},
+		},
+	}
+	writeJSONL(t, path, entries)
+
+	n, err := compactNextWorkFile(path, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("expected 0 compacted entries, got %d", n)
+	}
+
+	remaining := readJSONLEntries(t, path)
+	if len(remaining) != 2 {
+		t.Fatalf("expected 2 entries to remain, got %d", len(remaining))
+	}
+}
+
+func TestCompactNextWorkFile_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "next-work.jsonl")
+	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
+		t.Fatalf("write empty file: %v", err)
+	}
+
+	n, err := compactNextWorkFile(path, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("expected 0 compacted entries, got %d", n)
+	}
+}
+
+func TestMaybeCompactQueue_RunsAtInterval(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "next-work.jsonl")
+
+	oldTime := time.Now().Add(-48 * time.Hour).UTC().Format(time.RFC3339)
+
+	entries := []nextWorkEntry{
+		{
+			SourceEpic: "epic-1", Consumed: true, ClaimStatus: "consumed",
+			ConsumedAt: &oldTime,
+			Items: []nextWorkItem{
+				{Title: "old-item", Consumed: true, ClaimStatus: "consumed", ConsumedAt: &oldTime},
+			},
+		},
+	}
+	writeJSONL(t, path, entries)
+
+	// cycle=5, interval=10 — should NOT run compaction.
+	maybeCompactQueue(path, 5, 10, 24*time.Hour)
+	remaining := readJSONLEntries(t, path)
+	if len(remaining) != 1 {
+		t.Fatalf("expected compaction to NOT run at cycle 5, but got %d entries", len(remaining))
+	}
+
+	// cycle=10, interval=10 — should run compaction.
+	maybeCompactQueue(path, 10, 10, 24*time.Hour)
+	remaining = readJSONLEntries(t, path)
+	if len(remaining) != 0 {
+		t.Fatalf("expected compaction to run at cycle 10, but got %d entries", len(remaining))
+	}
+}
+
+

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -1051,5 +1053,103 @@ func TestSyncRebaseAndPush_Success(t *testing.T) {
 	}
 	if matchIdx != len(expectedSequence) {
 		t.Fatalf("expected git fetch/rebase/push sequence, got calls: %v", runnerCalls)
+	}
+}
+
+func TestBuildCycleEngineOptions_NoDashboard(t *testing.T) {
+	cfg := rpiLoopSupervisorConfig{
+		AutoClean:          true,
+		AutoCleanStaleAfter: 48 * time.Hour,
+		RuntimeMode:        "direct",
+	}
+	opts := buildCycleEngineOptions(t.TempDir(), cfg)
+	if !opts.NoDashboard {
+		t.Error("expected NoDashboard=true for supervisor cycle engine options")
+	}
+}
+
+func TestEmitCycleTelemetry_Success(t *testing.T) {
+	dir := t.TempDir()
+	emitCycleTelemetry(dir, 3, "improve docs", 5*time.Second, nil)
+
+	telePath := filepath.Join(dir, ".agents", "rpi", "telemetry.jsonl")
+	data, err := os.ReadFile(telePath)
+	if err != nil {
+		t.Fatalf("read telemetry file: %v", err)
+	}
+	var entry cycleTelemetryEntry
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &entry); err != nil {
+		t.Fatalf("unmarshal telemetry entry: %v", err)
+	}
+	if entry.Cycle != 3 {
+		t.Errorf("expected cycle=3, got %d", entry.Cycle)
+	}
+	if entry.Goal != "improve docs" {
+		t.Errorf("expected goal='improve docs', got %q", entry.Goal)
+	}
+	if entry.DurationMS != 5000 {
+		t.Errorf("expected duration_ms=5000, got %d", entry.DurationMS)
+	}
+	if entry.Status != "success" {
+		t.Errorf("expected status=success, got %q", entry.Status)
+	}
+	if entry.ErrorMessage != "" {
+		t.Errorf("expected empty error_message, got %q", entry.ErrorMessage)
+	}
+	if entry.Timestamp == "" {
+		t.Error("expected non-empty timestamp")
+	}
+}
+
+func TestEmitCycleTelemetry_Failure(t *testing.T) {
+	dir := t.TempDir()
+	emitCycleTelemetry(dir, 7, "fix bug", 2*time.Second, fmt.Errorf("cycle failed: timeout"))
+
+	telePath := filepath.Join(dir, ".agents", "rpi", "telemetry.jsonl")
+	data, err := os.ReadFile(telePath)
+	if err != nil {
+		t.Fatalf("read telemetry file: %v", err)
+	}
+	var entry cycleTelemetryEntry
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &entry); err != nil {
+		t.Fatalf("unmarshal telemetry entry: %v", err)
+	}
+	if entry.Status != "failure" {
+		t.Errorf("expected status=failure, got %q", entry.Status)
+	}
+	if entry.ErrorMessage != "cycle failed: timeout" {
+		t.Errorf("expected error_message='cycle failed: timeout', got %q", entry.ErrorMessage)
+	}
+}
+
+func TestStartLeaseHeartbeat_UpdatesFile(t *testing.T) {
+	dir := t.TempDir()
+	leasePath := filepath.Join(dir, "lease.json")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stop := startLeaseHeartbeat(ctx, leasePath, 100*time.Millisecond, "test-run-123")
+	defer stop()
+
+	// Wait enough for at least one heartbeat tick (ttl/2 = 50ms).
+	time.Sleep(120 * time.Millisecond)
+
+	data, err := os.ReadFile(leasePath)
+	if err != nil {
+		t.Fatalf("read lease heartbeat file: %v", err)
+	}
+	var entry leaseHeartbeatEntry
+	if err := json.Unmarshal(data, &entry); err != nil {
+		t.Fatalf("unmarshal heartbeat: %v", err)
+	}
+	if entry.Holder != "test-run-123" {
+		t.Errorf("expected holder='test-run-123', got %q", entry.Holder)
+	}
+	if entry.Heartbeat == "" {
+		t.Error("expected non-empty heartbeat timestamp")
+	}
+	if entry.TTLMS != 100 {
+		t.Errorf("expected ttl_ms=100, got %d", entry.TTLMS)
 	}
 }

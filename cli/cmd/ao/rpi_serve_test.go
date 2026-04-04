@@ -394,13 +394,11 @@ func TestValidateExplicitServeRunID(t *testing.T) {
 }
 
 func TestShouldOpenBrowser_Default(t *testing.T) {
-	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen
+	origNoOpen := rpiServeNoOpen
 	defer func() {
-		rpiServeOpen = origOpen
 		rpiServeNoOpen = origNoOpen
 	}()
 
-	rpiServeOpen = true
 	rpiServeNoOpen = false
 	if !shouldOpenBrowser() {
 		t.Error("expected shouldOpenBrowser() to return true with defaults")
@@ -408,13 +406,11 @@ func TestShouldOpenBrowser_Default(t *testing.T) {
 }
 
 func TestShouldOpenBrowser_NoOpen(t *testing.T) {
-	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen
+	origNoOpen := rpiServeNoOpen
 	defer func() {
-		rpiServeOpen = origOpen
 		rpiServeNoOpen = origNoOpen
 	}()
 
-	rpiServeOpen = true
 	rpiServeNoOpen = true
 	if shouldOpenBrowser() {
 		t.Error("expected shouldOpenBrowser() to return false with --no-open")
@@ -484,26 +480,21 @@ func TestWriteSSEEvent_Format(t *testing.T) {
 
 func TestShouldOpenBrowser(t *testing.T) {
 	// Save and restore globals.
-	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen
+	origNoOpen := rpiServeNoOpen
 	defer func() {
-		rpiServeOpen = origOpen
 		rpiServeNoOpen = origNoOpen
 	}()
 
 	tests := []struct {
 		name   string
-		open   bool
 		noOpen bool
 		want   bool
 	}{
-		{"defaults", true, false, true},
-		{"--no-open", true, true, false},
-		{"--open=false", false, false, false},
-		{"both false", false, true, false},
+		{"defaults", false, true},
+		{"--no-open", true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rpiServeOpen = tt.open
 			rpiServeNoOpen = tt.noOpen
 			if got := shouldOpenBrowser(); got != tt.want {
 				t.Errorf("shouldOpenBrowser() = %v, want %v", got, tt.want)
@@ -911,5 +902,47 @@ func TestServeRPIArtifact_RejectsTraversal(t *testing.T) {
 	serveRPIArtifact(rr, req, root, "")
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
+	}
+}
+
+func TestIsLocalhostOrigin_AcceptsLocalhost(t *testing.T) {
+	if !isLocalhostOrigin("http://localhost:8080") {
+		t.Fatal("expected true for http://localhost:8080")
+	}
+}
+
+func TestIsLocalhostOrigin_AcceptsLocalhostNoPort(t *testing.T) {
+	if !isLocalhostOrigin("http://localhost") {
+		t.Fatal("expected true for http://localhost")
+	}
+}
+
+func TestIsLocalhostOrigin_Accepts127(t *testing.T) {
+	if !isLocalhostOrigin("http://127.0.0.1:9090") {
+		t.Fatal("expected true for http://127.0.0.1:9090")
+	}
+}
+
+func TestIsLocalhostOrigin_AcceptsIPv6(t *testing.T) {
+	if !isLocalhostOrigin("http://[::1]:8080") {
+		t.Fatal("expected true for http://[::1]:8080")
+	}
+}
+
+func TestIsLocalhostOrigin_RejectsLocalhostSubdomain(t *testing.T) {
+	if isLocalhostOrigin("http://localhost.evil.com") {
+		t.Fatal("expected false for http://localhost.evil.com")
+	}
+}
+
+func TestIsLocalhostOrigin_RejectsRandom(t *testing.T) {
+	if isLocalhostOrigin("http://example.com") {
+		t.Fatal("expected false for http://example.com")
+	}
+}
+
+func TestIsLocalhostOrigin_RejectsEmpty(t *testing.T) {
+	if isLocalhostOrigin("") {
+		t.Fatal("expected false for empty string")
 	}
 }

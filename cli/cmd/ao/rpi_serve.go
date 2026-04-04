@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -30,8 +31,7 @@ var rpiWatchHTML []byte
 var (
 	rpiServePort        int
 	rpiServeRunID       string
-	rpiServeOpen        bool
-	rpiServeNoOpen      bool
+	rpiServeNoOpen bool
 	rpiServeOrchestrate bool
 	rpiServeRuntimeMode string
 	rpiServeRuntimeCmd  string
@@ -102,7 +102,6 @@ The dashboard streams events via Server-Sent Events (SSE) and also polls
 	}
 	serveCmd.Flags().IntVar(&rpiServePort, "port", 7799, "Port to listen on")
 	serveCmd.Flags().StringVar(&rpiServeRunID, "run-id", "", "Run ID to watch explicitly (must match rpi-<8-12 hex> or <12 hex>)")
-	serveCmd.Flags().BoolVar(&rpiServeOpen, "open", true, "Open browser automatically")
 	serveCmd.Flags().BoolVar(&rpiServeNoOpen, "no-open", false, "Do not open browser automatically")
 	serveCmd.Flags().BoolVar(&rpiServeOrchestrate, "orchestrate", false, "Treat first argument as a goal and run full RPI orchestration")
 	serveCmd.Flags().StringVar(&rpiServeRuntimeMode, "runtime", "", "Phase runtime mode for orchestration: auto|direct|stream|tmux")
@@ -110,12 +109,9 @@ The dashboard streams events via Server-Sent Events (SSE) and also polls
 	addRPISubcommand(serveCmd)
 }
 
-// shouldOpenBrowser returns true unless the user passed --no-open or --open=false.
+// shouldOpenBrowser returns true unless the user passed --no-open.
 func shouldOpenBrowser() bool {
-	if rpiServeNoOpen {
-		return false
-	}
-	return rpiServeOpen
+	return !rpiServeNoOpen
 }
 
 func runRPIServe(cmd *cobra.Command, args []string) error {
@@ -217,7 +213,11 @@ func runServeOrchestrate(cwd, goal string, toolchain cliRPI.Toolchain) error {
 	}
 	fmt.Println("\nDashboard stopped.")
 
-	if orchErr := <-orchErrCh; orchErr != nil && orchErr != context.Canceled {
+	orchErr := <-orchErrCh
+	if orchErr == nil {
+		fmt.Printf("\nOrchestration complete. Dashboard still running — press Ctrl-C to exit.\n")
+	} else if orchErr != context.Canceled {
+		fmt.Printf("\nOrchestration finished with error: %v\nDashboard still running — press Ctrl-C to exit.\n", orchErr)
 		return fmt.Errorf("orchestration: %w", orchErr)
 	}
 	return nil
@@ -689,16 +689,15 @@ func setCORSHeaders(w http.ResponseWriter, r ...*http.Request) {
 
 // isLocalhostOrigin returns true if the origin is a localhost URL.
 func isLocalhostOrigin(origin string) bool {
-	for _, prefix := range []string{
-		"http://localhost", "https://localhost",
-		"http://127.0.0.1", "https://127.0.0.1",
-		"http://[::1]", "https://[::1]",
-	} {
-		if strings.HasPrefix(origin, prefix) {
-			return true
-		}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
 	}
-	return false
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	host := u.Hostname()
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
 // openBrowserURL opens url in the default system browser.
@@ -712,5 +711,7 @@ func openBrowserURL(url string) {
 	default:
 		cmd = exec.Command("xdg-open", url)
 	}
-	_ = cmd.Start()
+	if err := cmd.Start(); err == nil {
+		go cmd.Wait()
+	}
 }

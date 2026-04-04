@@ -349,7 +349,7 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 	// Start embedded dashboard server (unless --no-dashboard, --dry-run, or pipe).
 	var dashSrv *http.Server
 	if !opts.NoDashboard && !GetDryRun() && isTerminal() {
-		srv, dashURL := startEmbeddedDashboard(spawnCwd, state.RunID)
+		srv, dashURL := startEmbeddedDashboard(spawnCwd, state.RunID, opts.NoDashboard)
 		if srv != nil {
 			dashSrv = srv
 			defer shutdownDashboard(dashSrv)

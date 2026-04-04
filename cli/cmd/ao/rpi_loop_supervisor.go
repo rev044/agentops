@@ -383,7 +383,7 @@ type landingScope struct {
 	baselineDirtyPaths map[string]struct{}
 }
 
-func runRPISupervisedCycle(cwd, goal string, cycle, attempt int, cfg rpiLoopSupervisorConfig) (retErr error) {
+func runRPISupervisedCycle(ctx context.Context, cwd, goal string, cycle, attempt int, cfg rpiLoopSupervisorConfig) (retErr error) {
 	if err := healDetachedHeadIfNeeded(cwd, cfg); err != nil {
 		return err
 	}
@@ -402,7 +402,7 @@ func runRPISupervisedCycle(cwd, goal string, cycle, attempt int, cfg rpiLoopSupe
 	}
 
 	opts := buildCycleEngineOptions(cwd, cfg)
-	if err := runPhasedEngine(context.Background(), cwd, goal, opts); err != nil {
+	if err := runPhasedEngine(ctx, cwd, goal, opts); err != nil {
 		return wrapCycleFailure(cycleFailureTask, "phased engine", err)
 	}
 	if err := runSupervisorGates(cwd, cfg); err != nil {
@@ -455,6 +455,7 @@ func buildCycleEngineOptions(cwd string, cfg rpiLoopSupervisorConfig) phasedEngi
 	opts.AOCommand = cfg.AOCommand
 	opts.BDCommand = cfg.BDCommand
 	opts.TmuxCommand = cfg.TmuxCommand
+	opts.NoDashboard = true
 	return opts
 }
 
@@ -1029,4 +1030,106 @@ func readLeaseHolderHint(path string) string {
 		return fmt.Sprintf("lock=%s", path)
 	}
 	return fmt.Sprintf("run=%s pid=%d host=%s renewed_at=%s", meta.RunID, meta.PID, meta.Host, meta.RenewedAt)
+}
+
+// cycleTelemetryEntry is the JSON structure written to telemetry.jsonl.
+type cycleTelemetryEntry struct {
+	Timestamp    string `json:"timestamp"`
+	Cycle        int    `json:"cycle"`
+	Goal         string `json:"goal"`
+	DurationMS   int64  `json:"duration_ms"`
+	Status       string `json:"status"`
+	ErrorMessage string `json:"error_message"`
+}
+
+// emitCycleTelemetry appends a JSON line to .agents/rpi/telemetry.jsonl.
+// Write errors are silently ignored so telemetry never crashes the loop.
+func emitCycleTelemetry(cwd string, cycle int, goal string, duration time.Duration, err error) {
+	dir := filepath.Join(cwd, ".agents", "rpi")
+	_ = os.MkdirAll(dir, 0o750)
+
+	entry := cycleTelemetryEntry{
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Cycle:      cycle,
+		Goal:       goal,
+		DurationMS: duration.Milliseconds(),
+		Status:     "success",
+	}
+	if err != nil {
+		entry.Status = "failure"
+		entry.ErrorMessage = err.Error()
+	}
+
+	data, marshalErr := json.Marshal(entry)
+	if marshalErr != nil {
+		return
+	}
+	data = append(data, '\n')
+
+	f, openErr := os.OpenFile(filepath.Join(dir, "telemetry.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if openErr != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+	_, _ = f.Write(data)
+}
+
+// leaseHeartbeatEntry is the JSON structure written by the lease heartbeat.
+type leaseHeartbeatEntry struct {
+	Holder    string `json:"holder"`
+	Heartbeat string `json:"heartbeat"`
+	TTLMS     int64  `json:"ttl_ms"`
+}
+
+// startLeaseHeartbeat starts a goroutine that updates the lease file every
+// ttl/2. Returns a stop function that signals the goroutine to exit.
+func startLeaseHeartbeat(ctx context.Context, leasePath string, ttl time.Duration, runID string) func() {
+	interval := ttl / 2
+	if interval <= 0 {
+		interval = time.Second
+	}
+	stopCh := make(chan struct{})
+	doneCh := make(chan struct{})
+
+	go func() {
+		defer close(doneCh)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-stopCh:
+				return
+			case <-ticker.C:
+				writeHeartbeat(leasePath, runID, ttl)
+			}
+		}
+	}()
+
+	return func() {
+		close(stopCh)
+		<-doneCh
+	}
+}
+
+// writeHeartbeat writes the heartbeat JSON to the lease path.
+func writeHeartbeat(leasePath, runID string, ttl time.Duration) {
+	entry := leaseHeartbeatEntry{
+		Holder:    runID,
+		Heartbeat: time.Now().UTC().Format(time.RFC3339),
+		TTLMS:     ttl.Milliseconds(),
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return
+	}
+	// Atomic-ish write: write to temp file then rename.
+	dir := filepath.Dir(leasePath)
+	_ = os.MkdirAll(dir, 0o750)
+	tmp := leasePath + ".heartbeat.tmp"
+	if writeErr := os.WriteFile(tmp, data, 0o644); writeErr != nil {
+		return
+	}
+	_ = os.Rename(tmp, leasePath)
 }

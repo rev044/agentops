@@ -14,7 +14,7 @@ import (
 // It reuses the existing buildServeMux and openBrowserURL from rpi_serve.go.
 // Returns the server handle (for deferred shutdown) and the dashboard URL.
 // Returns (nil, "") if the listener cannot bind.
-func startEmbeddedDashboard(root, runID string) (*http.Server, string) {
+func startEmbeddedDashboard(root, runID string, noDashboard bool) (*http.Server, string) {
 	ln, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		VerbosePrintf("Warning: could not start dashboard server: %v\n", err)
@@ -33,7 +33,9 @@ func startEmbeddedDashboard(root, runID string) (*http.Server, string) {
 		}
 	}()
 
-	openBrowserURL(dashURL)
+	if !noDashboard {
+		openBrowserURL(dashURL)
+	}
 	return srv, dashURL
 }
 
