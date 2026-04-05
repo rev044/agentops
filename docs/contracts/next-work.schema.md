@@ -32,7 +32,7 @@ One entry per producer event, usually one `/post-mortem` run.
 | `claimed_at` | string (ISO-8601) or null | yes | Aggregate claim timestamp |
 | `consumed_by` | string or null | yes | Consumer that finalized the batch aggregate |
 | `consumed_at` | string (ISO-8601) or null | yes | When the batch aggregate became fully consumed |
-| `failed_at` | string (ISO-8601) or null | no | Latest failure timestamp across child items, used for retry ordering |
+| `failed_at` | string (ISO-8601) or null | no | Latest failure timestamp across child items; retry metadata only, not completion proof |
 
 Entry lifecycle fields are aggregates for dashboards and legacy readers. Item lifecycle inside `items[]` is authoritative.
 
@@ -57,7 +57,7 @@ One actionable follow-up item.
 | `claimed_at` | string (ISO-8601) or null | no | Item claim timestamp |
 | `consumed_by` | string or null | no | Consumer that finalized this item |
 | `consumed_at` | string (ISO-8601) or null | no | When this item was consumed |
-| `failed_at` | string (ISO-8601) or null | no | Last failure timestamp for retry ordering |
+| `failed_at` | string (ISO-8601) or null | no | Last failure timestamp for retry ordering; retry metadata only, not completion proof |
 
 Compatibility notes:
 - omitted item `claim_status` means `available`
@@ -123,7 +123,8 @@ Compatibility notes:
    - item `claimed_at=null`
    - optionally stamp item `failed_at`
 5. The entry aggregate flips to `consumed=true` only when every child item is consumed.
-6. Never mark an item consumed at pick-time.
+6. Proof-backed preflight may consume work that is already satisfied when it has completed-run proof or an evidence-only closure packet.
+7. Never mark an item consumed at pick-time.
 
 ## Legacy Compatibility
 

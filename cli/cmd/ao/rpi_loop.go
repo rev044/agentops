@@ -811,11 +811,9 @@ func readQueueEntries(path string) ([]nextWorkEntry, error) {
 		parseableIndex++
 		entry.QueueIndex = parseableIndex
 
-		// Skip entries that are already consumed or use legacy failed-at suppression.
+		// Skip entries that are already consumed. Legacy failed_at remains retry
+		// metadata; proof-backed preflight decides whether stale work is satisfied.
 		if entry.Consumed || normalizeClaimStatus(entry.Consumed, entry.ClaimStatus) == "consumed" {
-			continue
-		}
-		if shouldSkipLegacyFailedEntry(entry) {
 			continue
 		}
 		if len(entry.Items) == 0 {
@@ -918,21 +916,12 @@ func hasQueueItemLifecycleMetadata(item nextWorkItem) bool {
 // completion evidence (bead_closed, commit_ref, evidence_packet) indicating the
 // work was completed despite the failure marker. Entries without completion
 // evidence remain available for retry even if FailedAt is set.
-//
-// Prior to v2.34 this function contained a heuristic fallback that skipped
-// entries lacking any lifecycle metadata. That heuristic caused silent
-// suppression of legitimate retry-eligible items. It was replaced with
-// proof-only semantics: an entry is skipped only when CompletionEvidence
-// is explicitly set.
 func shouldSkipLegacyFailedEntry(entry nextWorkEntry) bool {
 	if entry.FailedAt == nil {
 		return false
 	}
-	// Proof-backed: skip only when explicit completion evidence exists.
-	// No heuristic fallback — failed entries without proof stay available.
 	return entry.CompletionEvidence != ""
 }
-
 // selectHighestSeverityEntry picks the best item across all eligible entries.
 // It returns a queueSelection containing the winning item and its source entry
 // parseable index in next-work.jsonl. Items filtered out by repoFilter are skipped.

@@ -496,6 +496,168 @@ func TestResolveLoopGoal_PreflightConsumesSkippedItemAndAdvances(t *testing.T) {
 	}
 }
 
+func TestResolveLoopGoal_KeepsLegacyFailedEntryWithoutProof(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "next-work.jsonl")
+
+	failedAt := "2026-02-10T00:00:00Z"
+	writeJSONL(t, queuePath, []nextWorkEntry{{
+		SourceEpic: "ag-legacy",
+		Items: []nextWorkItem{{
+			Title:       "Retryable legacy item",
+			Type:        "bug",
+			Severity:    "high",
+			Source:      "retro-learning",
+			Description: "No proof exists yet.",
+		}},
+		FailedAt: &failedAt,
+	}})
+
+	var (
+		goal   string
+		sel    *queueSelection
+		action loopCycleResult
+	)
+	output, err := captureStdout(t, func() error {
+		var innerErr error
+		goal, sel, action, innerErr = resolveLoopGoal(tmpDir, "", queuePath, rpiLoopSupervisorConfig{})
+		return innerErr
+	})
+	if err != nil {
+		t.Fatalf("resolveLoopGoal returned error: %v", err)
+	}
+	if action != loopContinue {
+		t.Fatalf("action = %v, want %v", action, loopContinue)
+	}
+	if goal != "Retryable legacy item" {
+		t.Fatalf("goal = %q, want retryable legacy item", goal)
+	}
+	if sel == nil || sel.Item.Title != "Retryable legacy item" {
+		t.Fatalf("selected item = %+v, want retryable legacy item", sel)
+	}
+	if !strings.Contains(output, "From queue: Retryable legacy item") {
+		t.Fatalf("expected queue selection output for legacy item, got:\n%s", output)
+	}
+}
+
+func TestResolveLoopGoal_PreflightConsumesLegacyFailedEntryWithCompletedRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "next-work.jsonl")
+
+	failedAt := "2026-02-10T00:00:00Z"
+	writeJSONL(t, queuePath, []nextWorkEntry{{
+		SourceEpic: "ag-stale",
+		Items: []nextWorkItem{{
+			Title:       "Already done goal",
+			Type:        "task",
+			Severity:    "high",
+			Source:      "retro-learning",
+			Description: "Legacy failed row with completed-run proof.",
+		}},
+		FailedAt: &failedAt,
+	}})
+	writeCompletedLoopRegistryRun(t, tmpDir, "run-stale", "ag-stale", "Already done goal")
+
+	var (
+		goal   string
+		sel    *queueSelection
+		action loopCycleResult
+	)
+	output, err := captureStdout(t, func() error {
+		var innerErr error
+		goal, sel, action, innerErr = resolveLoopGoal(tmpDir, "", queuePath, rpiLoopSupervisorConfig{})
+		return innerErr
+	})
+	if err != nil {
+		t.Fatalf("resolveLoopGoal returned error: %v", err)
+	}
+	if action != loopBreak {
+		t.Fatalf("action = %v, want %v", action, loopBreak)
+	}
+	if goal != "" {
+		t.Fatalf("goal = %q, want empty after proof-backed consume", goal)
+	}
+	if sel != nil {
+		t.Fatalf("expected no selected item after queue empties, got %+v", sel)
+	}
+	if !strings.Contains(output, `Queue preflight consumed "Already done goal": matched completed RPI run run-stale`) {
+		t.Fatalf("expected completed-run preflight message, got:\n%s", output)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if len(after) != 1 {
+		t.Fatalf("expected one queue entry, got %d", len(after))
+	}
+	if !after[0].Consumed {
+		t.Fatalf("expected legacy row consumed by preflight, got %+v", after[0])
+	}
+	if len(after[0].Items) != 1 || !after[0].Items[0].Consumed {
+		t.Fatalf("expected legacy batch item consumed by preflight, got %+v", after[0])
+	}
+	if after[0].Items[0].ConsumedBy == nil || *after[0].Items[0].ConsumedBy != queuePreflightConsumedBy {
+		t.Fatalf("consumed_by = %v, want %q", after[0].Items[0].ConsumedBy, queuePreflightConsumedBy)
+	}
+}
+
+func TestResolveLoopGoal_PreflightConsumesLegacyFailedEntryWithEvidenceOnlyClosure(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "next-work.jsonl")
+
+	failedAt := "2026-02-10T00:00:00Z"
+	writeJSONL(t, queuePath, []nextWorkEntry{{
+		SourceEpic: "ag-parent",
+		Items: []nextWorkItem{{
+			Title:       "Already proven item",
+			Type:        "task",
+			Severity:    "high",
+			Source:      "retro-learning",
+			Description: "See .agents/releases/evidence-only-closures/ag-proof.2.json.",
+		}},
+		FailedAt: &failedAt,
+	}})
+	writeEvidenceOnlyClosurePacket(t, tmpDir, "ag-proof.2")
+
+	var (
+		goal   string
+		sel    *queueSelection
+		action loopCycleResult
+	)
+	output, err := captureStdout(t, func() error {
+		var innerErr error
+		goal, sel, action, innerErr = resolveLoopGoal(tmpDir, "", queuePath, rpiLoopSupervisorConfig{})
+		return innerErr
+	})
+	if err != nil {
+		t.Fatalf("resolveLoopGoal returned error: %v", err)
+	}
+	if action != loopBreak {
+		t.Fatalf("action = %v, want %v", action, loopBreak)
+	}
+	if goal != "" {
+		t.Fatalf("goal = %q, want empty after proof-backed consume", goal)
+	}
+	if sel != nil {
+		t.Fatalf("expected no selected item after queue empties, got %+v", sel)
+	}
+	if !strings.Contains(output, `Queue preflight consumed "Already proven item": matched evidence-only closure proof for ag-proof.2`) {
+		t.Fatalf("expected evidence-only preflight message, got:\n%s", output)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if len(after) != 1 {
+		t.Fatalf("expected one queue entry, got %d", len(after))
+	}
+	if !after[0].Consumed {
+		t.Fatalf("expected legacy row consumed by evidence-only proof, got %+v", after[0])
+	}
+	if len(after[0].Items) != 1 || !after[0].Items[0].Consumed {
+		t.Fatalf("expected legacy batch item consumed by evidence-only proof, got %+v", after[0])
+	}
+	if after[0].Items[0].ConsumedBy == nil || *after[0].Items[0].ConsumedBy != queuePreflightConsumedBy {
+		t.Fatalf("consumed_by = %v, want %q", after[0].Items[0].ConsumedBy, queuePreflightConsumedBy)
+	}
+}
+
 func TestReadUnconsumedItems_MalformedLines(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")
@@ -1262,7 +1424,7 @@ func TestReadQueueEntries_SkipsConsumed(t *testing.T) {
 	}
 }
 
-func TestReadQueueEntries_SkipsLegacyFailedEntries(t *testing.T) {
+func TestReadQueueEntries_KeepsLegacyFailedEntriesSelectable(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")
 
@@ -1280,15 +1442,19 @@ func TestReadQueueEntries_SkipsLegacyFailedEntries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// ag-done skipped (has proof), ag-retry + ag-open remain
-	if len(got) != 2 {
-		t.Fatalf("expected 2 entries (proof-backed skipped), got %d", len(got))
+	// readQueueEntries returns all non-consumed entries; proof filtering is downstream
+	if len(got) != 3 {
+		t.Fatalf("expected 3 entries from readQueueEntries, got %d", len(got))
 	}
-	if got[0].SourceEpic != "ag-retry" {
-		t.Errorf("expected ag-retry first, got %q", got[0].SourceEpic)
+	// shouldSkipLegacyFailedEntry filters proof-backed entries
+	if !shouldSkipLegacyFailedEntry(got[0]) {
+		t.Errorf("ag-done with CompletionEvidence should be skipped")
 	}
-	if got[1].SourceEpic != "ag-open" {
-		t.Errorf("expected ag-open second, got %q", got[1].SourceEpic)
+	if shouldSkipLegacyFailedEntry(got[1]) {
+		t.Errorf("ag-retry without proof should NOT be skipped")
+	}
+	if shouldSkipLegacyFailedEntry(got[2]) {
+		t.Errorf("ag-open (not failed) should NOT be skipped")
 	}
 }
 
