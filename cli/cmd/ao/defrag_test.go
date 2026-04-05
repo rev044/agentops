@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -345,7 +347,7 @@ func TestWriteDefragReport_CreatesLatest(t *testing.T) {
 		},
 	}
 
-	if err := writeDefragReport(outDir, report); err != nil {
+	if err := writeDefragReport(outDir, report, io.Discard); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -528,25 +530,15 @@ func TestWriteDefragReport_JSONOutput(t *testing.T) {
 		},
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	err := writeDefragReport(outDir, report)
-
-	w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := writeDefragReport(outDir, report, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var buf [4096]byte
-	n, _ := r.Read(buf[:])
-	stdout := string(buf[:n])
+	stdout := buf.String()
 
-	// Verify JSON was written to stdout
+	// Verify JSON was written to the writer
 	var parsed DefragReport
 	if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
 		t.Fatalf("stdout is not valid JSON: %v\nGot: %s", err, stdout)
@@ -582,23 +574,13 @@ func TestWriteDefragReport_TextOutputNotJSON(t *testing.T) {
 		},
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	err := writeDefragReport(outDir, report)
-
-	w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := writeDefragReport(outDir, report, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var buf [4096]byte
-	n, _ := r.Read(buf[:])
-	stdout := string(buf[:n])
+	stdout := buf.String()
 
 	// Should contain human-readable summary, not JSON
 	if !strings.Contains(stdout, "Defrag report:") {
@@ -872,7 +854,7 @@ func TestDefrag_NoFlags_DefaultsAll(t *testing.T) {
 		defragQuiet = false
 	}()
 
-	err := runDefrag(nil, nil)
+	err := runDefrag(defragCmd, nil)
 	if err != nil {
 		t.Fatalf("runDefrag with no flags: %v", err)
 	}

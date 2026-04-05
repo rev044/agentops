@@ -26,22 +26,30 @@ import (
 // stdout capture, refactor the code under test to accept an io.Writer instead.
 // ---------------------------------------------------------------------------
 
+// stdoutCaptureState guards against nested capture sessions. Only one capture
+// may be active at a time because os.Stdout is a process-global resource.
 var stdoutCaptureState struct {
 	mu     sync.Mutex
 	active bool
 }
 
+// stdoutCaptureSession holds the state for one capture: the saved os.Stdout
+// and the pipe endpoints used to intercept writes.
 type stdoutCaptureSession struct {
 	oldStdout *os.File
 	reader    *os.File
 	writer    *os.File
 }
 
+// stdoutCaptureResult pairs the captured output with any read error.
 type stdoutCaptureResult struct {
 	output string
 	err    error
 }
 
+// beginStdoutCaptureSession opens a pipe, redirects os.Stdout to the write
+// end, and returns a session that must be closed via closeAndRestore. Returns
+// an error if a capture is already active (nesting is not supported).
 func beginStdoutCaptureSession() (*stdoutCaptureSession, error) {
 	stdoutCaptureState.mu.Lock()
 	defer stdoutCaptureState.mu.Unlock()
@@ -64,6 +72,8 @@ func beginStdoutCaptureSession() (*stdoutCaptureSession, error) {
 	return session, nil
 }
 
+// closeAndRestore closes the write end of the pipe and restores the original
+// os.Stdout. Safe to call multiple times; subsequent calls are no-ops.
 func (session *stdoutCaptureSession) closeAndRestore() {
 	if session == nil {
 		return
@@ -82,6 +92,9 @@ func (session *stdoutCaptureSession) closeAndRestore() {
 	}
 }
 
+// startReader spawns a goroutine that drains the read end of the pipe and
+// sends the result on the returned channel. Must be called before
+// closeAndRestore so the write end is still open when the reader starts.
 func (session *stdoutCaptureSession) startReader() <-chan stdoutCaptureResult {
 	results := make(chan stdoutCaptureResult, 1)
 	if session == nil || session.reader == nil {
@@ -266,6 +279,8 @@ func writeFile(t *testing.T, path, content string) {
 // Git helpers
 // ---------------------------------------------------------------------------
 
+// gitCommitFixture describes a single commit to create in a test git repo.
+// Path and Content default to auto-generated values when left empty.
 type gitCommitFixture struct {
 	Path      string
 	Content   string
@@ -273,6 +288,8 @@ type gitCommitFixture struct {
 	Timestamp time.Time
 }
 
+// initGitHistoryFixtureRepo creates a temp directory with a git repo and
+// replays the given commits in order, preserving author/committer timestamps.
 func initGitHistoryFixtureRepo(t *testing.T, commits []gitCommitFixture) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -330,6 +347,7 @@ func initMinimalGitRepo(t *testing.T, dir string) {
 	runFixtureGit(t, dir, nil, "commit", "--allow-empty", "-m", "init")
 }
 
+// initHistoryFixtureGitRepo runs git init and configures a test user in dir.
 func initHistoryFixtureGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runFixtureGit(t, dir, nil, "init")
@@ -337,6 +355,8 @@ func initHistoryFixtureGitRepo(t *testing.T, dir string) {
 	runFixtureGit(t, dir, nil, "config", "user.name", "Test")
 }
 
+// runFixtureGit executes a git command in dir with optional extra environment
+// variables. Fatals the test on any non-zero exit.
 func runFixtureGit(t *testing.T, dir string, extraEnv []string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)

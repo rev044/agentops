@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # hook-helpers.sh — Shared utilities for AgentOps hooks
 # Source this from any hook that needs structured failure output.
 #
@@ -33,9 +33,9 @@ check_hook_failure_budget() {
     mkdir -p "$state_dir" 2>/dev/null || return 0
 
     local count=0
-    [ -f "$counter_file" ] && count=$(cat "$counter_file" 2>/dev/null || echo 0)
+    [[ -f "$counter_file" ]] && count=$(cat "$counter_file" 2>/dev/null || echo 0)
 
-    if [ "$count" -ge "$MAX_CONSECUTIVE_HOOK_FAILURES" ]; then
+    if [[ "$count" -ge "$MAX_CONSECUTIVE_HOOK_FAILURES" ]]; then
         echo "HOOK DISABLED: $hook_name failed $count consecutive times (cap=$MAX_CONSECUTIVE_HOOK_FAILURES). Set AGENTOPS_HOOK_FAILURE_CAP to adjust." >&2
         return 1
     fi
@@ -53,11 +53,11 @@ record_hook_failure() {
     mkdir -p "$state_dir" 2>/dev/null || return 0
 
     local count=0
-    [ -f "$counter_file" ] && count=$(cat "$counter_file" 2>/dev/null || echo 0)
+    [[ -f "$counter_file" ]] && count=$(cat "$counter_file" 2>/dev/null || echo 0)
     count=$((count + 1))
     echo "$count" > "$counter_file" 2>/dev/null || true
 
-    if [ "$count" -ge "$MAX_CONSECUTIVE_HOOK_FAILURES" ]; then
+    if [[ "$count" -ge "$MAX_CONSECUTIVE_HOOK_FAILURES" ]]; then
         echo "WARNING: $hook_name has failed $count consecutive times. Hook will be disabled on next invocation." >&2
     fi
 }
@@ -72,7 +72,7 @@ record_hook_success() {
 }
 
 # Guard: ROOT must be set
-if [ -z "${ROOT:-}" ]; then
+if [[ -z "${ROOT:-}" ]]; then
   ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
   ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 fi
@@ -101,9 +101,9 @@ write_failure() {
     mkdir -p "$_HOOK_HELPERS_ERROR_LOG_DIR" 2>/dev/null
 
     local task_subject="unknown"
-    if [ -n "${INPUT:-}" ] && command -v jq >/dev/null 2>&1; then
+    if [[ -n "${INPUT:-}" ]] && command -v jq >/dev/null 2>&1; then
         task_subject=$(echo "$INPUT" | jq -r '.subject // "unknown"' 2>/dev/null) || true
-        [ -z "$task_subject" ] || [ "$task_subject" = "null" ] && task_subject="unknown"
+        [[ -z "$task_subject" || "$task_subject" == "null" ]] && task_subject="unknown"
     fi
 
     local ts
@@ -204,12 +204,12 @@ timeout_run() {
 read_hook_input() {
     INPUT=$(cat)
     LAST_ASSISTANT_MSG=""
-    if [ -n "$INPUT" ]; then
+    if [[ -n "$INPUT" ]]; then
         if command -v jq >/dev/null 2>&1; then
             LAST_ASSISTANT_MSG=$(echo "$INPUT" | jq -r '.last_assistant_message // ""' 2>/dev/null) || true
         fi
         # Fallback without jq
-        if [ -z "$LAST_ASSISTANT_MSG" ] && [ -n "$INPUT" ]; then
+        if [[ -z "$LAST_ASSISTANT_MSG" ]] && [[ -n "$INPUT" ]]; then
             LAST_ASSISTANT_MSG=$(echo "$INPUT" | grep -o '"last_assistant_message"[[:space:]]*:[[:space:]]*"[^"]*"' 2>/dev/null \
                 | sed 's/.*"last_assistant_message"[[:space:]]*:[[:space:]]*"//;s/"$//' 2>/dev/null) || true
         fi
@@ -220,7 +220,7 @@ read_hook_input() {
 # Returns 0 if valid, non-zero otherwise.
 validate_memory_packet_file() {
     local packet_file="$1"
-    [ -f "$packet_file" ] || return 1
+    [[ -f "$packet_file" ]] || return 1
 
     if command -v jq >/dev/null 2>&1; then
         jq -e '
@@ -249,7 +249,7 @@ validate_memory_packet_file() {
 # evidence-only-closure v1 artifacts.
 validate_evidence_only_closure_packet_file() {
     local packet_file="$1"
-    [ -f "$packet_file" ] || return 1
+    [[ -f "$packet_file" ]] || return 1
 
     if command -v jq >/dev/null 2>&1; then
         jq -e '
@@ -315,11 +315,11 @@ write_memory_packet() {
     packet_file="${_HOOK_PACKET_PENDING_DIR}/${packet_id}.json"
 
     if command -v jq >/dev/null 2>&1; then
-        if [ -z "$payload_json" ] || ! echo "$payload_json" | jq -e . >/dev/null 2>&1; then
+        if [[ -z "$payload_json" ]] || ! echo "$payload_json" | jq -e . >/dev/null 2>&1; then
             payload_json='{}'
         fi
 
-        if [ -n "$handoff_file" ]; then
+        if [[ -n "$handoff_file" ]]; then
             jq -n \
                 --argjson schema_version 1 \
                 --arg packet_id "$packet_id" \
@@ -362,7 +362,7 @@ write_memory_packet() {
         local esc_payload esc_handoff
         esc_payload=$(json_escape_value "$payload_json")
         esc_handoff=$(json_escape_value "$handoff_file")
-        if [ -n "$handoff_file" ]; then
+        if [[ -n "$handoff_file" ]]; then
             printf '{"schema_version":1,"packet_id":"%s","packet_type":"%s","created_at":"%s","source_hook":"%s","session_id":"%s","handoff_file":"%s","payload":{"raw":"%s"}}\n' \
                 "$packet_id" "$packet_type" "$created_at" "$source_hook" "$session_id" "$esc_handoff" "$esc_payload" \
                 > "$packet_file" 2>/dev/null || return 1
@@ -399,10 +399,10 @@ write_evidence_only_closure_packet_to_dir() {
     command -v jq >/dev/null 2>&1 || return 1
     mkdir -p "$output_dir" 2>/dev/null || return 1
 
-    [ -n "$target_id" ] || return 1
-    [ -n "$target_type" ] || return 1
-    [ -n "$producer" ] || return 1
-    [ -n "$output_dir" ] || return 1
+    [[ -n "$target_id" ]] || return 1
+    [[ -n "$target_type" ]] || return 1
+    [[ -n "$producer" ]] || return 1
+    [[ -n "$output_dir" ]] || return 1
     case "$evidence_mode" in
         commit|staged|worktree) ;;
         *) return 1 ;;
@@ -516,7 +516,7 @@ write_evidence_only_closure_packet() {
         return 1
     }
 
-    [ -n "$release_artifact" ] || {
+    [[ -n "$release_artifact" ]] || {
         rm -f "$local_artifact" 2>/dev/null || true
         return 1
     }
@@ -536,7 +536,7 @@ _validate_restricted_cmd() {
     local binary
     binary=$(echo "$cmd" | awk '{print $1}')
     for allowed in "${allowlist[@]}"; do
-        if [ "$binary" = "$allowed" ]; then
+        if [[ "$binary" == "$allowed" ]]; then
             return 0
         fi
     done

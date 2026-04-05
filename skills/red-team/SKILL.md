@@ -19,7 +19,7 @@ context:
   sections:
     exclude: [HISTORY]
   intel_scope: full
-output_contract: "skills/council/schemas/verdict.json"
+output_contract: skills/council/schemas/verdict.json
 ---
 
 # /red-team — Persona-Based Adversarial Validation

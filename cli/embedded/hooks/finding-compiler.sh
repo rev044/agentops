@@ -10,6 +10,7 @@ set -euo pipefail
 
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 
+# shellcheck disable=SC2034 # available for helper sourcing
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
@@ -846,6 +847,7 @@ with_constraint_lock() {
 
     local lock_dir="${CONSTRAINT_LOCK}.d"
     if mkdir "$lock_dir" 2>/dev/null; then
+        # shellcheck disable=SC2064 # intentional early expansion — lock_dir is local
         trap "rmdir '$lock_dir' 2>/dev/null || true" EXIT
         "$@"
     fi

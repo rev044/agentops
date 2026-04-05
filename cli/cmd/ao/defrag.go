@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -114,7 +115,7 @@ func runDefrag(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return writeDefragReport(defragOutputDir, report)
+	return writeDefragReport(defragOutputDir, report, cmd.OutOrStdout())
 }
 
 // defragDefaultModes enables all mode flags when none are explicitly set.
@@ -462,7 +463,9 @@ func countAlternations(records []cycleRecord) int {
 }
 
 // writeDefragReport writes the report as dated JSON and latest.json.
-func writeDefragReport(dir string, r *DefragReport) error {
+// The w parameter receives human-readable or JSON output that would previously
+// have been written directly to os.Stdout.
+func writeDefragReport(dir string, r *DefragReport, w io.Writer) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
 	}
@@ -490,34 +493,34 @@ func writeDefragReport(dir string, r *DefragReport) error {
 
 	// Handle output format
 	if GetOutput() == "json" {
-		return json.NewEncoder(os.Stdout).Encode(r)
+		return json.NewEncoder(w).Encode(r)
 	}
 	if !defragQuiet {
-		printDefragSummary(r)
+		printDefragSummary(w, r)
 	}
 
 	return nil
 }
 
-// printDefragSummary prints a human-readable summary to stdout.
-func printDefragSummary(r *DefragReport) {
-	fmt.Printf("Defrag report: %s\n", r.Timestamp.Format(time.RFC3339))
+// printDefragSummary prints a human-readable summary to w.
+func printDefragSummary(w io.Writer, r *DefragReport) {
+	fmt.Fprintf(w, "Defrag report: %s\n", r.Timestamp.Format(time.RFC3339))
 	if r.DryRun {
-		fmt.Println("  Mode: dry-run (no changes applied)")
+		fmt.Fprintln(w, "  Mode: dry-run (no changes applied)")
 	}
 	if r.Prune != nil {
-		fmt.Printf("  Prune: %d total learnings, %d stale, %d orphans\n",
+		fmt.Fprintf(w, "  Prune: %d total learnings, %d stale, %d orphans\n",
 			r.Prune.TotalLearnings, r.Prune.StaleCount, len(r.Prune.Orphans))
 		if len(r.Prune.Deleted) > 0 {
-			fmt.Printf("  Deleted: %d files\n", len(r.Prune.Deleted))
+			fmt.Fprintf(w, "  Deleted: %d files\n", len(r.Prune.Deleted))
 		}
 	}
 	if r.Dedup != nil {
-		fmt.Printf("  Dedup: %d checked, %d duplicate pairs\n",
+		fmt.Fprintf(w, "  Dedup: %d checked, %d duplicate pairs\n",
 			r.Dedup.Checked, len(r.Dedup.DuplicatePairs))
 	}
 	if r.Oscillation != nil {
-		fmt.Printf("  Oscillation: %d oscillating goals\n",
+		fmt.Fprintf(w, "  Oscillation: %d oscillating goals\n",
 			len(r.Oscillation.OscillatingGoals))
 	}
 }

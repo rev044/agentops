@@ -39,17 +39,12 @@ func writeFakeCass(t *testing.T, output string, exitCode int) (binDir string, ar
 	return binDir, argsPath
 }
 
+// chdirTempWorkspace is a thin wrapper around chdirTo (testutil_test.go) that
+// discards the returned previous-directory string. Prefer chdirTo directly in
+// new code; this wrapper exists only to avoid a mass-rename in existing tests.
 func chdirTempWorkspace(t *testing.T, dir string) {
 	t.Helper()
-
-	prevWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prevWD) })
+	_ = chdirTo(t, dir)
 }
 
 func TestClassifyResultType(t *testing.T) {

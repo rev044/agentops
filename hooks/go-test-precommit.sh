@@ -7,6 +7,8 @@
 # Blocking (exit 2) if checks fail — prevents committing broken code.
 set -euo pipefail
 
+[[ "${AGENTOPS_HOOKS_DISABLED:-}" == "1" ]] && exit 0
+
 INPUT=$(cat)
 # Guard empty stdin: jq fails on empty input, so exit early
 [[ -z "$INPUT" ]] && exit 0

@@ -13,8 +13,8 @@ if [[ "${AGENTOPS_WORKER_SESSION:-}" == "1" ]]; then
     unalias -a 2>/dev/null || true
 fi
 
+# shellcheck disable=SC2034 # available for helper sourcing
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 AO_DIR="$ROOT/.agents/ao"
@@ -23,6 +23,7 @@ HOOK_ERROR_LOG="$AO_DIR/hook-errors.log"
 AO_TIMEOUT_BIN="timeout"
 command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1 || AO_TIMEOUT_BIN="gtimeout"
 
+# shellcheck disable=SC2329 # utility available for future use
 log_hook_fail() {
     mkdir -p "$AO_DIR" 2>/dev/null || return 0
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: $1" >> "$HOOK_ERROR_LOG" 2>/dev/null || true
@@ -227,7 +228,9 @@ if [ -d "$ROOT/.agents/handoff" ] && command -v jq &>/dev/null; then
         if mv "$HANDOFF_JSON" "$CONSUMING" 2>/dev/null; then
             H_GOAL=$(jq -r '.goal // empty' "$CONSUMING" 2>/dev/null)
             H_SUMMARY=$(jq -r '.summary // empty' "$CONSUMING" 2>/dev/null)
+            # shellcheck disable=SC2034 # reserved for future handoff expansion
             H_CONTINUATION=$(jq -r '.continuation // empty' "$CONSUMING" 2>/dev/null)
+            # shellcheck disable=SC2034 # reserved for handoff type routing
             H_TYPE=$(jq -r '.type // "manual"' "$CONSUMING" 2>/dev/null)
             # Finalize: write consumed metadata and rename to .consumed.json
             CONSUMED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
