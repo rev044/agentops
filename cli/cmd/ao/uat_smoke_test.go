@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -80,29 +79,12 @@ func TestUATSmoke_HandoffDryRun(t *testing.T) {
 	}
 }
 
-func initGitRepo(t *testing.T, dir string) {
-	t.Helper()
-	cmds := [][]string{
-		{"git", "init"},
-		{"git", "config", "user.email", "test@test.com"},
-		{"git", "config", "user.name", "Test"},
-		{"git", "commit", "--allow-empty", "-m", "init"},
-	}
-	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git init step %v failed: %s: %v", args, out, err)
-		}
-	}
-}
-
 func TestUATSmoke_MineGitSource(t *testing.T) {
 	tmp := chdirTemp(t)
 	setupAgentsDir(t, tmp)
 
 	// mine --sources git needs a git repo; init one.
-	initGitRepo(t, tmp)
+	initMinimalGitRepo(t, tmp)
 
 	out, err := executeCommand("mine", "--sources", "git", "--since", "7d", "--quiet")
 	// mine may return error if no signals found — that's OK for smoke test.

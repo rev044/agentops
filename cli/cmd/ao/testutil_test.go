@@ -18,6 +18,12 @@ import (
 
 // ---------------------------------------------------------------------------
 // Stdout capture helpers
+//
+// WARNING: These helpers redirect the global os.Stdout, which means they are
+// NOT safe for use in parallel tests (t.Parallel()). The mutex prevents
+// concurrent capture sessions from interleaving, but two parallel tests that
+// both need stdout capture will serialize on the lock. If you need parallel
+// stdout capture, refactor the code under test to accept an io.Writer instead.
 // ---------------------------------------------------------------------------
 
 var stdoutCaptureState struct {
@@ -313,6 +319,15 @@ func initTestRepo(t *testing.T) string {
 		Message:   "Initial commit",
 		Timestamp: time.Now().Add(-1 * time.Hour).UTC(),
 	}})
+}
+
+// initMinimalGitRepo creates a git repo with one empty commit. Use this when
+// you need a valid git repo but don't care about file history.
+// Origin: uat_smoke_test.go (was initGitRepo)
+func initMinimalGitRepo(t *testing.T, dir string) {
+	t.Helper()
+	initHistoryFixtureGitRepo(t, dir)
+	runFixtureGit(t, dir, nil, "commit", "--allow-empty", "-m", "init")
 }
 
 func initHistoryFixtureGitRepo(t *testing.T, dir string) {

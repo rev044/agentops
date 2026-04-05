@@ -41,6 +41,27 @@ ao mine --quiet --sources git
 ao lookup --query "integration test" --json --no-cite
 ```
 
+## Binary Version Pre-Flight
+
+Before running any UAT scenario, verify the `ao` binary in PATH matches the
+expected release.  Stale binaries are the #1 cause of false UAT failures.
+
+```bash
+# Run the pre-flight check (exits non-zero on mismatch):
+bash scripts/preflight-uat-binary.sh
+
+# Or inline:
+ao version   # confirm output matches the release under test
+```
+
+If the check fails, rebuild and install:
+```bash
+cd cli && make build && cp bin/ao "$(command -v ao)"
+```
+
+Add this as **Scenario 0** in every UAT integration wave — it must pass before
+any functional scenarios execute.
+
 ## Worker Prompt Template
 
 ```

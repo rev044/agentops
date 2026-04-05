@@ -103,19 +103,31 @@ func runDefrag(cmd *cobra.Command, args []string) error {
 	}
 
 	isDryRun := GetDryRun()
-
-	// Default to all operations when no mode flag is specified.
-	if !defragPrune && !defragDedup && !defragOscillationSweep {
-		defragPrune = true
-		defragDedup = true
-		defragOscillationSweep = true
-	}
+	defragDefaultModes()
 
 	report := &DefragReport{
 		Timestamp: time.Now().UTC(),
 		DryRun:    isDryRun,
 	}
 
+	if err := runDefragPhases(cwd, isDryRun, report); err != nil {
+		return err
+	}
+
+	return writeDefragReport(defragOutputDir, report)
+}
+
+// defragDefaultModes enables all mode flags when none are explicitly set.
+func defragDefaultModes() {
+	if !defragPrune && !defragDedup && !defragOscillationSweep {
+		defragPrune = true
+		defragDedup = true
+		defragOscillationSweep = true
+	}
+}
+
+// runDefragPhases executes the selected defrag operations and populates the report.
+func runDefragPhases(cwd string, isDryRun bool, report *DefragReport) error {
 	if defragPrune {
 		result, err := executePrune(cwd, isDryRun, defragStaleDays)
 		if err != nil {
@@ -140,7 +152,7 @@ func runDefrag(cmd *cobra.Command, args []string) error {
 		report.Oscillation = result
 	}
 
-	return writeDefragReport(defragOutputDir, report)
+	return nil
 }
 
 // executePrune finds orphan learnings and optionally deletes them.
