@@ -249,6 +249,26 @@ date: YYYY-MM-DD
 <next steps or actions>
 ```
 
+### Step 5.5: Persist Reusable Findings
+
+After the research artifact is written, identify any reusable findings that should influence future work.
+
+Persist only reusable findings, not transient observations, to `.agents/findings/registry.jsonl` using the finding-registry contract:
+
+- include provenance fields: `source.repo`, `source.session`, `source.file`, `source.skill`
+- require `dedup_key`, `pattern`, `detection_question`, `checklist_item`, `applicable_when`, and `confidence`
+- keep lifecycle fields explicit: `status`, `superseded_by`, `ttl_days`, `hit_count`, `last_cited`
+- merge by `dedup_key`
+- use the contract's temp-file-plus-rename atomic write rule
+
+After the registry update, if `hooks/finding-compiler.sh` exists, run:
+
+```bash
+bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
+```
+
+This refreshes promoted findings and compiled prevention outputs in the same session.
+
 ### Step 6: Request Human Approval (Gate 1)
 
 **Skip this step if `--auto` flag is set.** In auto mode, proceed directly to Step 7.

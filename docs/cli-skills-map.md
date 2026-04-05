@@ -6,7 +6,7 @@ Auto-audited 2026-04-03. 53 CLI commands, 52 source skills, 7 runtime hook event
 
 Source-of-truth note: `hooks/hooks.json` currently declares 7 runtime hook event sections. Repository hook scripts such as `worktree-setup.sh` are support/setup scripts and are listed separately when relevant.
 
-Registry-first note: `/plan`, `/pre-mortem`, `/vibe`, and `/post-mortem` now also read or write `.agents/findings/registry.jsonl` directly via skill contract. Those file-native prevention reads are intentionally not counted as `ao` command invocations in the tables below.
+Registry-first note: `/plan`, `/pre-mortem`, `/research`, `/vibe`, and `/post-mortem` now also read or write `.agents/findings/registry.jsonl` directly via skill contract. Those file-native prevention reads are intentionally not counted as `ao` command invocations in the tables below.
 
 ## Summary
 
@@ -101,6 +101,7 @@ Conceptual slash commands such as `/knowledge` are documented elsewhere in the p
 These are active skill-level reads or writes that do not go through an `ao` subcommand:
 
 - `/plan` reads `.agents/findings/registry.jsonl` before decomposition and cites `Applied findings:`
+- `/research` persists reusable findings to `.agents/findings/registry.jsonl` and refreshes `hooks/finding-compiler.sh`
 - `/pre-mortem` reads `.agents/findings/registry.jsonl` in both quick and deep modes, injects `known_risks`, and can persist reusable findings
 - `/vibe` reads `.agents/findings/registry.jsonl` before council review and can persist reusable findings
 - `/post-mortem` writes normalized reusable findings to `.agents/findings/registry.jsonl`

@@ -51,6 +51,8 @@ Each entry must include:
 - `ttl_days`
 - `confidence`
 
+The `source.repo`, `source.session`, `source.file`, and `source.skill` fields are the provenance record for the finding.
+
 ## Controlled Vocabulary
 
 `applicable_when` is the only controlled vocabulary in v1. Allowed values:
