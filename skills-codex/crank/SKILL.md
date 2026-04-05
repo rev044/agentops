@@ -515,6 +515,7 @@ fi
 - [references/troubleshooting.md](references/troubleshooting.md) - common issues and fixes
 - [references/uat-integration-wave.md](references/uat-integration-wave.md) - UAT integration wave patterns
 - [references/wave-patterns.md](references/wave-patterns.md) - acceptance checks and checkpoints
+- [references/gc-pool-dispatch.md](references/gc-pool-dispatch.md) - gc pool worker dispatch
 - [references/wave1-spec-consistency-checklist.md](references/wave1-spec-consistency-checklist.md) - Wave 1 spec consistency checklist
 - [references/worktree-per-worker.md](references/worktree-per-worker.md) - worktree isolation pattern
 

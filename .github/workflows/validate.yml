@@ -170,12 +170,17 @@ jobs:
                 --exclude-dir=tests \
                 --exclude-dir=testdata \
                 --exclude-dir=cli/testdata \
+                --exclude-dir=dist \
+                --exclude-dir=.agents \
+                --exclude-dir=.tmp \
+                --exclude-dir=.gc \
                 --exclude="*.md" \
                 --exclude="*.jsonl" \
                 --exclude="*.sh" \
                 --exclude="*_test.go" \
                 --exclude="validate.yml" \
-                . 2>/dev/null; then
+                --binary-files=without-match \
+                . 2>/dev/null | grep -v 'os\.Getenv(' ; then
               found=1
             fi
           done

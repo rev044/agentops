@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,9 +41,10 @@ func TestContextAssemble_Integration_FullAgents(t *testing.T) {
 	assembleMaxChars = 50000
 	assembleOutput = outFile
 
-	out, err := captureStdout(t, func() error {
-		return runContextAssemble(contextCmd, []string{})
-	})
+	var buf bytes.Buffer
+	contextCmd.SetOut(&buf)
+	err := runContextAssemble(contextCmd, []string{})
+	out := buf.String()
 	if err != nil {
 		t.Fatalf("context assemble returned error: %v", err)
 	}
@@ -83,9 +85,10 @@ func TestContextAssemble_Integration_MinimalAgents(t *testing.T) {
 	assembleMaxChars = 50000
 	assembleOutput = outFile
 
-	out, err := captureStdout(t, func() error {
-		return runContextAssemble(contextCmd, []string{})
-	})
+	var buf bytes.Buffer
+	contextCmd.SetOut(&buf)
+	err := runContextAssemble(contextCmd, []string{})
+	out := buf.String()
 	if err != nil {
 		t.Fatalf("context assemble returned error: %v", err)
 	}
@@ -124,9 +127,9 @@ func TestContextAssemble_Integration_Empty(t *testing.T) {
 	assembleMaxChars = 50000
 	assembleOutput = outFile
 
-	_, err := captureStdout(t, func() error {
-		return runContextAssemble(contextCmd, []string{})
-	})
+	var buf bytes.Buffer
+	contextCmd.SetOut(&buf)
+	err := runContextAssemble(contextCmd, []string{})
 	// Should not error even with no .agents/ directory
 	if err != nil {
 		t.Fatalf("context assemble returned error on empty dir: %v", err)

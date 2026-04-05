@@ -96,28 +96,7 @@ Register a `PostCompact` hook: `"command": "cat .agents/crank/wave-*-checkpoint.
 
 ### Step 0: Load Knowledge Context (ao Integration)
 
-**Search for relevant learnings before starting the epic:**
-
-```bash
-# If ao CLI available, pull relevant knowledge for this epic
-if command -v ao &>/dev/null; then
-    # Pull knowledge scoped to the epic
-    ao lookup --query "<epic-title>" --limit 5 2>/dev/null || \
-      ao search "epic execution implementation patterns" 2>/dev/null | head -20
-
-    # Check flywheel status
-    ao metrics flywheel status 2>/dev/null
-
-    # Get current ratchet state
-    ao ratchet status 2>/dev/null
-fi
-```
-
-**Apply retrieved knowledge:** If learnings are returned, check each for applicability to this epic. For applicable learnings, treat as implementation constraints and cite by filename. Record citations with the correct type: `ao metrics cite "<path>" --type applied` when the learning influenced a decision, or `--type retrieved` when loaded but not referenced.
-
-**Section evidence:** When lookup results include `section_heading`, `matched_snippet`, or `match_confidence` fields, prefer the matched section over the whole file — it pinpoints the relevant portion. Higher `match_confidence` (>0.7) means the section is a strong match; lower values (<0.4) are weaker signals. Use the `matched_snippet` as the primary context rather than reading the full file.
-
-If ao not available, skip this step and proceed. The knowledge flywheel enhances but is not required.
+If ao CLI available, pull relevant knowledge: `ao lookup --query "<epic-title>" --limit 5`, `ao metrics flywheel status`, `ao ratchet status`. Apply retrieved learnings as implementation constraints and cite with `ao metrics cite "<path>" --type applied` (influenced decision) or `--type retrieved` (loaded but not referenced). Prefer `matched_snippet` over full files when lookup results include section evidence. If ao unavailable, skip and proceed.
 
 ### Step 0.5: Detect Tracking Mode
 
@@ -143,22 +122,7 @@ fi
 
 ### Step 0.6: Detect gc Pool Backend
 
-```bash
-if command -v gc &>/dev/null && gc status --json 2>/dev/null | jq -e '.controller.state == "running"' >/dev/null 2>&1; then
-    GC_POOL_AVAILABLE=true
-    echo "gc pool detected — will use gc pool auto-scaling for worker dispatch"
-else
-    GC_POOL_AVAILABLE=false
-fi
-```
-
-When `GC_POOL_AVAILABLE=true`:
-- Instead of managing waves manually with Claude teams, let gc pool handle worker lifecycle
-- Pool auto-scales based on `scale_check = "bd ready --count"` from `packs/agentops/pack.toml`
-- Crank simplifies to: create issues → gc scales workers → workers close issues → crank validates
-- Use `gc session nudge <worker> "<task>"` to assign specific tasks to pool workers
-- Monitor progress via `gc status` (shows pool agent states)
-- Workers pick up work from `bd ready` — the bd integration doesn't change
+Check `gc status --json` for a running controller. Set `GC_POOL_AVAILABLE=true` if gc is available. When true, gc pool handles worker lifecycle and auto-scales based on `bd ready --count`. Crank simplifies to: create issues, gc scales workers, workers close issues, crank validates. See [references/gc-pool-dispatch.md](references/gc-pool-dispatch.md) for dispatch details.
 
 ### Step 1: Identify the Epic / Work Source
 
@@ -309,73 +273,11 @@ Do NOT proceed with empty issue list - this produces false "epic complete" statu
 
 ### Step 3a.1: Pre-flight Check - Pre-Mortem Required (3+ issues)
 
-**If the epic has 3 or more child issues, require pre-mortem evidence before proceeding.**
-
-```bash
-# Count child issues (beads mode)
-if [[ "$TRACKING_MODE" == "beads" ]]; then
-    CHILD_COUNT=$(bd show "$EPIC_ID" 2>/dev/null | grep -c "↳")
-else
-    CHILD_COUNT=$(TaskList | grep -c "pending\|in_progress")
-fi
-
-if [[ "$CHILD_COUNT" -ge 3 ]]; then
-    # Look for pre-mortem report in .agents/council/
-    PRE_MORTEM=""
-    if [ -d .agents/council ]; then
-        PRE_MORTEM=$(ls -t .agents/council/*pre-mortem* 2>/dev/null | head -1)
-    fi
-    if [[ -z "$PRE_MORTEM" ]]; then
-        echo "STOP: Epic has $CHILD_COUNT issues but no pre-mortem evidence found."
-        echo "Run '/pre-mortem' first to validate the plan before cranking."
-        echo "<promise>BLOCKED</promise>"
-        echo "Reason: pre-mortem required for epics with 3+ issues"
-        # STOP - do not continue
-        exit 1
-    fi
-    echo "Pre-mortem evidence found: $PRE_MORTEM"
-fi
-```
-
-**Why:** Pre-mortems have positive ROI for 3+ issue epics; cost (~2 min) is negligible.
+If the epic has 3+ child issues, look for a pre-mortem report in `.agents/council/*pre-mortem*`. If none found, emit `<promise>BLOCKED</promise>` and stop — run `/pre-mortem` first. Pre-mortems have positive ROI for 3+ issue epics; cost (~2 min) is negligible.
 
 ### Step 3a.2: Pre-flight Check - Bead Audit (Stale/Fixed/Consolidatable)
 
-**Run bd-audit before wave execution to avoid burning compute on dead work.**
-
-```bash
-if [[ "${SKIP_AUDIT:-}" != "true" ]] && [[ "$TRACKING_MODE" == "beads" ]] && [[ -f scripts/bd-audit.sh ]]; then
-    AUDIT_RESULT="$(bash scripts/bd-audit.sh --json 2>/dev/null || echo '{}')"
-    TOTAL_BEADS="$(echo "${AUDIT_RESULT}" | jq '.summary.total // 0')"
-    FLAGGED_FIXED="$(echo "${AUDIT_RESULT}" | jq '.summary.likely_fixed // 0')"
-    FLAGGED_STALE="$(echo "${AUDIT_RESULT}" | jq '.summary.likely_stale // 0')"
-    FLAGGED_CONSOL="$(echo "${AUDIT_RESULT}" | jq '.summary.consolidatable // 0')"
-    FLAGGED_TOTAL=$(( FLAGGED_FIXED + FLAGGED_STALE + FLAGGED_CONSOL ))
-    FLAGGED_PCT="$(echo "${AUDIT_RESULT}" | jq '.summary.flagged_pct // 0')"
-
-    if [[ "$FLAGGED_TOTAL" -gt 0 ]]; then
-        echo "WARNING: bd-audit flagged ${FLAGGED_PCT}% of open beads (${FLAGGED_TOTAL}/${TOTAL_BEADS})"
-        echo "  likely-fixed: ${FLAGGED_FIXED}  likely-stale: ${FLAGGED_STALE}  consolidatable: ${FLAGGED_CONSOL}"
-        echo ""
-        echo "  Recovery options:"
-        echo "    scripts/bd-audit.sh --auto-close   # close likely-fixed beads"
-        echo "    bd show <id>                        # review individual beads"
-        echo "    /crank --skip-audit                 # bypass this gate"
-
-        if [[ "$FLAGGED_PCT" -gt 50 ]]; then
-            echo ""
-            echo "BLOCKED: >50% of beads flagged — backlog hygiene required before execution."
-            echo "  Run: scripts/bd-audit.sh --auto-close && scripts/bd-cluster.sh --auto-merge"
-            echo "<promise>BLOCKED</promise>"
-            return 1
-        fi
-        echo ""
-        echo "  Proceeding with WARNING (${FLAGGED_PCT}% < 50% blocking threshold)."
-    fi
-fi
-```
-
-This is a **WARNING gate** — it warns on any flagged beads and **blocks at >50%**. Use `--skip-audit` to bypass. If blocked, clean up with `scripts/bd-audit.sh --auto-close` and `scripts/bd-cluster.sh --auto-merge`, then re-run crank.
+Run `scripts/bd-audit.sh --json` (beads mode only) before wave execution to avoid burning compute on dead work. **WARNING gate** — warns on any flagged beads, **blocks at >50%** flagged. Use `--skip-audit` to bypass. If blocked, clean up with `scripts/bd-audit.sh --auto-close` and `scripts/bd-cluster.sh --auto-merge`, then re-run crank.
 
 ### Step 3a.3: Pre-flight Check - Changed-String Grep
 
@@ -505,69 +407,11 @@ fi
 
 **Cross-cutting constraint injection (SDD):**
 
-Before spawning workers, check for cross-cutting constraints:
-
-```bash
-# PSEUDO-CODE
-# Guard clause: skip if plan has no boundaries (backward compat)
-PLAN_FILE=$(ls -t .agents/plans/*.md 2>/dev/null | head -1)
-if [[ -n "$PLAN_FILE" ]] && grep -q "## Boundaries" "$PLAN_FILE"; then
-    # Extract "Always" boundaries and convert to cross_cutting checks
-    # Read the plan's ## Cross-Cutting Constraints section or derive from ## Boundaries
-    # Inject into every TaskCreate's metadata.validation.cross_cutting
-fi
-# "Ask First" boundaries: in auto mode, log as annotation only (no blocking)
-# In --interactive mode, prompt before proceeding
-```
-
-When creating TaskCreate for each wave issue, include cross-cutting constraints in metadata:
-```json
-{
-  "validation": {
-    "files_exist": [...],
-    "content_check": {...},
-    "cross_cutting": [
-      {"name": "...", "type": "content_check", "file": "...", "pattern": "..."}
-    ]
-  }
-}
-```
+Before spawning workers, extract cross-cutting constraints from the plan's `## Boundaries` / `## Cross-Cutting Constraints` section and inject into every TaskCreate's `metadata.validation.cross_cutting` array. Each entry has `name`, `type` (e.g., `content_check`), `file`, and `pattern`. "Ask First" boundaries are annotation-only in auto mode.
 
 **gc pool dispatch (when `GC_POOL_AVAILABLE=true`):**
 
-When `GC_POOL_AVAILABLE=true`, replace `/swarm` invocation with gc pool dispatch:
-- Workers are pre-started by gc pool (no spawn overhead)
-- Assign work via `gc session nudge <worker> "<issue prompt>"`
-- Poll completion via `gc status --json` + `bd show <id>` (check issue closed)
-- gc handles crash recovery and session restart automatically
-
-```bash
-if [[ "$GC_POOL_AVAILABLE" == "true" ]]; then
-    for issue in $READY_ISSUES; do
-        ISSUE_DETAIL=$(bd show "$issue" 2>/dev/null)
-        WORKER=$(gc status --json 2>/dev/null | jq -r '.pool.agents[] | select(.state == "idle") | .name' | head -1)
-        if [[ -n "$WORKER" ]]; then
-            gc session nudge "$WORKER" "Implement issue $issue: $ISSUE_DETAIL"
-        else
-            echo "No idle gc pool workers — waiting for pool auto-scale"
-            gc pool wait --min-idle 1 --timeout 300
-            WORKER=$(gc status --json 2>/dev/null | jq -r '.pool.agents[] | select(.state == "idle") | .name' | head -1)
-            gc session nudge "$WORKER" "Implement issue $issue: $ISSUE_DETAIL"
-        fi
-    done
-    # Poll until all wave issues are closed
-    while true; do
-        OPEN=$(bd ready 2>/dev/null | wc -l)
-        [[ "$OPEN" -eq 0 ]] && break
-        sleep 30
-    done
-else
-    # Standard /swarm invocation (existing behavior)
-    # Invoke /swarm with TaskCreate for each issue in the wave
-fi
-```
-
-When `GC_POOL_AVAILABLE=false`, the existing `/swarm` path is used unchanged.
+When gc pool is available, replace `/swarm` with gc pool dispatch — workers are pre-started, assigned via `gc session nudge`, and gc handles crash recovery automatically. When unavailable, the existing `/swarm` path is used unchanged. See [references/gc-pool-dispatch.md](references/gc-pool-dispatch.md) for the full dispatch script.
 
 **For wave execution details (beads sync, TaskList bridging, swarm invocation), read `skills/crank/references/team-coordination.md`.**
 
@@ -599,36 +443,7 @@ fi
 
 ### Step 5.7: Wave Checkpoint
 
-After each wave completes (post-vibe-gate, pre-next-wave), write a checkpoint file:
-
-```bash
-mkdir -p .agents/crank
-
-cat > ".agents/crank/wave-${wave}-checkpoint.json" <<EOF
-{
-  "schema_version": 1,
-  "wave": ${wave},
-  "timestamp": "$(date -Iseconds)",
-  "tasks_completed": $(echo "$COMPLETED_IDS" | jq -R 'split(" ")'),
-  "tasks_failed": $(echo "$FAILED_IDS" | jq -R 'split(" ")'),
-  "files_changed": $(git diff --name-only "${WAVE_START_SHA}..HEAD" | jq -R . | jq -s .),
-  "git_sha": "$(git rev-parse HEAD)",
-  "acceptance_verdict": "<PASS|WARN|FAIL>",
-  "commit_strategy": "<per-task|wave-batch|wave-batch-fallback>",
-  "mutations_this_wave": $(grep -c "\"wave\":${wave}" .agents/rpi/plan-mutations.jsonl 2>/dev/null || echo 0),
-  "total_mutations": $(wc -l < .agents/rpi/plan-mutations.jsonl 2>/dev/null | tr -d ' '),
-  "mutation_budget": {
-    "task_added": {"used": ${MUTATION_TASK_ADDED:-0}, "limit": 5},
-    "task_reordered": {"used": ${MUTATION_TASK_REORDERED:-0}, "limit": 3}
-  }
-}
-EOF
-```
-
-- `COMPLETED_IDS` / `FAILED_IDS`: space-separated issue IDs from the wave results.
-- `acceptance_verdict`: verdict from the Wave Acceptance Check (Step 5.5). Used by final validation to skip redundant /vibe on clean epics.
-- `mutations_this_wave` / `total_mutations`: plan mutation counts from `.agents/rpi/plan-mutations.jsonl`. Read by `/post-mortem` for drift analysis.
-- On retry of the same wave, the file is overwritten (same path).
+After each wave completes (post-vibe-gate, pre-next-wave), write `.agents/crank/wave-${wave}-checkpoint.json` with fields: `schema_version`, `wave`, `timestamp`, `tasks_completed`, `tasks_failed`, `files_changed`, `git_sha`, `acceptance_verdict` (from Step 5.5), `commit_strategy`, `mutations_this_wave`, `total_mutations`, `mutation_budget` (task_added limit 5, task_reordered limit 3). On retry of the same wave, the file is overwritten.
 
 ### Step 5.7b: Vibe Context Checkpoint
 
@@ -648,31 +463,7 @@ Display a consolidated status table (task, subject, status, validation, duration
 
 ### Step 5.9: Refresh Worktree Base SHA (MANDATORY)
 
-After committing a wave, verify HEAD advanced past `WAVE_START_SHA`. Next wave's worktrees must branch from this new SHA to prevent cross-wave file collisions.
-```
-
-**Cross-wave shared file check:**
-
-Before spawning the next wave, cross-reference the next wave's file manifests against files changed in the current wave:
-
-```bash
-# Files modified by the just-completed wave
-WAVE_CHANGED=$(git diff --name-only "${WAVE_START_SHA}..HEAD")
-
-# Files planned for next wave (from TaskCreate metadata.files)
-NEXT_WAVE_FILES=(<next wave file manifests>)
-
-# Check for overlap
-OVERLAP=$(comm -12 <(echo "$WAVE_CHANGED" | sort) <(printf '%s\n' "${NEXT_WAVE_FILES[@]}" | sort))
-if [[ -n "$OVERLAP" ]]; then
-    echo "Cross-wave file overlap detected:"
-    echo "$OVERLAP"
-    echo "These files were modified in Wave $wave and are planned for Wave $((wave+1))."
-    echo "Worktrees will include Wave $wave changes (branched from $WAVE_COMMIT_SHA)."
-fi
-```
-
-**Why:** In na-vs9, Wave 2 worktrees were created from pre-Wave-1 SHA. A Wave 2 agent overwrote Wave 1's `.md→.json` fix in `rpi_phased_test.go` because its worktree predated the fix. Refreshing the base SHA between waves eliminates this class of collision.
+After committing a wave, verify HEAD advanced past `WAVE_START_SHA`. Next wave's worktrees must branch from this new SHA to prevent cross-wave file collisions. Before spawning the next wave, cross-reference next wave's file manifests (`metadata.files`) against `git diff --name-only "${WAVE_START_SHA}..HEAD"` — log any overlap so workers are aware of prior-wave changes in their worktree base.
 
 ### Step 6: Check for More Work
 
@@ -835,6 +626,7 @@ Common failure modes: no ready issues, repeated wave gate failures, missing file
 - [references/failure-recovery.md](references/failure-recovery.md)
 - [references/failure-taxonomy.md](references/failure-taxonomy.md)
 - [references/fire.md](references/fire.md)
+- [references/gc-pool-dispatch.md](references/gc-pool-dispatch.md)
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/taskcreate-examples.md](references/taskcreate-examples.md)
 - [references/team-coordination.md](references/team-coordination.md)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"path/filepath"
 	"strings"
@@ -116,10 +117,11 @@ func TestCurate_Integration_StatusJSON(t *testing.T) {
 	output = "json"
 	t.Cleanup(func() { output = oldOutput })
 
-	out, err := captureStdout(t, func() error {
-		rootCmd.SetArgs([]string{"curate", "status"})
-		return rootCmd.Execute()
-	})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"curate", "status"})
+	err := rootCmd.Execute()
+	out := buf.String()
 
 	if err != nil {
 		t.Fatalf("expected success, got: %v", err)

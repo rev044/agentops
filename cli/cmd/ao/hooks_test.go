@@ -3657,6 +3657,10 @@ func TestRunHooksShow_Missing(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestForgeTranscriptAccess_WithDir(t *testing.T) {
+	origDryRun := hooksDryRun
+	hooksDryRun = false
+	t.Cleanup(func() { hooksDryRun = origDryRun })
+
 	tmpHome := t.TempDir()
 	os.MkdirAll(filepath.Join(tmpHome, ".claude", "projects"), 0755)
 	old := os.Stdout

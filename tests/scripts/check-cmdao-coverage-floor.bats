@@ -48,8 +48,8 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-@test "check-cmdao-coverage-floor.sh default floor is 78%" {
-    run grep -q '78.0' "$SCRIPT"
+@test "check-cmdao-coverage-floor.sh default floor is 81%" {
+    run grep -q '81.0' "$SCRIPT"
     [ "$status" -eq 0 ]
 }
 

@@ -205,6 +205,7 @@ This repo has a canonical root worktree. It owns the common `.git` directory and
 | **skill-lint** | Skill line limits, required sections, Claude feature coverage | Judgment-tier skill exceeds 600 lines; missing `## Examples` in user-facing skill |
 | **skill-schema** | SKILL frontmatter conforms to schema | Missing/invalid frontmatter fields in SKILL.md |
 | **smoke-test** | Skill frontmatter valid; no placeholders; no TODOs in SKILL.md files | Leaving `TODO` or placeholder emails in SKILL.md |
+| **swarm-evidence** | Swarm evidence files and file manifests are valid | Missing or malformed swarm evidence artifacts |
 | **validate-ci-policy-parity** | AGENTS CI table and blocking policy match workflow summary enforcement | Docs say non-blocking/required but workflow differs |
 | **validate-hooks-doc-parity** | Scoped docs avoid stale hook-count claims vs runtime `hooks/hooks.json` | Runtime hook contract changed but docs were not updated |
 | **bats-tests** | BATS integration tests for shell scripts pass | Hook or script behavioral regression |

@@ -58,6 +58,7 @@ setup() {
     make_stub "$FAKE_REPO/scripts/validate-hook-preflight.sh"
     make_stub "$FAKE_REPO/scripts/validate-hooks-doc-parity.sh"
     make_stub "$FAKE_REPO/scripts/validate-ci-policy-parity.sh"
+    make_stub "$FAKE_REPO/scripts/validate-embedded-sync.sh"
     make_stub "$FAKE_REPO/tests/hooks/test-orphan-hooks.sh"
 }
 
@@ -154,9 +155,8 @@ GO
 }
 
 @test "pre-push-gate.sh detects stale embedded hooks" {
-    # Make hooks differ
-    echo "new-content" > "$FAKE_REPO/hooks/session-start.sh"
-    echo "old-content" > "$FAKE_REPO/cli/embedded/hooks/session-start.sh"
+    # Override the embedded sync stub to fail (simulating stale hooks)
+    make_stub "$FAKE_REPO/scripts/validate-embedded-sync.sh" 1
 
     cat > "$MOCK_BIN/go" <<'GO'
 #!/usr/bin/env bash

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -13,10 +14,11 @@ func TestDoctor_Integration_HealthyState(t *testing.T) {
 	// Create learnings file so knowledge check passes
 	writeFile(t, dir+"/.agents/learnings/test-learning.md", "# Test Learning\nSome content here.\n")
 
-	out, err := captureStdout(t, func() error {
-		rootCmd.SetArgs([]string{"doctor"})
-		return rootCmd.Execute()
-	})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"doctor"})
+	err := rootCmd.Execute()
+	out := buf.String()
 
 	// Doctor may return error if required checks fail (e.g., missing hooks in temp dir)
 	// but it should always produce output
@@ -48,10 +50,11 @@ func TestDoctor_Integration_JSONOutput(t *testing.T) {
 	setupAgentsDir(t, dir)
 	writeFile(t, dir+"/.agents/learnings/test-learning.md", "# Learning\nContent.\n")
 
-	out, _ := captureStdout(t, func() error {
-		rootCmd.SetArgs([]string{"doctor", "--json"})
-		return rootCmd.Execute()
-	})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"doctor", "--json"})
+	_ = rootCmd.Execute()
+	out := buf.String()
 
 	if out == "" {
 		t.Fatal("expected JSON output, got empty string")
@@ -90,10 +93,11 @@ func TestDoctor_Integration_DegradedState(t *testing.T) {
 	writeFile(t, dir+"/.agents/ao/sessions/.gitkeep", "")
 	// Deliberately skip .agents/learnings/ to trigger degraded state
 
-	out, _ := captureStdout(t, func() error {
-		rootCmd.SetArgs([]string{"doctor", "--json"})
-		return rootCmd.Execute()
-	})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"doctor", "--json"})
+	_ = rootCmd.Execute()
+	out := buf.String()
 
 	if out == "" {
 		t.Fatal("expected JSON output, got empty string")
@@ -121,10 +125,11 @@ func TestDoctor_Integration_NoAgentsDir(t *testing.T) {
 	// Completely empty directory — no .agents/ at all
 	chdirTemp(t)
 
-	out, _ := captureStdout(t, func() error {
-		rootCmd.SetArgs([]string{"doctor", "--json"})
-		return rootCmd.Execute()
-	})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"doctor", "--json"})
+	_ = rootCmd.Execute()
+	out := buf.String()
 
 	if out == "" {
 		t.Fatal("expected JSON output, got empty string")
