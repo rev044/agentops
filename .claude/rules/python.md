@@ -28,8 +28,11 @@
 - Use `secrets` module for tokens, not `random`.
 - Validate all external input.
 
-## Testing
+## Testing (AI-Native Test Shape)
+
+**L2 first, L1 always.** Write L2 integration tests first (where bugs are found), then L1 unit tests for regression safety. AI agents write both. See `skills/standards/references/test-pyramid.md` for the full AI-native test shape.
 
 - Assert exact expected values (`== expected`), not just `!= wrong`.
 - Mock external services, not internal code.
 - Add structural invariant tests when adding fields to dataclasses/models.
+- **Prefer L2 integration tests** that call module entry points over L1 tests that mock internal collaborators.

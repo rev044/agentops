@@ -1,7 +1,7 @@
-# Test Pyramid Weighting
+# AI-Native Test Shape Weighting
 
-> From analysis of 946 council verdicts: unit tests (L0–L1) found zero production bugs. L3+ tests (integration, E2E, smoke) found ALL real bugs.
-> Vibe scoring must weight higher-level coverage proportionally.
+> From analysis of 946 council verdicts: unit tests (L0–L1) found zero production bugs. L2+ tests (integration, E2E, smoke) found ALL real bugs.
+> Vibe scoring must weight higher-level coverage proportionally. This is the empirical basis for the AI-native test shape (see `skills/standards/references/test-pyramid.md`).
 
 ## The Evidence
 

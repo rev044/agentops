@@ -155,8 +155,9 @@ bash scripts/validate-codex-generated-artifacts.sh --scope worktree
 
 **No secrets in code.** CI greps for hardcoded passwords, API keys, tokens in non-test files.
 
-## Testing Rules
+## Testing Rules (AI-Native Test Shape)
 
+- **L2 first, L1 always.** AI agents write tests where bugs are found (L2 integration) AND where regressions hide (L1 unit). L2 first for bug-finding, L1 always for regression safety. The traditional pyramid's cost economics are obsolete — agents write both. See `skills/standards/references/test-pyramid.md` for the full theory and evidence.
 - **No coverage-padding tests.** Tests that use trivial `!= ""` or `!= nil` assertions solely to inflate coverage metrics are banned. Every test must assert behavioral correctness, not just presence. If a function's coverage is low, write a real test or accept the metric.
 - **No `cov*_test.go` naming convention.** Test files must be named after the source file they test (e.g., `goals_test.go` not `cov15_goals_init_test.go`).
 

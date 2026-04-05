@@ -1,69 +1,106 @@
-# Test Pyramid — L0 through L7
+# AI-Native Test Shape — L0 through L7
 
 > Shared reference for RPI lifecycle skills. Loaded by `/discovery`, `/plan`, `/pre-mortem`, `/implement`, `/crank`, `/validation`, and `/post-mortem`.
 
+## The AI-Native Test Shape
+
+The traditional test pyramid (many L1 unit, fewer L2 integration, fewest L3 E2E) was an **economic optimization**: unit tests were cheapest for humans to write. AI agents eliminate that cost differential. When writing tests at any level costs roughly the same, the shape should optimize for **bug-finding value**, not writing cost.
+
+**Evidence from 14,753 sessions and 946 council verdicts:**
+- L0–L1 (contract + unit): Found **zero** production bugs. Useful only as regression guards.
+- L2 (integration): Found **moderate** bugs — component interaction failures.
+- L3+ (component, E2E, smoke): Found **all** real production bugs.
+
+```
+The Traditional Pyramid          The AI-Native Shape
+(human cost-optimized)           (bug-finding-optimized)
+
+      /  E2E  \                      /  L3/E2E  \
+     / Integr. \                    /             \
+    /   Unit    \                  /      L2       \    ← BULK: where bugs live
+                                  /      L1         \
+                                 /  L0 (contracts)   \
+```
+
+**The principle:** AI agents should write tests where bugs are found, not where tests are cheapest. L2 integration tests are the default *starting point* for all agent-written tests. L1 unit tests are always written for regression safety. AI agents write both — L2 first for bug-finding, L1 always for regression guards. The shift is in priority and sequencing, not elimination.
+
+## Why This Matters for Agent Workflows
+
+1. **Tests are specs, not verification.** In `--test-first` mode, agents write failing tests first, then implement. L2 describes *behavior* without over-specifying *implementation* — the right abstraction level for agent TDD.
+
+2. **Tests are the ratchet between agents.** When swarm workers modify adjacent files, L2 integration tests catch conflicts at handoff boundaries. L1 tests miss these because they mock away the interaction.
+
+3. **Coverage-as-constraint, not coverage-as-metric.** A coverage floor gives agents a safety net. Agents make different mistakes than humans (correct logic, wrong variable; perfect function, wrong call site). L2 catches those better than L1.
+
+4. **Test runtime is the real bottleneck.** Agents can write 500 tests in minutes. But a 10-minute test suite blocks every feedback loop. Optimize for execution speed across levels, not test count at L1.
+
 ## The Full Testing Lifecycle
 
-| Level | Name | What It Tests | When It Runs | Who Writes It | Context Needed |
-|-------|------|---------------|--------------|---------------|----------------|
-| L0 | Contract Tests | Spec boundaries — registration, imports, file existence | Every commit (CI) | Agent from SPEC.md | Just the spec |
-| L1 | Unit Tests | Single function/class behavior in isolation | Every commit (CI) | Agent via TDD, before code | Spec + function signature |
-| L2 | Integration Tests | Multiple modules working together within a subsystem | Every commit (CI) | Agent after units pass | Subsystem spec |
-| L3 | Component Tests | Full subsystem end-to-end with mocked external deps | Pre-merge gate | Agent or human | Subsystem + adapter specs |
-| L4 | Smoke Tests | Critical path works after deployment — "does it boot?" | Post-deploy (staging) | Human defines, agent implements | Deployment runbook |
-| L5 | E2E Tests | Full system flow across subsystems, real infrastructure | Staging environment | Human designs, agent executes | Architecture doc |
-| L6 | Acceptance Tests | Does it do what the user actually needed? | Staging with real data | Human validates | PRODUCT.md |
-| L7 | Canary / Prod Validation | Does it work under real load with real users? | Production (gradual rollout) | Automated monitors + human judgment | Prod observability |
+| Level | Name | What It Tests | When It Runs | Who Writes It | Bug-Finding Value |
+|-------|------|---------------|--------------|---------------|-------------------|
+| L0 | Contract Tests | Spec boundaries — registration, imports, file existence | Every commit (CI) | Agent from SPEC.md | Low (guards only) |
+| L1 | Unit Tests | Single function/class behavior in isolation | Every commit (CI) | Agent via TDD | **Always write — regression safety** |
+| L2 | Integration Tests | Multiple modules working together within a subsystem | Every commit (CI) | **Agent default — write these first** | **High (3x weight)** |
+| L3 | Component Tests | Full subsystem end-to-end with mocked external deps | Pre-merge gate | Agent or human | **Highest (5x weight)** |
+| L4 | Smoke Tests | Critical path works after deployment — "does it boot?" | Post-deploy (staging) | Human defines, agent implements | **Highest (5x weight)** |
+| L5 | E2E Tests | Full system flow across subsystems, real infrastructure | Staging environment | Human designs, agent executes | High |
+| L6 | Acceptance Tests | Does it do what the user actually needed? | Staging with real data | Human validates | Varies |
+| L7 | Canary / Prod Validation | Does it work under real load with real users? | Production (gradual rollout) | Automated monitors + human judgment | Varies |
 
 ## Agent Autonomy Boundaries
 
 ```
-┌───────────────────────────────────────────────────────┐
-│  AGENT-AUTONOMOUS (L0–L3)                             │
-│  Agent writes tests AND implementation.               │
-│  No human input needed for test design.               │
-│                                                       │
-│  L0: Contract — from SPEC.md alone                    │
-│  L1: Unit     — TDD RED→GREEN from spec               │
-│  L2: Integration — from subsystem spec + adapters     │
-│  L3: Component — agent writes, human defines scenarios│
-├───────────────────────────────────────────────────────┤
-│  HUMAN-GUIDED (L4–L7)                                 │
-│  Human defines WHAT to test.                          │
-│  Agent builds the test infrastructure.                │
-│                                                       │
-│  L4: Smoke     — human defines "critical path"        │
-│  L5: E2E       — human designs flow, agent harness    │
-│  L6: Acceptance— human only validates                 │
-│  L7: Prod      — monitors + human judgment            │
-└───────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│  AGENT-AUTONOMOUS (L0–L3)                                 │
+│  Agent writes tests AND implementation.                   │
+│  DEFAULT: Start at L2 (integration), add L1 for           │
+│  regression guards, L0 for contracts, L3 for subsystems.  │
+│                                                           │
+│  L0: Contract — from SPEC.md alone                        │
+│  L1: Unit     — always write for regression safety         │
+│  L2: Integration — DEFAULT for all agent-written tests    │
+│  L3: Component — agent writes, human defines scenarios    │
+├───────────────────────────────────────────────────────────┤
+│  HUMAN-GUIDED (L4–L7)                                     │
+│  Human defines WHAT to test.                              │
+│  Agent builds the test infrastructure.                    │
+│                                                           │
+│  L4: Smoke     — human defines "critical path"            │
+│  L5: E2E       — human designs flow, agent harness        │
+│  L6: Acceptance— human only validates                     │
+│  L7: Prod      — monitors + human judgment                │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ## RPI Phase Mapping
 
 | RPI Phase | Test Levels | What Happens |
 |-----------|-------------|--------------|
-| **Discovery** (`/discovery`, `/plan`) | L0–L3 scoping | Plan identifies which test levels apply. Issues include `test_level` metadata. |
-| **Pre-mortem** (`/pre-mortem`) | L0–L3 coverage check | Validates plan covers appropriate test levels. Flags gaps. |
-| **Implementation** (`/implement`, `/crank`) | L0–L2 writing + execution | TDD writes L1 tests first (RED). L0 contracts from specs. L2 after units pass. |
-| **Validation** (`/vibe`, `/post-mortem`) | L0–L3 coverage audit | Assesses test pyramid coverage. Flags missing levels as findings. |
+| **Discovery** (`/discovery`, `/plan`) | L0–L3 scoping | Plan identifies which test levels apply. **Default: L2 required for all code-change issues.** Issues include `test_level` metadata. |
+| **Pre-mortem** (`/pre-mortem`) | L0–L3 coverage check | Validates plan covers appropriate test levels. **Flags L1-only coverage as WARN.** |
+| **Implementation** (`/implement`, `/crank`) | L0–L2 writing + execution | **TDD writes L2 integration tests first (RED).** L0 contracts from specs. L1 as regression guards. |
+| **Validation** (`/vibe`, `/post-mortem`) | L0–L3 coverage audit | Assesses test coverage. **L2+ coverage weighted 3-5x over L1 in vibe scoring.** |
 
 ## Test Level Selection Guide
 
 Use this decision tree when planning which test levels to include:
 
 ```
+Is it a code change (not docs/chore)?
+  YES → L2 (integration) REQUIRED as default
+  NO  → Skip testing
+
 Does the change touch external APIs or I/O?
-  YES → L0 (contract) + L1 (unit) + L2 (integration) minimum
-  NO  → L1 (unit) minimum
+  YES → Add L0 (contract) + L1 (unit) for boundary guards
+  NO  → L1 always (regression safety) + L2 required
 
 Does it cross module boundaries?
-  YES → Add L2 (integration)
-  NO  → L1 sufficient
+  YES → L2 is already required — ensure cross-module paths tested
+  NO  → L2 still required (test function-to-function interaction)
 
 Does it affect a full subsystem workflow?
   YES → Add L3 (component)
-  NO  → Skip L3
+  NO  → L2 sufficient
 
 Is it deploying to staging/prod?
   YES → L4 (smoke) required, L5 (E2E) recommended
@@ -77,10 +114,10 @@ When creating issues in `/plan`, include test level metadata:
 ```json
 {
   "test_levels": {
-    "required": ["L0", "L1"],
-    "recommended": ["L2"],
-    "deferred": ["L3"],
-    "rationale": "Pure internal refactor — L0 contracts verify spec, L1 units verify behavior, L2 recommended for cross-module calls"
+    "required": ["L2"],
+    "recommended": ["L1", "L3"],
+    "deferred": [],
+    "rationale": "AI-native default: L2 first for bug-finding, L1 always for regression safety. AI agents write both. L3 if full subsystem affected."
   }
 }
 ```
@@ -90,8 +127,8 @@ When creating issues in `/plan`, include test level metadata:
 > **Proven 2026-03-14 on jren-cm:** 3,321 L1 unit tests found 0 new bugs. These levels found 8.
 > Evidence: `/Users/fullerbt/gt/jren_cm/crew/ichigo/scripts/.agents/council/2026-03-14-post-mortem-full-session-methodology.md`
 
-L0–L3 are the **coverage pyramid** — they verify code works as designed.
-These are the **bug-finding pyramid** — they find bugs the coverage pyramid misses.
+L0–L3 are the **coverage shape** — they verify code works as designed.
+These are the **bug-finding shape** — they find bugs the coverage shape misses.
 
 | Level | Name | What It Finds | Agent Writes? | Bugs Found (jren-cm) |
 |-------|------|---------------|---------------|---------------------|
@@ -372,9 +409,9 @@ After L0–L3 coverage is complete, run bug-finding levels:
 
 ## Coverage Assessment Template
 
-Used by `/post-mortem` and `/vibe` to assess test pyramid health:
+Used by `/post-mortem` and `/vibe` to assess test shape health:
 
-### Coverage Pyramid (L0–L3)
+### Coverage Shape (L0–L3)
 
 | Level | Tests Exist? | Tests Pass? | Coverage Gap? | Action |
 |-------|-------------|-------------|---------------|--------|
@@ -384,7 +421,7 @@ Used by `/post-mortem` and `/vibe` to assess test pyramid health:
 | L3 Component | yes/no | yes/no/na | description | add/fix/ok |
 | L4+ | human-gated | — | — | defer to human |
 
-### Bug-Finding Pyramid (BF1–BF9)
+### Bug-Finding Shape (BF1–BF9)
 
 | Level | Tests Exist? | Bugs Found? | Gap? | Action |
 |-------|-------------|-------------|------|--------|

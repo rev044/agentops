@@ -16,7 +16,9 @@ cd cli && go build ./... && go vet ./... && go test ./...
 
 Or equivalently: `cd cli && make build && make test`
 
-## Testing
+## Testing (AI-Native Test Shape)
+
+**L2 first, L1 always.** Write L2 integration tests first (where bugs are found), then L1 unit tests for regression safety. AI agents write both. See `skills/standards/references/test-pyramid.md` for the full AI-native test shape.
 
 - Test file naming: `<source>_test.go` (e.g., `goals_test.go`). NEVER `cov*_test.go` or `*_extra_test.go`.
 - Test function naming: `Test<Uppercase>` (e.g., `TestFoo_Bar`). Go requires uppercase after `Test`.
@@ -26,6 +28,7 @@ Or equivalently: `cd cli && make build && make test`
 - Assert exact expected values (`== expected`), not just "not the wrong one" (`!= wrong`).
 - Prefer table-driven tests for multi-case functions.
 - Test low-level functions directly; don't depend on external CLIs (`bd`, `ao`) in tests.
+- **Prefer L2 integration tests** that call a command/workflow entry point over L1 tests that mock dependencies.
 
 ## Error Handling
 
