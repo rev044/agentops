@@ -20,7 +20,6 @@ output_contract: "stdout: workflow guide"
 # RPI Workflow
 
 You have access to workflow skills for structured development.
-
 ## The RPI Workflow
 
 ```
@@ -152,6 +151,7 @@ These are the skills every user needs first. Everything else is available when y
 | `/deps` | Dependency audit, update, vulnerability scanning, and license compliance |
 | `/perf` | Performance profiling, benchmarking, regression detection, and optimization |
 | `/scaffold` | Project scaffolding, component generation, and boilerplate setup |
+| `/scenario` | Author and manage holdout scenarios for behavioral validation |
 
 ## Expert Skills (specialized workflows)
 
@@ -240,7 +240,6 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 5. User follows recommended workflow with agent guidance
 
 **Result:** Agent provides structured workflow guidance based on this meta-skill, avoiding ad-hoc approaches.
-
 ## Troubleshooting
 
 | Problem | Cause | Solution |
