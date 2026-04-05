@@ -104,13 +104,18 @@ STEP 1.7 ── Lifecycle Checks (advisory except critical dependency findings)
                    or patterns (handler, middleware, router, parser, engine,
                    worker, pool, codec).
 
-STEP 1.8 ── Stage 4: Behavioral Validation (holdout scenarios)
-            Skip if: no .agents/holdout/ directory OR no active scenarios
+STEP 1.8 ── Stage 4: Behavioral Validation (holdout scenarios + agent-built specs)
+            Skip if: no .agents/holdout/ directory AND no .agents/specs/ directory
             Skip if: --no-behavioral flag set
             
             Sub-steps:
-              a) List active scenarios: ao scenario list --status active 2>/dev/null
-              b) If 0 active scenarios → skip with note "No holdout scenarios found"
+              a) List active scenarios and agent-built specs:
+                   ao scenario list --status active 2>/dev/null
+                   find .agents/specs -name "*.json" -type f 2>/dev/null
+              a.5) For each agent-built spec in .agents/specs/, treat as a scenario
+                   with source="agent". Validate against scenario schema (auto-* id
+                   pattern). Add to evaluation set alongside holdout scenarios.
+              b) If 0 scenarios AND 0 specs → skip with note "No behavioral validation artifacts found"
               c) Spawn evaluator council with AGENTOPS_HOLDOUT_EVALUATOR=1
                  Pass scenarios + implementation diff as judge context
               d) Each judge evaluates: "Does the implementation satisfy the scenario's

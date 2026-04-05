@@ -7,8 +7,8 @@
     "properties": {
         "id": {
             "type": "string",
-            "pattern": "^s-\\d{4}-\\d{2}-\\d{2}-\\d{3}$",
-            "description": "Unique scenario identifier (e.g., s-2026-04-05-001)"
+            "pattern": "^(s-\\d{4}-\\d{2}-\\d{2}-\\d{3}|auto-.+)$",
+            "description": "Unique scenario identifier (e.g., s-2026-04-05-001 for human-authored, auto-na-n5i.1 for agent-built)"
         },
         "version": {
             "type": "integer",

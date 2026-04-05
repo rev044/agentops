@@ -60,3 +60,37 @@ fi
 ```
 
 **Fallback:** If ao is not available or no ratchet chain exists, proceed silently.
+
+## Behavioral Spec Completeness (Advisory — Pre-Commit)
+
+**When:** After Step 5b quality loop passes, before Step 6 commit.
+**Severity:** WARN (advisory, not blocking). Blocking in `--quality` mode.
+
+Check if the implementing agent generated a behavioral spec in Step 5c:
+
+```bash
+ISSUE_ID="${ISSUE_ID:-unknown}"
+SPEC_FILE=".agents/specs/${ISSUE_ID}.json"
+
+if [ -f "$SPEC_FILE" ]; then
+  # Validate spec structure
+  python3 -c "
+import json, sys
+with open('$SPEC_FILE') as f:
+    spec = json.load(f)
+assert 'id' in spec, 'Missing id'
+assert spec['id'].startswith('auto-'), 'Agent spec id must start with auto-'
+assert 'acceptance_vectors' in spec, 'Missing acceptance_vectors'
+assert len(spec['acceptance_vectors']) >= 2, 'Need at least 2 acceptance vectors'
+for v in spec['acceptance_vectors']:
+    assert 'dimension' in v and 'threshold' in v, 'Vector missing dimension or threshold'
+print('Spec gate: PASS')
+" 2>&1 || echo "WARN: Spec validation failed — review .agents/specs/${ISSUE_ID}.json"
+else
+  echo "WARN: No behavioral spec generated at ${SPEC_FILE}"
+  echo "  Step 5c was skipped or spec not written."
+  echo "  This is advisory — commit proceeds without spec."
+fi
+```
+
+**Skip conditions:** `--no-spec` flag, issue type is `docs`/`chore`/`ci`.
