@@ -283,6 +283,21 @@ ao flywheel compare [flags]
       --shadow string   Shadow namespace to compare against primary (default "shadow")
 ```
 
+#### `ao flywheel gate`
+
+Check the post-structural readiness gate before retrieval-expansion work.
+
+```
+ao flywheel gate [flags]
+```
+
+**Flags:**
+
+```
+      --corpus string   Benchmark corpus directory (defaults to repo testdata)
+  -h, --help            help for gate
+```
+
 #### `ao flywheel nudge`
 
 Returns structured JSON combining:
