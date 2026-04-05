@@ -77,6 +77,7 @@ func executeCommand(args ...string) (string, error) {
 	origFindingsPullAll := findingsPullAll
 	origFindingsPullForce := findingsPullForce
 	origFindingsRetireBy := findingsRetireBy
+	origScenarioListStatus := scenarioListStatus
 	defer func() {
 		dryRun = origDryRun
 		verbose = origVerbose
@@ -124,6 +125,7 @@ func executeCommand(args ...string) (string, error) {
 		findingsPullAll = origFindingsPullAll
 		findingsPullForce = origFindingsPullForce
 		findingsRetireBy = origFindingsRetireBy
+		scenarioListStatus = origScenarioListStatus
 	}()
 
 	// Reset all command-local flags to defaults before execution.
@@ -167,6 +169,7 @@ func executeCommand(args ...string) (string, error) {
 	findingsPullAll = false
 	findingsPullForce = false
 	findingsRetireBy = ""
+	scenarioListStatus = ""
 
 	// Reset Cobra flag Changed state on all commands recursively.
 	resetFlagChangesRecursive(rootCmd)

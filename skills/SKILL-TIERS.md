@@ -220,7 +220,7 @@ These are how skills chain in practice:
 
 ## Current Skill Tiers
 
-### User-Facing Skills (56)
+### User-Facing Skills (57)
 
 **Judgment:**
 
@@ -257,6 +257,7 @@ These are how skills chain in practice:
 | **deps** | execution | Dependency audit, update, vulnerability scanning, and license compliance |
 | **perf** | execution | Performance profiling, benchmarking, regression detection, and optimization |
 | **scaffold** | execution | Project scaffolding, component generation, and boilerplate setup |
+| **scenario** | execution | Author and manage holdout scenarios for behavioral validation |
 
 **Knowledge:**
 
@@ -396,6 +397,7 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 | **deps** | standards | optional |
 | **perf** | standards, complexity | optional, optional |
 | **scaffold** | standards | required |
+| **scenario** | - | - (standalone) |
 
 ---
 

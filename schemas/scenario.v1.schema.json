@@ -1,0 +1,102 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "scenario.v1.schema.json",
+    "title": "AgentOps Holdout Scenario",
+    "description": "Schema for behavioral validation scenarios stored in .agents/holdout/",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "pattern": "^s-\\d{4}-\\d{2}-\\d{2}-\\d{3}$",
+            "description": "Unique scenario identifier (e.g., s-2026-04-05-001)"
+        },
+        "version": {
+            "type": "integer",
+            "const": 1,
+            "description": "Schema version"
+        },
+        "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date scenario was created"
+        },
+        "goal": {
+            "type": "string",
+            "description": "What user outcome this scenario validates"
+        },
+        "narrative": {
+            "type": "string",
+            "description": "Natural language user story describing the scenario"
+        },
+        "expected_outcome": {
+            "type": "string",
+            "description": "What a satisfied user would observe when this scenario passes"
+        },
+        "acceptance_vectors": {
+            "type": "array",
+            "description": "Measurable dimensions of satisfaction",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "dimension": {
+                        "type": "string",
+                        "description": "Name of the satisfaction dimension (e.g., correctness, performance, usability)"
+                    },
+                    "threshold": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Minimum score (0.0-1.0) for this dimension to pass"
+                    },
+                    "check": {
+                        "type": "string",
+                        "description": "Optional mechanical check command or content pattern"
+                    }
+                },
+                "required": ["dimension", "threshold"],
+                "additionalProperties": false
+            }
+        },
+        "satisfaction_threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.7,
+            "description": "Overall satisfaction score threshold for scenario to pass"
+        },
+        "scope": {
+            "type": "object",
+            "description": "What parts of the codebase this scenario applies to",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "File paths this scenario targets"
+                },
+                "functions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Function/method names this scenario targets"
+                },
+                "behaviors": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Behavioral descriptions this scenario validates"
+                }
+            },
+            "additionalProperties": false
+        },
+        "source": {
+            "type": "string",
+            "enum": ["human", "agent", "prod-telemetry"],
+            "description": "How this scenario was created"
+        },
+        "status": {
+            "type": "string",
+            "enum": ["active", "retired", "draft"],
+            "description": "Lifecycle status of this scenario"
+        }
+    },
+    "required": ["id", "version", "date", "goal", "narrative", "expected_outcome", "satisfaction_threshold", "status"],
+    "additionalProperties": false
+}
