@@ -116,4 +116,40 @@ func TestUATSmoke_Version(t *testing.T) {
 	if !strings.Contains(out, "ao version") {
 		t.Errorf("expected 'ao version' in output, got: %s", out)
 	}
+	// Pre-flight: version output must include Go version and platform for
+	// release-binary traceability. Without these, bug reports lack build provenance.
+	if !strings.Contains(out, "Go version:") {
+		t.Errorf("version output missing Go version line (needed for binary provenance), got: %s", out)
+	}
+	if !strings.Contains(out, "Platform:") {
+		t.Errorf("version output missing Platform line (needed for binary provenance), got: %s", out)
+	}
+}
+
+// TestUATSmoke_VersionNotDev verifies that the version variable is not left at
+// the dev default when running in a release context. In test builds it will be
+// "dev" which is acceptable, but the test encodes the expectation that the
+// version command always produces a parseable, non-empty version string.
+func TestUATSmoke_VersionNotEmpty(t *testing.T) {
+	out, err := executeCommand("version")
+	if err != nil {
+		t.Fatalf("version failed: %v", err)
+	}
+	// Extract the version token: "ao version <token>"
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) == 0 {
+		t.Fatal("version produced no output")
+	}
+	parts := strings.Fields(lines[0])
+	if len(parts) < 3 {
+		t.Fatalf("expected 'ao version <ver>', got: %s", lines[0])
+	}
+	ver := parts[2]
+	if ver == "" {
+		t.Error("version string is empty")
+	}
+	// Version must be either "dev" (test builds) or start with "v" (release builds).
+	if ver != "dev" && !strings.HasPrefix(ver, "v") {
+		t.Errorf("version %q is neither 'dev' nor a release version (v*)", ver)
+	}
 }
