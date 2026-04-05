@@ -206,14 +206,18 @@ extract_files_section_from_text() {
     tolower($0) ~ /^[[:space:]]*files likely owned:[[:space:]]*$/ { in_files = 1; next }
     tolower($0) ~ /^[[:space:]]*likely files:[[:space:]]*$/ { in_files = 1; next }
     tolower($0) ~ /^[[:space:]]*primary files:[[:space:]]*$/ { in_files = 1; next }
+    tolower($0) ~ /^[[:space:]]*scoped files:[[:space:]]*$/ { in_files = 1; next }
     in_files {
       if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^```/) {
         exit
       }
-      if ($0 !~ /^[[:space:]]*-/) {
+      # Accept lines starting with - or * (bullet points)
+      if ($0 !~ /^[[:space:]]*[-*]/) {
         exit
       }
-      sub(/^[[:space:]]*-[[:space:]]*/, "", $0)
+      # Strip bullet prefix and backticks
+      sub(/^[[:space:]]*[-*][[:space:]]*/, "", $0)
+      gsub(/`/, "", $0)
       print
     }
   ' | extract_file_paths_from_stream
@@ -249,7 +253,14 @@ extract_repo_relative_paths_from_text() {
 }
 
 extract_backticked_files_from_text() {
-  grep -oE "\`$FILE_PATH_REGEX\`" | tr -d '`' || true
+  # Handle backticked filenames across multiple lines, including nested backticks
+  # and paths with spaces or special characters inside backticks
+  tr '\n' '\0' \
+    | grep -zoE "\`[^\`]+\`" \
+    | tr '\0' '\n' \
+    | tr -d '`' \
+    | grep -E "$FILE_PATH_REGEX" \
+    | grep -oE "$FILE_PATH_REGEX" || true
 }
 
 extract_scoped_files() {
@@ -483,7 +494,14 @@ classify_child() {
       fi
       if [[ "$SCOPE" == "commit" ]]; then
         if [[ "${#scoped_files[@]}" -eq 0 ]]; then
-          build_child_result "$child" "$scoped_json" "none" "parser_miss: no scoped files extracted from description" '[]' "fail"
+          # Check evidence-only closure packets before declaring parser_miss
+          if packet_path="$(durable_packet_path_for_child "$child")" && packet_is_valid_for_child "$packet_path" "$child"; then
+            packet_mode="$(packet_evidence_mode "$packet_path")"
+            packet_json="$(packet_matches_json "$packet_path")"
+            build_child_result "$child" "$scoped_json" "evidence-only-packet" "matched durable closure proof packet (no scoped files)" "$packet_json" "pass"
+          else
+            build_child_result "$child" "$scoped_json" "none" "parser_miss: no scoped files extracted from description" '[]' "fail"
+          fi
         else
           build_child_result "$child" "$scoped_json" "none" "timing_miss: scoped files found but no commit evidence (checked grace window)" '[]' "fail"
         fi
@@ -493,7 +511,14 @@ classify_child() {
   esac
 
   if [[ "${#scoped_files[@]}" -eq 0 ]]; then
-    build_child_result "$child" "$scoped_json" "none" "parser_miss: no scoped files extracted from description" '[]' "fail"
+    # Check evidence-only closure packets before declaring parser_miss
+    if packet_path="$(durable_packet_path_for_child "$child")" && packet_is_valid_for_child "$packet_path" "$child"; then
+      packet_mode="$(packet_evidence_mode "$packet_path")"
+      packet_json="$(packet_matches_json "$packet_path")"
+      build_child_result "$child" "$scoped_json" "evidence-only-packet" "matched durable closure proof packet (no scoped files)" "$packet_json" "pass"
+    else
+      build_child_result "$child" "$scoped_json" "none" "parser_miss: no scoped files extracted from description" '[]' "fail"
+    fi
     return 0
   fi
 
@@ -582,7 +607,8 @@ jq -s \
         commit: ([.[] | select(.status == "pass" and .evidence_mode == "commit") | .child_id] | sort),
         staged: ([.[] | select(.status == "pass" and .evidence_mode == "staged") | .child_id] | sort),
         worktree: ([.[] | select(.status == "pass" and .evidence_mode == "worktree") | .child_id] | sort),
-        packet: ([.[] | select(.status == "pass" and (.evidence_mode | IN("commit","staged","worktree") | not)) | .child_id] | sort)
+        "evidence-only-packet": ([.[] | select(.status == "pass" and .evidence_mode == "evidence-only-packet") | .child_id] | sort),
+        "grace-window": ([.[] | select(.status == "pass" and .evidence_mode == "grace-window") | .child_id] | sort)
       }
     },
     children: .,

@@ -143,6 +143,109 @@ else
   fail "missing scoped files should be parser_miss (got $ftype)"
 fi
 
+# Test 4: Bead with no scoped files AND no evidence-only packet should FAIL
+cat > "$BD_DIR/children.json" <<JSON
+[{"id": "test-epic.2"}]
+JSON
+
+cat > "$BD_DIR/show-test-epic.2.json" <<JSON
+[{
+  "id": "test-epic.2",
+  "status": "closed",
+  "created_at": "2026-03-19T10:00:00+00:00",
+  "closed_at": "$CLOSE_TIME",
+  "description": "Refactored internal logic with no specific files mentioned."
+}]
+JSON
+
+# Ensure no evidence-only packet exists
+rm -rf "$REPO_DIR/.agents/releases/evidence-only-closures" "$REPO_DIR/.agents/council/evidence-only-closures"
+
+result="$(cd "$REPO_DIR" && bash "$AUDIT_SCRIPT" --scope auto test-epic 2>&1)"
+verdict="$(echo "$result" | jq -r '.children[0].status')"
+ftype="$(echo "$result" | jq -r '.failures[0].failure_type')"
+
+if [[ "$verdict" == "fail" ]] && [[ "$ftype" == "parser_miss" ]]; then
+  pass "no scoped files + no evidence-only packet correctly fails as parser_miss"
+else
+  fail "no scoped files + no evidence-only packet should be parser_miss (got status=$verdict failure_type=$ftype)"
+fi
+
+# Test 5: Bead with evidence-only packet but invalid schema should WARN (pass with packet mode but packet_is_valid rejects it)
+cat > "$BD_DIR/children.json" <<JSON
+[{"id": "test-epic.3"}]
+JSON
+
+cat > "$BD_DIR/show-test-epic.3.json" <<JSON
+[{
+  "id": "test-epic.3",
+  "status": "closed",
+  "created_at": "2026-03-19T10:00:00+00:00",
+  "closed_at": "$CLOSE_TIME",
+  "description": "Policy-only closure with no code delta."
+}]
+JSON
+
+# Create an invalid evidence-only packet (missing required fields)
+mkdir -p "$REPO_DIR/.agents/releases/evidence-only-closures"
+cat > "$REPO_DIR/.agents/releases/evidence-only-closures/test-epic.3.json" <<JSON
+{
+  "target_id": "test-epic.3",
+  "evidence_mode": "invalid_mode",
+  "evidence": {"artifacts": []}
+}
+JSON
+
+result="$(cd "$REPO_DIR" && bash "$AUDIT_SCRIPT" --scope auto test-epic 2>&1)"
+verdict="$(echo "$result" | jq -r '.children[0].status')"
+ftype="$(echo "$result" | jq -r '.failures[0].failure_type')"
+
+if [[ "$verdict" == "fail" ]] && [[ "$ftype" == "parser_miss" ]]; then
+  pass "invalid evidence-only packet correctly falls through to parser_miss"
+else
+  fail "invalid evidence-only packet should fall through to parser_miss (got status=$verdict failure_type=$ftype)"
+fi
+
+# Test 6: Bead with expired grace window should FAIL
+cat > "$BD_DIR/children.json" <<JSON
+[{"id": "test-epic.1"}]
+JSON
+
+EXPIRED_CLOSE="2026-03-15T10:00:00+00:00"
+cat > "$BD_DIR/show-test-epic.1.json" <<JSON
+[{
+  "id": "test-epic.1",
+  "status": "closed",
+  "created_at": "2026-03-10T10:00:00+00:00",
+  "closed_at": "$EXPIRED_CLOSE",
+  "description": "Fix the handler logic.\n\nFiles:\n- \`$SCOPED_FILE\`"
+}]
+JSON
+
+# Reset repo - commit is at 2026-03-20T12:00:00, close was 2026-03-15 (5 days before commit, well outside 24h grace)
+(
+  cd "$REPO_DIR"
+  # Remove any evidence-only packets
+  rm -rf .agents
+  git reset --hard HEAD~1 -q 2>/dev/null || true
+  mkdir -p "$(dirname "$SCOPED_FILE")"
+  LATE_TIME="2026-03-20T12:00:00+00:00"
+  echo "package ao" > "$SCOPED_FILE"
+  git add "$SCOPED_FILE"
+  GIT_AUTHOR_DATE="$LATE_TIME" GIT_COMMITTER_DATE="$LATE_TIME" \
+    git commit -q -m "fix: handler logic"
+)
+
+result="$(cd "$REPO_DIR" && bash "$AUDIT_SCRIPT" --scope commit test-epic 2>&1)"
+verdict="$(echo "$result" | jq -r '.children[0].status')"
+ftype="$(echo "$result" | jq -r '.failures[0].failure_type')"
+
+if [[ "$verdict" == "fail" ]] && [[ "$ftype" == "timing_miss" ]]; then
+  pass "expired grace window correctly classified as timing_miss"
+else
+  fail "expired grace window should be timing_miss (got status=$verdict failure_type=$ftype)"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]
