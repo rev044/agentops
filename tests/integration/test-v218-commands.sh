@@ -365,7 +365,7 @@ test_cmd "findings list" 0 "test-finding-alpha|Prefer registry-backed prevention
 echo ""
 echo "--- findings list --json ---"
 FINDINGS_JSON=$("$TMPBIN" findings list --json 2>&1) || true
-if echo "$FINDINGS_JSON" | jq -e 'type == "array" and ((map(.id) | index("test-finding-alpha")) != null)' >/dev/null 2>&1; then
+if echo "$FINDINGS_JSON" | jq -e 'type == "array" and any(.[]; .id == "test-finding-alpha") and all(.[]; .id != "test-finding-retired")' >/dev/null 2>&1; then
     pass "findings list --json returns active findings array"
 else
     fail "findings list --json returns active findings array"
