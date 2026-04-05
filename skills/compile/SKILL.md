@@ -241,8 +241,8 @@ across multiple observations.>
 
 ## Sources
 
-- [source1.md](.agents/learnings/source1.md)
-- [source2.md](.agents/research/source2.md)
+- `source1.md` — .agents/learnings/source1.md
+- `source2.md` — .agents/research/source2.md
 ```
 
 Use `[[backlinks]]` (Obsidian-style wikilinks) for cross-references between articles.

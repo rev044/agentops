@@ -1,6 +1,6 @@
 ---
 name: compile
-description: 'Knowledge compiler. Reads raw .agents/ artifacts (learnings, research, patterns, retros, findings) and compiles them into an interlinked markdown wiki at .agents/compiled/. Pluggable LLM backend via AGENTOPS_COMPILE_RUNTIME (ollama|claude). Also runs Mine → Grow → Defrag maintenance cycle and Lint pass for gaps/contradictions. Triggers: "compile", "compile knowledge", "build wiki", "knowledge compile", "lint knowledge", "mine and grow", "knowledge defrag", "clean flywheel".'
+description: 'Knowledge compiler. Reads raw .agents/ artifacts (learnings, research, patterns, retros, findings) and compiles them into an interlinked markdown wiki at .agents/compiled/. Pluggable LLM backend via AGENTOPS_COMPILE_RUNTIME (ollama|api). Also runs Mine → Grow → Defrag maintenance cycle and Lint pass for gaps/contradictions. Triggers: "compile", "compile knowledge", "build wiki", "knowledge compile", "lint knowledge", "mine and grow", "knowledge defrag", "clean flywheel".'
 ---
 
 
@@ -28,14 +28,7 @@ in context windows. The wiki IS the retrieval layer.
 
 ## Pluggable Compute Backend
 
-Set `AGENTOPS_COMPILE_RUNTIME` to choose the LLM backend:
-
-| Value | Backend | Notes |
-|-------|---------|-------|
-| `ollama` | Ollama API | Default model: `gemma3:27b`. Set `OLLAMA_HOST` for remote. |
-| `claude` | Claude API | Uses `ANTHROPIC_API_KEY`. Model: `claude-sonnet-4-20250514`. |
-| `openai` | OpenAI-compatible | Uses `OPENAI_API_KEY` + `OPENAI_BASE_URL`. |
-| (unset) | Current session LLM | Compilation happens inline. |
+When running headless, set `AGENTOPS_COMPILE_RUNTIME` to `ollama` or `openai` for the compilation backend.
 
 ## Execution Steps
 
@@ -171,14 +164,8 @@ Group artifacts by topic. Each topic becomes a wiki article.
 
 For each topic, compile an encyclopedia-style article:
 
-**If `AGENTOPS_COMPILE_RUNTIME` is set**, use `scripts/compile.sh`:
-
-```bash
-AGENTOPS_COMPILE_RUNTIME=ollama scripts/compile.sh \
-  --sources .agents/ \
-  --output .agents/compiled/ \
-  --incremental
-```
+**If `AGENTOPS_COMPILE_RUNTIME` is set**, the compilation backend is selected
+automatically via the environment variable. No script invocation needed.
 
 **If running inline** (no runtime set), compile directly:
 
@@ -212,8 +199,8 @@ across multiple observations.>
 
 ## Sources
 
-- [source1.md](.agents/learnings/source1.md)
-- [source2.md](.agents/research/source2.md)
+- `source1.md` — .agents/learnings/source1.md
+- `source2.md` — .agents/research/source2.md
 ```
 
 Use `[[backlinks]]` (Obsidian-style wikilinks) for cross-references between articles.
