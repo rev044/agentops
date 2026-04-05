@@ -21,7 +21,7 @@ func TestArtifactTypeFromPath(t *testing.T) {
 		{name: "learnings dir", path: "/home/user/.agents/learnings/mutex.md", want: "learning"},
 		{name: "patterns dir", path: "/home/user/.agents/patterns/retry.md", want: "pattern"},
 		{name: "research dir", path: "/home/user/.agents/research/deep-dive.md", want: "research"},
-		{name: "retros dir", path: "/home/user/.agents/retros/2026-02-22.md", want: "retro"},
+		{name: "retros dir", path: "/home/user/.agents/retro/2026-02-22.md", want: "retro"},
 		{name: "candidates dir", path: "/home/user/.agents/candidates/idea.md", want: "candidate"},
 		{name: "unknown dir", path: "/home/user/.agents/misc/notes.md", want: "unknown"},
 		{name: "empty path", path: "", want: "unknown"},

@@ -372,7 +372,7 @@ func artifactTypeFromPath(path string) string {
 		{"/learnings/", "learning"},
 		{"/patterns/", "pattern"},
 		{"/research/", "research"},
-		{"/retros/", "retro"},
+		{"/retro/", "retro"},
 		{"/candidates/", "candidate"},
 	}
 	for _, m := range pathTypeMap {

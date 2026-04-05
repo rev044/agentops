@@ -94,7 +94,7 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 		".agents/specs",
 		".agents/learnings",
 		".agents/patterns",
-		".agents/retros",
+		".agents/retro",
 		".agents/handoff",
 	}
 

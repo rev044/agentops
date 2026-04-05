@@ -201,7 +201,7 @@ func TestQuickstart_runQuickstart_minimal(t *testing.T) {
 		".agents/specs",
 		".agents/learnings",
 		".agents/patterns",
-		".agents/retros",
+		".agents/retro",
 		".agents/handoff",
 	}
 	for _, dir := range dirs {

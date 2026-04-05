@@ -355,7 +355,7 @@ func countArtifacts(baseDir string) (int, map[string]int, error) {
 	}
 
 	// Count retros (separate tier from learnings for consistent counts)
-	retrosDir := filepath.Join(baseDir, ".agents", "retros")
+	retrosDir := filepath.Join(baseDir, ".agents", "retro")
 	if _, err := os.Stat(retrosDir); err == nil {
 		files, _ := filepath.Glob(filepath.Join(retrosDir, "*.md"))
 		tierCounts["retro"] = len(files)
@@ -381,7 +381,7 @@ func countNewArtifacts(baseDir string, since time.Time) (int, error) {
 		filepath.Join(baseDir, ".agents", "patterns"),
 		filepath.Join(baseDir, ".agents", "candidates"),
 		filepath.Join(baseDir, ".agents", "research"),
-		filepath.Join(baseDir, ".agents", "retros"),
+		filepath.Join(baseDir, ".agents", "retro"),
 	}
 
 	for _, dir := range dirs {
@@ -617,7 +617,7 @@ func retroHasLearnings(path string) bool {
 
 // countRetros counts retro artifacts and how many have associated learnings.
 func countRetros(baseDir string, since time.Time) (total int, withLearnings int, err error) {
-	retrosDir := filepath.Join(baseDir, ".agents", "retros")
+	retrosDir := filepath.Join(baseDir, ".agents", "retro")
 	if _, err := os.Stat(retrosDir); os.IsNotExist(err) {
 		return 0, 0, nil
 	}

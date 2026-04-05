@@ -324,7 +324,7 @@ func TestComputeMetricsSigmaBounded(t *testing.T) {
 func TestCountRetros(t *testing.T) {
 	t.Run("missing retros dir returns 0 with no error", func(t *testing.T) {
 		baseDir := t.TempDir()
-		// No .agents/retros directory created
+		// No .agents/retro directory created
 		total, withLearnings, err := countRetros(baseDir, time.Now().AddDate(0, 0, -7))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
@@ -339,7 +339,7 @@ func TestCountRetros(t *testing.T) {
 
 	t.Run("retro within time period is counted", func(t *testing.T) {
 		baseDir := t.TempDir()
-		retrosDir := filepath.Join(baseDir, ".agents", "retros")
+		retrosDir := filepath.Join(baseDir, ".agents", "retro")
 		if err := os.MkdirAll(retrosDir, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -362,7 +362,7 @@ func TestCountRetros(t *testing.T) {
 
 	t.Run("retro without learnings section not counted in withLearnings", func(t *testing.T) {
 		baseDir := t.TempDir()
-		retrosDir := filepath.Join(baseDir, ".agents", "retros")
+		retrosDir := filepath.Join(baseDir, ".agents", "retro")
 		if err := os.MkdirAll(retrosDir, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -385,7 +385,7 @@ func TestCountRetros(t *testing.T) {
 
 	t.Run("non-md files not counted", func(t *testing.T) {
 		baseDir := t.TempDir()
-		retrosDir := filepath.Join(baseDir, ".agents", "retros")
+		retrosDir := filepath.Join(baseDir, ".agents", "retro")
 		if err := os.MkdirAll(retrosDir, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -546,7 +546,7 @@ func TestCountArtifacts(t *testing.T) {
 		filepath.Join(baseDir, ".agents", "patterns"):                       {"p1.md"},
 		filepath.Join(baseDir, ".agents", "candidates"):                     {"c1.md", "c2.md"},
 		filepath.Join(baseDir, ".agents", "research"):                       {"r1.md"},
-		filepath.Join(baseDir, ".agents", "retros"):                         {"retro1.md"},
+		filepath.Join(baseDir, ".agents", "retro"):                         {"retro1.md"},
 		filepath.Join(baseDir, storage.DefaultBaseDir, storage.SessionsDir): {"s1.jsonl"},
 	}
 	for dir, files := range dirs {

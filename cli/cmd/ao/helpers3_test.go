@@ -268,7 +268,7 @@ func TestHelper3_artifactTypeFromPath(t *testing.T) {
 		{"/foo/learnings/bar.md", "learning"},
 		{"/foo/patterns/x.md", "pattern"},
 		{"/foo/research/r.md", "research"},
-		{"/foo/retros/r.md", "retro"},
+		{"/foo/retro/r.md", "retro"},
 		{"/foo/candidates/c.jsonl", "candidate"},
 		{"/foo/other/o.md", "unknown"},
 	}

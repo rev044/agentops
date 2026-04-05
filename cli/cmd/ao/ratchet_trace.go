@@ -22,7 +22,7 @@ func init() {
 Shows the provenance chain from output to input.
 
 Examples:
-  ao ratchet trace .agents/retros/2025-01-24-topic.md
+  ao ratchet trace .agents/retro/2025-01-24-topic.md
   ao ratchet trace epic:ol-0001`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetTrace,

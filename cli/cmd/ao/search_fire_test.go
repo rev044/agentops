@@ -19,7 +19,7 @@ func TestSearchClassifyResultType(t *testing.T) {
 	}{
 		{"learnings dir", "/project/.agents/ao/learnings/mutex.md", "learning"},
 		{"patterns dir", "/project/.agents/ao/patterns/retry.md", "pattern"},
-		{"retros dir", "/project/.agents/ao/retros/2026-02-01.md", "retro"},
+		{"retros dir", "/project/.agents/ao/retro/2026-02-01.md", "retro"},
 		{"research dir", "/project/.agents/ao/research/topic.md", "research"},
 		{"sessions dir", "/project/.agents/ao/sessions/sess-abc.jsonl", "session"},
 		{"decisions dir", "/project/.agents/ao/decisions/adr-001.md", "decision"},

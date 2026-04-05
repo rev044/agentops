@@ -235,7 +235,7 @@ func setupAgentsDir(t *testing.T, dir string) {
 		".agents/learnings",
 		".agents/research",
 		".agents/patterns",
-		".agents/retros",
+		".agents/retro",
 		".agents/plans",
 		".agents/council",
 		".agents/knowledge/pending",

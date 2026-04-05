@@ -60,7 +60,7 @@ func TestClassifyResultType(t *testing.T) {
 	}{
 		{"learnings path", "/foo/.agents/learnings/L42.md", "learning"},
 		{"patterns path", "/foo/.agents/patterns/mutex.md", "pattern"},
-		{"retros path", "/foo/.agents/retros/2026-01.md", "retro"},
+		{"retros path", "/foo/.agents/retro/2026-01.md", "retro"},
 		{"research path", "/foo/.agents/research/auth.md", "research"},
 		{"sessions path", "/foo/.agents/ao/sessions/s1.md", "session"},
 		{"decisions path", "/foo/.agents/decisions/use-go.md", "decision"},

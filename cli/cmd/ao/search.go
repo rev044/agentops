@@ -678,7 +678,7 @@ func classifyResultType(path string) string {
 	if strings.Contains(pathLower, "/patterns/") {
 		return "pattern"
 	}
-	if strings.Contains(pathLower, "/retros/") {
+	if strings.Contains(pathLower, "/retro/") {
 		return "retro"
 	}
 	if strings.Contains(pathLower, "/research/") {
