@@ -1268,7 +1268,10 @@ func TestReadQueueEntries_SkipsLegacyFailedEntries(t *testing.T) {
 
 	failedAt := "2026-02-10T00:00:00Z"
 	entries := []nextWorkEntry{
-		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failed item"}}, Consumed: false, FailedAt: &failedAt},
+		// Failed WITH proof → skipped (proof-backed completion)
+		{SourceEpic: "ag-done", Items: []nextWorkItem{{Title: "Done item"}}, Consumed: false, FailedAt: &failedAt, CompletionEvidence: "bead_closed"},
+		// Failed WITHOUT proof → stays available for retry
+		{SourceEpic: "ag-retry", Items: []nextWorkItem{{Title: "Retry item"}}, Consumed: false, FailedAt: &failedAt},
 		{SourceEpic: "ag-open", Items: []nextWorkItem{{Title: "Open item"}}, Consumed: false},
 	}
 	writeJSONL(t, path, entries)
@@ -1277,11 +1280,15 @@ func TestReadQueueEntries_SkipsLegacyFailedEntries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("expected 1 entry (failed skipped), got %d", len(got))
+	// ag-done skipped (has proof), ag-retry + ag-open remain
+	if len(got) != 2 {
+		t.Fatalf("expected 2 entries (proof-backed skipped), got %d", len(got))
 	}
-	if got[0].SourceEpic != "ag-open" {
-		t.Errorf("expected ag-open, got %q", got[0].SourceEpic)
+	if got[0].SourceEpic != "ag-retry" {
+		t.Errorf("expected ag-retry first, got %q", got[0].SourceEpic)
+	}
+	if got[1].SourceEpic != "ag-open" {
+		t.Errorf("expected ag-open second, got %q", got[1].SourceEpic)
 	}
 }
 

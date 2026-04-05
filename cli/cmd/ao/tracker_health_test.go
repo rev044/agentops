@@ -84,6 +84,16 @@ printf 'column "crystallizes" could not be found in any table in scope\n' >&2
 exit 1
 `)
 
+	// Create a mock council pre-mortem report so the fail-closed gate passes.
+	councilDir := filepath.Join(root, ".agents", "council")
+	if err := os.MkdirAll(councilDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mockReport := "---\ntype: pre-mortem\n---\n# Pre-Mortem\n\n## Council Verdict: PASS\n"
+	if err := os.WriteFile(filepath.Join(councilDir, "2026-03-24-pre-mortem-tasklist.md"), []byte(mockReport), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	state := newTestPhasedState().
 		WithRunID("tasklist-run").
 		WithGoal("execute Codex no-beads proof")
