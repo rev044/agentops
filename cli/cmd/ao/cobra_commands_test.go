@@ -268,7 +268,7 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 		"knowledge":  {"activate", "beliefs", "playbooks", "brief", "gaps"},
 		"ratchet":    {"status", "check", "next"},
 		"metrics":    {"baseline", "report"},
-		"flywheel":   {"status", "nudge"},
+		"flywheel":   {"status", "nudge", "gate"},
 		"constraint": {"activate", "retire", "review", "list"},
 		"pool":       {"list", "ingest"},
 		"store":      {"rebuild", "search"},

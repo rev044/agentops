@@ -159,3 +159,28 @@ func workspacePathFromAgentArtifactPath(path string) string {
 	}
 	return filepath.Clean(parts[0])
 }
+
+func annotateCitationMatch(event types.CitationEvent, confidence float64, provenance string) types.CitationEvent {
+	event.MatchConfidence = normalizeCitationMatchConfidence(confidence)
+	event.MatchProvenance = strings.TrimSpace(provenance)
+	return event
+}
+
+const matchConfidenceHighThreshold = 0.7
+
+func normalizeCitationMatchConfidence(confidence float64) float64 {
+	switch confidence {
+	case 0, 0.5, 0.7, 0.9:
+		return confidence
+	}
+	switch {
+	case confidence >= matchConfidenceHighThreshold:
+		return 0.9
+	case confidence >= 0.5:
+		return 0.7
+	case confidence > 0:
+		return 0.5
+	default:
+		return 0
+	}
+}

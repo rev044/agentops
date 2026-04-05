@@ -153,8 +153,7 @@ func retrievableCitationStats(baseDir string, citations []types.CitationEvent) (
 		}
 		artifactPath := normalizeArtifactPath(baseDir, c.ArtifactPath)
 		unique[artifactPath] = true
-		switch effectiveCitationFeedbackType(c.CitationType) {
-		case "applied", "reference":
+		if citationEventIsHighConfidence(c) {
 			evidence[artifactPath] = true
 		}
 	}

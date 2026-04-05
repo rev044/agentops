@@ -118,6 +118,36 @@ var benchManifestFilenames = []string{
 	"bench.json",
 }
 
+func resolveRetrievalBenchCorpus(cwd, provided string) (string, error) {
+	candidates := []string{}
+	if strings.TrimSpace(provided) != "" {
+		candidates = append(candidates, provided)
+	} else {
+		candidates = append(candidates,
+			filepath.Join(cwd, "testdata", "retrieval-bench"),
+			filepath.Join(cwd, "cli", "cmd", "ao", "testdata", "retrieval-bench"),
+			filepath.Join(cwd, "cmd", "ao", "testdata", "retrieval-bench"),
+		)
+		if exe, err := os.Executable(); err == nil {
+			candidates = append(candidates, filepath.Join(filepath.Dir(exe), "..", "cmd", "ao", "testdata", "retrieval-bench"))
+		}
+	}
+
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate, nil
+		}
+	}
+
+	if strings.TrimSpace(provided) != "" {
+		return "", fmt.Errorf("benchmark corpus not found at %s", provided)
+	}
+	return "", fmt.Errorf("benchmark corpus not found; specify --corpus path")
+}
+
 func buildBenchReport(cwd, corpusDir string, k int) (benchReport, error) {
 	queries, err := loadBenchCases(corpusDir)
 	if err != nil {
@@ -561,23 +591,13 @@ var retrievalBenchCmd = &cobra.Command{
 			return runLiveBench(benchK, benchJSON, benchGlobal, benchCorpus)
 		}
 
-		corpusDir := benchCorpus
-		if corpusDir == "" {
-			// Default: use embedded testdata
-			exe, err := os.Executable()
-			if err == nil {
-				corpusDir = filepath.Join(filepath.Dir(exe), "..", "cmd", "ao", "testdata", "retrieval-bench")
-			}
-			// Fallback: try relative to working directory
-			if _, err := os.Stat(corpusDir); err != nil {
-				corpusDir = filepath.Join("cli", "cmd", "ao", "testdata", "retrieval-bench")
-			}
-			if _, err := os.Stat(corpusDir); err != nil {
-				corpusDir = filepath.Join("cmd", "ao", "testdata", "retrieval-bench")
-			}
-			if _, err := os.Stat(corpusDir); err != nil {
-				return fmt.Errorf("benchmark corpus not found; specify --corpus path")
-			}
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+		corpusDir, err := resolveRetrievalBenchCorpus(cwd, benchCorpus)
+		if err != nil {
+			return err
 		}
 		report, err := buildBenchReport(corpusDir, corpusDir, benchK)
 		if err != nil {

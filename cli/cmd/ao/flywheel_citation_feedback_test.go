@@ -45,6 +45,49 @@ func TestExtractLearningID_AbsolutePath(t *testing.T) {
 	}
 }
 
+func TestCitationConfidenceBuckets(t *testing.T) {
+	tests := []struct {
+		name string
+		typ  string
+		want float64
+		high bool
+	}{
+		{name: "retrieved", typ: "retrieved", want: 0.5, high: false},
+		{name: "reference", typ: "reference", want: 0.7, high: true},
+		{name: "applied", typ: "applied", want: 0.9, high: true},
+		{name: "blank defaults high", typ: "", want: 0.7, high: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := citationConfidenceScore(tt.typ); got != tt.want {
+				t.Fatalf("citationConfidenceScore(%q) = %f, want %f", tt.typ, got, tt.want)
+			}
+			if got := citationIsHighConfidence(tt.typ); got != tt.high {
+				t.Fatalf("citationIsHighConfidence(%q) = %v, want %v", tt.typ, got, tt.high)
+			}
+		})
+	}
+}
+
+func TestCitationEventConfidence_PrefersRecordedMatchConfidence(t *testing.T) {
+	citation := types.CitationEvent{
+		CitationType:    "reference",
+		MatchConfidence: 0.5,
+	}
+	if got := citationEventConfidence(citation); got != 0.5 {
+		t.Fatalf("citationEventConfidence(reference, 0.5) = %f, want 0.5 (recorded confidence preferred over type)", got)
+	}
+	if citationEventIsHighConfidence(citation) {
+		t.Fatal("expected low recorded confidence to suppress reward")
+	}
+
+	citation.MatchConfidence = 0.91
+	if !citationEventIsHighConfidence(citation) {
+		t.Fatal("expected high recorded confidence to allow reward")
+	}
+}
+
 func TestMarkCitationsFeedbackGiven_WritesAllTrue(t *testing.T) {
 	tmp := t.TempDir()
 	citationsPath := filepath.Join(tmp, "citations.jsonl")
@@ -456,6 +499,55 @@ func TestProcessCitationFeedback_RetrievedCitationIsSkipped(t *testing.T) {
 	}
 	if event.UtilityBefore != event.UtilityAfter {
 		t.Fatalf("expected unchanged utility in skipped event, got before=%f after=%f", event.UtilityBefore, event.UtilityAfter)
+	}
+}
+
+func TestProcessCitationFeedback_LowConfidenceReferenceIsSkipped(t *testing.T) {
+	tmp := t.TempDir()
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	learningPath := filepath.Join(learningsDir, "low-confidence-reference.jsonl")
+	if err := os.WriteFile(learningPath, []byte(`{"id":"low-confidence-reference","title":"Low Confidence Reference","utility":0.6}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	citation := types.CitationEvent{
+		ArtifactPath:     ".agents/learnings/low-confidence-reference.jsonl",
+		CitationType:     "reference",
+		MatchConfidence:  0.5,
+		MatchProvenance:  "lookup:query",
+		FeedbackGiven:    false,
+	}
+	data, err := json.Marshal(citation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(aoDir, "citations.jsonl"), append(data, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	total, rewarded, skipped := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 0 || skipped != 1 {
+		t.Fatalf("expected (1,0,1), got (%d,%d,%d)", total, rewarded, skipped)
+	}
+
+	feedbackData, err := os.ReadFile(filepath.Join(aoDir, "feedback.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event FeedbackEvent
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(feedbackData))), &event); err != nil {
+		t.Fatal(err)
+	}
+	if event.Reason != "low-confidence-evidence" {
+		t.Fatalf("expected low-confidence-evidence, got %q", event.Reason)
 	}
 }
 

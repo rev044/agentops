@@ -30,9 +30,11 @@ Operational escape velocity: σρ > δ/100 → Knowledge compounds
 
 Commands:
   status   Show comprehensive flywheel health
+  gate     Check release readiness against closure, retrieval, and rho gates
 
 Examples:
   ao flywheel status
+  ao flywheel gate
   ao flywheel status --json`,
 }
 

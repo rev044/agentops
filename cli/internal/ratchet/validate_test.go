@@ -358,10 +358,12 @@ func TestRecordAndLoadCitations(t *testing.T) {
 	baseDir := t.TempDir()
 
 	event := types.CitationEvent{
-		ArtifactPath: "/path/to/artifact.md",
-		SessionID:    "sess-001",
-		CitedAt:      time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC),
-		CitationType: "retrieved",
+		ArtifactPath:    "/path/to/artifact.md",
+		SessionID:       "sess-001",
+		CitedAt:         time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC),
+		CitationType:    "retrieved",
+		MatchConfidence: 0.5,
+		MatchProvenance: "lookup:query",
 	}
 
 	// Record a citation
@@ -402,6 +404,12 @@ func TestRecordAndLoadCitations(t *testing.T) {
 		if got, want := citation.WorkspacePath, baseDir; got != want {
 			t.Fatalf("WorkspacePath = %q, want %q", got, want)
 		}
+	}
+	if citations[0].MatchConfidence != 0.5 {
+		t.Fatalf("MatchConfidence = %v, want 0.5", citations[0].MatchConfidence)
+	}
+	if citations[0].MatchProvenance != "lookup:query" {
+		t.Fatalf("MatchProvenance = %q, want lookup:query", citations[0].MatchProvenance)
 	}
 
 	// Count for specific artifact

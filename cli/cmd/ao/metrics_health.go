@@ -298,8 +298,7 @@ func computeHealthSigmaRho(baseDir string, citations []types.CitationEvent) (sig
 		if isRetrievableArtifactPath(baseDir, c.ArtifactPath) {
 			artifactPath := normalizeArtifactPath(baseDir, c.ArtifactPath)
 			citedUnique[artifactPath] = true
-			switch effectiveCitationFeedbackType(c.CitationType) {
-			case "applied", "reference":
+			if citationEventIsHighConfidence(c) {
 				evidenceUnique[artifactPath] = true
 			}
 		}

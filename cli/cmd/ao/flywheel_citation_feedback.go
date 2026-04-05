@@ -241,6 +241,36 @@ func effectiveCitationFeedbackType(citationType string) string {
 	return citationType
 }
 
+const highConfidenceCitationThreshold = 0.7
+
+func citationConfidenceScore(citationType string) float64 {
+	switch effectiveCitationFeedbackType(citationType) {
+	case "applied":
+		return 0.9
+	case "reference":
+		return 0.7
+	case "retrieved":
+		return 0.5
+	default:
+		return 0
+	}
+}
+
+func citationEventConfidence(citation types.CitationEvent) float64 {
+	if citation.MatchConfidence > 0 {
+		return normalizeCitationMatchConfidence(citation.MatchConfidence)
+	}
+	return citationConfidenceScore(citation.CitationType)
+}
+
+func citationIsHighConfidence(citationType string) bool {
+	return citationConfidenceScore(citationType) >= highConfidenceCitationThreshold
+}
+
+func citationEventIsHighConfidence(citation types.CitationEvent) bool {
+	return citationEventConfidence(citation) >= highConfidenceCitationThreshold
+}
+
 func classifyCitationFeedback(citationType string) (decision, reason string, rewardable bool) {
 	switch citationType {
 	case "applied":

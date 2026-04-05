@@ -41,3 +41,42 @@ func TestWorkspacePathFromAgentArtifactPath(t *testing.T) {
 		t.Fatalf("workspacePathFromAgentArtifactPath = %q, want %q", got, want)
 	}
 }
+
+func TestAnnotateCitationMatch_BucketsConfidenceAndPreservesProvenance(t *testing.T) {
+	event := annotateCitationMatch(types.CitationEvent{}, 0.72, "lookup:query")
+	if event.MatchConfidence != 0.9 {
+		t.Fatalf("MatchConfidence = %v, want 0.9", event.MatchConfidence)
+	}
+	if event.MatchProvenance != "lookup:query" {
+		t.Fatalf("MatchProvenance = %q, want %q", event.MatchProvenance, "lookup:query")
+	}
+
+	low := annotateCitationMatch(types.CitationEvent{}, 0.3, "search:session")
+	if low.MatchConfidence != 0.5 {
+		t.Fatalf("low MatchConfidence = %v, want 0.5", low.MatchConfidence)
+	}
+}
+
+func TestNormalizeCitationMatchConfidence_Boundaries(t *testing.T) {
+	tests := []struct {
+		name string
+		in   float64
+		want float64
+	}{
+		{name: "preserve high canonical bucket", in: 0.9, want: 0.9},
+		{name: "preserve medium canonical bucket", in: 0.7, want: 0.7},
+		{name: "preserve low canonical bucket", in: 0.5, want: 0.5},
+		{name: "raw high score buckets upward", in: 0.72, want: 0.9},
+		{name: "raw medium score buckets upward", in: 0.52, want: 0.7},
+		{name: "raw low score buckets upward", in: 0.01, want: 0.5},
+		{name: "zero confidence", in: 0, want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizeCitationMatchConfidence(tt.in); got != tt.want {
+				t.Fatalf("normalizeCitationMatchConfidence(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
