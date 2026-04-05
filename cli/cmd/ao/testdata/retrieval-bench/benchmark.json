@@ -1,0 +1,47 @@
+{
+  "cases": [
+    {
+      "query": "CI pipeline",
+      "split": "train",
+      "labels": ["ci", "pipeline"],
+      "expected": ["ci-1.md", "ci-2.md", "ci-3.md"],
+      "best_id": "ci-1.md"
+    },
+    {
+      "query": "session intelligence",
+      "split": "train",
+      "labels": ["session-intelligence"],
+      "expected": ["si-1.md", "si-2.md", "si-3.md"],
+      "best_id": "si-1.md"
+    },
+    {
+      "query": "hook authoring",
+      "split": "train",
+      "labels": ["hooks"],
+      "expected": ["hook-1.md", "hook-2.md", "hook-3.md"],
+      "best_id": "hook-1.md"
+    },
+    {
+      "query": "database",
+      "split": "holdout",
+      "labels": ["database"],
+      "expected": ["db-1.md", "db-2.md", "db-3.md"],
+      "best_id": "db-1.md"
+    },
+    {
+      "query": "swarm",
+      "split": "holdout",
+      "labels": ["parallel-execution"],
+      "expected": ["swarm-1.md", "swarm-2.md"],
+      "best_id": "swarm-1.md"
+    },
+    {
+      "query": "proof backed completion evidence",
+      "split": "holdout",
+      "labels": ["section-aware", "queue"],
+      "expected": ["queue-evidence.md"],
+      "best_id": "queue-evidence.md",
+      "expected_section": "Proof-Backed Completion Evidence"
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -18,31 +19,62 @@ var (
 	benchGlobal bool
 )
 
-// benchQuery defines a single benchmark query with expected results.
-type benchQuery struct {
-	Query    string   `json:"query"`
-	Expected []string `json:"expected"` // IDs expected in top K
-	BestID   string   `json:"best_id"`  // single best expected result for MRR
+// benchCase defines a benchmark query and its labeled evaluation metadata.
+type benchCase struct {
+	Query           string   `json:"query"`
+	Split           string   `json:"split"`
+	Labels          []string `json:"labels,omitempty"`
+	Expected        []string `json:"expected"` // IDs expected in top K
+	BestID          string   `json:"best_id"`  // single best expected result for MRR
+	ExpectedSection string   `json:"expected_section,omitempty"`
 }
 
 // benchResult holds the result of a single query benchmark.
 type benchResult struct {
-	Query     string   `json:"query"`
-	PAtK      float64  `json:"precision_at_k"`
-	MRR       float64  `json:"mrr"`
-	Pass      bool     `json:"pass"`
-	ResultIDs []string `json:"result_ids"`
+	Query           string   `json:"query"`
+	Split           string   `json:"split,omitempty"`
+	Labels          []string `json:"labels,omitempty"`
+	ExpectedSection string   `json:"expected_section,omitempty"`
+	PAtK            float64  `json:"precision_at_k"`
+	MRR             float64  `json:"mrr"`
+	SectionMRR      float64  `json:"section_mrr,omitempty"`
+	SectionHit      bool     `json:"section_hit,omitempty"`
+	Pass            bool     `json:"pass"`
+	ResultIDs       []string `json:"result_ids"`
+	SectionIDs      []string `json:"section_ids,omitempty"`
+}
+
+// benchSplitSummary holds aggregate results for a benchmark split.
+type benchSplitSummary struct {
+	Cases         int           `json:"cases"`
+	SectionCases  int           `json:"section_cases,omitempty"`
+	AvgPAtK       float64       `json:"avg_precision_at_k"`
+	AvgMRR        float64       `json:"avg_mrr"`
+	AvgSectionMRR float64       `json:"avg_section_mrr,omitempty"`
+	Results       []benchResult `json:"results,omitempty"`
 }
 
 // benchReport holds the overall benchmark report.
 type benchReport struct {
-	Queries    int           `json:"queries"`
-	K          int           `json:"k"`
-	AvgPAtK    float64       `json:"avg_precision_at_k"`
-	AvgMRR     float64       `json:"avg_mrr"`
-	TargetPAtK float64       `json:"target_precision_at_k"`
-	TargetMRR  float64       `json:"target_mrr"`
-	Results    []benchResult `json:"results"`
+	Queries    int                          `json:"queries"`
+	K          int                          `json:"k"`
+	AvgPAtK    float64                      `json:"avg_precision_at_k"`
+	AvgMRR     float64                      `json:"avg_mrr"`
+	TargetPAtK float64                      `json:"target_precision_at_k"`
+	TargetMRR  float64                      `json:"target_mrr"`
+	Splits     map[string]benchSplitSummary `json:"splits,omitempty"`
+	Results    []benchResult                `json:"results"`
+}
+
+type benchManifest struct {
+	Cases []benchCase `json:"cases"`
+}
+
+type sectionCandidate struct {
+	ID      string
+	FileID  string
+	Heading string
+	Score   float64
 }
 
 // liveQueryResult holds the result of a single query against the live corpus.
@@ -78,6 +110,306 @@ var liveQueries = []string{
 	"performance",
 	"debugging",
 	"architecture",
+}
+
+var benchManifestFilenames = []string{
+	"benchmark.json",
+	"retrieval-bench.json",
+	"bench.json",
+}
+
+func buildBenchReport(cwd, corpusDir string, k int) (benchReport, error) {
+	queries, err := loadBenchCases(corpusDir)
+	if err != nil {
+		return benchReport{}, err
+	}
+	if len(queries) == 0 {
+		queries = defaultBenchQueries()
+	}
+
+	tmpDir, err := os.MkdirTemp("", "retrieval-bench-*")
+	if err != nil {
+		return benchReport{}, fmt.Errorf("creating temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		return benchReport{}, fmt.Errorf("creating learnings dir: %w", err)
+	}
+
+	entries, err := os.ReadDir(corpusDir)
+	if err != nil {
+		return benchReport{}, fmt.Errorf("reading corpus: %w", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(corpusDir, e.Name()))
+		if err != nil {
+			return benchReport{}, fmt.Errorf("reading %s: %w", e.Name(), err)
+		}
+		if err := os.WriteFile(filepath.Join(learningsDir, e.Name()), data, 0o644); err != nil {
+			return benchReport{}, fmt.Errorf("writing %s: %w", e.Name(), err)
+		}
+	}
+
+	report := benchReport{
+		Queries:    len(queries),
+		K:          k,
+		TargetPAtK: 0.67,
+		TargetMRR:  0.50,
+		Splits:     make(map[string]benchSplitSummary),
+	}
+
+	var sumPAtK, sumMRR float64
+	for _, q := range queries {
+		results, err := collectLearnings(tmpDir, q.Query, 10, "", 0)
+		if err != nil {
+			return benchReport{}, fmt.Errorf("collectLearnings(%q): %w", q.Query, err)
+		}
+
+		expectedSet := make(map[string]bool, len(q.Expected))
+		for _, id := range q.Expected {
+			expectedSet[id] = true
+		}
+
+		qK := k
+		if len(q.Expected) < qK {
+			qK = len(q.Expected)
+		}
+
+		pAtK, mrr := scoreBenchResults(results, expectedSet, q.BestID, qK)
+		sectionCandidates, sectionMRR, sectionHit := scoreBenchSections(corpusDir, q.Query, q.ExpectedSection)
+
+		ids := make([]string, 0, len(results))
+		for _, r := range results {
+			ids = append(ids, r.ID)
+		}
+
+		sectionIDs := make([]string, 0, len(sectionCandidates))
+		for _, s := range sectionCandidates {
+			sectionIDs = append(sectionIDs, s.ID)
+		}
+
+		result := benchResult{
+			Query:           q.Query,
+			Split:           normalizeBenchSplit(q.Split),
+			Labels:          append([]string(nil), q.Labels...),
+			ExpectedSection: q.ExpectedSection,
+			PAtK:            pAtK,
+			MRR:             mrr,
+			SectionMRR:      sectionMRR,
+			SectionHit:      sectionHit,
+			Pass:            pAtK >= report.TargetPAtK && mrr >= report.TargetMRR,
+			ResultIDs:       ids,
+			SectionIDs:      sectionIDs,
+		}
+		if q.ExpectedSection != "" {
+			result.Pass = result.Pass && sectionMRR > 0
+		}
+
+		report.Results = append(report.Results, result)
+		sumPAtK += pAtK
+		sumMRR += mrr
+
+		splitName := result.Split
+		if splitName == "" {
+			splitName = "holdout"
+		}
+		summary := report.Splits[splitName]
+		summary.Cases++
+		summary.Results = append(summary.Results, result)
+		summary.AvgPAtK += pAtK
+		summary.AvgMRR += mrr
+		if q.ExpectedSection != "" {
+			summary.SectionCases++
+			summary.AvgSectionMRR += sectionMRR
+		}
+		report.Splits[splitName] = summary
+	}
+
+	if report.Queries > 0 {
+		report.AvgPAtK = sumPAtK / float64(report.Queries)
+		report.AvgMRR = sumMRR / float64(report.Queries)
+	}
+
+	for split, summary := range report.Splits {
+		if summary.Cases > 0 {
+			summary.AvgPAtK /= float64(summary.Cases)
+			summary.AvgMRR /= float64(summary.Cases)
+		}
+		if summary.SectionCases > 0 {
+			summary.AvgSectionMRR /= float64(summary.SectionCases)
+		}
+		report.Splits[split] = summary
+	}
+
+	sort.Slice(report.Results, func(i, j int) bool {
+		if report.Results[i].Split != report.Results[j].Split {
+			return report.Results[i].Split < report.Results[j].Split
+		}
+		return report.Results[i].Query < report.Results[j].Query
+	})
+
+	return report, nil
+}
+
+func loadBenchCases(corpusDir string) ([]benchCase, error) {
+	for _, name := range benchManifestFilenames {
+		path := filepath.Join(corpusDir, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("read benchmark manifest %s: %w", path, err)
+		}
+
+		var manifest benchManifest
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			return nil, fmt.Errorf("parse benchmark manifest %s: %w", path, err)
+		}
+		for i := range manifest.Cases {
+			manifest.Cases[i].Split = normalizeBenchSplit(manifest.Cases[i].Split)
+			if manifest.Cases[i].Split == "" {
+				manifest.Cases[i].Split = "holdout"
+			}
+			if manifest.Cases[i].BestID == "" && len(manifest.Cases[i].Expected) > 0 {
+				manifest.Cases[i].BestID = manifest.Cases[i].Expected[0]
+			}
+		}
+		return manifest.Cases, nil
+	}
+	return nil, nil
+}
+
+func normalizeBenchSplit(split string) string {
+	return strings.ToLower(strings.TrimSpace(split))
+}
+
+func scoreBenchResults(results []learning, expectedSet map[string]bool, bestID string, k int) (float64, float64) {
+	if k <= 0 || len(results) == 0 {
+		return 0, 0
+	}
+	n := k
+	if n > len(results) {
+		n = len(results)
+	}
+	hits := 0
+	for _, r := range results[:n] {
+		if expectedSet[r.ID] {
+			hits++
+		}
+	}
+	pAtK := float64(hits) / float64(k)
+
+	mrr := 0.0
+	for i, r := range results {
+		if r.ID == bestID {
+			mrr = 1.0 / float64(i+1)
+			break
+		}
+	}
+	return pAtK, mrr
+}
+
+func scoreBenchSections(corpusDir, query, expectedSection string) ([]sectionCandidate, float64, bool) {
+	if expectedSection == "" {
+		return nil, 0, false
+	}
+	files, err := os.ReadDir(corpusDir)
+	if err != nil {
+		return nil, 0, false
+	}
+
+	tokens := queryTokens(strings.ToLower(query))
+	expected := normalizeBenchSection(expectedSection)
+	var candidates []sectionCandidate
+	for _, entry := range files {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		path := filepath.Join(corpusDir, entry.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		sections := splitMarkdownSections(stripBenchFrontMatter(string(data)))
+		for _, section := range sections {
+			heading := benchSectionHeading(section)
+			if heading == "" {
+				continue
+			}
+			score := benchSectionScore(tokens, section)
+			candidates = append(candidates, sectionCandidate{
+				ID:      fmt.Sprintf("%s#%s", entry.Name(), normalizeBenchSection(heading)),
+				FileID:  entry.Name(),
+				Heading: heading,
+				Score:   score,
+			})
+		}
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].Score != candidates[j].Score {
+			return candidates[i].Score > candidates[j].Score
+		}
+		if candidates[i].FileID != candidates[j].FileID {
+			return candidates[i].FileID < candidates[j].FileID
+		}
+		return candidates[i].Heading < candidates[j].Heading
+	})
+
+	for i, candidate := range candidates {
+		if strings.HasSuffix(candidate.ID, "#"+expected) {
+			return candidates, 1.0 / float64(i+1), true
+		}
+	}
+	return candidates, 0, false
+}
+
+func benchSectionScore(tokens []string, section string) float64 {
+	if len(tokens) == 0 {
+		return 1
+	}
+	heading := benchSectionHeading(section)
+	text := strings.ToLower(section)
+	score := matchRatio(tokens, heading, text, text)
+	if score == 0 && heading != "" {
+		score = matchRatio(tokens, heading, "", "")
+	}
+	return score
+}
+
+func benchSectionHeading(section string) string {
+	lines := strings.Split(section, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			return strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
+		}
+	}
+	return ""
+}
+
+func normalizeBenchSection(section string) string {
+	return strings.ToLower(strings.TrimSpace(strings.TrimLeft(section, "#")))
+}
+
+func stripBenchFrontMatter(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return content
+	}
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			return strings.Join(lines[i+1:], "\n")
+		}
+	}
+	return content
 }
 
 // runLiveBench benchmarks against the actual .agents/learnings/ directory.
@@ -209,13 +541,13 @@ func runLiveBench(k int, asJSON, global bool, corpusDir string) error {
 }
 
 // defaultBenchQueries returns the built-in benchmark query set.
-func defaultBenchQueries() []benchQuery {
-	return []benchQuery{
-		{Query: "CI pipeline", Expected: []string{"ci-1.md", "ci-2.md", "ci-3.md"}, BestID: "ci-1.md"},
-		{Query: "session intelligence", Expected: []string{"si-1.md", "si-2.md", "si-3.md"}, BestID: "si-1.md"},
-		{Query: "hook authoring", Expected: []string{"hook-1.md", "hook-2.md", "hook-3.md"}, BestID: "hook-1.md"},
-		{Query: "database", Expected: []string{"db-1.md", "db-2.md", "db-3.md"}, BestID: "db-1.md"},
-		{Query: "swarm", Expected: []string{"swarm-1.md", "swarm-2.md"}, BestID: "swarm-1.md"},
+func defaultBenchQueries() []benchCase {
+	return []benchCase{
+		{Query: "CI pipeline", Split: "holdout", Labels: []string{"ci", "pipeline"}, Expected: []string{"ci-1.md", "ci-2.md", "ci-3.md"}, BestID: "ci-1.md"},
+		{Query: "session intelligence", Split: "holdout", Labels: []string{"session-intelligence"}, Expected: []string{"si-1.md", "si-2.md", "si-3.md"}, BestID: "si-1.md"},
+		{Query: "hook authoring", Split: "holdout", Labels: []string{"hooks"}, Expected: []string{"hook-1.md", "hook-2.md", "hook-3.md"}, BestID: "hook-1.md"},
+		{Query: "database", Split: "holdout", Labels: []string{"database"}, Expected: []string{"db-1.md", "db-2.md", "db-3.md"}, BestID: "db-1.md"},
+		{Query: "swarm", Split: "holdout", Labels: []string{"parallel-execution"}, Expected: []string{"swarm-1.md", "swarm-2.md"}, BestID: "swarm-1.md"},
 	}
 }
 
@@ -247,106 +579,10 @@ var retrievalBenchCmd = &cobra.Command{
 				return fmt.Errorf("benchmark corpus not found; specify --corpus path")
 			}
 		}
-
-		// Set up temp dir with corpus as .agents/learnings/
-		tmpDir, err := os.MkdirTemp("", "retrieval-bench-*")
+		report, err := buildBenchReport(corpusDir, corpusDir, benchK)
 		if err != nil {
-			return fmt.Errorf("creating temp dir: %w", err)
+			return err
 		}
-		defer os.RemoveAll(tmpDir)
-
-		learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
-		if err := os.MkdirAll(learningsDir, 0o755); err != nil {
-			return fmt.Errorf("creating learnings dir: %w", err)
-		}
-
-		entries, err := os.ReadDir(corpusDir)
-		if err != nil {
-			return fmt.Errorf("reading corpus: %w", err)
-		}
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-				continue
-			}
-			data, err := os.ReadFile(filepath.Join(corpusDir, e.Name()))
-			if err != nil {
-				return fmt.Errorf("reading %s: %w", e.Name(), err)
-			}
-			if err := os.WriteFile(filepath.Join(learningsDir, e.Name()), data, 0o644); err != nil {
-				return fmt.Errorf("writing %s: %w", e.Name(), err)
-			}
-		}
-
-		queries := defaultBenchQueries()
-		k := benchK
-		targetPAtK := 0.67
-		targetMRR := 0.50
-
-		report := benchReport{
-			Queries:    len(queries),
-			K:          k,
-			TargetPAtK: targetPAtK,
-			TargetMRR:  targetMRR,
-		}
-
-		var sumPAtK, sumMRR float64
-		for _, q := range queries {
-			results, err := collectLearnings(tmpDir, q.Query, 10, "", 0)
-			if err != nil {
-				return fmt.Errorf("collectLearnings(%q): %w", q.Query, err)
-			}
-
-			expectedSet := make(map[string]bool, len(q.Expected))
-			for _, id := range q.Expected {
-				expectedSet[id] = true
-			}
-
-			qK := k
-			if len(q.Expected) < qK {
-				qK = len(q.Expected)
-			}
-
-			// Calculate P@K
-			n := qK
-			if n > len(results) {
-				n = len(results)
-			}
-			hits := 0
-			for _, r := range results[:n] {
-				if expectedSet[r.ID] {
-					hits++
-				}
-			}
-			pAtK := float64(hits) / float64(qK)
-
-			// Calculate MRR
-			mrr := 0.0
-			for i, r := range results {
-				if r.ID == q.BestID {
-					mrr = 1.0 / float64(i+1)
-					break
-				}
-			}
-
-			ids := make([]string, 0, len(results))
-			for _, r := range results {
-				ids = append(ids, r.ID)
-			}
-
-			report.Results = append(report.Results, benchResult{
-				Query:     q.Query,
-				PAtK:      pAtK,
-				MRR:       mrr,
-				Pass:      pAtK >= targetPAtK && mrr >= targetMRR,
-				ResultIDs: ids,
-			})
-
-			sumPAtK += pAtK
-			sumMRR += mrr
-		}
-
-		report.AvgPAtK = sumPAtK / float64(len(queries))
-		report.AvgMRR = sumMRR / float64(len(queries))
 
 		if benchJSON {
 			enc := json.NewEncoder(os.Stdout)
@@ -358,8 +594,24 @@ var retrievalBenchCmd = &cobra.Command{
 		fmt.Println("Retrieval Quality Report")
 		fmt.Println("========================")
 		fmt.Printf("Queries:     %d\n", report.Queries)
-		fmt.Printf("Precision@%d: %.2f (target: %.2f)\n", k, report.AvgPAtK, targetPAtK)
-		fmt.Printf("MRR:         %.2f (target: %.2f)\n", report.AvgMRR, targetMRR)
+		fmt.Printf("Precision@%d: %.2f (target: %.2f)\n", benchK, report.AvgPAtK, report.TargetPAtK)
+		fmt.Printf("MRR:         %.2f (target: %.2f)\n", report.AvgMRR, report.TargetMRR)
+		if len(report.Splits) > 0 {
+			fmt.Println("Splits:")
+			splitNames := make([]string, 0, len(report.Splits))
+			for split := range report.Splits {
+				splitNames = append(splitNames, split)
+			}
+			sort.Strings(splitNames)
+			for _, split := range splitNames {
+				summary := report.Splits[split]
+				line := fmt.Sprintf("  %-10s cases=%d  P@%d=%.2f  MRR=%.2f", split, summary.Cases, benchK, summary.AvgPAtK, summary.AvgMRR)
+				if summary.SectionCases > 0 {
+					line += fmt.Sprintf("  section-MRR=%.2f", summary.AvgSectionMRR)
+				}
+				fmt.Println(line)
+			}
+		}
 		fmt.Println()
 		fmt.Println("Per-query breakdown:")
 		for _, r := range report.Results {
@@ -367,7 +619,12 @@ var retrievalBenchCmd = &cobra.Command{
 			if !r.Pass {
 				status = "WARN (below target)"
 			}
-			fmt.Printf("  %-30s P@%d=%.2f  MRR=%.2f  %s\n", fmt.Sprintf("%q", r.Query), k, r.PAtK, r.MRR, status)
+			line := fmt.Sprintf("  %-30s P@%d=%.2f  MRR=%.2f", fmt.Sprintf("%q", r.Query), benchK, r.PAtK, r.MRR)
+			if r.ExpectedSection != "" {
+				line += fmt.Sprintf("  section-MRR=%.2f", r.SectionMRR)
+			}
+			line += fmt.Sprintf("  %s", status)
+			fmt.Println(line)
 		}
 		return nil
 	},

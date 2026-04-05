@@ -128,11 +128,11 @@ func TestMetricsHealth_DirtyArtifactPaths(t *testing.T) {
 	// Total retrievable artifacts: kept.md + pattern.jsonl = 2.
 	// Citations include kept.md, missing.md, and junk.txt from retrievable dirs,
 	// plus one non-retrievable path in .agents/evolve.
-	if hm.Sigma < 0.99 || hm.Sigma > 1.01 {
-		t.Errorf("expected sigma~1.0 from retrievable citations, got %f", hm.Sigma)
+	if hm.Sigma != 1.0 {
+		t.Errorf("expected sigma=1.0 from retrievable citations, got %f", hm.Sigma)
 	}
-	if hm.Rho < 0.99 || hm.Rho > 1.01 {
-		t.Errorf("expected rho~1.0 with all surfaced artifacts evidenced, got %f", hm.Rho)
+	if hm.Rho != 1.0 {
+		t.Errorf("expected rho=1.0 with all surfaced artifacts evidenced, got %f", hm.Rho)
 	}
 }
 
@@ -206,13 +206,13 @@ func TestMetricsHealth_WithCitations(t *testing.T) {
 	}
 
 	// sigma = unique cited (a.md, b.md = 2) / total retrievable (4 learnings + 0 patterns = 4) = 0.5
-	if hm.Sigma < 0.49 || hm.Sigma > 0.51 {
-		t.Errorf("expected sigma~0.5, got %f", hm.Sigma)
+	if hm.Sigma != 0.5 {
+		t.Errorf("expected sigma=0.5, got %f", hm.Sigma)
 	}
 
 	// rho = evidence-backed surfaced (a.md, b.md = 2) / surfaced (2) = 1.0
-	if hm.Rho < 0.99 || hm.Rho > 1.01 {
-		t.Errorf("expected rho~1.0, got %f", hm.Rho)
+	if hm.Rho != 1.0 {
+		t.Errorf("expected rho=1.0, got %f", hm.Rho)
 	}
 
 	// Knowledge stock
@@ -312,8 +312,109 @@ func TestMetricsHealth_FindingsParticipateInStockAndRetrieval(t *testing.T) {
 	if hm.KnowledgeStock.Total != 2 {
 		t.Fatalf("expected total knowledge stock 2, got %d", hm.KnowledgeStock.Total)
 	}
-	if hm.Sigma < 0.49 || hm.Sigma > 0.51 {
-		t.Fatalf("expected sigma~0.5 with 1 cited finding / 2 retrievable artifacts, got %f", hm.Sigma)
+	if hm.Sigma != 0.5 {
+		t.Fatalf("expected sigma=0.5 with 1 cited finding / 2 retrievable artifacts, got %f", hm.Sigma)
+	}
+}
+
+func TestEscapeVelocityThreshold_Normalization(t *testing.T) {
+	tests := []struct {
+		name  string
+		delta float64
+		want  float64
+	}{
+		{name: "negative delta normalizes to zero", delta: -10, want: 0},
+		{name: "zero delta normalizes to zero", delta: 0, want: 0},
+		{name: "positive delta scales by hundredth", delta: 25, want: 0.25},
+		{name: "whole-number delta preserves decimal threshold", delta: 100, want: 1.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := escapeVelocityThreshold(tt.delta); got != tt.want {
+				t.Fatalf("escapeVelocityThreshold(%f) = %f, want %f", tt.delta, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMetricsHealth_EscapeVelocityBooleanMath(t *testing.T) {
+	tests := []struct {
+		name  string
+		sigma float64
+		rho   float64
+		delta float64
+		want  bool
+	}{
+		{name: "strictly above normalized threshold", sigma: 0.5, rho: 3.0, delta: 100, want: true},
+		{name: "exactly on normalized threshold stays false", sigma: 0.5, rho: 2.0, delta: 100, want: false},
+		{name: "below normalized threshold stays false", sigma: 0.4, rho: 2.0, delta: 100, want: false},
+		{name: "zero delta still requires positive product", sigma: 0.1, rho: 0.1, delta: 0, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.sigma*tt.rho > escapeVelocityThreshold(tt.delta)
+			if got != tt.want {
+				t.Fatalf("sigma*rho > delta/100 = %v, want %v (sigma=%f rho=%f delta=%f threshold=%f)",
+					got, tt.want, tt.sigma, tt.rho, tt.delta, escapeVelocityThreshold(tt.delta))
+			}
+		})
+	}
+}
+
+func TestMetricsHealth_ExactContractMath(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	now := time.Now()
+
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	for _, name := range []string{"a.md", "b.md", "c.md", "d.md"} {
+		path := filepath.Join(learningsDir, name)
+		if err := os.WriteFile(path, []byte("# Learning"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		old := now.AddDate(0, 0, -30)
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeHealthCitations(t, dir, []types.CitationEvent{
+		{
+			ArtifactPath: filepath.Join(learningsDir, "a.md"),
+			SessionID:    "s1",
+			CitedAt:      now.Add(-time.Hour),
+			CitationType: "reference",
+		},
+		{
+			ArtifactPath: filepath.Join(learningsDir, "a.md"),
+			SessionID:    "s2",
+			CitedAt:      now.Add(-2 * time.Hour),
+			CitationType: "applied",
+		},
+		{
+			ArtifactPath: filepath.Join(learningsDir, "b.md"),
+			SessionID:    "s1",
+			CitedAt:      now.Add(-3 * time.Hour),
+			CitationType: "reference",
+		},
+	})
+
+	hm, err := computeHealthMetrics(dir)
+	if err != nil {
+		t.Fatalf("computeHealthMetrics failed: %v", err)
+	}
+	if hm.Sigma != 0.5 {
+		t.Fatalf("computed sigma = %f, want 0.5", hm.Sigma)
+	}
+	if hm.Rho != 1.0 {
+		t.Fatalf("computed rho = %f, want 1.0", hm.Rho)
+	}
+	if hm.KnowledgeStock.Learnings != 4 {
+		t.Fatalf("computed learnings = %d, want 4", hm.KnowledgeStock.Learnings)
+	}
+	if hm.KnowledgeStock.Total != 4 {
+		t.Fatalf("computed total knowledge stock = %d, want 4", hm.KnowledgeStock.Total)
 	}
 }
 
@@ -350,6 +451,12 @@ func TestMetricsHealth_EscapeVelocity_Positive(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	if hm.Sigma != 1.0 {
+		t.Fatalf("expected sigma=1.0, got %f", hm.Sigma)
+	}
+	if hm.Rho != 1.0 {
+		t.Fatalf("expected rho=1.0, got %f", hm.Rho)
+	}
 	// sigma should be 1.0 (both cited / both exist)
 	// rho should be high (10 citations / 2 artifacts = 5.0)
 	// delta should be very low (files just created, ~0 days)
@@ -383,6 +490,12 @@ func TestMetricsHealth_EscapeVelocity_Negative(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	if hm.Sigma != 0 {
+		t.Fatalf("expected sigma=0, got %f", hm.Sigma)
+	}
+	if hm.Rho != 0 {
+		t.Fatalf("expected rho=0, got %f", hm.Rho)
+	}
 	// sigma*rho = 0 < delta/100 (~0.6) => decaying
 	if hm.EscapeVelocity {
 		t.Errorf("expected escape_velocity=false (decaying), got true; sigma=%f rho=%f delta=%f",

@@ -1,0 +1,207 @@
+{
+  "cases": [
+    {
+      "query": "architecture surface",
+      "split": "train",
+      "labels": ["architecture", "surface"],
+      "expected": ["architecture-surface-contract.md"],
+      "best_id": "architecture-surface-contract.md"
+    },
+    {
+      "query": "owner contract boundary",
+      "split": "train",
+      "labels": ["architecture", "ownership"],
+      "expected": ["architecture-surface-contract.md"],
+      "best_id": "architecture-surface-contract.md"
+    },
+    {
+      "query": "cli hooks skills boundary",
+      "split": "holdout",
+      "labels": ["architecture", "boundary"],
+      "expected": ["architecture-surface-contract.md"],
+      "best_id": "architecture-surface-contract.md"
+    },
+    {
+      "query": "release gate",
+      "split": "train",
+      "labels": ["ci", "release"],
+      "expected": ["ci-release-gate.md"],
+      "best_id": "ci-release-gate.md"
+    },
+    {
+      "query": "local validation commands",
+      "split": "train",
+      "labels": ["ci", "local-gate"],
+      "expected": ["ci-release-gate.md"],
+      "best_id": "ci-release-gate.md"
+    },
+    {
+      "query": "ci pipeline regressions",
+      "split": "holdout",
+      "labels": ["ci"],
+      "expected": ["ci-release-gate.md"],
+      "best_id": "ci-release-gate.md"
+    },
+    {
+      "query": "trace ladder",
+      "split": "train",
+      "labels": ["debugging"],
+      "expected": ["debugging-trace-ladder.md"],
+      "best_id": "debugging-trace-ladder.md"
+    },
+    {
+      "query": "root cause trace",
+      "split": "train",
+      "labels": ["debugging", "root-cause"],
+      "expected": ["debugging-trace-ladder.md"],
+      "best_id": "debugging-trace-ladder.md"
+    },
+    {
+      "query": "failing symptom walkthrough",
+      "split": "holdout",
+      "labels": ["debugging"],
+      "expected": ["debugging-trace-ladder.md"],
+      "best_id": "debugging-trace-ladder.md"
+    },
+    {
+      "query": "curation loop",
+      "split": "train",
+      "labels": ["flywheel", "curation"],
+      "expected": ["flywheel-curation-loop.md"],
+      "best_id": "flywheel-curation-loop.md"
+    },
+    {
+      "query": "stale fragments archived",
+      "split": "train",
+      "labels": ["flywheel", "curation"],
+      "expected": ["flywheel-curation-loop.md"],
+      "best_id": "flywheel-curation-loop.md"
+    },
+    {
+      "query": "trustworthy flywheel retrieval",
+      "split": "holdout",
+      "labels": ["flywheel"],
+      "expected": ["flywheel-curation-loop.md"],
+      "best_id": "flywheel-curation-loop.md"
+    },
+    {
+      "query": "hook timeout kill switch",
+      "split": "train",
+      "labels": ["hooks", "safety"],
+      "expected": ["hook-authoring-contract.md"],
+      "best_id": "hook-authoring-contract.md"
+    },
+    {
+      "query": "hook failure behavior",
+      "split": "train",
+      "labels": ["hooks"],
+      "expected": ["hook-authoring-contract.md"],
+      "best_id": "hook-authoring-contract.md"
+    },
+    {
+      "query": "hook input output contract",
+      "split": "holdout",
+      "labels": ["hooks"],
+      "expected": ["hook-authoring-contract.md"],
+      "best_id": "hook-authoring-contract.md"
+    },
+    {
+      "query": "performance regression threshold",
+      "split": "train",
+      "labels": ["performance"],
+      "expected": ["performance-regression-playbook.md"],
+      "best_id": "performance-regression-playbook.md"
+    },
+    {
+      "query": "benchmark before optimization",
+      "split": "train",
+      "labels": ["performance", "benchmarking"],
+      "expected": ["performance-regression-playbook.md"],
+      "best_id": "performance-regression-playbook.md"
+    },
+    {
+      "query": "workload shape benchmark",
+      "split": "holdout",
+      "labels": ["performance"],
+      "expected": ["performance-regression-playbook.md"],
+      "best_id": "performance-regression-playbook.md"
+    },
+    {
+      "query": "refactor ownership boundaries",
+      "split": "train",
+      "labels": ["refactor"],
+      "expected": ["refactor-boundary-map.md"],
+      "best_id": "refactor-boundary-map.md"
+    },
+    {
+      "query": "migration slices modules move",
+      "split": "train",
+      "labels": ["refactor", "migration"],
+      "expected": ["refactor-boundary-map.md"],
+      "best_id": "refactor-boundary-map.md"
+    },
+    {
+      "query": "codebase ownership map",
+      "split": "holdout",
+      "labels": ["refactor"],
+      "expected": ["refactor-boundary-map.md"],
+      "best_id": "refactor-boundary-map.md"
+    },
+    {
+      "query": "security toolchain gate",
+      "split": "train",
+      "labels": ["security"],
+      "expected": ["security-toolchain-gate.md"],
+      "best_id": "security-toolchain-gate.md"
+    },
+    {
+      "query": "secrets scanning shell safety",
+      "split": "train",
+      "labels": ["security"],
+      "expected": ["security-toolchain-gate.md"],
+      "best_id": "security-toolchain-gate.md"
+    },
+    {
+      "query": "publishable security artifacts",
+      "split": "holdout",
+      "labels": ["security"],
+      "expected": ["security-toolchain-gate.md"],
+      "best_id": "security-toolchain-gate.md"
+    },
+    {
+      "query": "session intelligence packet",
+      "split": "train",
+      "labels": ["session-intelligence"],
+      "expected": ["session-intelligence-packet.md"],
+      "best_id": "session-intelligence-packet.md"
+    },
+    {
+      "query": "recent findings prior learnings",
+      "split": "train",
+      "labels": ["session-intelligence"],
+      "expected": ["session-intelligence-packet.md"],
+      "best_id": "session-intelligence-packet.md"
+    },
+    {
+      "query": "startup packet objective",
+      "split": "holdout",
+      "labels": ["session-intelligence", "startup"],
+      "expected": ["session-intelligence-packet.md"],
+      "best_id": "session-intelligence-packet.md"
+    },
+    {
+      "query": "smoke matrix highest risk commands",
+      "split": "train",
+      "labels": ["testing", "smoke"],
+      "expected": ["testing-smoke-matrix.md"],
+      "best_id": "testing-smoke-matrix.md"
+    },
+    {
+      "query": "slower validation path",
+      "split": "holdout",
+      "labels": ["testing", "validation"],
+      "expected": ["testing-smoke-matrix.md"],
+      "best_id": "testing-smoke-matrix.md"
+    }
+  ]
+}

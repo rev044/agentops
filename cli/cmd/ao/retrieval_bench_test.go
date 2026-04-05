@@ -53,7 +53,7 @@ func seedCorpus(t *testing.T) string {
 	}
 
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+		if e.IsDir() || !(strings.HasSuffix(e.Name(), ".md") || strings.HasSuffix(e.Name(), ".json")) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(corpusDir, e.Name()))
@@ -65,6 +65,125 @@ func seedCorpus(t *testing.T) string {
 		}
 	}
 	return tmpDir
+}
+
+func TestRetrievalBench_LoadManifestCases(t *testing.T) {
+	cases, err := loadBenchCases(filepath.Join("testdata", "retrieval-bench"))
+	if err != nil {
+		t.Fatalf("loadBenchCases: %v", err)
+	}
+
+	if len(cases) < 6 {
+		t.Fatalf("expected at least 6 benchmark cases, got %d", len(cases))
+	}
+
+	var splits = map[string]int{}
+	var sectionAware int
+	for _, tc := range cases {
+		splits[tc.Split]++
+		if tc.ExpectedSection != "" {
+			sectionAware++
+		}
+		if tc.Query == "" {
+			t.Fatal("loaded benchmark case with empty query")
+		}
+		if len(tc.Expected) == 0 {
+			t.Fatalf("case %q missing expected ids", tc.Query)
+		}
+	}
+
+	if splits["train"] == 0 {
+		t.Fatal("expected at least one train case")
+	}
+	if splits["holdout"] == 0 {
+		t.Fatal("expected at least one holdout case")
+	}
+	if sectionAware == 0 {
+		t.Fatal("expected at least one section-aware case")
+	}
+}
+
+func TestRetrievalBench_BuildReportTrainHoldoutAndSections(t *testing.T) {
+	corpusSource := filepath.Join("testdata", "retrieval-bench")
+	workspace := seedCorpus(t)
+
+	report, err := buildBenchReport(workspace, corpusSource, 3)
+	if err != nil {
+		t.Fatalf("buildBenchReport: %v", err)
+	}
+
+	if report.Queries == 0 {
+		t.Fatal("expected benchmark queries in report")
+	}
+	if len(report.Splits) == 0 {
+		t.Fatal("expected split summaries in report")
+	}
+
+	train := report.Splits["train"]
+	holdout := report.Splits["holdout"]
+	if train.Cases == 0 {
+		t.Fatal("expected train split summary")
+	}
+	if holdout.Cases == 0 {
+		t.Fatal("expected holdout split summary")
+	}
+	if train.AvgPAtK <= 0 || holdout.AvgPAtK <= 0 {
+		t.Fatalf("expected positive split precision scores, got train=%.2f holdout=%.2f", train.AvgPAtK, holdout.AvgPAtK)
+	}
+	if holdout.SectionCases == 0 {
+		t.Fatal("expected holdout section-aware cases")
+	}
+	if holdout.AvgSectionMRR <= 0 {
+		t.Fatalf("expected positive section MRR for holdout, got %.2f", holdout.AvgSectionMRR)
+	}
+
+	var sectionCase benchResult
+	foundSectionCase := false
+	for _, result := range report.Results {
+		if result.ExpectedSection != "" {
+			sectionCase = result
+			foundSectionCase = true
+			break
+		}
+	}
+	if !foundSectionCase {
+		t.Fatal("expected a section-aware benchmark result")
+	}
+	if sectionCase.SectionMRR <= 0 {
+		t.Fatalf("expected section-aware result to have positive section MRR, got %.2f", sectionCase.SectionMRR)
+	}
+	if len(sectionCase.SectionIDs) == 0 {
+		t.Fatal("expected section-aware result to surface ranked section ids")
+	}
+}
+
+func TestRetrievalBench_RealCorpusManifestHasTrainHoldoutCoverage(t *testing.T) {
+	corpusSource := filepath.Join("testdata", "retrieval-bench-live")
+	workspace := t.TempDir()
+
+	report, err := buildBenchReport(workspace, corpusSource, 3)
+	if err != nil {
+		t.Fatalf("buildBenchReport(real corpus): %v", err)
+	}
+
+	if report.Queries < 25 {
+		t.Fatalf("expected at least 25 labeled real-corpus queries, got %d", report.Queries)
+	}
+
+	train := report.Splits["train"]
+	holdout := report.Splits["holdout"]
+	if train.Cases == 0 {
+		t.Fatal("expected train split summary for real corpus")
+	}
+	if holdout.Cases == 0 {
+		t.Fatal("expected holdout split summary for real corpus")
+	}
+	if train.AvgPAtK <= 0 || holdout.AvgPAtK <= 0 {
+		t.Fatalf("expected positive real-corpus precision scores, got train=%.2f holdout=%.2f", train.AvgPAtK, holdout.AvgPAtK)
+	}
+	if train.AvgMRR <= 0 || holdout.AvgMRR <= 0 {
+		t.Fatalf("expected positive real-corpus MRR scores, got train=%.2f holdout=%.2f", train.AvgMRR, holdout.AvgMRR)
+	}
 }
 
 func TestRetrievalBench_PrecisionAtK(t *testing.T) {
