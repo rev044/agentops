@@ -14,6 +14,7 @@ context:
   sections:
     exclude: [HISTORY]
   intel_scope: topic
+output_contract: "code changes, test results, bead status update"
 ---
 
 # Implement Skill

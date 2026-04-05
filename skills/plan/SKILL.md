@@ -15,6 +15,7 @@ context:
   intent:
     mode: task
   intel_scope: topic
+output_contract: ".agents/plans/YYYY-MM-DD-*.md, beads (via bd create)"
 ---
 
 # Plan Skill

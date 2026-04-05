@@ -10,6 +10,7 @@ context:
 metadata:
   tier: session
   dependencies: []
+output_contract: ".agents/handoffs/YYYY-MM-DD-*.md"
 ---
 
 # Handoff Skill

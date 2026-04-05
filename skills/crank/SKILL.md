@@ -18,6 +18,7 @@ metadata:
     - implement   # required - individual issue execution
     - beads       # optional - issue tracking via bd CLI (fallback: TaskList)
     - post-mortem # optional - suggested for learnings extraction
+output_contract: "code changes across wave execution, .agents/swarm/results/*.json"
 ---
 
 # Crank Skill

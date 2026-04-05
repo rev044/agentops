@@ -15,6 +15,7 @@ metadata:
   tier: background
   dependencies: []
   internal: true
+output_contract: "stdout: flywheel health report (JSON when --json)"
 ---
 
 # Flywheel Skill

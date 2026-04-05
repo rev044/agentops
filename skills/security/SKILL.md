@@ -12,6 +12,7 @@ context:
 metadata:
   tier: product
   dependencies: []
+output_contract: "stdout: security scan report"
 ---
 
 # Security Skill

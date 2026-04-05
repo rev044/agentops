@@ -15,6 +15,7 @@ metadata:
     - standards   # loads language-specific conventions
     - complexity  # identifies high-complexity targets
     - beads       # optional - for issue tracking
+output_contract: "code changes with regression verification"
 ---
 
 # Refactor Skill

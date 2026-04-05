@@ -18,6 +18,7 @@ metadata:
     - ship it
     - commit and push
     - push changes
+output_contract: "git commit + push"
 ---
 
 # Push Skill

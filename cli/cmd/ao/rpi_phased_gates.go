@@ -111,15 +111,27 @@ func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error
 	}
 	report, err := findLatestCouncilReport(cwd, "pre-mortem", time.Time{}, councilEpicID)
 	if err != nil {
-		// Pre-mortem may not have run if the session handled retries internally
-		// and ultimately gave up. Check if council report exists at all.
-		VerbosePrintf("Warning: pre-mortem council report not found (session may have handled retries internally): %v\n", err)
-		return nil
+		// Fail-closed: missing pre-mortem report defaults to LOCKED to prevent
+		// bypassing the gate by simply not running pre-mortem.
+		fmt.Printf("Pre-mortem verdict: LOCKED (report unavailable: %v)\n", err)
+		logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("pre-mortem verdict: LOCKED (report unavailable: %v)", err))
+		state.Verdicts["pre_mortem"] = "LOCKED"
+		return &gateFailError{Phase: 1, Verdict: "LOCKED", Findings: []finding{{
+			Description: "Pre-mortem council report not found — gate is locked",
+			Fix:         "Run the pre-mortem council before proceeding past discovery.",
+		}}, Report: "unavailable"}
 	}
 	verdict, err := extractCouncilVerdict(report)
 	if err != nil {
-		VerbosePrintf("Warning: could not extract pre-mortem verdict: %v\n", err)
-		return nil
+		// Fail-closed: unparseable report defaults to LOCKED.
+		fmt.Printf("Pre-mortem verdict: LOCKED (parse error: %v)\n", err)
+		logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("pre-mortem verdict: LOCKED (parse error: %v)", err))
+		state.Verdicts["pre_mortem"] = "LOCKED"
+		return &gateFailError{Phase: 1, Verdict: "LOCKED", Findings: []finding{{
+			Description: "Could not extract verdict from pre-mortem report",
+			Fix:         "Re-run the pre-mortem council to produce a valid report.",
+			Ref:         pathClean(report),
+		}}, Report: report}
 	}
 	findings, _ := extractCouncilFindings(report, 5)
 	state.Verdicts["pre_mortem"] = verdict

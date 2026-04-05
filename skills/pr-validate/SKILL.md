@@ -17,6 +17,7 @@ metadata:
   tier: contribute
   internal: false
 allowed-tools: Read, Bash, Grep, Glob
+output_contract: "stdout: PR validation report"
 ---
 
 # PR Validate Skill

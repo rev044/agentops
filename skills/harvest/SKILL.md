@@ -15,6 +15,7 @@ context:
 metadata:
   tier: knowledge
   dependencies: []
+output_contract: ".agents/learnings/*.md (consolidated)"
 ---
 
 # Harvest — Cross-Rig Knowledge Consolidation

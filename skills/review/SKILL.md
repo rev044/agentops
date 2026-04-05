@@ -14,6 +14,7 @@ metadata:
   dependencies:
     - standards  # loads language-specific conventions
     - council    # optional - for multi-perspective review
+output_contract: "skills/council/schemas/verdict.json"
 ---
 
 # Review Skill

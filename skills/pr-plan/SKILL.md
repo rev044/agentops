@@ -17,6 +17,7 @@ metadata:
   tier: contribute
   internal: false
 allowed-tools: Read, Write, Bash, Grep, Glob
+output_contract: ".agents/plans/YYYY-MM-DD-pr-*.md"
 ---
 
 # PR Plan Skill

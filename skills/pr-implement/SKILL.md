@@ -17,6 +17,7 @@ metadata:
   tier: contribute
   internal: false
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+output_contract: "code changes on fork branch"
 ---
 
 # PR Implement Skill

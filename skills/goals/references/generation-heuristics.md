@@ -129,7 +129,7 @@ When writing directives, cite specific data when available:
 | `gh api repos/{owner}/{repo}` | Stars, forks, clones, traffic | "2,317 clones/14d" |
 | `.agents/defrag/latest.json` | Flywheel metrics | "σ=0.02 decay, 1.2% promotion rate" |
 | `tests/_quarantine/` | Quarantined test count | "8 test dirs disabled" |
-| `.agents/retros/` | Failure patterns | "3 of 5 retros cite missing install gates" |
+| `.agents/retro/` | Failure patterns | "3 of 5 retros cite missing install gates" |
 | `ao goals measure --json` | Gate pass rates | "5/7 passing (71%)" |
 | Council FAIL verdicts | Root causes | "#1 cause: missing mechanical verification" |
 
@@ -141,7 +141,7 @@ Anti-stars define what the project explicitly avoids. The best anti-stars come f
 
 Scan these sources for failure patterns to convert into anti-stars:
 
-1. **`.agents/retros/`** — recurring themes in retrospectives (e.g., "scope bundling caused 3 failed epics")
+1. **`.agents/retro/`** — recurring themes in retrospectives (e.g., "scope bundling caused 3 failed epics")
 2. **Council FAIL verdicts** — root causes from `.agents/council/` or council index (e.g., "missing mechanical verification" → anti-star: "Product promises with no automated verification")
 3. **`.agents/learnings/`** — learnings tagged as anti-patterns or mistakes
 

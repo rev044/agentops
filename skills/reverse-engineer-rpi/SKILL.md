@@ -12,6 +12,7 @@ context:
 metadata:
   tier: execution
   internal: false
+output_contract: "feature catalog, code map, specs"
 ---
 
 # /reverse-engineer-rpi

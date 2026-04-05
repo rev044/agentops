@@ -12,6 +12,7 @@ context:
 metadata:
   tier: cross-vendor
   internal: false
+output_contract: "stdout: documentation with citations"
 ---
 
 

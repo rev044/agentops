@@ -15,6 +15,7 @@ metadata:
     - product
     - readme
     - shared
+output_contract: ".agents/ directory structure, GOALS.md, PRODUCT.md"
 ---
 
 # /bootstrap

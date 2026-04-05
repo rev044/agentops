@@ -17,6 +17,7 @@ metadata:
   tier: contribute
   internal: false
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+output_contract: "CONTRIBUTING.md, CHANGELOG.md, AGENTS.md"
 ---
 
 # OSS Documentation Skill

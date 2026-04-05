@@ -13,6 +13,7 @@ metadata:
   tier: execution
   dependencies:
     - standards  # optional - language conventions
+output_contract: "stdout: dependency audit report"
 ---
 
 # Deps Skill

@@ -10,6 +10,7 @@ context:
 metadata:
   tier: session
   dependencies: []
+output_contract: "stdout: recovered context summary"
 ---
 
 # /recover — Context Recovery After Compaction

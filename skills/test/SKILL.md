@@ -14,6 +14,7 @@ metadata:
   dependencies:
     - standards  # loads language-specific test conventions
     - complexity # optional - identifies high-risk untested code
+output_contract: "test files, coverage report"
 ---
 
 # Test Skill

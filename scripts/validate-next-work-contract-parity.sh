@@ -232,6 +232,30 @@ require_contains "$RUNTIME" "case \"feature\", \"improvement\", \"tech-debt\", \
 require_contains "$RUNTIME" 'omitted item `claim_status` semantically' \
   "runtime comments or docs should preserve omitted claim_status semantics"
 
+# Proof-backed completion evidence — runtime must use proof, not heuristic suppression.
+require_contains "$RUNTIME" 'CompletionEvidence' \
+  "runtime must reference CompletionEvidence for proof-backed skip logic"
+require_contains "$RUNTIME" 'completion_evidence' \
+  "runtime next-work struct must have completion_evidence json tag"
+
+# Harvest reference must show the batched v1.3 write shape.
+require_contains "$HARVEST_REF" "source_epic" \
+  "harvest-next-work reference must show batched source_epic field"
+require_contains "$HARVEST_REF" "items" \
+  "harvest-next-work reference must show batched items array"
+require_contains "$HARVEST_REF" 'claim_status' \
+  "harvest-next-work reference must show claim_status lifecycle"
+require_contains "$HARVEST_REF" "Schema Validation" \
+  "harvest-next-work reference must include schema validation section"
+
+# Crank skill must not contain flat next-work append examples.
+CRANK_SKILL="$ROOT/skills/crank/SKILL.md"
+if [[ -f "$CRANK_SKILL" ]]; then
+  if contains_fixed_file 'echo "{\"title\":' "$CRANK_SKILL" 2>/dev/null; then
+    fail "crank skill contains legacy flat-row next-work append example"
+  fi
+fi
+
 for skill in "$POST_MORTEM_SKILL" "$POST_MORTEM_CODEX_SKILL"; do
   require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     "docs/contracts/next-work.schema.md" \
@@ -249,6 +273,21 @@ for skill in "$POST_MORTEM_SKILL" "$POST_MORTEM_CODEX_SKILL"; do
     'echo "{\"title\":' \
     "${skill#$ROOT/} ACT.3 still contains the legacy flat-row append example"
 done
+
+# Drift validation: if a live next-work.jsonl exists, verify all entries conform to v1.3.
+LIVE_QUEUE="$ROOT/.agents/rpi/next-work.jsonl"
+if [[ -f "$LIVE_QUEUE" ]] && command -v jq >/dev/null 2>&1; then
+  drift_count=0
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    if ! echo "$line" | jq -e '.source_epic and .items and (.claim_status != null)' >/dev/null 2>&1; then
+      drift_count=$((drift_count + 1))
+    fi
+  done < "$LIVE_QUEUE"
+  if [[ "$drift_count" -gt 0 ]]; then
+    fail "next-work.jsonl has $drift_count entries not conforming to v1.3 schema (missing source_epic, items, or claim_status)"
+  fi
+fi
 
 if [[ "$failures" -gt 0 ]]; then
   echo "next-work contract parity validation FAILED ($failures finding(s))." >&2

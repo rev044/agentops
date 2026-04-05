@@ -12,6 +12,7 @@ context:
 metadata:
   tier: product
   dependencies: []
+output_contract: "PRODUCT.md"
 ---
 
 # /product — Interactive PRODUCT.md Generation

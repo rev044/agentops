@@ -14,6 +14,7 @@ metadata:
   tier: background
   dependencies: []
   internal: true
+output_contract: "stdout: injected knowledge summary"
 ---
 
 > **DEPRECATED (removal target: v3.0.0)** — Use `ao lookup --query "topic"` for on-demand learnings retrieval, or see `.agents/AGENTS.md` for knowledge navigation. This skill and the `ao inject` CLI command still work but are no longer called from hooks or other skills.

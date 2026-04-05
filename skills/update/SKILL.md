@@ -13,6 +13,7 @@ context:
 metadata:
   tier: meta
   dependencies: []
+output_contract: "~/.claude/skills/ (installed copies)"
 ---
 
 # /update — Reinstall AgentOps Skills

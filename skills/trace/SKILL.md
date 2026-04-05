@@ -14,6 +14,7 @@ metadata:
   tier: knowledge
   dependencies:
     - provenance # alternative - for artifact lineage
+output_contract: "stdout: decision provenance chain"
 ---
 
 # Trace Skill

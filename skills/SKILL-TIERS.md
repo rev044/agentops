@@ -94,15 +94,15 @@ Append-only ledger in `.agents/`. Every session writes. Freshness decay prunes. 
 
 ```
 ┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐
-│ extract │────►│  forge  │────►│ knowledge│────►│  inject  │
+│  retro  │────►│  forge  │────►│  athena  │────►│  inject  │
 └─────────┘     └─────────┘     └──────────┘     └──────────┘
      ▲                                                 │
      │              ┌──────────┐                       │
      └──────────────│ flywheel │◄──────────────────────┘
                     └──────────┘
 
-User-facing: /knowledge, /retro (quick-capture), /post-mortem (full), /flywheel
-Background:  inject, extract, forge, provenance, ratchet
+User-facing: /athena (query + grow), /retro (quick-capture), /post-mortem (full), /flywheel
+Background:  inject, forge, provenance, ratchet
 CLI:         ao lookup, ao extract, ao forge, ao maturity
 ```
 
@@ -134,7 +134,7 @@ What are you trying to do?
 │   └─ Generate ideas ────────────► /brainstorm
 │
 ├─ "Learn from past work"
-│   ├─ What do we know about X? ──► /knowledge <query>
+│   ├─ What do we know about X? ──► /athena <query>
 │   ├─ Save this insight ─────────► /retro --quick "insight"
 │   ├─ Full retrospective ────────► /post-mortem
 │   └─ Trace a decision ─────────► /trace <concept>
@@ -204,7 +204,7 @@ These are how skills chain in practice:
 | **Full pipeline** | `/rpi` (chains all above) | End-to-end, autonomous |
 | **Evolve loop** | `/evolve` (chains `/rpi` repeatedly) | Fitness-scored improvement |
 | **PR contribution** | `/pr-research` → `/pr-plan` → `/pr-implement` → `/pr-validate` → `/pr-prep` | External repo |
-| **Knowledge query** | `/knowledge` → `/research` (if gaps) | Understanding before building |
+| **Knowledge query** | `/athena` → `/research` (if gaps) | Understanding before building |
 | **Standalone review** | `/council validate <target>` | Ad-hoc multi-judge review |
 | **Time-boxed pipeline** | `/rpi --budget=research:180,plan:120` | Prevent research/plan stalls |
 | **TDD feature** | `/implement <issue>` | TDD-first by default (skip with `--no-tdd`) |

@@ -14,6 +14,7 @@ metadata:
   tier: meta
   dependencies: []
   internal: true
+output_contract: "stdout: workflow guide"
 ---
 
 # RPI Workflow

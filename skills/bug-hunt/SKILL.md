@@ -13,6 +13,7 @@ metadata:
   tier: execution
   dependencies:
     - beads  # optional - for issue tracking
+output_contract: "diagnosis report, optional fix commits"
 ---
 
 # Bug Hunt Skill

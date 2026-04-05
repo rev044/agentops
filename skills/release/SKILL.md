@@ -13,6 +13,7 @@ user-invocable: true
 metadata:
   tier: product
   dependencies: []
+output_contract: "CHANGELOG.md update, git tag"
 ---
 
 # Release Skill

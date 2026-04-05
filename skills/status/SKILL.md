@@ -12,6 +12,7 @@ context:
 metadata:
   tier: session
   dependencies: []
+output_contract: "stdout: dashboard"
 ---
 
 # /status — Workflow Dashboard

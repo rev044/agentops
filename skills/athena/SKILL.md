@@ -19,6 +19,7 @@ context:
 metadata:
   tier: knowledge
   dependencies: []
+output_contract: ".agents/learnings/*.md, .agents/patterns/*.md"
 ---
 
 # Athena — Active Knowledge Intelligence

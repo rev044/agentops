@@ -18,6 +18,7 @@ metadata:
     - validation  # phase 3 orchestrator
     - ratchet     # checkpoint tracking
   internal: false
+output_contract: ".agents/rpi/YYYY-MM-DD-*.md"
 ---
 
 # /rpi — Full RPI Lifecycle Orchestrator

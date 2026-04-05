@@ -13,6 +13,7 @@ context:
 metadata:
   tier: library
   internal: true
+output_contract: "reference documents (loaded JIT)"
 ---
 
 # Shared References

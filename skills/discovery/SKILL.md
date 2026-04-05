@@ -19,6 +19,7 @@ metadata:
     - plan        # required - epic decomposition
     - pre-mortem  # required - validation gate
     - shared      # optional - CLI fallback table
+output_contract: ".agents/plans/YYYY-MM-DD-*.md, beads, epic-id"
 ---
 
 # /discovery — Full Discovery Phase Orchestrator

@@ -12,6 +12,7 @@ context:
 metadata:
   tier: meta
   dependencies: []
+output_contract: "stdout: heal report, auto-fixed skill files"
 ---
 
 # /heal-skill — Automated Skill Maintenance

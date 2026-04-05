@@ -14,6 +14,7 @@ metadata:
   dependencies:
     - research
     - brainstorm
+output_contract: "Grafana dashboard JSON"
 ---
 
 # Grafana Platform Dashboard

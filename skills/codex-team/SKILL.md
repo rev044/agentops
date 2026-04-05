@@ -5,6 +5,7 @@ skill_api_version: 1
 context: fork
 metadata:
   tier: cross-vendor
+output_contract: ".agents/swarm/results/*.json"
 ---
 
 # Codex Team

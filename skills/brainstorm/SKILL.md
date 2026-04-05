@@ -12,6 +12,7 @@ context:
   sections:
     exclude: [INTEL, HISTORY, TASK]
   intel_scope: none
+output_contract: "skills/research/schemas/findings.json"
 ---
 
 # /brainstorm — Clarify Goals Before Planning

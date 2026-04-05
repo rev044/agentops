@@ -13,6 +13,7 @@ metadata:
   tier: product
   dependencies:
     - standards  # loads markdown standards
+output_contract: "documentation files"
 ---
 
 # Doc Skill

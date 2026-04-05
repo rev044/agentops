@@ -24,6 +24,7 @@ metadata:
     - roadmap
     - run queue
     - pinned queue
+output_contract: "code changes, GOALS.md fitness deltas"
 ---
 
 # /evolve — Goal-Driven Compounding Loop

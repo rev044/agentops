@@ -860,6 +860,20 @@ func TestShouldSkipLegacyFailedEntry_NoProofKeepsAvailable(t *testing.T) {
 	}
 }
 
+func TestShouldSkipLegacyFailedEntry_NoMetadataNoProofStaysAvailable(t *testing.T) {
+	// Pre-v2.34 heuristic would have skipped entries with no lifecycle metadata.
+	// After the proof-backed change, these entries remain available for retry
+	// because there is no CompletionEvidence proving the work was done.
+	failedAt := "2026-03-15T00:00:00Z"
+	entry := nextWorkEntry{
+		FailedAt: &failedAt,
+		Items:    []nextWorkItem{{Title: "bare failed item"}},
+	}
+	if shouldSkipLegacyFailedEntry(entry) {
+		t.Error("entry with FailedAt but no CompletionEvidence should remain available (no heuristic suppression)")
+	}
+}
+
 func TestMarkEntryConsumed_LegacyFlatEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")

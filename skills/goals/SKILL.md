@@ -12,6 +12,7 @@ context:
 metadata:
   tier: product
   dependencies: []
+output_contract: "GOALS.md"
 ---
 
 # /goals — Fitness Goal Maintenance
@@ -131,7 +132,7 @@ Ask the user: "Your north stars describe features. What user outcome would tell 
 #### Enrich Anti-Stars from Failure Modes
 
 Scan for proven failure patterns:
-1. Check `.agents/retros/` — extract failure themes from retrospectives
+1. Check `.agents/retro/` — extract failure themes from retrospectives
 2. Check `.agents/council/` or council index — look for FAIL verdicts and their root causes
 3. Check `.agents/learnings/` — look for learnings tagged as anti-patterns
 
@@ -182,7 +183,7 @@ Based on measurement:
 **Product-aware steering:** Also check for product dimension gaps:
 - If all directives are engineering-flavored (test, lint, build, refactor) → suggest at least one product/growth directive
 - If no directive cites a specific metric → flag: "Vague directives are a smell. Can any of these reference a specific number?"
-- If `.agents/retros/` has new failure patterns not represented in anti-stars → suggest adding them
+- If `.agents/retro/` has new failure patterns not represented in anti-stars → suggest adding them
 - If PRODUCT.md has Known Gaps not covered by any directive → suggest a directive to close the gap
 
 ### Step 3: Execute Changes

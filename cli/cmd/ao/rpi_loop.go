@@ -918,25 +918,19 @@ func hasQueueItemLifecycleMetadata(item nextWorkItem) bool {
 // completion evidence (bead_closed, commit_ref, evidence_packet) indicating the
 // work was completed despite the failure marker. Entries without completion
 // evidence remain available for retry even if FailedAt is set.
+//
+// Prior to v2.34 this function contained a heuristic fallback that skipped
+// entries lacking any lifecycle metadata. That heuristic caused silent
+// suppression of legitimate retry-eligible items. It was replaced with
+// proof-only semantics: an entry is skipped only when CompletionEvidence
+// is explicitly set.
 func shouldSkipLegacyFailedEntry(entry nextWorkEntry) bool {
 	if entry.FailedAt == nil {
 		return false
 	}
 	// Proof-backed: skip only when explicit completion evidence exists.
-	if entry.CompletionEvidence != "" {
-		return true
-	}
-	// Legacy heuristic fallback: skip entries with no lifecycle metadata at all
-	// (pre-v2.33 entries that lack the CompletionEvidence field).
-	if entry.ClaimStatus != "" || entry.ClaimedBy != nil || entry.ClaimedAt != nil {
-		return false
-	}
-	for _, item := range entry.Items {
-		if hasQueueItemLifecycleMetadata(item) {
-			return false
-		}
-	}
-	return true
+	// No heuristic fallback — failed entries without proof stay available.
+	return entry.CompletionEvidence != ""
 }
 
 // selectHighestSeverityEntry picks the best item across all eligible entries.

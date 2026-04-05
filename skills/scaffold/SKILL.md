@@ -13,6 +13,7 @@ metadata:
   tier: execution
   dependencies:
     - standards  # loads language-specific conventions
+output_contract: "project files and directory structure"
 ---
 
 # Scaffold Skill

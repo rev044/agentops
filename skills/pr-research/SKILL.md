@@ -17,6 +17,7 @@ metadata:
   tier: contribute
   internal: false
 allowed-tools: Read, Write, Bash, Grep, Glob
+output_contract: ".agents/research/YYYY-MM-DD-upstream-*.md"
 ---
 
 # PR Research Skill

@@ -12,6 +12,7 @@ context:
 metadata:
   tier: cross-vendor
   dependencies: []
+output_contract: "converted skill files for target platform"
 ---
 
 # /converter -- Cross-Platform Skill Converter

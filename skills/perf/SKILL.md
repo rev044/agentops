@@ -14,6 +14,7 @@ metadata:
   dependencies:
     - standards   # optional - language conventions
     - complexity  # optional - identifies hot paths
+output_contract: "stdout: performance profile/benchmark report"
 ---
 
 # Perf Skill

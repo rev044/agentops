@@ -15,6 +15,7 @@ metadata:
   dependencies:
     - council
     - shared
+output_contract: "skills/council/schemas/verdict.json"
 ---
 
 # /design -- Product Validation Gate

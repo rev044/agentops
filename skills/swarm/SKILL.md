@@ -14,6 +14,7 @@ metadata:
   dependencies:
     - implement # required - executes `/implement <bead-id>` per task
     - vibe      # optional - integration with validation
+output_contract: ".agents/swarm/results/*.json"
 ---
 
 # Swarm Skill

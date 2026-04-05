@@ -16,6 +16,7 @@ metadata:
     - athena
     - harvest
     - flywheel
+output_contract: ".agents/beliefs.md, .agents/playbooks/*.md, .agents/briefings/*.md"
 ---
 
 # Knowledge Activation
@@ -138,7 +139,7 @@ The consumer-facing outputs are:
 - `.agents/playbooks/index.md`
 - `.agents/playbooks/<topic>.md`
 - `.agents/briefings/YYYY-MM-DD-<goal>.md`
-- `.agents/retros/`
+- `.agents/retro/`
 
 The substrate surfaces remain:
 

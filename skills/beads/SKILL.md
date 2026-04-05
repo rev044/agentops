@@ -13,6 +13,7 @@ metadata:
   tier: library
   dependencies: []
   internal: true
+output_contract: "beads (via bd CLI)"
 ---
 
 # Beads - Persistent Task Memory for AI Agents

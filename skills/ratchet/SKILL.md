@@ -14,6 +14,7 @@ metadata:
   tier: background
   dependencies: []
   internal: true
+output_contract: "stdout: gate check result"
 ---
 
 # Ratchet Skill

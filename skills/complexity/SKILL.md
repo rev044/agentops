@@ -14,6 +14,7 @@ metadata:
   dependencies:
     - standards   # optional - loaded for code validation context
     - doc         # optional - for documentation and non-code artifacts
+output_contract: "stdout: complexity metrics report"
 ---
 
 # Complexity Skill

@@ -7,6 +7,7 @@ metadata:
   dependencies: []
 context:
   window: fork
+output_contract: ".agents/learnings/YYYY-MM-DD-*.md"
 ---
 
 # Retro Skill

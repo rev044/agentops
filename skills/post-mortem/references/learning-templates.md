@@ -355,7 +355,7 @@ bd list --parent=$EPIC | while read issue; do
 done
 
 # 3. Create artifacts
-mkdir -p .agents/{learnings,patterns,retros}
+mkdir -p .agents/{learnings,patterns,retro}
 
 # 4. Store memories
 for learning in "${LEARNINGS[@]}"; do

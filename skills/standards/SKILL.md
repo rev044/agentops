@@ -13,6 +13,7 @@ metadata:
   tier: library
   dependencies: []
   internal: true
+output_contract: "stdout: standards reference (loaded JIT)"
 ---
 
 # Standards Skill

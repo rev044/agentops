@@ -14,6 +14,7 @@ metadata:
   tier: background
   dependencies: []
   internal: true
+output_contract: ".agents/learnings/*.md, .agents/patterns/*.md"
 ---
 
 # Forge Skill
