@@ -241,7 +241,7 @@ Read `references/closure-integrity-audit.md` for the full procedure. Mechanicall
 
 Include results in the council packet as `context.closure_integrity`. WARN on 1-2 findings, FAIL on 3+.
 
-If a closure is evidence-only, emit a proof artifact with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite at `.agents/releases/evidence-only-closures/<target-id>.json`. Record `evidence_mode` plus repo-state detail for replayability.
+If a closure is evidence-only, emit a proof artifact with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite at `.agents/releases/evidence-only-closures/<target-id>.json`. Record `evidence_mode` plus repo-state detail for replayability. A valid durable packet is acceptable audit evidence even when the child intentionally has no scoped-file section.
 
 ### Step 2.5: Pre-Council Metadata Verification (MANDATORY)
 
