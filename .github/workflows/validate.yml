@@ -728,8 +728,33 @@ jobs:
           chmod +x scripts/coverage-ratchet.sh
           scripts/coverage-ratchet.sh --check
 
+  swarm-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate swarm evidence files (if present)
+        run: |
+          chmod +x scripts/validate-swarm-evidence.sh
+          bash scripts/validate-swarm-evidence.sh
+
+      - name: Validate file manifests in evidence (if present)
+        run: |
+          EVIDENCE_DIR=".agents/swarm/results"
+          if [[ ! -d "$EVIDENCE_DIR" ]]; then
+            echo "SKIP: no evidence directory — nothing to check"
+            exit 0
+          fi
+          # Extract file manifests from any evidence that contains them
+          MANIFEST_FILES=$(find "$EVIDENCE_DIR" -name '*.json' -type f -exec jq -e '.files_modified // empty' {} + 2>/dev/null || true)
+          if [[ -z "$MANIFEST_FILES" ]]; then
+            echo "SKIP: no file manifests in evidence — nothing to check"
+            exit 0
+          fi
+          echo "File manifests found in evidence — overlap check delegated to file-manifest-overlap job"
+
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, json-flag-consistency, file-manifest-overlap, doctor-check, skill-lint, learning-coherence, bats-tests, coverage-ratchet, check-test-staleness]
+    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, json-flag-consistency, file-manifest-overlap, doctor-check, skill-lint, learning-coherence, bats-tests, coverage-ratchet, check-test-staleness, swarm-evidence]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -764,6 +789,7 @@ jobs:
           echo "bats-tests: ${{ needs.bats-tests.result }}"
           echo "coverage-ratchet: ${{ needs.coverage-ratchet.result }}"
           echo "check-test-staleness: ${{ needs.check-test-staleness.result }}"
+          echo "swarm-evidence: ${{ needs.swarm-evidence.result }}"
 
           if [[ "${{ needs.doc-release-gate.result }}" != "success" ]] || \
              [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
@@ -789,7 +815,8 @@ jobs:
              [[ "${{ needs.skill-lint.result }}" != "success" ]] || \
              [[ "${{ needs.learning-coherence.result }}" != "success" ]] || \
              [[ "${{ needs.bats-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.coverage-ratchet.result }}" != "success" ]]; then
+             [[ "${{ needs.coverage-ratchet.result }}" != "success" ]] || \
+             [[ "${{ needs.swarm-evidence.result }}" != "success" ]]; then
             echo ""
             echo "❌ Some checks failed"
             exit 1

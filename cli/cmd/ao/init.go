@@ -19,7 +19,7 @@ import (
 var agentsDirs = []string{
 	".agents/research",
 	".agents/products",
-	".agents/retros",
+	".agents/retro",
 	".agents/learnings",
 	".agents/patterns",
 	".agents/council",
@@ -44,7 +44,7 @@ var initCmd = &cobra.Command{
 This creates:
   .agents/research/       - Research findings
   .agents/products/       - Product specs
-  .agents/retros/         - Retrospectives
+  .agents/retro/          - Retrospectives
   .agents/learnings/      - Extracted learnings
   .agents/patterns/       - Reusable patterns
   .agents/council/        - Council verdicts

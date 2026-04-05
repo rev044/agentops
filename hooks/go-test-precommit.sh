@@ -8,6 +8,8 @@
 set -euo pipefail
 
 INPUT=$(cat)
+# Guard empty stdin: jq fails on empty input, so exit early
+[[ -z "$INPUT" ]] && exit 0
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || TOOL_NAME=""
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 

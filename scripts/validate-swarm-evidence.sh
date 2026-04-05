@@ -1,12 +1,74 @@
 #!/usr/bin/env bash
 # validate-swarm-evidence.sh — Validate swarm worker result evidence against schema contract.
-# Usage: bash scripts/validate-swarm-evidence.sh <result-file.json>
+# Usage: bash scripts/validate-swarm-evidence.sh [result-file.json|directory]
+#   - With a file argument: validates that single result file
+#   - With a directory argument: validates all *.json files in the directory
+#   - With no arguments: scans .agents/swarm/results/ if it exists; passes gracefully if absent
 # Exit 0 = PASS, Exit 1 = FAIL (with structured error output)
+#
+# Wave patterns reference: skills/crank/references/wave-patterns.md
+# (defines FIRE loop, acceptance checks, and wave checkpoint patterns)
 set -euo pipefail
 
 RESULT_FILE="${1:-}"
-if [[ -z "$RESULT_FILE" || ! -f "$RESULT_FILE" ]]; then
-    echo "Usage: bash scripts/validate-swarm-evidence.sh <result-file.json>"
+
+# No-argument mode: scan default evidence directory, pass gracefully if absent
+if [[ -z "$RESULT_FILE" ]]; then
+    EVIDENCE_DIR=".agents/swarm/results"
+    if [[ ! -d "$EVIDENCE_DIR" ]]; then
+        echo "SKIP: no evidence directory ($EVIDENCE_DIR) — nothing to validate"
+        exit 0
+    fi
+    EVIDENCE_FILES=()
+    while IFS= read -r -d '' f; do
+        EVIDENCE_FILES+=("$f")
+    done < <(find "$EVIDENCE_DIR" -maxdepth 1 -name '*.json' -type f -print0 2>/dev/null)
+    if [[ ${#EVIDENCE_FILES[@]} -eq 0 ]]; then
+        echo "SKIP: no evidence files in $EVIDENCE_DIR — nothing to validate"
+        exit 0
+    fi
+    TOTAL_ERRORS=0
+    for ef in "${EVIDENCE_FILES[@]}"; do
+        echo "--- Validating: $ef ---"
+        if ! bash "$0" "$ef"; then
+            TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
+        fi
+    done
+    if [[ $TOTAL_ERRORS -gt 0 ]]; then
+        echo "EVIDENCE BATCH FAILED: $TOTAL_ERRORS file(s) failed validation"
+        exit 1
+    fi
+    echo "EVIDENCE BATCH PASS: ${#EVIDENCE_FILES[@]} file(s) validated"
+    exit 0
+fi
+
+# Directory argument: validate all JSON files within
+if [[ -d "$RESULT_FILE" ]]; then
+    EVIDENCE_FILES=()
+    while IFS= read -r -d '' f; do
+        EVIDENCE_FILES+=("$f")
+    done < <(find "$RESULT_FILE" -maxdepth 1 -name '*.json' -type f -print0 2>/dev/null)
+    if [[ ${#EVIDENCE_FILES[@]} -eq 0 ]]; then
+        echo "SKIP: no evidence files in $RESULT_FILE — nothing to validate"
+        exit 0
+    fi
+    TOTAL_ERRORS=0
+    for ef in "${EVIDENCE_FILES[@]}"; do
+        echo "--- Validating: $ef ---"
+        if ! bash "$0" "$ef"; then
+            TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
+        fi
+    done
+    if [[ $TOTAL_ERRORS -gt 0 ]]; then
+        echo "EVIDENCE BATCH FAILED: $TOTAL_ERRORS file(s) failed validation"
+        exit 1
+    fi
+    echo "EVIDENCE BATCH PASS: ${#EVIDENCE_FILES[@]} file(s) validated"
+    exit 0
+fi
+
+if [[ ! -f "$RESULT_FILE" ]]; then
+    echo "Usage: bash scripts/validate-swarm-evidence.sh [result-file.json|directory]"
     exit 1
 fi
 

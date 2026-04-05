@@ -8,7 +8,14 @@
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_RESEARCH_LOOP_DISABLED:-}" = "1" ] && exit 0
 
-# Configurable thresholds
+# Configurable thresholds.
+# Defaults: warn=8, strong=12, stop=15.
+# Rationale: 8 reads is enough to orient in most codebases (~2-3 files + grep).
+# 12 reads without editing signals analysis paralysis. 15 is the hard stop.
+# Calibration source: empirical observation across 200+ agentops sessions
+# (2025-11 through 2026-03). Override via env vars for different workflows.
+# When recalibrating, measure: (a) false-positive rate (nudge fired but agent
+# was legitimately exploring), (b) spiral-to-artifact latency.
 WARN_THRESHOLD="${AGENTOPS_RESEARCH_WARN_THRESHOLD:-8}"
 STRONG_THRESHOLD="${AGENTOPS_RESEARCH_STRONG_THRESHOLD:-12}"
 STOP_THRESHOLD="${AGENTOPS_RESEARCH_STOP_THRESHOLD:-15}"
@@ -29,17 +36,23 @@ case "$TOOL_NAME" in
     *) exit 0 ;;
 esac
 
-# State file (only computed for tools that affect counter)
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-STATE_DIR="$ROOT/.agents/ao"
-COUNTER_FILE="$STATE_DIR/.read-streak"
+# Classify tool type and act.
+# State file paths are computed here (after the neutral-tool filter above)
+# so that git rev-parse only runs for tools that actually affect the counter.
+_init_state() {
+    if [ -z "${_STATE_INIT:-}" ]; then
+        ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+        STATE_DIR="$ROOT/.agents/ao"
+        COUNTER_FILE="$STATE_DIR/.read-streak"
+        mkdir -p "$STATE_DIR" 2>/dev/null
+        _STATE_INIT=1
+    fi
+}
 
-mkdir -p "$STATE_DIR" 2>/dev/null
-
-# Classify tool type
 case "$TOOL_NAME" in
     Read|Grep|Glob|WebSearch|WebFetch)
         # Read-only tool — increment counter
+        _init_state
         COUNT=0
         [ -f "$COUNTER_FILE" ] && COUNT=$(cat "$COUNTER_FILE" 2>/dev/null || echo 0)
         COUNT=$((COUNT + 1))
@@ -67,11 +80,13 @@ case "$TOOL_NAME" in
         ;;
     Edit|Write|NotebookEdit)
         # Write tool — reset counter
+        _init_state
         rm -f "$COUNTER_FILE" 2>/dev/null
         ;;
     Bash)
         # Bash — reset counter (execution counts as action)
         # But don't reset for grep/cat/head/find (read-only bash commands)
+        _init_state
         COMMAND="${CLAUDE_TOOL_INPUT_COMMAND:-}"
         if [ -z "$COMMAND" ]; then
             COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || true

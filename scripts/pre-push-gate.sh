@@ -341,21 +341,16 @@ else
     skip "coverage ratchet"
 fi
 
-# --- 5. Embedded hooks sync ---
-stale=0
-for src in hooks/session-start.sh hooks/hooks.json; do
-    embedded="cli/embedded/$src"
-    if [[ -f "$src" ]] && [[ -f "$embedded" ]]; then
-        if ! diff -q "$src" "$embedded" >/dev/null 2>&1; then
-            stale=1
-            break
-        fi
+# --- 5. Embedded hooks sync (full parity gate) ---
+if [[ -x scripts/validate-embedded-sync.sh ]]; then
+    if embed_output="$(./scripts/validate-embedded-sync.sh 2>&1)"; then
+        pass "embedded hooks in sync"
+    else
+        fail "embedded hooks stale (run: cd cli && make sync-hooks)"
+        indent_output "$embed_output"
     fi
-done
-if [[ "$stale" -eq 1 ]]; then
-    fail "embedded hooks stale (run: cd cli && make sync-hooks)"
 else
-    pass "embedded hooks in sync"
+    fail "missing executable: scripts/validate-embedded-sync.sh"
 fi
 
 # --- 6. Skill count sync ---

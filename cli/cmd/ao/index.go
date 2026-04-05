@@ -23,7 +23,7 @@ var defaultIndexDirs = []string{
 	".agents/findings",
 	".agents/research",
 	".agents/plans",
-	".agents/retros",
+	".agents/retro",
 	".agents/patterns",
 }
 
@@ -59,7 +59,7 @@ Directories indexed:
   .agents/findings
   .agents/research
   .agents/plans
-  .agents/retros
+  .agents/retro
   .agents/patterns
 
 Example:

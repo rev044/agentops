@@ -14,6 +14,7 @@ metadata:
   tier: meta
   dependencies: []
   internal: true
+output_contract: "stdout: workflow guide"
 ---
 
 # RPI Workflow
@@ -188,11 +189,12 @@ Every `/post-mortem` feeds back to `/research`:
 
 ## Runtime Modes
 
-AgentOps has three runtime modes. Do not assume hook automation exists everywhere.
+AgentOps has four runtime modes. Do not assume hook automation exists everywhere.
 
 | Mode | When it applies | Start path | Closeout path | Guarantees |
 |------|-----------------|------------|---------------|------------|
-| `hook-capable` | Claude/OpenCode with lifecycle hooks installed | Runtime hook or `ao inject` / `ao lookup` | Runtime hook or `ao forge transcript` + `ao flywheel close-loop` | Automatic startup/context injection and session-end maintenance when hooks are installed |
+| `gc` | Gas City (`gc`) binary available and `city.toml` present | gc controller manages sessions; `ao rpi` auto-selects gc executor | gc event bus captures phase/gate/failure/metric events | Default when gc is available. Phase execution via gc sessions, events via gc event bus, agent health via gc health patrol |
+| `hook-capable` | Claude/OpenCode with lifecycle hooks installed (no gc) | Runtime hook or `ao inject` / `ao lookup` | Runtime hook or `ao forge transcript` + `ao flywheel close-loop` | Automatic startup/context injection and session-end maintenance when hooks are installed |
 | `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces | `ao codex start` | `ao codex stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
 | `manual` | No hooks and no Codex-native runtime detection | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Works everywhere, but lifecycle actions are operator-driven |
 

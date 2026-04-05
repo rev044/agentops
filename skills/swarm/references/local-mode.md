@@ -171,6 +171,13 @@ Your message to the lead must be under 100 tokens.
 Do NOT include file contents, diffs, or detailed explanations in messages.
 The result JSON file IS your full report. The lead reads the file, not your message.
 
+PRE-IMPLEMENTATION CHECKLIST:
+Before writing new code, grep for existing function signatures in the codebase to avoid
+duplicating functionality that already exists. For example:
+  grep -r "func.*FunctionName" . --include="*.go"
+  grep -r "def function_name" . --include="*.py"
+This prevents duplicate implementations and ensures you extend rather than re-create.
+
 Rules:
 - Work only on YOUR pre-assigned task
 - Do NOT claim other tasks

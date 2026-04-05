@@ -113,6 +113,7 @@ This is how the prevention ratchet applies shift-left mechanically: active compi
 - Pull file lists from the plan, issue description, or codebase exploration during planning.
 - If you cannot enumerate files yet, add a planning step to identify them before spawning workers. An empty or missing manifest signals the need for more planning, not unconstrained workers.
 - Workers receive the manifest in their prompt and are instructed to stay within it (see `references/local-mode.md` worker prompt template).
+- The worker prompt MUST include the `metadata.files` array as the FILE MANIFEST section. Workers grep for existing function signatures before writing new code to avoid duplication.
 
 ```json
 {

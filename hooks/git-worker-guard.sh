@@ -43,4 +43,18 @@ case "$COMMAND_LOWER" in
         ;;
 esac
 
+# Block workers from spawning sub-workers (git worktree add, agent spawn operations)
+case "$COMMAND_LOWER" in
+    *"git worktree add"*)
+        echo "BLOCKED: Workers cannot create worktrees. Only the lead spawns sub-workers." >&2
+        echo "Command: $COMMAND" >&2
+        exit 2
+        ;;
+    *"spawn_agent"*|*"claude agent"*|*"codex agent"*|*"gc session nudge"*)
+        echo "BLOCKED: Workers cannot spawn sub-workers. Only the lead dispatches agents." >&2
+        echo "Command: $COMMAND" >&2
+        exit 2
+        ;;
+esac
+
 exit 0

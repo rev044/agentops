@@ -431,6 +431,8 @@ write_release_artifact_manifest() {
     repo_version="$(jq -r '.version' .claude-plugin/plugin.json)"
     generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     manifest_file="$ARTIFACT_DIR/release-artifacts.json"
+    local git_sha
+    git_sha="$(git rev-parse HEAD 2>/dev/null || echo "unknown")"
 
     [[ "$FAST_MODE" == "true" ]] && fast_mode_json=true
 
@@ -450,6 +452,7 @@ write_release_artifact_manifest() {
         --arg artifact_dir "$(artifact_dir_rel)" \
         --arg release_version "$version" \
         --arg repo_version "$repo_version" \
+        --arg git_sha "$git_sha" \
         --arg security_mode "$SECURITY_MODE" \
         --arg sbom_cyclonedx "$sbom_cyclonedx" \
         --arg sbom_spdx "$sbom_spdx" \
@@ -462,6 +465,7 @@ write_release_artifact_manifest() {
           artifact_dir: $artifact_dir,
           release_version: $release_version,
           repo_version: $repo_version,
+          git_sha: $git_sha,
           fast_mode: $fast_mode,
           security_mode: $security_mode,
           sbom_cyclonedx: (if $sbom_cyclonedx == "" then null else $sbom_cyclonedx end),

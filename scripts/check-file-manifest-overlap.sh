@@ -20,9 +20,28 @@ if ! command -v jq &>/dev/null; then
 fi
 
 CONFLICTS=0
+WARNINGS=0
 declare -A FILE_OWNERS
 
+# Validate JSON input is a non-empty array
+TASK_COUNT=$(jq -r 'if type == "array" then length else 0 end' "$INPUT" 2>/dev/null || echo 0)
+if [[ "$TASK_COUNT" -eq 0 ]]; then
+  echo "SKIP: empty or invalid task array — nothing to check"
+  exit 0
+fi
+
+# Warn about tasks missing file manifests
+MISSING_MANIFEST=$(jq -r '.[] | select(.files == null or (.files | length) == 0) | .id // "unknown"' "$INPUT" 2>/dev/null)
+if [[ -n "$MISSING_MANIFEST" ]]; then
+  while IFS= read -r task_id; do
+    echo "WARN: task $task_id has no file manifest — cannot detect overlaps for this task"
+    WARNINGS=$((WARNINGS + 1))
+  done <<< "$MISSING_MANIFEST"
+fi
+
 while IFS=$'\t' read -r task_id file; do
+  # Skip empty file entries
+  [[ -z "$file" ]] && continue
   if [[ -n "${FILE_OWNERS[$file]:-}" ]]; then
     echo "CONFLICT: $file claimed by task ${FILE_OWNERS[$file]} and task $task_id"
     CONFLICTS=$((CONFLICTS + 1))
@@ -36,5 +55,9 @@ if [[ $CONFLICTS -gt 0 ]]; then
   exit 1
 fi
 
-echo "No file manifest overlaps detected"
+if [[ $WARNINGS -gt 0 ]]; then
+  echo "No file manifest overlaps detected ($WARNINGS task(s) missing manifests)"
+else
+  echo "No file manifest overlaps detected"
+fi
 exit 0

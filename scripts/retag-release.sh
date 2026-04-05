@@ -50,6 +50,14 @@ if ! git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Idempotency guard: if the tag already points at HEAD, skip
+TAG_SHA=$(git rev-parse "$TAG^{commit}" 2>/dev/null)
+HEAD_SHA_CHECK=$(git rev-parse HEAD 2>/dev/null)
+if [[ "$TAG_SHA" == "$HEAD_SHA_CHECK" ]]; then
+  echo "Tag $TAG already points at HEAD ($HEAD_SHA_CHECK) — nothing to retag."
+  exit 0
+fi
+
 # There must be commits after the tag
 COMMITS_AFTER=$(git log --oneline "$TAG..HEAD" | wc -l | tr -d ' ')
 if [[ "$COMMITS_AFTER" == "0" ]]; then
