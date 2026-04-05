@@ -13,7 +13,7 @@ context:
 metadata:
   tier: knowledge
   dependencies:
-    - athena
+    - compile
     - harvest
     - flywheel
 output_contract: ".agents/beliefs.md, .agents/playbooks/*.md, .agents/briefings/*.md"
@@ -32,7 +32,7 @@ Use this skill when the problem is no longer "capture more knowledge," but:
 - compile a small goal-time briefing for future work
 - surface thin topics and promotion gaps before they silently calcify
 
-`$athena` remains the hygiene loop. `knowledge-activation` owns corpus operationalization.
+`$compile` remains the hygiene loop. `knowledge-activation` owns corpus operationalization.
 
 ## Preconditions
 

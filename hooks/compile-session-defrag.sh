@@ -42,7 +42,7 @@ scan_normalization_defects() {
   local root="$1"
   local patterns_dir="$root/.agents/patterns"
   local learnings_dir="$root/.agents/learnings"
-  local athena_dir="$root/.agents/athena"
+  local compile_dir="$root/.agents/compile"
   local scan_dirs=()
   local placeholders=0
   local stacked=0
@@ -84,14 +84,14 @@ scan_normalization_defects() {
     done < <(find "${scan_dirs[@]}" -type f -name '*.md' -print0)
   fi
 
-  if [ -d "$athena_dir" ]; then
+  if [ -d "$compile_dir" ]; then
     while IFS= read -r -d '' file; do
       local mtime
       mtime=$(file_mtime "$file")
       if [ "$mtime" -gt "$latest_extraction_mtime" ]; then
         latest_extraction_mtime="$mtime"
       fi
-    done < <(find "$athena_dir" -type f \( -iname '*extraction*' -o -iname '*knowledge-analysis*' -o -iname '*extraction-complete*' \) -print0)
+    done < <(find "$compile_dir" -type f \( -iname '*extraction*' -o -iname '*knowledge-analysis*' -o -iname '*extraction-complete*' \) -print0)
 
     if [ "$latest_extraction_mtime" -gt 0 ]; then
       while IFS= read -r -d '' file; do
@@ -100,7 +100,7 @@ scan_normalization_defects() {
         if [ "$contradiction_mtime" -lt "$latest_extraction_mtime" ]; then
           stale_contradictions=$((stale_contradictions + 1))
         fi
-      done < <(find "$athena_dir" -type f \( -iname '*contradict*' -o -iname '*contradiction*' \) -print0)
+      done < <(find "$compile_dir" -type f \( -iname '*contradict*' -o -iname '*contradiction*' \) -print0)
     fi
   fi
 
@@ -122,4 +122,4 @@ fi
 ROOT="$(repo_root)"
 DEFECT_SUMMARY="$(scan_normalization_defects "$ROOT")"
 
-echo "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionEnd\",\"additionalContext\":\"Athena defrag ${STATUS}; normalization defects: ${DEFECT_SUMMARY}\"}}"
+echo "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionEnd\",\"additionalContext\":\"Compile defrag ${STATUS}; normalization defects: ${DEFECT_SUMMARY}\"}}"

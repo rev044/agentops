@@ -15,7 +15,7 @@ This mines **the current session only** — not the full transcript corpus.
 | Scope | Command | When to Use |
 |-------|---------|-------------|
 | Current session | `ao forge transcript --last-session` | Default in `$validation` |
-| Full corpus | `ao forge transcript` | Only via `$athena` or manual invocation |
+| Full corpus | `ao forge transcript` | Only via `$compile` or manual invocation |
 | Specific session | `ao forge transcript <path/to/session.jsonl>` | Manual targeted mining |
 
 ## Rationale
@@ -25,7 +25,7 @@ Session-scoped forge prevents `$validation` from:
 2. **Producing duplicate learnings** from previously captured patterns
 3. **Consuming excessive time** on large transcript corpora
 
-Full-corpus mining is `$athena`'s responsibility (Mine → Grow → Defrag cycle).
+Full-corpus mining is `$compile`'s responsibility (Mine → Grow → Defrag cycle).
 
 ## Deduplication
 

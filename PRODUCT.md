@@ -54,7 +54,7 @@ AgentOps has three layers, each designed to close one or more of the three gaps:
 Markdown-defined workflows that agents load and execute. Organized by which gap they close:
 
 - **Judgment validation** — `/pre-mortem`, `/vibe`, `/council`, `/review`. Multi-model consensus validates plans before build and code before commit.
-- **Durable learning** — `/retro`, `/forge`, `/inject`, `/flywheel`, `/athena`. Extract, score, curate, and retrieve learnings so solved problems stay solved.
+- **Durable learning** — `/retro`, `/forge`, `/inject`, `/flywheel`, `/compile`. Extract, score, curate, and retrieve learnings so solved problems stay solved.
 - **Loop closure** — `/post-mortem`, `/evolve`, `/rpi`, `/crank`. Turn completed work into better next work, better rules, and better future context.
 
 Skills work across Claude Code, Codex CLI, Cursor, and OpenCode. Each runtime has native format support (`/converter` exports between them). Codex-native skills ship alongside Claude-native.

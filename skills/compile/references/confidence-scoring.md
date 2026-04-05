@@ -61,7 +61,7 @@ When loading learnings for a session:
 3. Load `language:<detected-languages>` learnings
 4. DO NOT load learnings from other projects (prevents cross-contamination)
 
-## Integration with Athena
+## Integration with Compile
 
 ### Mine Phase
 When extracting learnings, assign initial confidence score and scope:

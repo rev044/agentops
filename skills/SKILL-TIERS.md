@@ -94,14 +94,14 @@ Append-only ledger in `.agents/`. Every session writes. Freshness decay prunes. 
 
 ```
 ┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐
-│  retro  │────►│  forge  │────►│  athena  │────►│  inject  │
+│  retro  │────►│  forge  │────►│ compile  │────►│  inject  │
 └─────────┘     └─────────┘     └──────────┘     └──────────┘
      ▲                                                 │
      │              ┌──────────┐                       │
      └──────────────│ flywheel │◄──────────────────────┘
                     └──────────┘
 
-User-facing: /athena (query + grow), /retro (quick-capture), /post-mortem (full), /flywheel
+User-facing: /compile (query + grow), /retro (quick-capture), /post-mortem (full), /flywheel
 Background:  inject, forge, provenance, ratchet
 CLI:         ao lookup, ao extract, ao forge, ao maturity
 ```
@@ -134,7 +134,7 @@ What are you trying to do?
 │   └─ Generate ideas ────────────► /brainstorm
 │
 ├─ "Learn from past work"
-│   ├─ What do we know about X? ──► /athena <query>
+│   ├─ What do we know about X? ──► /compile <query>
 │   ├─ Save this insight ─────────► /retro --quick "insight"
 │   ├─ Full retrospective ────────► /post-mortem
 │   └─ Trace a decision ─────────► /trace <concept>
@@ -204,7 +204,7 @@ These are how skills chain in practice:
 | **Full pipeline** | `/rpi` (chains all above) | End-to-end, autonomous |
 | **Evolve loop** | `/evolve` (chains `/rpi` repeatedly) | Fitness-scored improvement |
 | **PR contribution** | `/pr-research` → `/pr-plan` → `/pr-implement` → `/pr-validate` → `/pr-prep` | External repo |
-| **Knowledge query** | `/athena` → `/research` (if gaps) | Understanding before building |
+| **Knowledge query** | `/compile` → `/research` (if gaps) | Understanding before building |
 | **Standalone review** | `/council validate <target>` | Ad-hoc multi-judge review |
 | **Time-boxed pipeline** | `/rpi --budget=research:180,plan:120` | Prevent research/plan stalls |
 | **TDD feature** | `/implement <issue>` | TDD-first by default (skip with `--no-tdd`) |
@@ -263,7 +263,7 @@ These are how skills chain in practice:
 
 | Skill | Tier | Description |
 |-------|------|-------------|
-| **athena** | advanced | Active knowledge intelligence — Mine → Grow → Defrag cycle |
+| **compile** | advanced | Active knowledge intelligence — Mine → Grow → Defrag cycle |
 | **harvest** | knowledge | Cross-rig knowledge consolidation — sweep, dedup, promote |
 | **knowledge-activation** | knowledge | Outer-loop corpus operationalization — beliefs, playbooks, briefings, and gap surfaces |
 | **retro** | knowledge | Quick-capture wrapper (full retro → /post-mortem) |
@@ -338,9 +338,9 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 
 | Skill | Dependencies | Type |
 |-------|--------------|------|
-| **athena** | - | - (standalone, ao CLI optional) |
+| **compile** | - | - (standalone, ao CLI optional) |
 | **harvest** | - | - (standalone, ao CLI required) |
-| **knowledge-activation** | athena, harvest, flywheel | optional, optional, optional |
+| **knowledge-activation** | compile, harvest, flywheel | optional, optional, optional |
 | **council** | - | - (core primitive) |
 | **vibe** | council, complexity, standards | required, optional (graceful skip), optional |
 | **pre-mortem** | council | required |

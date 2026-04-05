@@ -26,7 +26,7 @@ In multi-agent environments, beads operates at two levels with automatic prefix-
 
 ```bash
 bd show gt-xyz   # Routes to daedalus beads
-bd show ap-abc   # Routes to athena beads
+bd show ap-abc   # Routes to compile beads
 bd show hq-123   # Routes to town beads
 ```
 
@@ -47,7 +47,7 @@ BD_DEBUG_ROUTING=1 bd show <id>
 | Prefix | Rig | Prefix | Rig |
 |--------|-----|--------|-----|
 | `hq` | town (coordination) | `gt` | daedalus |
-| `ap` | athena | `ho` | argus |
+| `ap` | compile | `ho` | argus |
 | `be` | chronicle | `gitops` | gitops |
 | `starport` | starport | `fr` | cyclopes |
 
@@ -70,14 +70,14 @@ in the target rig's database to be hookable.
 BEADS_DIR=~/gt/daedalus/mayor/rig/.beads bd create --title="Fix X" --type=bug
 # Creates: gt-xxxxx (daedalus prefix)
 
-BEADS_DIR=~/gt/athena/mayor/rig/.beads bd create --title="Add Y" --type=feature
-# Creates: ap-xxxxx (athena prefix)
+BEADS_DIR=~/gt/compile/mayor/rig/.beads bd create --title="Add Y" --type=feature
+# Creates: ap-xxxxx (compile prefix)
 ```
 
 **Then sling normally:**
 ```bash
 gt sling gt-xxxxx daedalus   # Works - bead is in daedalus's database
-gt sling ap-xxxxx athena     # Works - bead is in athena's database
+gt sling ap-xxxxx compile     # Works - bead is in compile's database
 ```
 
 ## Common Gotchas

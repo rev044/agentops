@@ -34,7 +34,7 @@
     ],
     "skills": [
       {
-        "name": "athena",
+        "name": "compile",
         "treatment": "parity_only",
         "wave": "catalog-parity",
         "reason": "The canonical knowledge-cycle contract is already operationally specific; a bespoke Codex prompt is not justified yet."
@@ -517,22 +517,22 @@
   },
   "skills": [
     {
-      "name": "athena",
-      "source_skill": "skills/athena",
+      "name": "compile",
+      "source_skill": "skills/compile",
       "source_hash": "16201db71f7c545f6169815d66606938bd8af90cc7b2d880cd53139e85a57fe5",
-      "generated_hash": "c7f69a9cd912ce7816ed0a990a0fb9f64d7bb734fdbb0b88dc8f1352c987062e"
+      "generated_hash": "ec59197631f9544d5d7493425872a89702b84c1ea27f89ea51b59a239cbe3a35"
     },
     {
       "name": "beads",
       "source_skill": "skills/beads",
       "source_hash": "80a5b9fd59c945be2ea4f5b7f25f5439948b931d2ee15553568c1fe223b8d9cb",
-      "generated_hash": "d5f314dcf90252cca443f51c71800ba6beb8c8b34f50f52aa8520b6e3c54969b"
+      "generated_hash": "b2ed207e7f9df3e8eac9b7981483cdd91fab444b7b31e3ece603364baa972b4e"
     },
     {
       "name": "bootstrap",
       "source_skill": "skills/bootstrap",
       "source_hash": "",
-      "generated_hash": "dbad86557b10c372c56abb89a9181e0565f1a165d3c6745ae167b3832b8e74ea"
+      "generated_hash": "535e40a5cd96a254f212f26e2a77d4c3c71ad2b2667e1a5ec127cdaa5f6aadce"
     },
     {
       "name": "brainstorm",
@@ -604,7 +604,7 @@
       "name": "evolve",
       "source_skill": "skills/evolve",
       "source_hash": "d6f47f2fe5d384d3c94143e120a056699c29a548bd391d93aa01d20b9a94dd6c",
-      "generated_hash": "70e8d4f0eb896c0ae56ae0f295ef1ed2dc025394f33ba952e7192258b5994430"
+      "generated_hash": "43724c6c4d922cc69eab2a7aa7ccac6b94a697c51ee93d4b6cf6683466fd4c49"
     },
     {
       "name": "flywheel",
@@ -622,7 +622,7 @@
       "name": "goals",
       "source_skill": "skills/goals",
       "source_hash": "3a2b714569c2378c300658f7796125275b18204a91d8e8eee252507f7c7caf91",
-      "generated_hash": "23d4c371b7190b28db6132e99e5fd222f744a1f98f59f89b05d0cf18c6b5a179"
+      "generated_hash": "1f411f787f113f8381165ee5c14ac97a3f1e84ab3672a596f08ee555b7c45f60"
     },
     {
       "name": "grafana-platform-dashboard",
@@ -640,7 +640,7 @@
       "name": "harvest",
       "source_skill": "skills/harvest",
       "source_hash": "2487c8f10d74254ae38d468f10e05dde1405532ed1e8e8b364a7bca5a3469cdc",
-      "generated_hash": "4df759ffbe8caaff5da3a26d898ac155d59908700ca2e5e7d5903dd69748f3f5"
+      "generated_hash": "3d81d15c2f9a27b0b130034bdba196af657e766023c10bda4533bf6b147f4adf"
     },
     {
       "name": "heal-skill",
@@ -664,7 +664,7 @@
       "name": "knowledge-activation",
       "source_skill": "skills/knowledge-activation",
       "source_hash": "",
-      "generated_hash": "d0641d06bc369778fe3d5e26d43547cdb24160e72e9c7ed42e47822c1526f491"
+      "generated_hash": "2b7128de2d1aaf33dd0de43c72e7f2be01c2744f0e567efe51a88194fe3c8fde"
     },
     {
       "name": "openai-docs",
@@ -694,7 +694,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "afce1fac76a1e506e9405b76886ecdf390c3eead5d863d82b8311286ad00d6a4",
-      "generated_hash": "4024a9449735ede7a9cab65ca26d90c6a00014942f80af908ddf4fadace45d60"
+      "generated_hash": "6e39077cb940e491f0513c731b60a1c4372f53b632fbb5e053b6a1e5e45493ae"
     },
     {
       "name": "pr-implement",
@@ -802,7 +802,7 @@
       "name": "research",
       "source_skill": "skills/research",
       "source_hash": "eaca810bd9d828fc2ce5fabb9bfce2079a2af35d7be0dfb1c835806a0513d2f0",
-      "generated_hash": "860022e2699748d945c2b7544eba07433e01c7755153aa34538e5d4546f0afe6"
+      "generated_hash": "2b69a1de03d2aba82a07a6f8986036fe4de870ebe0c4841e55ea9c47f06bbdec"
     },
     {
       "name": "retro",
@@ -898,13 +898,13 @@
       "name": "using-agentops",
       "source_skill": "skills/using-agentops",
       "source_hash": "7f5cc28fcf68821caddf4fbb323e630fc3be0c32ad46121086a7be3e2b5752b3",
-      "generated_hash": "f757bb4fc6f93c31d85ad8ffcad8076d53ee11feb4699bb44795ab1bd25c4826"
+      "generated_hash": "42024a95370f66df23b73d1f0ac2c355eb1a23826ca788807a467437aecd436b"
     },
     {
       "name": "validation",
       "source_skill": "skills/validation",
       "source_hash": "2e71f8dbe94c65971f0dff7f82ac83396649ff036bbea388060174945f660c5c",
-      "generated_hash": "a1f447b13b69f8f5e017d1c52390e4b1a4ee1d1a7e6f67943727d524ffbb9f58"
+      "generated_hash": "24b75c8b2feb0ebca1443a479794891d0f48147e04b5b8dd1fa24973cd8a2cd9"
     },
     {
       "name": "vibe",

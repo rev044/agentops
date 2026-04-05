@@ -135,7 +135,7 @@ This directory contains accumulated knowledge from agent sessions.
 Knowledge is automatically managed by the AgentOps flywheel:
 - `/inject` surfaces relevant prior knowledge at session start
 - `/post-mortem` extracts and processes new learnings
-- `/athena` runs maintenance (mine, grow, defrag)
+- `/compile` runs maintenance (mine, grow, defrag)
 ```
 
 If `HAS_AGENTS` is true and `--force` is not set: skip. Report ".agents/ exists -- skipped."

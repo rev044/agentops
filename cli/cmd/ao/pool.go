@@ -33,8 +33,8 @@ var poolCmd = &cobra.Command{
 
 Pools organize candidates by their processing status:
   pending    Awaiting initial scoring
-  staged     Ready for promotion to Athena
-  promoted   Successfully stored in Athena
+  staged     Ready for promotion to Compile
+  promoted   Successfully stored in Compile
   rejected   Rejected during review
 
 Examples:

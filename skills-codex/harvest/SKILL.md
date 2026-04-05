@@ -93,7 +93,7 @@ size budgets, sweep frequency, staleness thresholds, and cross-rig synthesis tri
 
 ## See Also
 
-- `$athena` — Single-rig Mine/Grow/Defrag
+- `$compile` — Single-rig Mine/Grow/Defrag
 - `$flywheel` — Flywheel health monitoring
 - `$inject` — Knowledge injection into sessions
 - `$forge` — Transcript knowledge extraction

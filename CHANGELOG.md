@@ -156,7 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Model cost tiers and config writes** — `ao config` can now assign per-agent models by cost tier and persist repo configuration changes directly
 - **Search brokerage over session history and repo knowledge** — `ao search` now wraps upstream `cass` results with repo-local AgentOps artifacts by default
-- **Reviewer and post-mortem reference packs** — Added model-routing, iterative-retrieval, confidence-scoring, write-time-quality, and conflict-recovery guidance across council, research, swarm, vibe, athena, and related skills
+- **Reviewer and post-mortem reference packs** — Added model-routing, iterative-retrieval, confidence-scoring, write-time-quality, and conflict-recovery guidance across council, research, swarm, vibe, compile, and related skills
 
 ### Changed
 
@@ -174,7 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Node repair operator** — Crank now classifies task failures as RETRY (transient), DECOMPOSE (too complex), or PRUNE (blocked) with budget-controlled recovery
-- **Knowledge refresh auto-trigger** — Lightweight athena defrag runs automatically at session end via new SessionEnd hook
+- **Knowledge refresh auto-trigger** — Lightweight compile defrag runs automatically at session end via new SessionEnd hook
 - **Configurable review agents** — Project-level `.agents/reviewer-config.md` controls which judge perspectives council and vibe spawn
 - **Three-tier plan detail scaling** — Plan auto-selects Minimal, Standard, or Deep templates based on issue count and complexity
 - **Adversarial ideation** — Brainstorm Phase 3b stress-tests each approach with four red-team questions before user selection
@@ -440,7 +440,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Codex install workflow now uses `~/.agents/skills` as the single raw skill home and stops recreating an AgentOps mirror in `~/.codex/skills`
 - Native Codex plugin refresh now archives overlapping legacy `~/.codex/skills` AgentOps folders instead of repopulating them
 - Codex install docs now consistently describe the `~/.agents/skills` workflow and the need for a fresh Codex session after install
-- Codex skill conversion now preserves multiline YAML `description` fields correctly, fixing malformed generated metadata for skills such as Athena
+- Codex skill conversion now preserves multiline YAML `description` fields correctly, fixing malformed generated metadata for skills such as Compile
 - `ao doctor` now treats plugin-cache plus `~/.agents/skills` as the supported Codex layout and reports manifest drift with accurate wording
 
 ## [2.20.0] - 2026-03-05
@@ -460,7 +460,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Behavioral guardrails — 3-layer hook defense-in-depth (intent-echo, research-loop-detector, task-validation-gate)
 - Context enforcement hook and run-id namespaced artifact paths
 - Headless invocation standards and RPI phase runner
-- Nightly CI athena job for automated knowledge warmup
+- Nightly CI compile job for automated knowledge warmup
 - Coverage ratchet gate with BATS integration tests for shell scripts
 - Fuzz targets, property tests, and golden file contracts for CLI
 - Git worker guard, embedded parity gate, and swarm evidence validation hooks

@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Model cost tiers and config writes** — `ao config` can now assign per-agent models by cost tier and persist repo configuration changes directly
 - **Search brokerage over session history and repo knowledge** — `ao search` now wraps upstream `cass` results with repo-local AgentOps artifacts by default
-- **Reviewer and post-mortem reference packs** — Added model-routing, iterative-retrieval, confidence-scoring, write-time-quality, and conflict-recovery guidance across council, research, swarm, vibe, athena, and related skills
+- **Reviewer and post-mortem reference packs** — Added model-routing, iterative-retrieval, confidence-scoring, write-time-quality, and conflict-recovery guidance across council, research, swarm, vibe, compile, and related skills
 
 ### Changed
 
@@ -102,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Node repair operator** — Crank now classifies task failures as RETRY (transient), DECOMPOSE (too complex), or PRUNE (blocked) with budget-controlled recovery
-- **Knowledge refresh auto-trigger** — Lightweight athena defrag runs automatically at session end via new SessionEnd hook
+- **Knowledge refresh auto-trigger** — Lightweight compile defrag runs automatically at session end via new SessionEnd hook
 - **Configurable review agents** — Project-level `.agents/reviewer-config.md` controls which judge perspectives council and vibe spawn
 - **Three-tier plan detail scaling** — Plan auto-selects Minimal, Standard, or Deep templates based on issue count and complexity
 - **Adversarial ideation** — Brainstorm Phase 3b stress-tests each approach with four red-team questions before user selection
@@ -412,8 +412,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Codex install bundle** — Hardened install discovery, skill sync,
   executable bits, and local Codex validation flows
-- **Evolve and Athena reliability** — Corrected cycle logging, late-cycle
-  SHA bindings, and nightly Athena/security regressions
+- **Evolve and Compile reliability** — Corrected cycle logging, late-cycle
+  SHA bindings, and nightly Compile/security regressions
 - **Release validation** — Restored coverage ratchet enforcement and
   cleaned up remaining Codex install and context-doc drift
 
@@ -430,7 +430,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and automated knowledge mining with `ao mine` and `ao defrag`
 - **Behavioral guardrails** — Added a three-layer hook system with intent
   echo, research loop detection, and task validation gates
-- **Nightly CI and test hardening** — Added nightly athena automation,
+- **Nightly CI and test hardening** — Added nightly compile automation,
   BATS integration tests, fuzz targets, and golden-file contracts
 
 ### Changed

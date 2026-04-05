@@ -47,10 +47,10 @@
 
 ## Worked Overnight Ladder
 
-**User says:** `$evolve --athena`
+**User says:** `$evolve --compile`
 
 **What happens:**
-1. Athena warmup surfaces a stale research note about runtime smoke coverage.
+1. Compile warmup surfaces a stale research note about runtime smoke coverage.
 2. Evolve loads the repo execution profile first, so the startup reads, tracker wrapper, and validation bundle come from repo policy instead of a giant prompt.
 3. `bd ready` has one open docs/runtime parity bead, so evolve runs that first.
 4. That bead's `$post-mortem` harvests an implementation follow-up into `next-work.jsonl`; evolve re-reads the queue and runs it immediately.

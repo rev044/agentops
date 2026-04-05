@@ -198,7 +198,7 @@ fi
 ```bash
 CHAIN1="standards council pre-mortem plan research inject..."  # RPI loop
 CHAIN2="pr-research pr-plan..."  # Contribution workflow
-CHAIN3="athena evolve..."  # Knowledge/learning path
+CHAIN3="compile evolve..."  # Knowledge/learning path
 CHAIN4="doc readme..."  # Standalone utilities
 ```
 

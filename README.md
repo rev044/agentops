@@ -184,7 +184,7 @@ Session 50 starts with 50 sessions of accumulated wisdom.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**How it compounds:** Session 1, your agent hits a timeout bug and spends 2 hours debugging. `/retro` captures the lesson. `/athena` promotes it to a pattern. Session 15, a new agent greps "timeout" and finds the answer in 2 operations — turning a 2-hour investigation into a 10-second lookup. Session 20, a planning rule gates plans that omit timeout checks. That's institutional knowledge that survives agent death.
+**How it compounds:** Session 1, your agent hits a timeout bug and spends 2 hours debugging. `/retro` captures the lesson. `/compile` promotes it to a pattern. Session 15, a new agent greps "timeout" and finds the answer in 2 operations — turning a 2-hour investigation into a 10-second lookup. Session 20, a planning rule gates plans that omit timeout checks. That's institutional knowledge that survives agent death.
 
 ```
 ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐

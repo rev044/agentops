@@ -60,7 +60,7 @@ You build, debug, research, or plan. In hook-capable runtimes, transcripts are t
 
 ### Stage 2: Forge — **L** (extraction)
 
-At closeout, `ao forge transcript` or `ao codex stop` parses the transcript and extracts structured knowledge — decisions, solutions, learnings, failures, and references. Each becomes a markdown file in `.agents/knowledge/pending/`. In hook-capable runtimes, the `SessionEnd` hook (`session-end-maintenance.sh`) triggers this automatically; the `athena-session-defrag.sh` hook runs deduplication and defrag in the same event.
+At closeout, `ao forge transcript` or `ao codex stop` parses the transcript and extracts structured knowledge — decisions, solutions, learnings, failures, and references. Each becomes a markdown file in `.agents/knowledge/pending/`. In hook-capable runtimes, the `SessionEnd` hook (`session-end-maintenance.sh`) triggers this automatically; the `compile-session-defrag.sh` hook runs deduplication and defrag in the same event.
 
 ### Stage 3: Pool — **L** (curation)
 

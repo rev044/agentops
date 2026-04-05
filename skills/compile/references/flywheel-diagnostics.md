@@ -68,7 +68,7 @@ echo "Ratio: $learnings learnings : $patterns patterns"
 ```
 
 ### Full Diagnostic
-During Athena's Grow phase, compute and report:
+During Compile's Grow phase, compute and report:
 
 | Metric | Formula | Healthy | Warning | Critical |
 |--------|---------|---------|---------|----------|
@@ -98,7 +98,7 @@ During Athena's Grow phase, compute and report:
 
 ### For Bad Production:Extraction Ratio (> 20:1)
 - Pick top-10 most-related learnings and synthesize into patterns
-- Run Athena Grow with explicit synthesis mode
+- Run Compile Grow with explicit synthesis mode
 - Archive learnings that don't cluster with others
 
 ## Four Closure Loops
@@ -114,7 +114,7 @@ If any loop is broken, the flywheel stalls. During Grow phase, check each loop's
 
 ## Normalization Defect Detection
 
-During flywheel diagnostics, Athena should check for these common normalization defects that corrupt metric accuracy:
+During flywheel diagnostics, Compile should check for these common normalization defects that corrupt metric accuracy:
 
 | Defect | Detection Rule | Impact |
 |--------|---------------|--------|

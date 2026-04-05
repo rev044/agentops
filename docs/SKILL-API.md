@@ -170,7 +170,7 @@ metadata:
 | `orchestration` | Multi-skill coordination | rpi, crank, swarm, evolve |
 | `session` | Session lifecycle | handoff, recover, status, quickstart |
 | `background` | Mechanical utilities | push, ratchet, flywheel, forge |
-| `knowledge` | Knowledge management | athena, trace |
+| `knowledge` | Knowledge management | compile, trace |
 | `product` | Product strategy | product, readme, release, goals |
 | `library` | Shared references | shared, standards, beads |
 | `meta` | System-level | using-agentops, update, heal-skill |
@@ -224,7 +224,7 @@ All 52 skills and their context policies:
 | **Knowledge** | | | | |
 | research | fork | exclude: HISTORY, TASK | questions | topic |
 | trace | fork | exclude: HISTORY | task | full |
-| athena | fork | exclude: TASK | task | full |
+| compile | fork | exclude: TASK | task | full |
 | forge | fork | exclude: TASK | task | full |
 | flywheel | fork | exclude: TASK | task | full |
 | retro | fork | — | — | — |

@@ -557,7 +557,7 @@ func collectMineWorkItems(r *MineReport) []mineWorkItemEmit {
 				Title:       fmt.Sprintf("Reduce complexity: %s in %s (CC=%d)", h.Func, h.File, h.Complexity),
 				Type:        "refactor",
 				Severity:    "high",
-				Source:      "athena-mine",
+				Source:      "compile-mine",
 				Description: fmt.Sprintf("Function %s in %s has cyclomatic complexity %d with %d recent edits. Extract helpers to reduce CC below 15.", h.Func, h.File, h.Complexity, h.RecentEdits),
 				Evidence:    fmt.Sprintf("complexity=%d recent_edits=%d", h.Complexity, h.RecentEdits),
 				File:        h.File,
@@ -573,7 +573,7 @@ func collectMineWorkItems(r *MineReport) []mineWorkItemEmit {
 				Title:       fmt.Sprintf("Rescue orphan: %s", orphan),
 				Type:        "knowledge-gap",
 				Severity:    "medium",
-				Source:      "athena-mine",
+				Source:      "compile-mine",
 				Description: fmt.Sprintf("Research file %q exists in .agents/research/ but is not referenced in any learning. Extract its key insights into a learning file.", orphan),
 				Evidence:    "not referenced in .agents/learnings/",
 			}
@@ -584,7 +584,7 @@ func collectMineWorkItems(r *MineReport) []mineWorkItemEmit {
 	return items
 }
 
-// loadExistingMineIDs scans a JSONL file for unconsumed athena-mine item IDs.
+// loadExistingMineIDs scans a JSONL file for unconsumed compile-mine item IDs.
 // Returns an empty map with nil error when the file does not exist.
 // Propagates other errors (permission denied, corrupt read, etc.).
 func loadExistingMineIDs(path string) (map[string]bool, error) {
@@ -610,7 +610,7 @@ func loadExistingMineIDs(path string) (map[string]bool, error) {
 			Items      []mineWorkItemEmit `json:"items"`
 		}
 		if json.Unmarshal([]byte(line), &entry) == nil &&
-			entry.SourceEpic == "athena-mine" && !entry.Consumed {
+			entry.SourceEpic == "compile-mine" && !entry.Consumed {
 			for _, it := range entry.Items {
 				if it.ID != "" {
 					ids[it.ID] = true
@@ -643,7 +643,7 @@ func writeMineWorkItems(path string, items []mineWorkItemEmit, ts string) error 
 
 	for _, item := range items {
 		entry := emitEntry{
-			SourceEpic:  "athena-mine",
+			SourceEpic:  "compile-mine",
 			Timestamp:   ts,
 			Items:       []mineWorkItemEmit{item},
 			Consumed:    false,

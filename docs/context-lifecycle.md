@@ -58,7 +58,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | `ao lookup` / injection | [Knowledge Ledger](#the-knowledge-ledger--session-to-session-flow) and `ao` CLI | Retrieves repo-specific context at session start and task boundaries |
 | `/retro` and `/post-mortem` extraction | [skills/post-mortem/SKILL.md](../skills/post-mortem/SKILL.md) | Turns completed work into reusable learnings and patterns |
 | Freshness / maturity controls | `ao maturity`, `ao dedup`, `ao contradict` | Keeps retrieval focused on useful, current knowledge |
-| Athena cycle | [GOALS.md](../GOALS.md) directive 5 | Mines missed signal, defrags stale knowledge, and flags oscillation |
+| Compile cycle | [GOALS.md](../GOALS.md) directive 5 | Mines missed signal, defrags stale knowledge, and flags oscillation |
 
 **Supporting failure modes addressed inside this gap:**
 
@@ -103,7 +103,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | Judgment validation | pre-mortem gate | `hooks/pre-mortem-gate.sh`, `hooks/hooks.json` | Runtime hook enforcement |
 | Durable learning | extraction + retrieval | `.agents/`, `ao lookup`, `ao forge`, finding registry, finding artifacts | Repo-specific context and reusable structured findings loaded into later sessions |
 | Durable learning | curation | `ao maturity`, `ao dedup`, `ao contradict` | Freshness, contradiction, and duplication control |
-| Durable learning | Athena | `GOALS.md`, Athena checks | Daily maintenance of learning quality |
+| Durable learning | Compile | `GOALS.md`, Compile checks | Daily maintenance of learning quality |
 | Loop closure | `/post-mortem` + finding compiler | `skills/post-mortem/SKILL.md`, `docs/contracts/finding-registry.md`, `docs/contracts/finding-compiler.md` | Learnings + next work harvested from completed work; reusable findings re-enter planning/review and compile into preventive artifacts |
 | Loop closure | task-validation compiled enforcement | `hooks/task-validation-gate.sh`, `.agents/constraints/index.json` | Task-validation executes active compiled constraints before completion is accepted |
 | Loop closure | flywheel close hook | `hooks/ao-flywheel-close.sh` | Stop-time feedback loop closure |

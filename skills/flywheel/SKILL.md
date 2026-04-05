@@ -261,7 +261,7 @@ ao flywheel status --json       # machine-readable
 
 | Verdict | Action |
 |---------|--------|
-| **decaying** | Run `/athena` cycle, archive stale artifacts, increase citation via `ao lookup` |
+| **decaying** | Run `/compile` cycle, archive stale artifacts, increase citation via `ao lookup` |
 | **accumulating** | Review orphaned research (`/research`→`/retro` pipeline), improve forge quality |
 | **compounding** | Maintain cadence. Consider capturing baselines (`ao metrics baseline`) for trend tracking |
 

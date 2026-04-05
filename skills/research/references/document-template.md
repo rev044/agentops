@@ -83,7 +83,7 @@ Track which sources provided key insights (enables flywheel optimization).
 
 **Tier 2 (Semantic)**
 - `smart-connections` - Obsidian semantic search
-- `athena-knowledge` - MCP ai-platform search
+- `compile-knowledge` - MCP ai-platform search
 
 **Tier 3 (Scoped Search)**
 - `grep` - Pattern matching in code

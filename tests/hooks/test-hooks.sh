@@ -1920,27 +1920,27 @@ fi
 
 # ============================================================
 echo ""
-echo "=== athena-session-defrag.sh ==="
+echo "=== compile-session-defrag.sh ==="
 # ============================================================
 
-MOCK_ATHENA="$TMPDIR/mock-athena-defrag"
-setup_mock_repo "$MOCK_ATHENA"
-mkdir -p "$MOCK_ATHENA/bin"
-mkdir -p "$MOCK_ATHENA/.agents/patterns" "$MOCK_ATHENA/.agents/learnings" "$MOCK_ATHENA/.agents/athena"
-cat > "$MOCK_ATHENA/bin/ao" <<'EOF'
+MOCK_COMPILE="$TMPDIR/mock-compile-defrag"
+setup_mock_repo "$MOCK_COMPILE"
+mkdir -p "$MOCK_COMPILE/bin"
+mkdir -p "$MOCK_COMPILE/.agents/patterns" "$MOCK_COMPILE/.agents/learnings" "$MOCK_COMPILE/.agents/compile"
+cat > "$MOCK_COMPILE/bin/ao" <<'EOF'
 #!/usr/bin/env bash
 if [ "${1:-}" = "defrag" ]; then
     exit 0
 fi
 exit 1
 EOF
-chmod +x "$MOCK_ATHENA/bin/ao"
-cat > "$MOCK_ATHENA/.agents/patterns/placeholder.md" <<'EOF'
+chmod +x "$MOCK_COMPILE/bin/ao"
+cat > "$MOCK_COMPILE/.agents/patterns/placeholder.md" <<'EOF'
 ---
 title: Placeholder Pattern
 ---
 EOF
-cat > "$MOCK_ATHENA/.agents/learnings/stacked-frontmatter.md" <<'EOF'
+cat > "$MOCK_COMPILE/.agents/learnings/stacked-frontmatter.md" <<'EOF'
 ---
 title: First
 ---
@@ -1949,45 +1949,45 @@ title: First
 title: Second
 ---
 EOF
-cat > "$MOCK_ATHENA/.agents/learnings/bundled.md" <<'EOF'
+cat > "$MOCK_COMPILE/.agents/learnings/bundled.md" <<'EOF'
 # Learning: One
 
 ## Learning: Two
 EOF
-cat > "$MOCK_ATHENA/.agents/learnings/duplicate-headings.md" <<'EOF'
+cat > "$MOCK_COMPILE/.agents/learnings/duplicate-headings.md" <<'EOF'
 ## Heading
 alpha
 
 ## Heading
 beta
 EOF
-cat > "$MOCK_ATHENA/.agents/athena/2026-03-29-old-contradiction-report.md" <<'EOF'
+cat > "$MOCK_COMPILE/.agents/compile/2026-03-29-old-contradiction-report.md" <<'EOF'
 # Contradiction Report
 EOF
-cat > "$MOCK_ATHENA/.agents/athena/2026-03-30-extraction-complete.md" <<'EOF'
+cat > "$MOCK_COMPILE/.agents/compile/2026-03-30-extraction-complete.md" <<'EOF'
 # Extraction Complete
 EOF
-touch -t 202603290101 "$MOCK_ATHENA/.agents/athena/2026-03-29-old-contradiction-report.md"
-touch -t 202603300101 "$MOCK_ATHENA/.agents/athena/2026-03-30-extraction-complete.md"
+touch -t 202603290101 "$MOCK_COMPILE/.agents/compile/2026-03-29-old-contradiction-report.md"
+touch -t 202603300101 "$MOCK_COMPILE/.agents/compile/2026-03-30-extraction-complete.md"
 
-OUTPUT=$(cd "$MOCK_ATHENA" && PATH="$MOCK_ATHENA/bin:$PATH" bash "$HOOKS_DIR/athena-session-defrag.sh" 2>/dev/null || true)
+OUTPUT=$(cd "$MOCK_COMPILE" && PATH="$MOCK_COMPILE/bin:$PATH" bash "$HOOKS_DIR/compile-session-defrag.sh" 2>/dev/null || true)
 if echo "$OUTPUT" | jq -e '.hookSpecificOutput.hookEventName == "SessionEnd"
-  and (.hookSpecificOutput.additionalContext | test("Athena defrag completed"))
+  and (.hookSpecificOutput.additionalContext | test("Compile defrag completed"))
   and (.hookSpecificOutput.additionalContext | test("placeholders=1"))
   and (.hookSpecificOutput.additionalContext | test("stacked_frontmatter=1"))
   and (.hookSpecificOutput.additionalContext | test("bundled_multi_learning=1"))
   and (.hookSpecificOutput.additionalContext | test("duplicate_headings=1"))
   and (.hookSpecificOutput.additionalContext | test("stale_contradictions=1"))' >/dev/null 2>&1; then
-    pass "athena-session-defrag emits SessionEnd JSON on success"
+    pass "compile-session-defrag emits SessionEnd JSON on success"
 else
-    fail "athena-session-defrag emits SessionEnd JSON on success"
+    fail "compile-session-defrag emits SessionEnd JSON on success"
 fi
 
-OUTPUT=$(cd "$MOCK_ATHENA" && AGENTOPS_HOOKS_DISABLED=1 PATH="$MOCK_ATHENA/bin:$PATH" bash "$HOOKS_DIR/athena-session-defrag.sh" 2>&1 || true)
+OUTPUT=$(cd "$MOCK_COMPILE" && AGENTOPS_HOOKS_DISABLED=1 PATH="$MOCK_COMPILE/bin:$PATH" bash "$HOOKS_DIR/compile-session-defrag.sh" 2>&1 || true)
 if [ -z "$OUTPUT" ]; then
-    pass "athena-session-defrag kill switch suppresses output"
+    pass "compile-session-defrag kill switch suppresses output"
 else
-    fail "athena-session-defrag kill switch suppresses output"
+    fail "compile-session-defrag kill switch suppresses output"
 fi
 
 # ============================================================

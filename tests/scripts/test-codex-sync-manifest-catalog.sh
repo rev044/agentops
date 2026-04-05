@@ -15,7 +15,7 @@ fail() { echo "FAIL: $1"; FAIL=$((FAIL + 1)); }
   exit 1
 }
 
-if jq -e '.codex_override_catalog.skills[0].name == "athena"' "$MANIFEST" >/dev/null; then
+if jq -e '.codex_override_catalog.skills[0].name == "compile"' "$MANIFEST" >/dev/null; then
   pass "artifact manifest embeds codex override catalog"
 else
   fail "artifact manifest should embed codex override catalog"

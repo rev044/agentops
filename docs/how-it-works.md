@@ -114,7 +114,7 @@ The active runtime manifest currently declares **7 hook event sections** in `hoo
 | Hook surface | Trigger | What it does | Gap closed |
 |--------------|---------|--------------|------------|
 | Session start | `SessionStart` | Runs `session-start.sh` — startup maintenance, handoff recovery, and silent factory-state staging | Runtime continuity |
-| Session end maintenance | `SessionEnd` | Runs `session-end-maintenance.sh` (transcript mining, maturity management) and `athena-session-defrag.sh` (knowledge deduplication and defrag) | Durable learning (extraction), Loop closure |
+| Session end maintenance | `SessionEnd` | Runs `session-end-maintenance.sh` (transcript mining, maturity management) and `compile-session-defrag.sh` (knowledge deduplication and defrag) | Durable learning (extraction), Loop closure |
 | Flywheel close | `Stop` | Runs `ao-flywheel-close.sh` — closes the feedback loop via `ao flywheel close-loop` | Loop closure |
 
 ### Guardrails and continuity surfaces

@@ -15,7 +15,7 @@ metadata:
   dependencies:
     - rpi         # required - executes each improvement cycle
     - post-mortem # required - auto-runs at teardown to harvest learnings
-    - athena      # optional - knowledge warmup when --athena is passed
+    - compile     # optional - knowledge warmup when --compile is passed
   triggers:
     - evolve
     - improve everything
@@ -56,8 +56,8 @@ Always-on autonomous loop over `/rpi`. Work selection order:
 /evolve --beads-only         # Skip goals measurement, work beads backlog only
 /evolve --quality            # Quality-first mode: prioritize post-mortem findings
 /evolve --quality --max-cycles=10  # Quality mode with cycle cap
-/evolve --athena             # Mine → Defrag warmup before first cycle
-/evolve --athena --max-cycles=5  # Warm knowledge base then run 5 cycles
+/evolve --compile            # Mine → Defrag warmup before first cycle
+/evolve --compile --max-cycles=5 # Warm knowledge base then run 5 cycles
 /evolve --test-first         # Default strict-quality /rpi execution path
 /evolve --no-test-first      # Explicit opt-out from test-first mode
 /evolve --queue=.agents/evolve/roadmap.md           # Process ordered roadmap
@@ -73,7 +73,7 @@ Always-on autonomous loop over `/rpi`. Work selection order:
 | `--beads-only` | off | Skip goal measurement and run backlog-only selection |
 | `--skip-baseline` | off | Skip first-run baseline snapshot |
 | `--quality` | off | Prioritize harvested post-mortem findings |
-| `--athena` | off | Run `ao mine` + `ao defrag` warmup before cycle 1 |
+| `--compile` | off | Run `ao mine` + `ao defrag` warmup before cycle 1 |
 | `--test-first` | on | Pass strict-quality defaults through to `/rpi` |
 | `--no-test-first` | off | Explicitly disable test-first passthrough to `/rpi` |
 | `--queue=<file>` | none | Process items from ordered markdown queue file sequentially before fitness-driven selection |
@@ -114,7 +114,7 @@ Recover cycle number, queue/generator streaks, and the last claimed work item fr
 
 **Oscillation quarantine:** Pre-populate quarantine list from cycle history (scan for goals with 3+ improved-to-fail transitions). See `references/oscillation.md`.
 
-Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`, `--athena`, `--queue=<file>`.
+Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`, `--compile`, `--queue=<file>`.
 
 ### Step 0.1: Parse Pinned Queue (--queue only)
 
@@ -155,9 +155,9 @@ evolve_state = {
 
 Persist `evolve_state` to `.agents/evolve/session-state.json` at each cycle boundary, after queue claims, after queue release/finalize, and during teardown. `cycle-history.jsonl` remains the canonical cycle ledger; `session-state.json` carries resume-only state that has not yet earned a committed cycle entry.
 
-### Step 0.2: Athena Warmup (--athena only)
+### Step 0.2: Compile Warmup (--compile only)
 
-Skip if `--athena` was not passed or if `--dry-run`. Read `references/knowledge-loop-integration.md` for the full warmup procedure (mine + defrag + signal notes).
+Skip if `--compile` was not passed or if `--dry-run`. Read `references/knowledge-loop-integration.md` for the full warmup procedure (mine + defrag + signal notes).
 
 ### Step 0.5: Baseline (first run only)
 
@@ -419,7 +419,7 @@ Read `references/knowledge-loop-integration.md` for the full teardown learning e
 **User says:** `/evolve --dry-run`
 **What happens:** Evolve shows what would be worked on without executing.
 
-**User says:** `/evolve --athena`
+**User says:** `/evolve --compile`
 **What happens:** Evolve runs `ao mine` + `ao defrag` at session start to surface fresh signal (orphaned research, code hotspots, oscillating goals) before the first evolve cycle. Use before a long autonomous run or after a burst of development activity.
 
 **User says:** `/evolve`

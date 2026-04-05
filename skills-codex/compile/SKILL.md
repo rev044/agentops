@@ -1,24 +1,24 @@
 ---
-name: athena
-description: 'Active knowledge intelligence. Runs Mine → Grow → Defrag cycle. Mine extracts signal from git/.agents/code. Grow validates existing learnings against current reality, synthesizes cross-domain insights, traces provenance chains, and identifies knowledge gaps. Defrag cleans up. Triggers: "athena", "knowledge cycle", "mine and grow", "knowledge defrag", "clean flywheel", "grow knowledge".'
+name: compile
+description: 'Active knowledge intelligence. Runs Mine → Grow → Defrag cycle. Mine extracts signal from git/.agents/code. Grow validates existing learnings against current reality, synthesizes cross-domain insights, traces provenance chains, and identifies knowledge gaps. Defrag cleans up. Triggers: "compile", "knowledge cycle", "mine and grow", "knowledge defrag", "clean flywheel", "grow knowledge".'
 ---
 
 
-# Athena — Active Knowledge Intelligence
+# Compile — Active Knowledge Intelligence
 
 Run the Mine → Grow → Defrag cycle to keep the knowledge flywheel healthy.
 
 ## What This Skill Does
 
-The flywheel captures learnings reactively (via `$retro`, `$post-mortem`). Athena closes
+The flywheel captures learnings reactively (via `$retro`, `$post-mortem`). Compile closes
 the loop by actively mining for unextracted signal, validating existing learnings against
 current code, synthesizing cross-domain insights, and cleaning up stale or duplicate
 artifacts.
 
 **When to use:** Before an evolve cycle, after a burst of development, or weekly.
-Athena is non-destructive — it proposes changes without modifying existing learnings.
+Compile is non-destructive — it proposes changes without modifying existing learnings.
 
-**Output:** `.agents/athena/YYYY-MM-DD-report.md`
+**Output:** `.agents/compile/YYYY-MM-DD-report.md`
 
 ## Execution Steps
 
@@ -169,13 +169,13 @@ These defects should be flagged for manual review or automatic splitting during 
 ### Step 4 — Report
 
 ```bash
-mkdir -p .agents/athena
+mkdir -p .agents/compile
 ```
 
-Write `.agents/athena/YYYY-MM-DD-report.md`:
+Write `.agents/compile/YYYY-MM-DD-report.md`:
 
 ```markdown
-# Athena Report — YYYY-MM-DD
+# Compile Report — YYYY-MM-DD
 
 ## New Learnings Proposed
 - [title]: [summary] (source: [research file or synthesis])
@@ -196,7 +196,7 @@ Write `.agents/athena/YYYY-MM-DD-report.md`:
 If `bd` is available, create issues for knowledge gaps:
 
 ```bash
-bd add "[Knowledge Gap] <topic>" --label knowledge --label athena
+bd add "[Knowledge Gap] <topic>" --label knowledge --label compile
 ```
 
 Report findings to the user: proposed learnings, validation results, gaps, and
@@ -205,23 +205,23 @@ defrag actions recommended.
 ## Scheduling / Auto-Trigger
 
 Lightweight defrag (prune + dedup, no mining) runs automatically at session end
-via the `athena-session-defrag.sh` hook. This keeps the knowledge store clean
-without requiring manual `$athena` invocations. The hook:
+via the `compile-session-defrag.sh` hook. This keeps the knowledge store clean
+without requiring manual `$compile` invocations. The hook:
 
 - Fires on every `SessionEnd` event after `session-end-maintenance.sh`
 - Skips silently if the `ao` CLI is not available
 - Runs only `ao defrag --prune --dedup` (no `--oscillation-sweep` or mining)
 - Has a 20-second timeout to avoid blocking session teardown
 
-For a full Mine → Grow → Defrag cycle, invoke `$athena` manually.
+For a full Mine → Grow → Defrag cycle, invoke `$compile` manually.
 
 ## Examples
 
-**User says:** `$athena` — Full Mine → Grow → Defrag cycle, report in `.agents/athena/`.
+**User says:** `$compile` — Full Mine → Grow → Defrag cycle, report in `.agents/compile/`.
 
-**User says:** `$athena --since 7d` — Mines with a wider window (7 days).
+**User says:** `$compile --since 7d` — Mines with a wider window (7 days).
 
-**Pre-evolve warmup:** Run `$athena` before `$evolve` for a fresh, validated knowledge base.
+**Pre-evolve warmup:** Run `$compile` before `$evolve` for a fresh, validated knowledge base.
 
 ## Troubleshooting
 

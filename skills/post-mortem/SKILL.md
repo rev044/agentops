@@ -426,7 +426,7 @@ For each learning extracted in Step EX.3, classify:
 **Note:** Each learning goes to ONE location (local or global). No `promoted_to` needed — there's no local copy to mark when writing directly to global.
 
 **Example abstraction:**
-- Local: "Athena's validate package needs O_CREATE|O_EXCL for atomic claims because Zeus spawns concurrent workers"
+- Local: "Compile's validate package needs O_CREATE|O_EXCL for atomic claims because Zeus spawns concurrent workers"
 - Global: "Use O_CREATE|O_EXCL for atomic file creation when multiple processes may race on the same path"
 
 #### Step EX.5: Write Structured Findings to Registry

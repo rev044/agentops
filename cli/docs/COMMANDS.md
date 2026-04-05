@@ -1311,16 +1311,16 @@ ao rpi loop [goal] [flags]
 **Flags:**
 
 ```
-      --athena                            Enable Athena producer cadence before queue selection
-      --athena-defrag                     Run defrag sweep after Athena mine producer tick
-      --athena-interval duration          Minimum interval between Athena producer ticks (0 = every cycle) (default 30m0s)
-      --athena-since string               Lookback window for Athena mine producer (default "26h")
       --auto-clean                        Run stale RPI cleanup before each phased cycle
       --auto-clean-stale-after duration   Only auto-clean runs older than this age (default 24h0m0s)
       --bd-sync-policy string             Legacy bd landing checkpoint policy: auto|always|never (auto/always run 'bd export -o /dev/null' on current bd releases) (default "auto")
       --cleanup-prune-branches            Run legacy branch cleanup during supervisor cleanup
       --cleanup-prune-worktrees           Run git worktree prune during supervisor cleanup (default true)
       --command-timeout duration          Timeout for supervisor external commands (git/bd/gate scripts) (default 20m0s)
+      --compile                           Enable Compile producer cadence before queue selection
+      --compile-defrag                    Run defrag sweep after Compile mine producer tick
+      --compile-interval duration         Minimum interval between Compile producer ticks (0 = every cycle) (default 30m0s)
+      --compile-since string              Lookback window for Compile mine producer (default "26h")
       --cycle-delay duration              Delay between completed cycles
       --cycle-retries int                 Automatic retry count per cycle after a failed attempt
       --detached-branch-prefix string     Branch prefix used by detached HEAD self-heal (default "codex/auto-rpi")

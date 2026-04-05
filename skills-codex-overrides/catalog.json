@@ -29,7 +29,7 @@
   ],
   "skills": [
     {
-      "name": "athena",
+      "name": "compile",
       "treatment": "parity_only",
       "wave": "catalog-parity",
       "reason": "The canonical knowledge-cycle contract is already operationally specific; a bespoke Codex prompt is not justified yet."

@@ -27,8 +27,8 @@ $evolve --dry-run            # Show what would be worked on, don't execute
 $evolve --beads-only         # Skip goals measurement, work beads backlog only
 $evolve --quality            # Quality-first mode: prioritize post-mortem findings
 $evolve --quality --max-cycles=10  # Quality mode with cycle cap
-$evolve --athena             # Mine → Defrag warmup before first cycle
-$evolve --athena --max-cycles=5  # Warm knowledge base then run 5 cycles
+$evolve --compile             # Mine → Defrag warmup before first cycle
+$evolve --compile --max-cycles=5  # Warm knowledge base then run 5 cycles
 $evolve --test-first         # Default strict-quality $rpi execution path
 $evolve --no-test-first      # Explicit opt-out from test-first mode
 $evolve --queue=.agents/evolve/roadmap.md           # Process ordered roadmap
@@ -44,7 +44,7 @@ $evolve --queue=.agents/evolve/roadmap.md --test-first  # Roadmap with strict qu
 | `--beads-only` | off | Skip goal measurement and run backlog-only selection |
 | `--skip-baseline` | off | Skip first-run baseline snapshot |
 | `--quality` | off | Prioritize harvested post-mortem findings |
-| `--athena` | off | Run `ao mine` + `ao defrag` warmup before cycle 1 |
+| `--compile` | off | Run `ao mine` + `ao defrag` warmup before cycle 1 |
 | `--test-first` | on | Pass strict-quality defaults through to `$rpi` |
 | `--no-test-first` | off | Explicitly disable test-first passthrough to `$rpi` |
 | `--queue=<file>` | none | Process items from ordered markdown queue file sequentially before fitness-driven selection |
@@ -167,7 +167,7 @@ if [ -f .agents/evolve/cycle-history.jsonl ]; then
 fi
 ```
 
-Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`, `--athena`, `--queue=<file>`.
+Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`, `--compile`, `--queue=<file>`.
 
 ### Step 0.1: Parse Pinned Queue (--queue only)
 
@@ -248,18 +248,18 @@ evolve_state = {
 
 Persist `evolve_state` to `.agents/evolve/session-state.json` at each cycle boundary, after queue claims, after queue release/finalize, and during teardown. `cycle-history.jsonl` remains the canonical cycle ledger; `session-state.json` carries resume-only state that has not yet earned a committed cycle entry.
 
-### Step 0.2: Athena Warmup (--athena only)
+### Step 0.2: Compile Warmup (--compile only)
 
-Skip if `--athena` was not passed or if `--dry-run`.
+Skip if `--compile` was not passed or if `--dry-run`.
 
-Run the mechanical half of the Athena cycle to surface fresh signal before the first evolve cycle:
+Run the mechanical half of the Compile cycle to surface fresh signal before the first evolve cycle:
 
 ```bash
 mkdir -p .agents/mine .agents/defrag
-echo "Athena warmup: mining signal..."
+echo "Compile warmup: mining signal..."
 ao mine --since 26h --quiet 2>/dev/null || echo "(ao mine unavailable — skipping)"
 
-echo "Athena warmup: defrag sweep..."
+echo "Compile warmup: defrag sweep..."
 ao defrag --prune --dedup --quiet 2>/dev/null || echo "(ao defrag unavailable — skipping)"
 ```
 
@@ -774,7 +774,7 @@ Remaining items: [list of uncompleted item IDs]
 **User says:** `$evolve --dry-run`
 **What happens:** Evolve shows what would be worked on without executing.
 
-**User says:** `$evolve --athena`
+**User says:** `$evolve --compile`
 **What happens:** Evolve runs `ao mine` + `ao defrag` at session start to surface fresh signal (orphaned research, code hotspots, oscillating goals) before the first evolve cycle. Use before a long autonomous run or after a burst of development activity.
 
 **User says:** `$evolve`

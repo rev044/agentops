@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# check-athena-health.sh — Gate: Athena defrag report is fresh and stale count is acceptable.
+# check-compile-health.sh — Gate: Compile defrag report is fresh and stale count is acceptable.
 #
 # Exit 0 = PASS, Exit 1 = FAIL
 #
 # Environment overrides:
-#   ATHENA_OUTPUT_DIR   Directory where ao defrag writes (default: $AGENTS_DIR)
+#   COMPILE_OUTPUT_DIR   Directory where ao defrag writes (default: $AGENTS_DIR)
 #   AGENTS_DIR          .agents base dir (default: .agents)
-#   ATHENA_MAX_AGE_HOURS  Max age of latest defrag report in hours (default: 26)
-#   ATHENA_MAX_STALE    Max allowed stale learning count (default: 5)
+#   COMPILE_MAX_AGE_HOURS  Max age of latest defrag report in hours (default: 26)
+#   COMPILE_MAX_STALE    Max allowed stale learning count (default: 5)
 set -euo pipefail
 
 AGENTS_DIR="${AGENTS_DIR:-.agents}"
-MAX_AGE_HOURS="${ATHENA_MAX_AGE_HOURS:-26}"
-MAX_STALE="${ATHENA_MAX_STALE:-5}"
+MAX_AGE_HOURS="${COMPILE_MAX_AGE_HOURS:-26}"
+MAX_STALE="${COMPILE_MAX_STALE:-5}"
 
-# ATHENA_OUTPUT_DIR overrides AGENTS_DIR prefix (used in CI where defrag writes to /tmp/)
-DEFRAG_LATEST="${ATHENA_OUTPUT_DIR:-$AGENTS_DIR}/defrag/latest.json"
+# COMPILE_OUTPUT_DIR overrides AGENTS_DIR prefix (used in CI where defrag writes to /tmp/)
+DEFRAG_LATEST="${COMPILE_OUTPUT_DIR:-$AGENTS_DIR}/defrag/latest.json"
 
 # Gate 1: defrag report must exist
 if [[ ! -f "$DEFRAG_LATEST" ]]; then
@@ -58,5 +58,5 @@ if [[ "$stale" -gt "$MAX_STALE" ]]; then
     exit 1
 fi
 
-echo "PASS: Athena health OK (defrag ${age_hours}h ago, stale=${stale}/${MAX_STALE})"
+echo "PASS: Compile health OK (defrag ${age_hours}h ago, stale=${stale}/${MAX_STALE})"
 exit 0

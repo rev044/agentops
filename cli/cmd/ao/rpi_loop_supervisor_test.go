@@ -28,10 +28,10 @@ func TestResolveLoopSupervisorConfig_AppliesSupervisorDefaults(t *testing.T) {
 	rpiFailurePolicy = "stop"
 	rpiCycleRetries = 0
 	rpiCycleDelay = 0
-	rpiAthena = false
-	rpiAthenaInterval = 0
-	rpiAthenaSince = ""
-	rpiAthenaDefrag = false
+	rpiCompile = false
+	rpiCompileInterval = 0
+	rpiCompileSince = ""
+	rpiCompileDefrag = false
 	rpiLease = false
 	rpiDetachedHeal = false
 	rpiAutoClean = false
@@ -61,17 +61,17 @@ func TestResolveLoopSupervisorConfig_AppliesSupervisorDefaults(t *testing.T) {
 	if cfg.CycleDelay != 5*time.Minute {
 		t.Fatalf("cycle delay: got %s, want 5m", cfg.CycleDelay)
 	}
-	if !cfg.AthenaEnabled {
-		t.Fatal("expected Athena cadence to be enabled in supervisor defaults")
+	if !cfg.CompileEnabled {
+		t.Fatal("expected Compile cadence to be enabled in supervisor defaults")
 	}
-	if cfg.AthenaInterval != 30*time.Minute {
-		t.Fatalf("athena interval: got %s, want 30m", cfg.AthenaInterval)
+	if cfg.CompileInterval != 30*time.Minute {
+		t.Fatalf("compile interval: got %s, want 30m", cfg.CompileInterval)
 	}
-	if cfg.AthenaSince != "26h" {
-		t.Fatalf("athena since: got %q, want %q", cfg.AthenaSince, "26h")
+	if cfg.CompileSince != "26h" {
+		t.Fatalf("compile since: got %q, want %q", cfg.CompileSince, "26h")
 	}
-	if !cfg.AthenaDefrag {
-		t.Fatal("expected Athena defrag to be enabled in supervisor defaults")
+	if !cfg.CompileDefrag {
+		t.Fatal("expected Compile defrag to be enabled in supervisor defaults")
 	}
 	if !cfg.LeaseEnabled {
 		t.Fatal("expected lease to be enabled in supervisor defaults")
@@ -114,10 +114,10 @@ func TestRPILoop_ResolveLoopSupervisorConfig_RalphPreset(t *testing.T) {
 	rpiFailurePolicy = "stop"
 	rpiCycleRetries = 0
 	rpiCycleDelay = 0
-	rpiAthena = false
-	rpiAthenaInterval = 0
-	rpiAthenaSince = ""
-	rpiAthenaDefrag = false
+	rpiCompile = false
+	rpiCompileInterval = 0
+	rpiCompileSince = ""
+	rpiCompileDefrag = false
 	rpiLease = false
 	rpiDetachedHeal = false
 	rpiAutoClean = false
@@ -143,14 +143,14 @@ func TestRPILoop_ResolveLoopSupervisorConfig_RalphPreset(t *testing.T) {
 	if cfg.CycleDelay != 2*time.Minute {
 		t.Fatalf("cycle delay = %s, want 2m", cfg.CycleDelay)
 	}
-	if !cfg.AthenaEnabled || !cfg.AthenaDefrag {
-		t.Fatalf("expected athena+defrag enabled in Ralph mode; got athena=%v defrag=%v", cfg.AthenaEnabled, cfg.AthenaDefrag)
+	if !cfg.CompileEnabled || !cfg.CompileDefrag {
+		t.Fatalf("expected compile+defrag enabled in Ralph mode; got compile=%v defrag=%v", cfg.CompileEnabled, cfg.CompileDefrag)
 	}
-	if cfg.AthenaInterval != 30*time.Minute {
-		t.Fatalf("athena interval = %s, want 30m", cfg.AthenaInterval)
+	if cfg.CompileInterval != 30*time.Minute {
+		t.Fatalf("compile interval = %s, want 30m", cfg.CompileInterval)
 	}
-	if cfg.AthenaSince != "26h" {
-		t.Fatalf("athena since = %q, want %q", cfg.AthenaSince, "26h")
+	if cfg.CompileSince != "26h" {
+		t.Fatalf("compile since = %q, want %q", cfg.CompileSince, "26h")
 	}
 	if !cfg.LeaseEnabled || !cfg.AutoClean || !cfg.EnsureCleanup {
 		t.Fatalf("expected lease/auto-clean/ensure-cleanup all true; got lease=%v auto=%v ensure=%v", cfg.LeaseEnabled, cfg.AutoClean, cfg.EnsureCleanup)
@@ -181,10 +181,10 @@ func TestRPILoop_ResolveLoopSupervisorConfig_RalphHonorsExplicitOverrides(t *tes
 	rpiFailurePolicy = "stop"
 	rpiCycleRetries = 0
 	rpiCycleDelay = 0
-	rpiAthena = false
-	rpiAthenaInterval = 0
-	rpiAthenaSince = ""
-	rpiAthenaDefrag = false
+	rpiCompile = false
+	rpiCompileInterval = 0
+	rpiCompileSince = ""
+	rpiCompileDefrag = false
 	rpiLease = false
 	rpiDetachedHeal = false
 	rpiAutoClean = false
@@ -203,24 +203,24 @@ func TestRPILoop_ResolveLoopSupervisorConfig_RalphHonorsExplicitOverrides(t *tes
 	if err := cmd.Flags().Set("cycle-delay", "45s"); err != nil {
 		t.Fatalf("set cycle-delay: %v", err)
 	}
-	if err := cmd.Flags().Set("athena", "false"); err != nil {
-		t.Fatalf("set athena: %v", err)
+	if err := cmd.Flags().Set("compile", "false"); err != nil {
+		t.Fatalf("set compile: %v", err)
 	}
-	if err := cmd.Flags().Set("athena-defrag", "false"); err != nil {
-		t.Fatalf("set athena-defrag: %v", err)
+	if err := cmd.Flags().Set("compile-defrag", "false"); err != nil {
+		t.Fatalf("set compile-defrag: %v", err)
 	}
-	if err := cmd.Flags().Set("athena-interval", "5m"); err != nil {
-		t.Fatalf("set athena-interval: %v", err)
+	if err := cmd.Flags().Set("compile-interval", "5m"); err != nil {
+		t.Fatalf("set compile-interval: %v", err)
 	}
-	if err := cmd.Flags().Set("athena-since", "4h"); err != nil {
-		t.Fatalf("set athena-since: %v", err)
+	if err := cmd.Flags().Set("compile-since", "4h"); err != nil {
+		t.Fatalf("set compile-since: %v", err)
 	}
 	rpiFailurePolicy = "stop"
 	rpiCycleDelay = 45 * time.Second
-	rpiAthena = false
-	rpiAthenaDefrag = false
-	rpiAthenaInterval = 5 * time.Minute
-	rpiAthenaSince = "4h"
+	rpiCompile = false
+	rpiCompileDefrag = false
+	rpiCompileInterval = 5 * time.Minute
+	rpiCompileSince = "4h"
 
 	cfg, err := resolveLoopSupervisorConfig(cmd, t.TempDir())
 	if err != nil {
@@ -232,17 +232,17 @@ func TestRPILoop_ResolveLoopSupervisorConfig_RalphHonorsExplicitOverrides(t *tes
 	if cfg.CycleDelay != 45*time.Second {
 		t.Fatalf("cycle delay = %s, want explicit 45s", cfg.CycleDelay)
 	}
-	if cfg.AthenaEnabled {
-		t.Fatal("athena should honor explicit false override")
+	if cfg.CompileEnabled {
+		t.Fatal("compile should honor explicit false override")
 	}
-	if cfg.AthenaDefrag {
-		t.Fatal("athena-defrag should honor explicit false override")
+	if cfg.CompileDefrag {
+		t.Fatal("compile-defrag should honor explicit false override")
 	}
-	if cfg.AthenaInterval != 5*time.Minute {
-		t.Fatalf("athena interval = %s, want explicit 5m", cfg.AthenaInterval)
+	if cfg.CompileInterval != 5*time.Minute {
+		t.Fatalf("compile interval = %s, want explicit 5m", cfg.CompileInterval)
 	}
-	if cfg.AthenaSince != "4h" {
-		t.Fatalf("athena since = %q, want explicit %q", cfg.AthenaSince, "4h")
+	if cfg.CompileSince != "4h" {
+		t.Fatalf("compile since = %q, want explicit %q", cfg.CompileSince, "4h")
 	}
 }
 
@@ -728,10 +728,10 @@ type loopSupervisorGlobals struct {
 	rpiCycleRetries          int
 	rpiRetryBackoff          time.Duration
 	rpiCycleDelay            time.Duration
-	rpiAthena                bool
-	rpiAthenaInterval        time.Duration
-	rpiAthenaSince           string
-	rpiAthenaDefrag          bool
+	rpiCompile                bool
+	rpiCompileInterval        time.Duration
+	rpiCompileSince           string
+	rpiCompileDefrag          bool
 	rpiLease                 bool
 	rpiLeasePath             string
 	rpiLeaseTTL              time.Duration
@@ -762,10 +762,10 @@ func snapshotLoopSupervisorGlobals() loopSupervisorGlobals {
 		rpiCycleRetries:          rpiCycleRetries,
 		rpiRetryBackoff:          rpiRetryBackoff,
 		rpiCycleDelay:            rpiCycleDelay,
-		rpiAthena:                rpiAthena,
-		rpiAthenaInterval:        rpiAthenaInterval,
-		rpiAthenaSince:           rpiAthenaSince,
-		rpiAthenaDefrag:          rpiAthenaDefrag,
+		rpiCompile:                rpiCompile,
+		rpiCompileInterval:        rpiCompileInterval,
+		rpiCompileSince:           rpiCompileSince,
+		rpiCompileDefrag:          rpiCompileDefrag,
 		rpiLease:                 rpiLease,
 		rpiLeasePath:             rpiLeasePath,
 		rpiLeaseTTL:              rpiLeaseTTL,
@@ -796,10 +796,10 @@ func restoreLoopSupervisorGlobals(prev loopSupervisorGlobals) {
 	rpiCycleRetries = prev.rpiCycleRetries
 	rpiRetryBackoff = prev.rpiRetryBackoff
 	rpiCycleDelay = prev.rpiCycleDelay
-	rpiAthena = prev.rpiAthena
-	rpiAthenaInterval = prev.rpiAthenaInterval
-	rpiAthenaSince = prev.rpiAthenaSince
-	rpiAthenaDefrag = prev.rpiAthenaDefrag
+	rpiCompile = prev.rpiCompile
+	rpiCompileInterval = prev.rpiCompileInterval
+	rpiCompileSince = prev.rpiCompileSince
+	rpiCompileDefrag = prev.rpiCompileDefrag
 	rpiLease = prev.rpiLease
 	rpiLeasePath = prev.rpiLeasePath
 	rpiLeaseTTL = prev.rpiLeaseTTL
@@ -827,10 +827,10 @@ func newLoopSupervisorTestCommand() *cobra.Command {
 	cmd.Flags().String("failure-policy", "stop", "")
 	cmd.Flags().Int("cycle-retries", 0, "")
 	cmd.Flags().Duration("cycle-delay", 0, "")
-	cmd.Flags().Bool("athena", false, "")
-	cmd.Flags().Duration("athena-interval", 30*time.Minute, "")
-	cmd.Flags().String("athena-since", "26h", "")
-	cmd.Flags().Bool("athena-defrag", false, "")
+	cmd.Flags().Bool("compile", false, "")
+	cmd.Flags().Duration("compile-interval", 30*time.Minute, "")
+	cmd.Flags().String("compile-since", "26h", "")
+	cmd.Flags().Bool("compile-defrag", false, "")
 	cmd.Flags().Bool("lease", false, "")
 	cmd.Flags().Bool("ralph", false, "")
 	cmd.Flags().Bool("detached-heal", false, "")

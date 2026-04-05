@@ -107,7 +107,7 @@ size budgets, sweep frequency, staleness thresholds, and cross-rig synthesis tri
 
 ## See Also
 
-- [skills/athena/SKILL.md](../athena/SKILL.md) — Single-rig Mine/Grow/Defrag
+- [skills/compile/SKILL.md](../compile/SKILL.md) — Single-rig Mine/Grow/Defrag
 - [skills/flywheel/SKILL.md](../flywheel/SKILL.md) — Flywheel health monitoring
 - [skills/inject/SKILL.md](../inject/SKILL.md) — Knowledge injection into sessions
 - [skills/forge/SKILL.md](../forge/SKILL.md) — Transcript knowledge extraction

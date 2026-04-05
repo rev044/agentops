@@ -12,7 +12,7 @@ The local prototype exposed the missing product gap:
 
 1. packetization and mining are not enough
 2. users need promoted operator surfaces, not just retrieval substrate
-3. `athena` is a maintenance skill, not a corpus activation skill
+3. `compile` is a maintenance skill, not a corpus activation skill
 
 The result is a common failure mode:
 
@@ -30,7 +30,7 @@ Working name:
 
 The name can change later, but the contract should not.
 
-`athena` remains the hygiene skill for mine, validate, and defrag.
+`compile` remains the hygiene skill for mine, validate, and defrag.
 
 The new capability owns:
 
@@ -229,7 +229,7 @@ This keeps startup context bounded and aligned with the belief system.
 1. A user can point AgentOps at a mature `.agents` corpus and get operational outputs, not just mined evidence.
 2. AgentOps produces a belief book, playbook candidates, and a goal-time briefing.
 3. Thin topics are surfaced explicitly and never silently promoted as canonical truth.
-4. The new capability complements `athena` instead of bloating it.
+4. The new capability complements `compile` instead of bloating it.
 5. Startup interactions improve because the system prefers briefings over broad context dumps.
 
 ## Risks
@@ -250,10 +250,10 @@ If outputs are generated without clear consumers, the system will create another
 
 Implement this as a new AgentOps outer-loop capability now.
 
-Do not try to stretch `athena` until it absorbs this contract. That would blur maintenance and activation and make both harder to reason about.
+Do not try to stretch `compile` until it absorbs this contract. That would blur maintenance and activation and make both harder to reason about.
 
 The winning model is:
 
-- `athena` for hygiene
+- `compile` for hygiene
 - `knowledge-activation` for corpus operationalization
 - `ao knowledge brief` as the task-time bridge into actual agent behavior

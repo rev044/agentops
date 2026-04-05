@@ -19,12 +19,12 @@ Options:
   --failure-policy <policy>    Failure policy: stop|continue (default: continue).
   --kill-switch-path <path>    Loop kill-switch path (default: .agents/rpi/KILL).
   --auto-clean-stale-after <d> Stale age threshold for auto-clean/ensure-cleanup (default: 24h).
-  --athena                     Enable Athena producer cadence (default: enabled).
-  --no-athena                  Disable Athena producer cadence.
-  --athena-interval <d>        Minimum interval between producer ticks (default: 30m).
-  --athena-since <d>           Mine lookback window (default: 26h).
-  --athena-defrag              Enable defrag sweep after mine (default: enabled).
-  --no-athena-defrag           Disable defrag sweep after mine.
+  --compile                    Enable Compile producer cadence (default: enabled).
+  --no-compile                 Disable Compile producer cadence.
+  --compile-interval <d>       Minimum interval between producer ticks (default: 30m).
+  --compile-since <d>          Mine lookback window (default: 26h).
+  --compile-defrag             Enable defrag sweep after mine (default: enabled).
+  --no-compile-defrag          Disable defrag sweep after mine.
   --no-gates                   Shortcut for --gate-policy off.
   --no-push                    Deprecated alias for --landing-policy off.
   --push-branch <name>         Deprecated alias for --landing-policy sync-push + --landing-branch.
@@ -42,10 +42,10 @@ BD_SYNC_POLICY="auto"
 FAILURE_POLICY="continue"
 KILL_SWITCH_PATH=".agents/rpi/KILL"
 AUTO_CLEAN_STALE_AFTER="24h"
-ATHENA="true"
-ATHENA_INTERVAL="30m"
-ATHENA_SINCE="26h"
-ATHENA_DEFRAG="true"
+COMPILE="true"
+COMPILE_INTERVAL="30m"
+COMPILE_SINCE="26h"
+COMPILE_DEFRAG="true"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -89,28 +89,28 @@ while [[ $# -gt 0 ]]; do
       AUTO_CLEAN_STALE_AFTER="${2:-}"
       shift 2
       ;;
-    --athena)
-      ATHENA="true"
+    --compile)
+      COMPILE="true"
       shift
       ;;
-    --no-athena)
-      ATHENA="false"
+    --no-compile)
+      COMPILE="false"
       shift
       ;;
-    --athena-interval)
-      ATHENA_INTERVAL="${2:-}"
+    --compile-interval)
+      COMPILE_INTERVAL="${2:-}"
       shift 2
       ;;
-    --athena-since)
-      ATHENA_SINCE="${2:-}"
+    --compile-since)
+      COMPILE_SINCE="${2:-}"
       shift 2
       ;;
-    --athena-defrag)
-      ATHENA_DEFRAG="true"
+    --compile-defrag)
+      COMPILE_DEFRAG="true"
       shift
       ;;
-    --no-athena-defrag)
-      ATHENA_DEFRAG="false"
+    --no-compile-defrag)
+      COMPILE_DEFRAG="false"
       shift
       ;;
     --no-gates)
@@ -162,10 +162,10 @@ loop_args=(
   --auto-clean
   --auto-clean-stale-after "$AUTO_CLEAN_STALE_AFTER"
   --ensure-cleanup
-  --athena="$ATHENA"
-  --athena-interval "$ATHENA_INTERVAL"
-  --athena-since "$ATHENA_SINCE"
-  --athena-defrag="$ATHENA_DEFRAG"
+  --compile="$COMPILE"
+  --compile-interval "$COMPILE_INTERVAL"
+  --compile-since "$COMPILE_SINCE"
+  --compile-defrag="$COMPILE_DEFRAG"
 )
 
 if [[ -n "$REPO_FILTER" ]]; then

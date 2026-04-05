@@ -158,7 +158,7 @@ Similarly, gates should cover both code health and product health:
 |------|----------|
 | Code health | `go-cli-builds`, `go-cli-tests`, `go-vet-clean`, `security-gate` |
 | Product health | `flywheel-compounding`, `quickstart-under-5min`, `competitive-freshness` |
-| Knowledge health | `athena-freshness`, `athena-no-oscillation`, `flywheel-proof` |
+| Knowledge health | `compile-freshness`, `compile-no-oscillation`, `flywheel-proof` |
 
 ### Key Differences from YAML
 

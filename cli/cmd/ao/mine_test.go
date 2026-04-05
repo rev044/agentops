@@ -285,7 +285,7 @@ func TestLoadExistingMineIDs_WithEntries(t *testing.T) {
 	path := filepath.Join(tmp, "next-work.jsonl")
 
 	entry := map[string]interface{}{
-		"source_epic": "athena-mine",
+		"source_epic": "compile-mine",
 		"consumed":    false,
 		"items": []map[string]string{
 			{"id": "abc123", "title": "test"},
@@ -315,7 +315,7 @@ func TestLoadExistingMineIDs_ConsumedEntriesIgnored(t *testing.T) {
 	path := filepath.Join(tmp, "next-work.jsonl")
 
 	entry := map[string]interface{}{
-		"source_epic": "athena-mine",
+		"source_epic": "compile-mine",
 		"consumed":    true,
 		"items":       []map[string]string{{"id": "consumed1"}},
 	}
@@ -376,8 +376,8 @@ func TestWriteMineWorkItems(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &entry); err != nil {
 		t.Fatalf("unmarshal line 0: %v", err)
 	}
-	if entry.SourceEpic != "athena-mine" {
-		t.Errorf("source_epic = %q, want %q", entry.SourceEpic, "athena-mine")
+	if entry.SourceEpic != "compile-mine" {
+		t.Errorf("source_epic = %q, want %q", entry.SourceEpic, "compile-mine")
 	}
 	if entry.Consumed {
 		t.Error("consumed should be false")

@@ -2631,7 +2631,7 @@ func TestRPILoop_KillSwitchStopsBeforeCycleExecution(t *testing.T) {
 	}
 }
 
-func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
+func TestRPILoop_CompileCadence_RunsOncePerInterval(t *testing.T) {
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2642,8 +2642,8 @@ func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
 	prevRunCycle := runRPISupervisedCycleFn
 	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
 
-	prevAthenaTick := runAthenaProducerTickFn
-	defer func() { runAthenaProducerTickFn = prevAthenaTick }()
+	prevCompileTick := runCompileProducerTickFn
+	defer func() { runCompileProducerTickFn = prevCompileTick }()
 
 	prevMaxCycles := rpiMaxCycles
 	rpiMaxCycles = 2
@@ -2663,13 +2663,13 @@ func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
 	queuePath := filepath.Join(rpiDir, "next-work.jsonl")
 	writeJSONL(t, queuePath, []nextWorkEntry{
 		{
-			SourceEpic: "ag-athena-1",
-			Items:      []nextWorkItem{{Title: "Athena cadence goal 1", Severity: "high"}},
+			SourceEpic: "ag-compile-1",
+			Items:      []nextWorkItem{{Title: "Compile cadence goal 1", Severity: "high"}},
 			Consumed:   false,
 		},
 		{
-			SourceEpic: "ag-athena-2",
-			Items:      []nextWorkItem{{Title: "Athena cadence goal 2", Severity: "medium"}},
+			SourceEpic: "ag-compile-2",
+			Items:      []nextWorkItem{{Title: "Compile cadence goal 2", Severity: "medium"}},
 			Consumed:   false,
 		},
 	})
@@ -2686,16 +2686,16 @@ func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
 	rpiBDSyncPolicy = loopBDSyncPolicyAuto
 	rpiAutoCleanStaleAfter = 24 * time.Hour
 	rpiCommandTimeout = time.Minute
-	rpiAthena = true
-	rpiAthenaInterval = time.Hour
-	rpiAthenaSince = "26h"
-	rpiAthenaDefrag = false
+	rpiCompile = true
+	rpiCompileInterval = time.Hour
+	rpiCompileSince = "26h"
+	rpiCompileDefrag = false
 
-	athenaTicks := 0
-	runAthenaProducerTickFn = func(_ string, cfg rpiLoopSupervisorConfig) error {
-		athenaTicks++
-		if cfg.AthenaSince != "26h" {
-			t.Fatalf("AthenaSince = %q, want 26h", cfg.AthenaSince)
+	compileTicks := 0
+	runCompileProducerTickFn = func(_ string, cfg rpiLoopSupervisorConfig) error {
+		compileTicks++
+		if cfg.CompileSince != "26h" {
+			t.Fatalf("CompileSince = %q, want 26h", cfg.CompileSince)
 		}
 		return nil
 	}
@@ -2712,8 +2712,8 @@ func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
 	if executed != 2 {
 		t.Fatalf("expected 2 cycle executions, got %d", executed)
 	}
-	if athenaTicks != 1 {
-		t.Fatalf("expected one Athena producer tick due to interval gating, got %d", athenaTicks)
+	if compileTicks != 1 {
+		t.Fatalf("expected one Compile producer tick due to interval gating, got %d", compileTicks)
 	}
 
 	after := readJSONLEntries(t, queuePath)
@@ -2722,7 +2722,7 @@ func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
 	}
 }
 
-func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
+func TestRPILoop_CompileCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2733,8 +2733,8 @@ func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 	prevRunCycle := runRPISupervisedCycleFn
 	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
 
-	prevAthenaTick := runAthenaProducerTickFn
-	defer func() { runAthenaProducerTickFn = prevAthenaTick }()
+	prevCompileTick := runCompileProducerTickFn
+	defer func() { runCompileProducerTickFn = prevCompileTick }()
 
 	prevMaxCycles := rpiMaxCycles
 	rpiMaxCycles = 1
@@ -2748,8 +2748,8 @@ func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 	defer func() { _ = os.Chdir(origDir) }()
 
 	queuePath := setupSingleQueueEntry(t, tmpDir, nextWorkEntry{
-		SourceEpic: "ag-athena-continue",
-		Items:      []nextWorkItem{{Title: "Athena continue goal", Severity: "high"}},
+		SourceEpic: "ag-compile-continue",
+		Items:      []nextWorkItem{{Title: "Compile continue goal", Severity: "high"}},
 		Consumed:   false,
 	})
 
@@ -2765,12 +2765,12 @@ func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 	rpiBDSyncPolicy = loopBDSyncPolicyAuto
 	rpiAutoCleanStaleAfter = 24 * time.Hour
 	rpiCommandTimeout = time.Minute
-	rpiAthena = true
-	rpiAthenaInterval = 0
-	rpiAthenaSince = "26h"
-	rpiAthenaDefrag = false
+	rpiCompile = true
+	rpiCompileInterval = 0
+	rpiCompileSince = "26h"
+	rpiCompileDefrag = false
 
-	runAthenaProducerTickFn = func(_ string, _ rpiLoopSupervisorConfig) error {
+	runCompileProducerTickFn = func(_ string, _ rpiLoopSupervisorConfig) error {
 		return fmt.Errorf("mine unavailable")
 	}
 
@@ -2784,7 +2784,7 @@ func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 		t.Fatalf("expected nil error under continue policy, got: %v", err)
 	}
 	if executed != 1 {
-		t.Fatalf("expected one cycle execution after Athena producer failure, got %d", executed)
+		t.Fatalf("expected one cycle execution after Compile producer failure, got %d", executed)
 	}
 
 	after := readJSONLEntries(t, queuePath)
@@ -2793,7 +2793,7 @@ func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 	}
 }
 
-func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
+func TestRPILoop_CompileCadence_ProducerFailure_StopPolicy(t *testing.T) {
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2804,8 +2804,8 @@ func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
 	prevRunCycle := runRPISupervisedCycleFn
 	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
 
-	prevAthenaTick := runAthenaProducerTickFn
-	defer func() { runAthenaProducerTickFn = prevAthenaTick }()
+	prevCompileTick := runCompileProducerTickFn
+	defer func() { runCompileProducerTickFn = prevCompileTick }()
 
 	prevMaxCycles := rpiMaxCycles
 	rpiMaxCycles = 1
@@ -2819,8 +2819,8 @@ func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
 	defer func() { _ = os.Chdir(origDir) }()
 
 	queuePath := setupSingleQueueEntry(t, tmpDir, nextWorkEntry{
-		SourceEpic: "ag-athena-stop",
-		Items:      []nextWorkItem{{Title: "Athena stop goal", Severity: "high"}},
+		SourceEpic: "ag-compile-stop",
+		Items:      []nextWorkItem{{Title: "Compile stop goal", Severity: "high"}},
 		Consumed:   false,
 	})
 
@@ -2836,12 +2836,12 @@ func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
 	rpiBDSyncPolicy = loopBDSyncPolicyAuto
 	rpiAutoCleanStaleAfter = 24 * time.Hour
 	rpiCommandTimeout = time.Minute
-	rpiAthena = true
-	rpiAthenaInterval = 0
-	rpiAthenaSince = "26h"
-	rpiAthenaDefrag = false
+	rpiCompile = true
+	rpiCompileInterval = 0
+	rpiCompileSince = "26h"
+	rpiCompileDefrag = false
 
-	runAthenaProducerTickFn = func(_ string, _ rpiLoopSupervisorConfig) error {
+	runCompileProducerTickFn = func(_ string, _ rpiLoopSupervisorConfig) error {
 		return fmt.Errorf("mine unavailable")
 	}
 
@@ -2855,8 +2855,8 @@ func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected stop policy to return producer failure")
 	}
-	if !strings.Contains(err.Error(), "athena producer") {
-		t.Fatalf("expected athena producer error context, got: %v", err)
+	if !strings.Contains(err.Error(), "compile producer") {
+		t.Fatalf("expected compile producer error context, got: %v", err)
 	}
 	if executed != 0 {
 		t.Fatalf("expected zero cycle executions when producer fails under stop policy, got %d", executed)

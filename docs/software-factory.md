@@ -108,7 +108,7 @@ run without operator action and keep the conveyor belt honest.
 |-------|------|---------|
 | **SessionStart** | `session-start.sh` | Cleans stale runs, injects startup context |
 | **SessionEnd** | `session-end-maintenance.sh` | Post-session cleanup and state persistence |
-| | `athena-session-defrag.sh` | Knowledge defragmentation pass |
+| | `compile-session-defrag.sh` | Knowledge defragmentation pass |
 | **Stop** | `ao-flywheel-close.sh` | Closes the flywheel loop (learnings, citations, handoff) |
 | **UserPromptSubmit** | `factory-router.sh` | Routes operator intent to the correct lane |
 | | `prompt-nudge.sh` | Reminds about pending gates (e.g. pre-mortem) |
@@ -162,7 +162,7 @@ primitives. With it, they see one product surface.
 - Keep substrate and operator surfaces distinct.
 - Let external validation outrank self-report.
 - Treat thin topics as discovery-only until evidence improves.
-- Keep `athena` scoped to hygiene, not full operator-surface activation.
+- Keep `compile` scoped to hygiene, not full operator-surface activation.
 
 ## Related Docs
 

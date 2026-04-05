@@ -1,17 +1,17 @@
 # Knowledge Loop Integration
 
-## Athena Warmup (--athena only)
+## Compile Warmup (--compile only)
 
-Skip if `--athena` was not passed or if `--dry-run`.
+Skip if `--compile` was not passed or if `--dry-run`.
 
-Run the mechanical half of the Athena cycle to surface fresh signal before the first evolve cycle:
+Run the mechanical half of the Compile cycle to surface fresh signal before the first evolve cycle:
 
 ```bash
 mkdir -p .agents/mine .agents/defrag
-echo "Athena warmup: mining signal..."
+echo "Compile warmup: mining signal..."
 ao mine --since 26h --quiet 2>/dev/null || echo "(ao mine unavailable — skipping)"
 
-echo "Athena warmup: defrag sweep..."
+echo "Compile warmup: defrag sweep..."
 ao defrag --prune --dedup --quiet 2>/dev/null || echo "(ao defrag unavailable — skipping)"
 ```
 

@@ -222,7 +222,7 @@ mcp__ai-platform__memory_store(
 |------------|---------|---------|
 | `epic:` | Link to source epic | `epic:jc-9tx6` |
 | `topic:` | Subject area | `topic:security` |
-| `rig:` | Which rig | `rig:athena` |
+| `rig:` | Which rig | `rig:compile` |
 | `pattern:` | If a pattern | `pattern:pre-mortem` |
 | `tool:` | If about a tool | `tool:upgrade.py` |
 

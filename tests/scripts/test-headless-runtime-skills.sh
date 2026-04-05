@@ -23,9 +23,9 @@ make_fixture() {
 
     mkdir -p \
         "$root/scripts" \
-        "$root/skills/athena" \
+        "$root/skills/compile" \
         "$root/skills/research" \
-        "$root/skills-codex/athena" \
+        "$root/skills-codex/compile" \
         "$root/skills-codex/research"
 
     cat > "$root/scripts/install-codex-plugin.sh" <<'EOF'
@@ -57,9 +57,9 @@ JSON
 EOF
     chmod +x "$root/scripts/install-codex-plugin.sh"
 
-    cat > "$root/skills/athena/SKILL.md" <<'EOF'
+    cat > "$root/skills/compile/SKILL.md" <<'EOF'
 ---
-name: athena
+name: compile
 description: >
   Active knowledge intelligence. Runs Mine → Grow → Defrag cycle.
 skill_api_version: 1
@@ -74,9 +74,9 @@ skill_api_version: 1
 ---
 EOF
 
-    cat > "$root/skills-codex/athena/SKILL.md" <<'EOF'
+    cat > "$root/skills-codex/compile/SKILL.md" <<'EOF'
 ---
-name: athena
+name: compile
 description: 'Active knowledge intelligence. Runs Mine → Grow → Defrag cycle.'
 skill_api_version: 1
 ---
@@ -138,7 +138,7 @@ PY
 fi
 
 if [[ "$prompt" == *"compact JSON array of skill names"* ]]; then
-  text='["athena","research"]'
+  text='["compile","research"]'
   if [[ "$mode" == "retry-missing" ]]; then
     count=0
     if [[ -f "$state_file" ]]; then
@@ -147,7 +147,7 @@ if [[ "$prompt" == *"compact JSON array of skill names"* ]]; then
     count=$((count + 1))
     printf '%s' "$count" > "$state_file"
     if [[ "$count" -eq 1 ]]; then
-      text='["athena"]'
+      text='["compile"]'
     fi
   fi
   if [[ "$mode" == "malformed" ]]; then
@@ -221,11 +221,11 @@ if mode == "retry-missing":
     if count == 1:
         text = '[{"name":"research","description":"Deep codebase exploration."}]'
     else:
-        text = '[{"name":"athena","description":"Active knowledge intelligence. Runs Mine → Grow → Defrag cycle."},{"name":"research","description":"Deep codebase exploration."}]'
+        text = '[{"name":"compile","description":"Active knowledge intelligence. Runs Mine → Grow → Defrag cycle."},{"name":"research","description":"Deep codebase exploration."}]'
 elif mode == "missing":
     text = '[{"name":"research","description":"Deep codebase exploration."}]'
 else:
-    text = '[{"name":"athena","description":"Active knowledge intelligence. Runs Mine → Grow → Defrag cycle."},{"name":"research","description":"Deep codebase exploration."}]'
+    text = '[{"name":"compile","description":"Knowledge compiler. Reads raw .agents/ artifacts and compiles them into an interlinked markdown wiki."},{"name":"research","description":"Deep codebase exploration."}]'
 
 for payload in (
     {"type": "thread.started", "thread_id": "fixture"},
@@ -265,7 +265,7 @@ test_fails_when_codex_inventory_is_missing_skill() {
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime codex --workdir "$TMP_DIR/workdir-fail" >"$TMP_DIR/fail.log" 2>&1; then
         fail "fails when Codex inventory is missing a skill"
-    elif rg -q 'missing skills: athena' "$TMP_DIR/fail.log"; then
+    elif rg -q 'missing skills: compile' "$TMP_DIR/fail.log"; then
         pass "fails when Codex inventory is missing a skill"
     else
         fail "fails when Codex inventory is missing a skill"

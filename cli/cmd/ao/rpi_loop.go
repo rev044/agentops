@@ -50,10 +50,10 @@ var (
 	rpiBDSyncPolicy          string
 	rpiCommandTimeout        time.Duration
 	rpiKillSwitchPath        string
-	rpiAthena                bool
-	rpiAthenaInterval        time.Duration
-	rpiAthenaSince           string
-	rpiAthenaDefrag          bool
+	rpiCompile                bool
+	rpiCompileInterval        time.Duration
+	rpiCompileSince           string
+	rpiCompileDefrag          bool
 )
 
 var errQueueClaimConflict = errors.New("next-work item no longer available for this consumer")
@@ -136,10 +136,10 @@ Examples:
 	loopCmd.Flags().StringVar(&rpiBDSyncPolicy, "bd-sync-policy", "auto", "Legacy bd landing checkpoint policy: auto|always|never (auto/always run 'bd export -o /dev/null' on current bd releases)")
 	loopCmd.Flags().DurationVar(&rpiCommandTimeout, "command-timeout", 20*time.Minute, "Timeout for supervisor external commands (git/bd/gate scripts)")
 	loopCmd.Flags().StringVar(&rpiKillSwitchPath, "kill-switch-path", filepath.Join(".agents", "rpi", "KILL"), "Supervisor kill-switch file path checked at cycle boundaries (absolute or repo-relative)")
-	loopCmd.Flags().BoolVar(&rpiAthena, "athena", false, "Enable Athena producer cadence before queue selection")
-	loopCmd.Flags().DurationVar(&rpiAthenaInterval, "athena-interval", 30*time.Minute, "Minimum interval between Athena producer ticks (0 = every cycle)")
-	loopCmd.Flags().StringVar(&rpiAthenaSince, "athena-since", "26h", "Lookback window for Athena mine producer")
-	loopCmd.Flags().BoolVar(&rpiAthenaDefrag, "athena-defrag", false, "Run defrag sweep after Athena mine producer tick")
+	loopCmd.Flags().BoolVar(&rpiCompile, "compile", false, "Enable Compile producer cadence before queue selection")
+	loopCmd.Flags().DurationVar(&rpiCompileInterval, "compile-interval", 30*time.Minute, "Minimum interval between Compile producer ticks (0 = every cycle)")
+	loopCmd.Flags().StringVar(&rpiCompileSince, "compile-since", "26h", "Lookback window for Compile mine producer")
+	loopCmd.Flags().BoolVar(&rpiCompileDefrag, "compile-defrag", false, "Run defrag sweep after Compile mine producer tick")
 
 	rpiCmd.AddCommand(loopCmd)
 }
@@ -208,7 +208,7 @@ type queueSelection struct {
 
 var (
 	runRPISupervisedCycleFn func(context.Context, string, string, int, int, rpiLoopSupervisorConfig) error = runRPISupervisedCycle
-	runAthenaProducerTickFn = runAthenaProducerTick
+	runCompileProducerTickFn = runCompileProducerTick
 )
 
 func runRPILoop(cmd *cobra.Command, args []string) error {
@@ -268,7 +268,7 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 
 	cycle := 0
 	executedCycles := 0
-	athenaState := athenaProducerState{}
+	compileState := compileProducerState{}
 	for {
 		cycle++
 
@@ -285,7 +285,7 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 		}
 
 		fmt.Printf("\n=== RPI Loop: Cycle %d ===\n", cycle)
-		if err := maybeRunAthenaProducerCadence(cwd, explicitGoal, cfg, &athenaState); err != nil {
+		if err := maybeRunCompileProducerCadence(cwd, explicitGoal, cfg, &compileState); err != nil {
 			return err
 		}
 
@@ -313,25 +313,25 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 	return nil
 }
 
-type athenaProducerState struct {
+type compileProducerState struct {
 	LastTick time.Time
 }
 
-func maybeRunAthenaProducerCadence(cwd, explicitGoal string, cfg rpiLoopSupervisorConfig, state *athenaProducerState) error {
-	if explicitGoal != "" || !cfg.AthenaEnabled {
+func maybeRunCompileProducerCadence(cwd, explicitGoal string, cfg rpiLoopSupervisorConfig, state *compileProducerState) error {
+	if explicitGoal != "" || !cfg.CompileEnabled {
 		return nil
 	}
 	if GetDryRun() {
-		fmt.Println("[dry-run] Skipping Athena producer cadence.")
+		fmt.Println("[dry-run] Skipping Compile producer cadence.")
 		return nil
 	}
-	if state != nil && cfg.AthenaInterval > 0 && !state.LastTick.IsZero() {
-		if elapsed := time.Since(state.LastTick); elapsed < cfg.AthenaInterval {
+	if state != nil && cfg.CompileInterval > 0 && !state.LastTick.IsZero() {
+		if elapsed := time.Since(state.LastTick); elapsed < cfg.CompileInterval {
 			return nil
 		}
 	}
-	if err := runAthenaProducerTickFn(cwd, cfg); err != nil {
-		wrapped := wrapCycleFailure(cycleFailureInfrastructure, "athena producer", err)
+	if err := runCompileProducerTickFn(cwd, cfg); err != nil {
+		wrapped := wrapCycleFailure(cycleFailureInfrastructure, "compile producer", err)
 		if cfg.ShouldContinueAfterFailure() {
 			VerbosePrintf("Warning: %v\n", wrapped)
 			return nil
@@ -344,24 +344,24 @@ func maybeRunAthenaProducerCadence(cwd, explicitGoal string, cfg rpiLoopSupervis
 	return nil
 }
 
-func runAthenaProducerTick(cwd string, cfg rpiLoopSupervisorConfig) error {
+func runCompileProducerTick(cwd string, cfg rpiLoopSupervisorConfig) error {
 	aoCommand := cmp.Or(strings.TrimSpace(cfg.AOCommand), "ao")
-	since := cmp.Or(strings.TrimSpace(cfg.AthenaSince), "26h")
+	since := cmp.Or(strings.TrimSpace(cfg.CompileSince), "26h")
 
 	mineArgs := []string{"mine", "--emit-work-items", "--since", since, "--quiet"}
-	fmt.Printf("Athena producer tick: %s %s\n", aoCommand, strings.Join(mineArgs, " "))
+	fmt.Printf("Compile producer tick: %s %s\n", aoCommand, strings.Join(mineArgs, " "))
 	if err := loopCommandRunner(cwd, cfg.CommandTimeout, aoCommand, mineArgs...); err != nil {
-		return fmt.Errorf("athena mine producer failed: %w", err)
+		return fmt.Errorf("compile mine producer failed: %w", err)
 	}
 
-	if !cfg.AthenaDefrag {
+	if !cfg.CompileDefrag {
 		return nil
 	}
 
 	defragArgs := []string{"defrag", "--prune", "--dedup", "--oscillation-sweep", "--quiet"}
-	fmt.Printf("Athena producer defrag: %s %s\n", aoCommand, strings.Join(defragArgs, " "))
+	fmt.Printf("Compile producer defrag: %s %s\n", aoCommand, strings.Join(defragArgs, " "))
 	if err := loopCommandRunner(cwd, cfg.CommandTimeout, aoCommand, defragArgs...); err != nil {
-		return fmt.Errorf("athena defrag sweep failed: %w", err)
+		return fmt.Errorf("compile defrag sweep failed: %w", err)
 	}
 	return nil
 }

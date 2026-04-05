@@ -51,10 +51,10 @@ type rpiLoopSupervisorConfig struct {
 	CycleRetries          int
 	RetryBackoff          time.Duration
 	CycleDelay            time.Duration
-	AthenaEnabled         bool
-	AthenaInterval        time.Duration
-	AthenaSince           string
-	AthenaDefrag          bool
+	CompileEnabled         bool
+	CompileInterval        time.Duration
+	CompileSince           string
+	CompileDefrag          bool
 	LeaseEnabled          bool
 	LeasePath             string
 	LeaseTTL              time.Duration
@@ -121,10 +121,10 @@ func buildBaseLoopConfig() rpiLoopSupervisorConfig {
 		CycleRetries:          rpiCycleRetries,
 		RetryBackoff:          rpiRetryBackoff,
 		CycleDelay:            rpiCycleDelay,
-		AthenaEnabled:         rpiAthena,
-		AthenaInterval:        rpiAthenaInterval,
-		AthenaSince:           strings.TrimSpace(rpiAthenaSince),
-		AthenaDefrag:          rpiAthenaDefrag,
+		CompileEnabled:         rpiCompile,
+		CompileInterval:        rpiCompileInterval,
+		CompileSince:           strings.TrimSpace(rpiCompileSince),
+		CompileDefrag:          rpiCompileDefrag,
 		LeaseEnabled:          rpiLease,
 		LeasePath:             rpiLeasePath,
 		LeaseTTL:              rpiLeaseTTL,
@@ -188,11 +188,11 @@ func applySupervisorDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfig) {
 }
 
 func applySupervisorBoolDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfig) {
-	if !cmd.Flags().Changed("athena") {
-		cfg.AthenaEnabled = true
+	if !cmd.Flags().Changed("compile") {
+		cfg.CompileEnabled = true
 	}
-	if !cmd.Flags().Changed("athena-defrag") {
-		cfg.AthenaDefrag = true
+	if !cmd.Flags().Changed("compile-defrag") {
+		cfg.CompileDefrag = true
 	}
 	if !cmd.Flags().Changed("lease") {
 		cfg.LeaseEnabled = true
@@ -212,11 +212,11 @@ func applySupervisorBoolDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfi
 }
 
 func applySupervisorPolicyDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfig) {
-	if !cmd.Flags().Changed("athena-interval") {
-		cfg.AthenaInterval = 30 * time.Minute
+	if !cmd.Flags().Changed("compile-interval") {
+		cfg.CompileInterval = 30 * time.Minute
 	}
-	if !cmd.Flags().Changed("athena-since") {
-		cfg.AthenaSince = "26h"
+	if !cmd.Flags().Changed("compile-since") {
+		cfg.CompileSince = "26h"
 	}
 	if !cmd.Flags().Changed("failure-policy") {
 		cfg.FailurePolicy = loopFailurePolicyContinue
@@ -253,8 +253,8 @@ func validateLoopNumericConstraints(cfg *rpiLoopSupervisorConfig) error {
 	if cfg.CycleDelay < 0 {
 		return fmt.Errorf("cycle-delay must be >= 0")
 	}
-	if cfg.AthenaInterval < 0 {
-		return fmt.Errorf("athena-interval must be >= 0")
+	if cfg.CompileInterval < 0 {
+		return fmt.Errorf("compile-interval must be >= 0")
 	}
 	if cfg.CommandTimeout < 0 {
 		return fmt.Errorf("command-timeout must be >= 0")

@@ -25,10 +25,10 @@ func TestBuildBaseLoopConfig(t *testing.T) {
 	rpiCycleRetries = 5
 	rpiRetryBackoff = 30 * time.Second
 	rpiCycleDelay = 10 * time.Minute
-	rpiAthena = true
-	rpiAthenaInterval = 45 * time.Minute
-	rpiAthenaSince = "12h"
-	rpiAthenaDefrag = true
+	rpiCompile = true
+	rpiCompileInterval = 45 * time.Minute
+	rpiCompileSince = "12h"
+	rpiCompileDefrag = true
 	rpiLease = true
 	rpiLeasePath = "/tmp/test.lock"
 	rpiLeaseTTL = 5 * time.Minute
@@ -64,17 +64,17 @@ func TestBuildBaseLoopConfig(t *testing.T) {
 	if cfg.CycleDelay != 10*time.Minute {
 		t.Errorf("CycleDelay = %v, want 10m", cfg.CycleDelay)
 	}
-	if !cfg.AthenaEnabled {
-		t.Error("expected AthenaEnabled=true")
+	if !cfg.CompileEnabled {
+		t.Error("expected CompileEnabled=true")
 	}
-	if cfg.AthenaInterval != 45*time.Minute {
-		t.Errorf("AthenaInterval = %v, want 45m", cfg.AthenaInterval)
+	if cfg.CompileInterval != 45*time.Minute {
+		t.Errorf("CompileInterval = %v, want 45m", cfg.CompileInterval)
 	}
-	if cfg.AthenaSince != "12h" {
-		t.Errorf("AthenaSince = %q, want 12h", cfg.AthenaSince)
+	if cfg.CompileSince != "12h" {
+		t.Errorf("CompileSince = %q, want 12h", cfg.CompileSince)
 	}
-	if !cfg.AthenaDefrag {
-		t.Error("expected AthenaDefrag=true")
+	if !cfg.CompileDefrag {
+		t.Error("expected CompileDefrag=true")
 	}
 	if !cfg.LeaseEnabled {
 		t.Error("expected LeaseEnabled=true")
@@ -155,9 +155,9 @@ func TestValidateLoopNumericConstraints(t *testing.T) {
 			"cycle-delay",
 		},
 		{
-			"negative athena interval",
-			rpiLoopSupervisorConfig{CycleRetries: 0, AthenaInterval: -1},
-			"athena-interval",
+			"negative compile interval",
+			rpiLoopSupervisorConfig{CycleRetries: 0, CompileInterval: -1},
+			"compile-interval",
 		},
 		{
 			"negative timeout",

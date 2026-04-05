@@ -70,15 +70,15 @@ CI catches codex drift at push time, but 40% of fix commits in the March 2026 in
 
 Today harvest/forge/inject are on-demand — an operator runs them when they remember to. Anthropic's "dream cycle" concept validates what we've known: consolidation should happen automatically between sessions. Ship a GitHub Action (or scheduled Claude task) that runs nightly: harvest new learnings from recent sessions, forge patterns from accumulated learnings, defrag stale knowledge, and report flywheel health. The dream cycle is what turns the flywheel from "useful when invoked" to "always compounding."
 
-**Progress:** Not started. Existing primitives (`ao harvest`, `ao forge`, `ao athena mine/grow/defrag`) are all CLI-invocable and could be composed into a workflow. No nightly automation exists yet.
+**Progress:** Not started. Existing primitives (`ao harvest`, `ao forge`, `ao compile mine/grow/defrag`) are all CLI-invocable and could be composed into a workflow. No nightly automation exists yet.
 
 **Steer:** increase (automated consolidation runs per week)
 
 ### 9. Build the pattern-to-skill pipeline (self-programming)
 
-When the same pattern appears across 3+ sessions — a debugging technique, a validation sequence, a refactoring approach — the system should propose a new skill. Today skills are hand-authored. The next step is semi-automated: `/athena` or `/forge` detects recurring patterns, drafts a skill skeleton (SKILL.md + frontmatter), and presents it for human review before promotion. This is Anthropic's "Skillify" concept — compound growth without manual authoring.
+When the same pattern appears across 3+ sessions — a debugging technique, a validation sequence, a refactoring approach — the system should propose a new skill. Today skills are hand-authored. The next step is semi-automated: `/compile` or `/forge` detects recurring patterns, drafts a skill skeleton (SKILL.md + frontmatter), and presents it for human review before promotion. This is Anthropic's "Skillify" concept — compound growth without manual authoring.
 
-**Progress:** Not started. `/athena grow` already synthesizes cross-domain insights and `/forge` extracts learnings. The gap is the last mile: turning a promoted pattern into a SKILL.md draft with correct frontmatter, references, and tier classification.
+**Progress:** Not started. `/compile grow` already synthesizes cross-domain insights and `/forge` extracts learnings. The gap is the last mile: turning a promoted pattern into a SKILL.md draft with correct frontmatter, references, and tier classification.
 
 **Steer:** increase (auto-proposed skill drafts)
 
@@ -89,7 +89,7 @@ AgentOps defines a three-gap contract ([context lifecycle](docs/context-lifecycl
 | Gap | What fails without it | Proving gates | Coverage |
 |-----|-----------------------|---------------|----------|
 | **1. Judgment validation** — agents ship without risk context | Plans skip architecture fit; implementations pass happy path but miss edge cases | `hook-preflight`, `go-vet-clean`, `go-complexity-ceiling`, `security-gate`, `wiring-closure`, `contract-compatibility` | Mechanically enforced via hooks and static analysis; `/pre-mortem` and `/vibe` supply the non-mechanical judgment layer |
-| **2. Durable learning** — solved problems recur | Same auth bug fixed Monday returns Wednesday; agents re-run dead-end investigations | `flywheel-compounding`, `flywheel-proof`, `athena-freshness`, `athena-no-oscillation` | Flywheel escape velocity proves compounding; Athena gates prove curation and freshness |
+| **2. Durable learning** — solved problems recur | Same auth bug fixed Monday returns Wednesday; agents re-run dead-end investigations | `flywheel-compounding`, `flywheel-proof`, `compile-freshness`, `compile-no-oscillation` | Flywheel escape velocity proves compounding; Compile gates prove curation and freshness |
 | **3. Loop closure** — completed work doesn't produce better next work | Sessions end with diffs but no extracted lessons; next session starts cold | `flywheel-proof`, `goals-validate`, `wiring-closure`, `release-cadence` | `flywheel-proof` traces capture-to-retrieval; `goals-validate` ensures findings become directives; `wiring-closure` proves registries stay connected |
 
 **Design rule:** prefer current gates over new scripts unless a true gap is found. New gates are justified only when a gap row shows no proving gate.
@@ -115,8 +115,8 @@ The three-gap contract is satisfied when the mapped gates below remain green tog
 | wiring-closure | `timeout 60 bash scripts/check-wiring-closure.sh` | 7 | All scripts, skills, and hooks referenced by registries exist |
 | contract-compatibility | `timeout 60 bash scripts/check-contract-compatibility.sh` | 5 | Contract schemas and references exist on disk |
 | goals-validate | `bash -c 'cd cli && go build -o /tmp/ao-goals-val ./cmd/ao && cd .. && /tmp/ao-goals-val goals validate --json 2>/dev/null \| jq -e ".valid == true"'` | 5 | GOALS.md parses and validates without structural errors |
-| athena-freshness | `bash scripts/check-athena-health.sh` | 4 | Athena defrag report is fresh and stale learnings are low |
-| athena-no-oscillation | `bash -c 'test -f .agents/defrag/latest.json && jq -e "(.oscillation.oscillating_goals // []) \| length == 0" .agents/defrag/latest.json'` | 4 | No evolve goals oscillating across consecutive cycles |
+| compile-freshness | `bash scripts/check-compile-health.sh` | 4 | Compile defrag report is fresh and stale learnings are low |
+| compile-no-oscillation | `bash -c 'test -f .agents/defrag/latest.json && jq -e "(.oscillation.oscillating_goals // []) \| length == 0" .agents/defrag/latest.json'` | 4 | No evolve goals oscillating across consecutive cycles |
 | competitive-freshness | `bash scripts/check-competitive-freshness.sh` | 3 | Competitive analysis docs updated within 45 days |
 | codex-parity-drift | `bash scripts/check-codex-parity-drift.sh` | 5 | No codex parity findings from audit |
 | install-smoke | `timeout 30 bash tests/install/test-install-smoke.sh` | 5 | Install scripts pass syntax and structure validation |
