@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.34.0] - 2026-04-05
+
+### Added
+
+- **Stage 4 Behavioral Validation** — new validation tier between council/vibe and production:
+  - Holdout scenarios stored in `.agents/holdout/` with PreToolUse isolation hook preventing implementing agents from seeing evaluation criteria
+  - Satisfaction scoring (0.0-1.0 probabilistic) in verdict schema v4, replacing boolean-only PASS/FAIL
+  - Agent-built behavioral specs generated during `/implement` Step 5c
+  - `/scenario` skill for authoring and managing holdout scenarios
+  - `ao scenario init|list|validate` CLI commands (4 subcommands, 11 tests)
+  - STEP 1.8 in `/validation` pipeline evaluating holdout scenarios + agent specs
+  - `schemas/scenario.v1.schema.json` defining the holdout scenario format
+- **Flywheel gate command** — `ao flywheel gate` checks readiness for retrieval-expansion work (research closure, rho threshold, holdout precision@K)
+- **Citation confidence scoring** — `citationEventIsHighConfidence` with bucketed confidence (0/0.5/0.7/0.9) gates MemRL rewards on match quality
+- **Retrieval bench refactor** — train/holdout splits, section-aware scoring (`scoreBenchSections`), manifest-based benchmark cases
+- **Proof-backed next-work visibility** — `classifyNextWorkCompletionProof` unifies completed-run, execution-packet, and evidence-only-closure proof types; context explain and stigmergic packet now report proof-backed suppressions
+- **Three-gap contract proof gates** — lifecycle gap mapping gates added to GOALS.md
+- **Cross-vendor execution** — `--mixed` flag for Claude + Codex council judges
+- **Gas City bridge** — gc as default executor for RPI phase execution with L1-L3 tests
+- **149 L2 integration tests** — AI-native test shape ("L2 first, L1 always") validated at scale; coverage floor raised 78.8% → 81.0%
+- **Test coverage hardening** — GPG commit-signing fixes, root-skip guards for containerized CI, 350+ lines of vibecheck detector/metrics tests, maturity.go empty-content bugfix
+
+### Changed
+
+- **Codex parity hook** — `codex-parity-warn.sh` now supports opt-in blocking mode via `AGENTOPS_CODEX_PARITY_BLOCK=1` (exit 2 instead of advisory)
+- **12-factor doctrine** — compressed from 474 to 114 lines, reframed as supporting lens rather than product definition
+- **Skill count** — 65 → 66 (added `/scenario`)
+- **Research skill** — now persists reusable findings to `.agents/findings/registry.jsonl` with finding-compiler refresh
+- **Closure integrity audit** — accepts durable closure packets without scoped-file sections as valid evidence
+- **Proof-backed legacy entries** — `shouldSkipLegacyFailedEntry` uses `CompletionEvidence` field (proof-only, no heuristic fallback)
+- **`readQueueEntries`** — returns all non-consumed entries; proof filtering is downstream via `shouldSkipLegacyFailedEntry`
+
+### Fixed
+
+- **6 CI failure categories** resolved in one commit (f1b83b25)
+- **Cobra test registration** — `scenario` and `flywheel gate` added to expectedCmds
+- **Citation feedback test** — assertion corrected for recorded confidence preference (0.5 not 0.7)
+- **RPI hardening** — UAT version pre-flight, goals history filter, proof-backed suppression, fail-closed gates, cross-epic handoff contamination, bare ag- prefix guard
+- **Branch consolidation** — 10 stale Codex branches analyzed, cherry-picked (9 commits, ~3,500 lines), and deleted; 25 orphaned worktrees pruned
+- **git rerere enabled** — conflict resolution memory for future merges
+
 ## [2.33.0] - 2026-04-02
 
 ### Added
