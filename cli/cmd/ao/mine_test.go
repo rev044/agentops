@@ -394,6 +394,10 @@ func TestWriteMineWorkItems(t *testing.T) {
 }
 
 func TestWriteMineWorkItems_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
+
 	tmp := t.TempDir()
 	readOnlyDir := filepath.Join(tmp, "readonly")
 	os.Mkdir(readOnlyDir, 0o555)

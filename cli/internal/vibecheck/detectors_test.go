@@ -385,3 +385,245 @@ func TestFilesRelated_NoOverlap(t *testing.T) {
 		t.Error("expected no overlap to return false")
 	}
 }
+
+// --- isConfigFile ---
+
+func TestIsConfigFile(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"CLAUDE.md", true},
+		{"project/CLAUDE.md", true},
+		{"skills/vibe/SKILL.md", true},
+		{".claude/settings.json", true},
+		{".github/workflows/ci.yml", true},
+		{".agents/ao/state.json", true},
+		{"tsconfig.json", true},
+		{".eslintrc.json", true},
+		{".prettierrc", true},
+		{"renovate.json", true},
+		{"handler.go", false},
+		{"main.py", false},
+		{"README.md", false},
+	}
+	for _, tt := range tests {
+		got := isConfigFile(tt.path)
+		if got != tt.want {
+			t.Errorf("isConfigFile(%q) = %v, want %v", tt.path, got, tt.want)
+		}
+	}
+}
+
+// --- isLoggingMessage ---
+
+func TestIsLoggingMessage(t *testing.T) {
+	tests := []struct {
+		msg  string
+		want bool
+	}{
+		{"add debug logging", true},
+		{"adding log statements", true},
+		{"debugging the issue", true},
+		{"print statement cleanup", true},
+		{"trace: enable tracing", true},
+		{"console.log output", true},
+		{"temporary workaround", true},
+		{"temp fix for CI", true},
+		{"WIP: investigating", true},
+		{"diagnosis of failure", true},
+		{"feat: add new endpoint", false},
+		{"fix: correct auth logic", false},
+		{"refactor: clean up", false},
+	}
+	for _, tt := range tests {
+		got := isLoggingMessage(tt.msg)
+		if got != tt.want {
+			t.Errorf("isLoggingMessage(%q) = %v, want %v", tt.msg, got, tt.want)
+		}
+	}
+}
+
+// --- isSmallLoggingCommit ---
+
+func TestIsSmallLoggingCommit(t *testing.T) {
+	small := makeEvent("a", 0, "add debug logging", nil, 5, 3)
+	if !isSmallLoggingCommit(small) {
+		t.Error("expected small logging commit to match")
+	}
+
+	large := makeEvent("b", 0, "add debug logging", nil, 50, 10)
+	if isSmallLoggingCommit(large) {
+		t.Error("expected large diff to not match")
+	}
+
+	nonLogging := makeEvent("c", 0, "feat: new endpoint", nil, 5, 3)
+	if isSmallLoggingCommit(nonLogging) {
+		t.Error("expected non-logging message to not match")
+	}
+
+	zeroDiff := makeEvent("d", 0, "add debug logging", nil, 0, 0)
+	if isSmallLoggingCommit(zeroDiff) {
+		t.Error("expected zero-diff to not match")
+	}
+}
+
+// --- maxConsecutiveRun ---
+
+func TestMaxConsecutiveRun(t *testing.T) {
+	events := []TimelineEvent{
+		makeEvent("a", 0, "debug: test", nil, 3, 0),
+		makeEvent("b", 5, "debug: more", nil, 3, 0),
+		makeEvent("c", 10, "feat: real work", nil, 30, 0),
+		makeEvent("d", 15, "debug: again", nil, 3, 0),
+	}
+	pred := func(ev TimelineEvent) bool { return isLoggingMessage(ev.Message) }
+	got := maxConsecutiveRun(events, pred)
+	if got != 2 {
+		t.Errorf("maxConsecutiveRun = %d, want 2", got)
+	}
+
+	if maxConsecutiveRun(nil, pred) != 0 {
+		t.Error("expected 0 for nil events")
+	}
+}
+
+// --- claimsSuccess / isTentative / isFixMessage ---
+
+func TestClaimsSuccess(t *testing.T) {
+	tests := []struct {
+		msg  string
+		want bool
+	}{
+		{"fixed the bug", true},
+		{"it's working now", true},
+		{"done with auth", true},
+		{"tests pass", true},
+		{"all tests green", true},
+		{"successfully deployed", true},
+		{"should work now", true},
+		{"it works", true},
+		{"feat: add new thing", false},
+		{"refactor: clean up", false},
+	}
+	for _, tt := range tests {
+		got := claimsSuccess(tt.msg)
+		if got != tt.want {
+			t.Errorf("claimsSuccess(%q) = %v, want %v", tt.msg, got, tt.want)
+		}
+	}
+}
+
+func TestIsTentative(t *testing.T) {
+	tests := []struct {
+		msg  string
+		want bool
+	}{
+		{"try this approach", true},
+		{"attempt to fix", true},
+		{"maybe this works", true},
+		{"WIP: auth flow", true},
+		{"work in progress", true},
+		{"experiment with cache", true},
+		{"testing new approach", true},
+		{"debug the issue", true},
+		{"investigating failure", true},
+		{"feat: add login", false},
+		{"fix: correct typo", false},
+	}
+	for _, tt := range tests {
+		got := isTentative(tt.msg)
+		if got != tt.want {
+			t.Errorf("isTentative(%q) = %v, want %v", tt.msg, got, tt.want)
+		}
+	}
+}
+
+func TestIsFixMessage(t *testing.T) {
+	tests := []struct {
+		msg  string
+		want bool
+	}{
+		{"fix: auth bug", true},
+		{"Fix: capital", true},
+		{"fixed the issue", true},
+		{"bugfix: memory leak", true},
+		{"hotfix: critical error", true},
+		{"patch: version bump", true},
+		{"feat: new feature", false},
+		{"refactor: clean up", false},
+	}
+	for _, tt := range tests {
+		got := isFixMessage(tt.msg)
+		if got != tt.want {
+			t.Errorf("isFixMessage(%q) = %v, want %v", tt.msg, got, tt.want)
+		}
+	}
+}
+
+// --- countConfigEdits ---
+
+func TestCountConfigEdits(t *testing.T) {
+	events := []TimelineEvent{
+		makeEvent("a", 0, "update config", []string{"CLAUDE.md", "handler.go"}, 5, 2),
+		makeEvent("b", 10, "fix config", []string{"CLAUDE.md"}, 3, 1),
+		makeEvent("c", 20, "feat: code", []string{"main.go"}, 20, 0),
+	}
+	counts := countConfigEdits(events)
+	if counts["CLAUDE.md"] != 2 {
+		t.Errorf("expected CLAUDE.md count 2, got %d", counts["CLAUDE.md"])
+	}
+	if counts["handler.go"] != 0 {
+		t.Errorf("expected handler.go count 0, got %d", counts["handler.go"])
+	}
+}
+
+// --- buildFileEdits ---
+
+func TestBuildFileEdits(t *testing.T) {
+	events := []TimelineEvent{
+		makeEvent("a1", 0, "edit handler", []string{"handler.go", "util.go"}, 10, 2),
+		makeEvent("a2", 10, "fix handler", []string{"handler.go"}, 5, 1),
+	}
+	edits := buildFileEdits(events)
+	if len(edits["handler.go"]) != 2 {
+		t.Errorf("expected 2 edits for handler.go, got %d", len(edits["handler.go"]))
+	}
+	if len(edits["util.go"]) != 1 {
+		t.Errorf("expected 1 edit for util.go, got %d", len(edits["util.go"]))
+	}
+}
+
+// --- ErrRepoPathRequired ---
+
+func TestErrRepoPathRequired(t *testing.T) {
+	if ErrRepoPathRequired == nil {
+		t.Fatal("ErrRepoPathRequired should not be nil")
+	}
+	if ErrRepoPathRequired.Error() != "RepoPath is required" {
+		t.Errorf("unexpected error message: %s", ErrRepoPathRequired.Error())
+	}
+}
+
+// --- DetectLoggingOnly edge cases ---
+
+func TestDetectLoggingOnly_EmptyEvents(t *testing.T) {
+	findings := DetectLoggingOnly(nil)
+	if len(findings) != 0 {
+		t.Errorf("expected no findings for nil events, got %d", len(findings))
+	}
+}
+
+// --- DetectContextAmnesia with exactly amnesiaMinEdits ---
+
+func TestDetectContextAmnesia_ExactThreshold(t *testing.T) {
+	events := []TimelineEvent{
+		makeEvent("a", 0, "edit handler", []string{"handler.go"}, 10, 0),
+		makeEvent("b", 15, "fix handler", []string{"handler.go"}, 5, 2),
+		makeEvent("c", 30, "fix handler again", []string{"handler.go"}, 5, 3),
+	}
+	findings := DetectContextAmnesia(events)
+	if len(findings) == 0 {
+		t.Error("expected finding for exactly 3 edits within window")
+	}
+}

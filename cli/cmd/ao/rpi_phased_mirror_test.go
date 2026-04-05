@@ -125,6 +125,10 @@ func TestStateMirrorSkipsSameRoot(t *testing.T) {
 // TestStateMirrorFailureEvent verifies that a state.mirror.failed C2 event is
 // emitted when the mirror root is not writable.
 func TestStateMirrorFailureEvent(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
+
 	parent := t.TempDir()
 	runID := "mir-fail-01"
 	supervisor := filepath.Join(parent, "repo")

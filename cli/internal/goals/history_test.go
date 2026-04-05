@@ -142,6 +142,9 @@ func TestQueryHistory_GoalIDParameterIgnored(t *testing.T) {
 }
 
 func TestAppendHistory_OpenFileError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -161,6 +164,9 @@ func TestAppendHistory_OpenFileError(t *testing.T) {
 }
 
 func TestLoadHistory_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	histPath := filepath.Join(tmpDir, "history.jsonl")
 	if err := os.WriteFile(histPath, []byte(`{"timestamp":"t1"}`+"\n"), 0644); err != nil {
@@ -218,6 +224,9 @@ func TestAppendHistory_GoalsAdded(t *testing.T) {
 }
 
 func TestAppendHistory_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmp := t.TempDir()
 	readOnly := filepath.Join(tmp, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -238,6 +247,9 @@ func TestAppendHistory_ReadOnlyDir(t *testing.T) {
 }
 
 func TestLoadHistory_UnreadableFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "history.jsonl")
 

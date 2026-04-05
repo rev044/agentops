@@ -1399,6 +1399,7 @@ func TestGitChangedFiles_WithChanges(t *testing.T) {
 		{"git", "init"},
 		{"git", "config", "user.email", "test@test.com"},
 		{"git", "config", "user.name", "Test"},
+		{"git", "config", "commit.gpgsign", "false"},
 	}
 	for _, args := range cmds {
 		cmd := exec.Command(args[0], args[1:]...)
@@ -1446,6 +1447,7 @@ func TestGitChangedFiles_CleanRepo(t *testing.T) {
 		{"git", "init"},
 		{"git", "config", "user.email", "test@test.com"},
 		{"git", "config", "user.name", "Test"},
+		{"git", "config", "commit.gpgsign", "false"},
 	} {
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = dir
@@ -2116,7 +2118,7 @@ func TestToRepoRelative_Extra(t *testing.T) {
 
 func TestGitChangedFiles_LimitExtra(t *testing.T) {
 	dir := t.TempDir()
-	for _, a := range [][]string{{"git", "init"}, {"git", "config", "user.email", "t@t"}, {"git", "config", "user.name", "T"}} {
+	for _, a := range [][]string{{"git", "init"}, {"git", "config", "user.email", "t@t"}, {"git", "config", "user.name", "T"}, {"git", "config", "commit.gpgsign", "false"}} {
 		c := exec.Command(a[0], a[1:]...); c.Dir = dir; c.CombinedOutput()
 	}
 	for i := 0; i < 5; i++ { os.WriteFile(filepath.Join(dir, strings.Repeat("a", i+1)+".txt"), []byte("v1"), 0644) }

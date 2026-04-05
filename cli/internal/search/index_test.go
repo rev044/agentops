@@ -231,6 +231,9 @@ func TestSearchEmptyIndex(t *testing.T) {
 }
 
 func TestBuildIndex_UnreadableEntry(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 
 	// Create a readable file so the index is non-empty
@@ -295,6 +298,9 @@ func TestSaveIndex_EmptyDocsSkipped(t *testing.T) {
 }
 
 func TestSaveIndex_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 	// Make directory read-only
 	readOnlyDir := filepath.Join(dir, "readonly")
@@ -395,6 +401,9 @@ func TestSearch_TieBreakByPath(t *testing.T) {
 }
 
 func TestSaveIndex_CreateFileError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 	idx := NewIndex()
 	idx.Terms["test"] = map[string]bool{"/a.md": true}
@@ -413,6 +422,9 @@ func TestSaveIndex_CreateFileError(t *testing.T) {
 }
 
 func TestIndexFile_UnreadableFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 
 	// Create a file then make it unreadable
@@ -431,6 +443,9 @@ func TestIndexFile_UnreadableFile(t *testing.T) {
 }
 
 func TestBuildIndex_SkipsUnreadableFiles(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 
 	// Create a readable file and an unreadable file
@@ -477,6 +492,9 @@ func TestUpdateIndex_UnreadableFile(t *testing.T) {
 }
 
 func TestSaveIndex_ReadOnlySubdir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -495,6 +513,9 @@ func TestSaveIndex_ReadOnlySubdir(t *testing.T) {
 }
 
 func TestSaveIndex_FilePermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 
 	// Create a file where the index should go, make it read-only directory
@@ -605,6 +626,9 @@ func TestLoadIndex_ScannerError(t *testing.T) {
 }
 
 func TestSaveIndex_ReadOnlySubDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {

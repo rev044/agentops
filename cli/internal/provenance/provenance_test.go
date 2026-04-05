@@ -310,6 +310,9 @@ func TestGraph_Trace_AbsolutePath(t *testing.T) {
 }
 
 func TestNewGraph_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	provPath := filepath.Join(tmpDir, "graph.jsonl")
 	if err := os.WriteFile(provPath, []byte(`{"id":"test"}`+"\n"), 0644); err != nil {

@@ -541,6 +541,9 @@ func TestExtra_ProbeFrontmatterID_UnreadableFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("chmod not reliable on Windows")
 	}
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	root := t.TempDir()
 	mdFile := filepath.Join(root, "broken.md")
 	if err := os.WriteFile(mdFile, []byte("---\nid: secret\n---\n"), 0644); err != nil {

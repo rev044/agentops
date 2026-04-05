@@ -353,6 +353,7 @@ func initHistoryFixtureGitRepo(t *testing.T, dir string) {
 	runFixtureGit(t, dir, nil, "init")
 	runFixtureGit(t, dir, nil, "config", "user.email", "test@test.com")
 	runFixtureGit(t, dir, nil, "config", "user.name", "Test")
+	runFixtureGit(t, dir, nil, "config", "commit.gpgsign", "false")
 }
 
 // runFixtureGit executes a git command in dir with optional extra environment

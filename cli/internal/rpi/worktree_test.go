@@ -142,6 +142,7 @@ func initGitRepo(t *testing.T) string {
 	runGit(t, dir, "init")
 	runGit(t, dir, "config", "user.email", "test@example.com")
 	runGit(t, dir, "config", "user.name", "Test")
+	runGit(t, dir, "config", "commit.gpgsign", "false")
 
 	readme := filepath.Join(dir, "README.md")
 	if err := os.WriteFile(readme, []byte("# test\n"), 0644); err != nil {
@@ -430,6 +431,9 @@ func TestAcquireMergeLock_MkdirAllFails(t *testing.T) {
 }
 
 func TestAcquireMergeLock_OpenFileFails(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise acquireMergeLock where os.OpenFile fails.
 	tmp := t.TempDir()
 	lockDir := filepath.Join(tmp, ".git", "agentops")
@@ -1258,6 +1262,9 @@ func TestRemoveWorktree_RepoRootEvalSymlinksFails(t *testing.T) {
 }
 
 func TestCreateWorktree_WorktreeAddFailsGenericError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	repo := initGitRepo(t)
 
 	objectsDir := filepath.Join(repo, ".git", "objects")
@@ -1273,6 +1280,9 @@ func TestCreateWorktree_WorktreeAddFailsGenericError(t *testing.T) {
 }
 
 func TestMergeWorktree_MergeFailsNoConflictFiles(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	repo := initGitRepo(t)
 
 	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)

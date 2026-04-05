@@ -196,6 +196,12 @@ func initGitRepo(repoPath string) error {
 		return fmt.Errorf("git config name failed: %w", err)
 	}
 
+	cmd = exec.Command("git", "config", "commit.gpgsign", "false")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git config gpgsign failed: %w", err)
+	}
+
 	return nil
 }
 

@@ -787,3 +787,113 @@ func BenchmarkComputeOverallRating(b *testing.B) {
 		ComputeOverallRating(metrics)
 	}
 }
+
+// --- dailyCommitCounts ---
+
+func TestDailyCommitCounts(t *testing.T) {
+	base := baseTime()
+	events := []TimelineEvent{
+		makeTestEvent("a1", "feat: day1", base),
+		makeTestEvent("a2", "feat: day1b", base.Add(2*time.Hour)),
+		makeTestEvent("a3", "feat: day2", base.Add(24*time.Hour)),
+	}
+	counts := dailyCommitCounts(events)
+	if len(counts) != 2 {
+		t.Errorf("expected 2 days, got %d", len(counts))
+	}
+	if counts[0] != 2 {
+		t.Errorf("expected 2 commits on day 1, got %v", counts[0])
+	}
+	if counts[1] != 1 {
+		t.Errorf("expected 1 commit on day 2, got %v", counts[1])
+	}
+}
+
+func TestDailyCommitCounts_WithGap(t *testing.T) {
+	base := baseTime()
+	events := []TimelineEvent{
+		makeTestEvent("a1", "feat: day1", base),
+		makeTestEvent("a2", "feat: day3", base.Add(48*time.Hour)),
+	}
+	counts := dailyCommitCounts(events)
+	if len(counts) != 3 {
+		t.Errorf("expected 3 days (including gap), got %d", len(counts))
+	}
+	if counts[1] != 0 {
+		t.Errorf("expected 0 commits on gap day, got %v", counts[1])
+	}
+}
+
+// --- MetricVelocity single commit ---
+
+func TestMetricVelocity_SingleCommit(t *testing.T) {
+	events := []TimelineEvent{
+		makeTestEvent("a1", "feat: only one", baseTime()),
+	}
+	m := MetricVelocity(events)
+	if m.Value != 1 {
+		t.Errorf("expected velocity 1 for single commit, got %f", m.Value)
+	}
+}
+
+// --- MetricFlow single event ---
+
+func TestMetricFlow_SingleEvent(t *testing.T) {
+	m := MetricFlow([]TimelineEvent{
+		makeTestEvent("a1", "feat: only", baseTime()),
+	})
+	if m.Passed {
+		t.Error("expected not passed for single event")
+	}
+}
+
+// --- MetricSpirals less than 3 events ---
+
+func TestMetricSpirals_TwoEvents(t *testing.T) {
+	m := MetricSpirals([]TimelineEvent{
+		makeTestEvent("a1", "fix: a", baseTime()),
+		makeTestEvent("a2", "fix: b", baseTime().Add(time.Minute)),
+	})
+	if !m.Passed {
+		t.Error("expected passed for < 3 events")
+	}
+}
+
+// --- MetricTrust edge case: all test commits ---
+
+func TestMetricTrust_SingleTestCommit(t *testing.T) {
+	m := MetricTrust([]TimelineEvent{
+		{Message: "test: one"},
+	})
+	if m.Value != 1.0 {
+		t.Errorf("expected 1.0 for single test commit, got %f", m.Value)
+	}
+}
+
+// --- partialCreditHigherIsBetter ---
+
+func TestPartialCreditHigherIsBetter(t *testing.T) {
+	credit := partialCreditHigherIsBetter(0, 0)
+	if credit != 0 {
+		t.Errorf("expected 0 for zero threshold, got %f", credit)
+	}
+
+	credit = partialCreditHigherIsBetter(1.5, 3)
+	if credit != 10 {
+		t.Errorf("expected 10 for half-way, got %f", credit)
+	}
+}
+
+// --- partialCreditLowerIsBetter ---
+
+func TestPartialCreditLowerIsBetter(t *testing.T) {
+	credit := partialCreditLowerIsBetter(10, 30)
+	if credit != 20 {
+		t.Errorf("expected 20 for value below threshold, got %f", credit)
+	}
+
+	credit = partialCreditLowerIsBetter(100, 30)
+	if credit != 0 {
+		t.Errorf("expected 0 for value at 100, got %f", credit)
+	}
+}

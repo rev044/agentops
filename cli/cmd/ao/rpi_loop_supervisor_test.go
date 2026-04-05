@@ -589,6 +589,7 @@ func TestCommitIfDirty_RepeatedCyclesInDirtyRepoCommitOnlyOwnedPaths(t *testing.
 	runGit("init", "-q")
 	runGit("config", "user.email", "noreply@example.com")
 	runGit("config", "user.name", "Test User")
+	runGit("config", "commit.gpgsign", "false")
 	runGit("checkout", "-q", "-b", "main")
 	runGit("commit", "-q", "--allow-empty", "-m", "init")
 
@@ -910,6 +911,7 @@ func TestEnsureLoopAttachedBranch_CreatesBranch(t *testing.T) {
 	runGit("init", "-q")
 	runGit("config", "user.email", "test@example.com")
 	runGit("config", "user.name", "Test")
+	runGit("config", "commit.gpgsign", "false")
 	runGit("checkout", "-q", "-b", "main")
 	runGit("commit", "-q", "--allow-empty", "-m", "init")
 	commitHash := runGit("rev-parse", "HEAD")

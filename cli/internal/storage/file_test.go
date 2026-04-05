@@ -783,6 +783,9 @@ func TestFileStorage_QueryProvenance_MalformedLines(t *testing.T) {
 }
 
 func TestFileStorage_ReadSession_ListError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 
@@ -948,6 +951,9 @@ func TestGenerateSlug_AllSpecialChars(t *testing.T) {
 }
 
 func TestFileStorage_Init_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -989,6 +995,9 @@ func TestFileStorage_AppendJSONL_OpenError(t *testing.T) {
 }
 
 func TestFileStorage_AppendJSONL_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 	fs := NewFileStorage(WithBaseDir(baseDir))
@@ -1014,6 +1023,9 @@ func TestFileStorage_AppendJSONL_ReadOnlyDir(t *testing.T) {
 }
 
 func TestFileStorage_AtomicWrite_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 	fs := NewFileStorage(WithBaseDir(baseDir))
@@ -1097,6 +1109,9 @@ func mustHasIndexEntry(t *testing.T, fs *FileStorage, f *os.File, sessionID stri
 }
 
 func TestFileStorage_ListSessions_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 	fs := NewFileStorage(WithBaseDir(baseDir))
@@ -1127,6 +1142,9 @@ func TestFileStorage_ListSessions_PermissionError(t *testing.T) {
 }
 
 func TestFileStorage_QueryProvenance_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 	fs := NewFileStorage(WithBaseDir(baseDir))
@@ -1157,6 +1175,9 @@ func TestFileStorage_QueryProvenance_PermissionError(t *testing.T) {
 }
 
 func TestFileStorage_WriteIndex_AppendError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 	fs := NewFileStorage(WithBaseDir(baseDir))
@@ -1193,6 +1214,9 @@ func TestFileStorage_ReadSessionFile_FileNotExist(t *testing.T) {
 }
 
 func TestAtomicWrite_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnlyDir, 0500); err != nil {
@@ -1323,6 +1347,9 @@ func TestAppendJSONLToFile_SeekErrorOnClosedFile(t *testing.T) {
 }
 
 func TestAppendJSONLToFile_WriteErrorOnReadOnlyFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	path := filepath.Join(t.TempDir(), "append-jsonl-readonly.jsonl")
 	if err := os.WriteFile(path, []byte(""), 0600); err != nil {
 		t.Fatal(err)
@@ -1451,6 +1478,9 @@ func TestWithLockedFile_CallbackErrorUnlocksFile(t *testing.T) {
 }
 
 func TestAppendJSONL_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnlyDir, 0500); err != nil {
@@ -1466,6 +1496,9 @@ func TestAppendJSONL_ReadOnlyDir(t *testing.T) {
 }
 
 func TestListSessions_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 	indexDir := filepath.Join(baseDir, IndexDir)
@@ -1491,6 +1524,9 @@ func TestListSessions_PermissionError(t *testing.T) {
 }
 
 func TestQueryProvenance_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
 	provDir := filepath.Join(baseDir, ProvenanceDir)
@@ -1516,6 +1552,9 @@ func TestQueryProvenance_PermissionError(t *testing.T) {
 }
 
 func TestAppendJSONL_OpenFileError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	fs := NewFileStorage(WithBaseDir(tmpDir))
 
@@ -1594,6 +1633,9 @@ func TestAtomicWrite_WriteFuncErrorCleansTempFile(t *testing.T) {
 }
 
 func TestAtomicWrite_ReadOnlyParentDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the MkdirAll error path: make the parent dir read-only
 	// so that the subdirectory can't be created.
 	tmpDir := t.TempDir()
@@ -1771,6 +1813,9 @@ func BenchmarkGenerateSlug(b *testing.B) {
 }
 
 func TestScanJSONLFile_PermissionDenied(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "data.jsonl")
 

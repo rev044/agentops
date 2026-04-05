@@ -799,6 +799,9 @@ func TestStringFromData_RequireNonEmptyFallback(t *testing.T) {
 }
 
 func TestApplyMaturityTransition_ReadOnlyFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 	path := writeLearning(t, dir, "readonly.jsonl", map[string]any{
 		"id":           "readonly-test",
@@ -819,6 +822,9 @@ func TestApplyMaturityTransition_ReadOnlyFile(t *testing.T) {
 }
 
 func TestGetEstablishedLearnings_UnreadableFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 	// Write a valid established file
 	writeLearning(t, dir, "est.jsonl", map[string]any{
@@ -845,6 +851,9 @@ func TestGetEstablishedLearnings_UnreadableFile(t *testing.T) {
 }
 
 func TestGetAntiPatterns_UnreadableFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 	writeLearning(t, dir, "anti.jsonl", map[string]any{
 		"maturity": "anti-pattern",
@@ -868,6 +877,9 @@ func TestGetAntiPatterns_UnreadableFile(t *testing.T) {
 }
 
 func TestGetMaturityDistribution_UnreadableFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	dir := t.TempDir()
 	writeLearning(t, dir, "prov.jsonl", map[string]any{
 		"maturity": "provisional",
@@ -947,6 +959,9 @@ func TestApplyMaturityTransition_PromoteProvisionalToCandidate(t *testing.T) {
 }
 
 func TestApplyMaturityTransition_WriteError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	learningPath := filepath.Join(tmpDir, "learn-test.jsonl")
 
@@ -1056,7 +1071,6 @@ func TestUpdateJSONLFirstLine_ReadError(t *testing.T) {
 }
 
 func TestUpdateJSONLFirstLine_EmptyFile(t *testing.T) {
-	// Exercise line 249-251: empty file returns ErrEmptyFile.
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "empty.jsonl")
 	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
@@ -1065,7 +1079,10 @@ func TestUpdateJSONLFirstLine_EmptyFile(t *testing.T) {
 
 	err := updateJSONLFirstLine(path, map[string]any{"key": "val"})
 	if err == nil {
-		t.Error("expected error for empty file")
+		t.Fatal("expected error for empty file")
+	}
+	if !errors.Is(err, ErrEmptyFile) {
+		t.Errorf("expected ErrEmptyFile, got %v", err)
 	}
 }
 
@@ -1087,6 +1104,9 @@ func TestUpdateJSONLFirstLine_BadJSON(t *testing.T) {
 }
 
 func TestUpdateJSONLFirstLine_WriteError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the write error path (line 268-270) by making the file read-only.
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "readonly.jsonl")

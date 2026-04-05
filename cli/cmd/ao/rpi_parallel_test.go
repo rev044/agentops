@@ -234,6 +234,7 @@ func TestCreateParallelWorktrees_CreatesAndCleansUp(t *testing.T) {
 	runGit("init")
 	runGit("config", "user.email", "test@test.com")
 	runGit("config", "user.name", "Test")
+	runGit("config", "commit.gpgsign", "false")
 
 	// Create initial commit (required for worktree add).
 	readmePath := filepath.Join(tmpDir, "README.md")
@@ -340,6 +341,7 @@ func TestMergeParallelWorktrees_SkipsFailedEpics(t *testing.T) {
 	runGit("init")
 	runGit("config", "user.email", "test@test.com")
 	runGit("config", "user.name", "Test")
+	runGit("config", "commit.gpgsign", "false")
 
 	readmePath := filepath.Join(tmpDir, "README.md")
 	if err := os.WriteFile(readmePath, []byte("base"), 0o644); err != nil {

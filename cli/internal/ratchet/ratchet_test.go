@@ -1550,6 +1550,9 @@ func TestAppend_NewFileWritesMetadata(t *testing.T) {
 
 // -- maturity.go: updateMarkdownFrontMatter write error --
 func TestUpdateMarkdownFrontMatter_WriteError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	f := filepath.Join(tmpDir, "readonly.md")
 	content := "---\nmaturity: provisional\n---\n# Body"
@@ -1573,6 +1576,9 @@ func TestUpdateMarkdownFrontMatter_WriteError(t *testing.T) {
 
 // -- maturity.go: updateJSONLFirstLine write error --
 func TestUpdateJSONLFirstLine_WriteErrorReadOnly(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	f := filepath.Join(tmpDir, "readonly.jsonl")
 	if err := os.WriteFile(f, []byte(`{"id":"test"}`), 0644); err != nil {

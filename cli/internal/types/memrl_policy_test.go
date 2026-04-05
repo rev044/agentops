@@ -258,8 +258,12 @@ func TestValidateMemRLPolicyContract_AllErrors(t *testing.T) {
 	t.Run("empty_rules", func(t *testing.T) {
 		c := valid
 		c.Rules = nil
-		if err := ValidateMemRLPolicyContract(c); err == nil {
+		err := ValidateMemRLPolicyContract(c)
+		if err == nil {
 			t.Error("expected error for empty rules")
+		}
+		if !errors.Is(err, ErrRulesEmpty) {
+			t.Errorf("expected ErrRulesEmpty, got %v", err)
 		}
 	})
 
@@ -272,8 +276,12 @@ func TestValidateMemRLPolicyContract_AllErrors(t *testing.T) {
 			AttemptBucket: MemRLAttemptBucketAny,
 			Action:        MemRLActionRetry,
 		}}
-		if err := ValidateMemRLPolicyContract(c); err == nil {
+		err := ValidateMemRLPolicyContract(c)
+		if err == nil {
 			t.Error("expected error for empty rule_id")
+		}
+		if !errors.Is(err, ErrRuleIDEmpty) {
+			t.Errorf("expected ErrRuleIDEmpty, got %v", err)
 		}
 	})
 
@@ -336,16 +344,24 @@ func TestValidateMemRLPolicyContract_AllErrors(t *testing.T) {
 	t.Run("empty_rollback_matrix", func(t *testing.T) {
 		c := valid
 		c.RollbackMatrix = nil
-		if err := ValidateMemRLPolicyContract(c); err == nil {
+		err := ValidateMemRLPolicyContract(c)
+		if err == nil {
 			t.Error("expected error for empty rollback_matrix")
+		}
+		if !errors.Is(err, ErrRollbackMatrixEmpty) {
+			t.Errorf("expected ErrRollbackMatrixEmpty, got %v", err)
 		}
 	})
 
 	t.Run("rollback_empty_trigger_id", func(t *testing.T) {
 		c := valid
 		c.RollbackMatrix = []MemRLRollbackTrigger{{TriggerID: ""}}
-		if err := ValidateMemRLPolicyContract(c); err == nil {
+		err := ValidateMemRLPolicyContract(c)
+		if err == nil {
 			t.Error("expected error for empty trigger_id")
+		}
+		if !errors.Is(err, ErrTriggerIDEmpty) {
+			t.Errorf("expected ErrTriggerIDEmpty, got %v", err)
 		}
 	})
 

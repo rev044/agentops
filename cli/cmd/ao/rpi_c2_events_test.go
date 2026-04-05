@@ -168,6 +168,10 @@ func TestRPIC2EventAppend_MirrorsToSupervisorRoot(t *testing.T) {
 }
 
 func TestRPIC2EventAppend_MirrorFailureIsNonFatal(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
+
 	parent := t.TempDir()
 	runID := "b4c5d6e7"
 	supervisor := filepath.Join(parent, "repo")

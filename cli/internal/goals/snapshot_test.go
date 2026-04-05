@@ -141,6 +141,9 @@ func TestLoadLatestSnapshot_IgnoresNonJSON(t *testing.T) {
 }
 
 func TestSaveSnapshot_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -198,6 +201,9 @@ func TestSaveSnapshot_MarshalIndentError(t *testing.T) {
 }
 
 func TestSaveSnapshot_WriteFileError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	snapDir := filepath.Join(tmpDir, "snaps")
 	if err := os.MkdirAll(snapDir, 0700); err != nil {

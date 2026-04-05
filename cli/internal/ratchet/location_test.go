@@ -1,6 +1,7 @@
 package ratchet
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,6 +80,24 @@ func TestLocator_FindFirst(t *testing.T) {
 
 	if locType != LocationCrew {
 		t.Errorf("FindFirst location = %s, want %s", locType, LocationCrew)
+	}
+}
+
+func TestResolveSearchRoot_NoRigRoot(t *testing.T) {
+	// Use a temp dir with no rig markers (.beads, crew, polecats).
+	// resolveSearchRoot(LocationRig) should return ErrNoRigRoot.
+	tmp := t.TempDir()
+	loc, err := NewLocator(tmp)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+
+	_, err = loc.resolveSearchRoot(LocationRig)
+	if err == nil {
+		t.Fatal("expected error when no rig root exists")
+	}
+	if !errors.Is(err, ErrNoRigRoot) {
+		t.Errorf("expected ErrNoRigRoot, got %v", err)
 	}
 }
 

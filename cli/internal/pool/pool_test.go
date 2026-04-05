@@ -1556,6 +1556,9 @@ func TestPoolApproveNotFound(t *testing.T) {
 }
 
 func TestPoolInitReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -1571,6 +1574,9 @@ func TestPoolInitReadOnlyDir(t *testing.T) {
 }
 
 func TestPoolListError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -1591,6 +1597,9 @@ func TestPoolListError(t *testing.T) {
 }
 
 func TestPoolListPendingReviewError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -1611,6 +1620,9 @@ func TestPoolListPendingReviewError(t *testing.T) {
 }
 
 func TestPoolBulkApproveListError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -1631,6 +1643,9 @@ func TestPoolBulkApproveListError(t *testing.T) {
 }
 
 func TestAtomicMoveDestDirReadOnly(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "source.json")
 	if err := os.WriteFile(srcPath, []byte(`{"test": true}`), 0600); err != nil {
@@ -1655,6 +1670,9 @@ func TestAtomicMoveDestDirReadOnly(t *testing.T) {
 }
 
 func TestPoolAddAtInitError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Use a read-only dir so Init fails
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
@@ -1756,6 +1774,9 @@ func TestPoolListPendingReviewFiltersReviewed(t *testing.T) {
 }
 
 func TestRecordEventChainOpenError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -1778,6 +1799,9 @@ func TestRecordEventChainOpenError(t *testing.T) {
 }
 
 func TestWriteEntryPermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -1800,6 +1824,9 @@ func TestWriteEntryPermissionError(t *testing.T) {
 }
 
 func TestStageAtomicMoveError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -1829,6 +1856,9 @@ func TestStageAtomicMoveError(t *testing.T) {
 }
 
 func TestRejectAtomicMoveError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -1858,6 +1888,9 @@ func TestRejectAtomicMoveError(t *testing.T) {
 }
 
 func TestPromoteMkdirAllError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -1891,6 +1924,9 @@ func TestPromoteMkdirAllError(t *testing.T) {
 }
 
 func TestAddAtWriteEntryError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -1915,6 +1951,9 @@ func TestAddAtWriteEntryError(t *testing.T) {
 }
 
 func TestPromoteWriteArtifactError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -1951,6 +1990,9 @@ func TestPromoteWriteArtifactError(t *testing.T) {
 }
 
 func TestApproveWriteEntryError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -2169,6 +2211,9 @@ func TestListPendingReviewSortByAge(t *testing.T) {
 }
 
 func TestGetChainPermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -2217,6 +2262,9 @@ func TestAtomicMoveRenameError(t *testing.T) {
 }
 
 func TestAtomicMoveSourceRemoveWarning(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "source.json")
 
@@ -2424,6 +2472,9 @@ func TestPromote_RecordEventFailure(t *testing.T) {
 }
 
 func TestRecordEvent_CloseError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the deferred close error path in recordEvent.
 	// We can't easily trigger a close error on a regular file, but we can
 	// at least verify recordEvent works correctly on a valid chain file.
@@ -2500,6 +2551,9 @@ func TestAtomicMove_NonExistentSource(t *testing.T) {
 }
 
 func TestAtomicMove_ReadOnlyDestDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 
 	// Create source file
@@ -2644,6 +2698,9 @@ func TestRecordEvent_DirectoryAsChainFile(t *testing.T) {
 }
 
 func TestAtomicMove_WriteTempFileError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise atomicMove with a read-only destination directory.
 	// atomicMove creates a temp file in the same directory as destPath,
 	// so a read-only directory will block temp file creation.
@@ -2757,6 +2814,9 @@ func TestFindByPrefix_MissingDirectories(t *testing.T) {
 }
 
 func TestPromoteEntryRemoveWarning(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the non-fatal os.Remove warning in Promote (line 445-447).
 	// Make the staged directory non-writable so Remove fails but the rest succeeds.
 	tmpDir := t.TempDir()
@@ -2823,6 +2883,9 @@ func TestOpenIfExists_ExistingFileReturnsFile(t *testing.T) {
 }
 
 func TestOpenIfExists_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	path := filepath.Join(t.TempDir(), "noperm.txt")
 	if err := os.WriteFile(path, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
@@ -2989,6 +3052,9 @@ func TestWriteTempFile_Success(t *testing.T) {
 }
 
 func TestWriteTempFile_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	roDir := filepath.Join(tmpDir, "readonly")
 	if err := os.Mkdir(roDir, 0555); err != nil {
@@ -3471,6 +3537,9 @@ func TestWriteTempFile_WriteError(t *testing.T) {
 // --- Error-path coverage: recordEvent with unwritable chain path ---
 
 func TestRecordEvent_WriteError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -3667,6 +3736,9 @@ func TestAdd_WriteEntryMarshalError(t *testing.T) {
 // --- Error-path coverage: Approve with NaN in existing entry ---
 
 func TestApprove_WriteEntryMarshalError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -3717,6 +3789,9 @@ func TestApprove_WriteEntryMarshalError(t *testing.T) {
 // --- Error-path coverage: Reject with writeEntry permission error ---
 
 func TestReject_WriteEntryPermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -4102,6 +4177,9 @@ func TestGetChainCloseError(t *testing.T) {
 }
 
 func TestGetChainOpenError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 	if err := p.Init(); err != nil {
@@ -4197,6 +4275,9 @@ func TestWriteTempFileCloseFailure(t *testing.T) {
 }
 
 func TestWriteTempFileCreateError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnlyDir, 0700); err != nil {
@@ -4320,6 +4401,9 @@ func TestAtomicMoveDestDirMissing(t *testing.T) {
 }
 
 func TestAtomicMoveSourceRemoveNonFatal(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	content := []byte(`{"key":"value"}`)
 
@@ -4400,6 +4484,9 @@ func TestRecordEventMarshalJSON(t *testing.T) {
 }
 
 func TestStageWriteEntryFailureViaFullIntegration(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -4428,6 +4515,9 @@ func TestStageWriteEntryFailureViaFullIntegration(t *testing.T) {
 }
 
 func TestRejectWriteEntryFailureViaFullIntegration(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
 
@@ -4456,6 +4546,9 @@ func TestRejectWriteEntryFailureViaFullIntegration(t *testing.T) {
 }
 
 func TestOpenIfExistsErrors(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	t.Run("file does not exist returns nil nil", func(t *testing.T) {
 		f, err := openIfExists("/nonexistent/path/file.jsonl")
 		if f != nil {
@@ -4584,5 +4677,55 @@ func TestPoolNaNScore(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "NaN") && !strings.Contains(err.Error(), "unsupported value") {
 		t.Errorf("expected NaN-related error, got: %v", err)
+	}
+}
+
+func TestValidateCandidateID_SentinelErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		id      string
+		wantErr error
+	}{
+		{"empty ID", "", ErrEmptyID},
+		{"too long ID", strings.Repeat("a", 129), ErrIDTooLong},
+		{"invalid chars slash", "../../etc/passwd", ErrIDInvalidChars},
+		{"invalid chars space", "has space", ErrIDInvalidChars},
+		{"invalid chars dot", "has.dot", ErrIDInvalidChars},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCandidateID(tt.id)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("expected errors.Is(%v, %v) to be true", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPromoteRejectedCandidate_SentinelError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "sentinel-reject-test",
+		Tier:    types.TierSilver,
+		Type:    types.KnowledgeTypeLearning,
+		Content: "Content to reject then promote",
+	}
+
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := p.Reject("sentinel-reject-test", "Not useful", "tester"); err != nil {
+		t.Fatalf("Reject failed: %v", err)
+	}
+
+	_, err := p.Promote("sentinel-reject-test")
+	if err == nil {
+		t.Fatal("expected error when promoting rejected candidate")
+	}
+	if !errors.Is(err, ErrPromoteRejected) {
+		t.Errorf("expected errors.Is(err, ErrPromoteRejected), got: %v", err)
 	}
 }

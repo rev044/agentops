@@ -1678,6 +1678,9 @@ func TestRecordCitation_ZeroTimestamp(t *testing.T) {
 }
 
 func TestRecordCitation_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -1722,6 +1725,9 @@ func TestValidateCloseReason_WithRelativePaths(t *testing.T) {
 }
 
 func TestLoadCitations_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	baseDir := t.TempDir()
 	citationsDir := filepath.Join(baseDir, ".agents", "ao")
 	if err := os.MkdirAll(citationsDir, 0700); err != nil {
@@ -1820,6 +1826,9 @@ func TestValidate_ResearchStep_MissingSchemaVersionFrontmatter(t *testing.T) {
 }
 
 func TestValidate_PreMortemStep_ReadError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	v, tmpDir := helperNewValidator(t)
 	artifact := filepath.Join(tmpDir, "unreadable-premortem-v2.md")
 	content := "schema_version: 1\ncontent"
@@ -2036,6 +2045,9 @@ func TestGetCitationsSince_NoFile(t *testing.T) {
 // --- CountCitationsForArtifact with permission error ---
 
 func TestCountCitationsForArtifact_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	baseDir := t.TempDir()
 	citationsDir := filepath.Join(baseDir, ".agents", "ao")
 	if err := os.MkdirAll(citationsDir, 0700); err != nil {
@@ -2057,6 +2069,9 @@ func TestCountCitationsForArtifact_PermissionError(t *testing.T) {
 }
 
 func TestRecordCitation_ReadOnlyBaseDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmp := t.TempDir()
 	readOnly := filepath.Join(tmp, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -2110,6 +2125,9 @@ func TestValidateCloseReason_WithSeeRelativePath(t *testing.T) {
 }
 
 func TestGetCitationsForSession_ReadOnlyFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmp := t.TempDir()
 
 	// Record a citation first
@@ -2481,6 +2499,9 @@ func TestCountRefsInDir_WalkError(t *testing.T) {
 // --- GetCitationsSince with unreadable file ---
 
 func TestGetCitationsSince_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	baseDir := t.TempDir()
 	citationsDir := filepath.Join(baseDir, ".agents", "ao")
 	if err := os.MkdirAll(citationsDir, 0700); err != nil {
@@ -2507,6 +2528,9 @@ func TestGetCitationsSince_PermissionError(t *testing.T) {
 // --- GetUniqueCitedArtifacts with unreadable file ---
 
 func TestGetUniqueCitedArtifacts_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	baseDir := t.TempDir()
 	citationsDir := filepath.Join(baseDir, ".agents", "ao")
 	if err := os.MkdirAll(citationsDir, 0700); err != nil {
@@ -2533,6 +2557,9 @@ func TestGetUniqueCitedArtifacts_PermissionError(t *testing.T) {
 // --- GetCitationsForSession with unreadable file ---
 
 func TestGetCitationsForSession_PermissionError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	baseDir := t.TempDir()
 	citationsDir := filepath.Join(baseDir, ".agents", "ao")
 	if err := os.MkdirAll(citationsDir, 0700); err != nil {
@@ -2559,6 +2586,9 @@ func TestGetCitationsForSession_PermissionError(t *testing.T) {
 // --- countCitations walk error with unreadable directory ---
 
 func TestCountCitations_UnreadableDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 
 	// Create a target artifact and a referencing file

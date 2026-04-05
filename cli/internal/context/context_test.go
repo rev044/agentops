@@ -627,6 +627,9 @@ func TestGenerateResumptionContextAllBranches(t *testing.T) {
 }
 
 func TestBudgetTracker_Save_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -661,6 +664,9 @@ func TestBudgetTracker_Load_MalformedJSON(t *testing.T) {
 }
 
 func TestSummarizer_SaveState_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {

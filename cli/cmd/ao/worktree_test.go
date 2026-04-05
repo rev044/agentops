@@ -494,6 +494,7 @@ func TestWorktree_isWorktreeDirty_cleanRepo(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", tmp, "config", "commit.gpgsign", "false").Run()
 	if err := os.WriteFile(filepath.Join(tmp, "file.txt"), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -525,6 +526,7 @@ func TestWorktree_isWorktreeDirty_dirtyRepo(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", tmp, "config", "commit.gpgsign", "false").Run()
 	if err := os.WriteFile(filepath.Join(tmp, "file.txt"), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -559,6 +561,7 @@ func TestWorktree_isWorktreeDirty_untrackedFile(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", tmp, "config", "commit.gpgsign", "false").Run()
 	if err := exec.Command("git", "-C", tmp, "commit", "--allow-empty", "-m", "init").Run(); err != nil {
 		t.Fatalf("git commit: %v", err)
 	}
@@ -615,6 +618,7 @@ func TestWorktree_resolveRepoRoot_ignoresPollutedGitEnvInLinkedWorktree(t *testi
 	run(repo, "init")
 	run(repo, "config", "user.email", "test@example.com")
 	run(repo, "config", "user.name", "Test User")
+	run(repo, "config", "commit.gpgsign", "false")
 	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("hi\n"), 0644); err != nil {
 		t.Fatalf("write README.md: %v", err)
 	}
@@ -738,6 +742,7 @@ func TestWorktree_runWorktreeGC_withStaleSiblings(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", repoRoot, "config", "commit.gpgsign", "false").Run()
 	if err := exec.Command("git", "-C", repoRoot, "commit", "--allow-empty", "-m", "init").Run(); err != nil {
 		t.Fatalf("git commit: %v", err)
 	}
@@ -831,6 +836,7 @@ func TestWorktree_runWorktreeGC_withDirtySiblings(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", repoRoot, "config", "commit.gpgsign", "false").Run()
 	if err := exec.Command("git", "-C", repoRoot, "commit", "--allow-empty", "-m", "init").Run(); err != nil {
 		t.Fatalf("git commit: %v", err)
 	}
@@ -843,6 +849,7 @@ func TestWorktree_runWorktreeGC_withDirtySiblings(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", wtPath, "config", "commit.gpgsign", "false").Run()
 	if err := exec.Command("git", "-C", wtPath, "commit", "--allow-empty", "-m", "init").Run(); err != nil {
 		t.Fatalf("git commit: %v", err)
 	}
@@ -1013,6 +1020,7 @@ func TestWorktree_findStaleRPISiblingWorktrees_AllBranches(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", staleCleanWt, "config", "commit.gpgsign", "false").Run()
 	if err := exec.Command("git", "-C", staleCleanWt, "commit", "--allow-empty", "-m", "init").Run(); err != nil {
 		t.Fatalf("git commit: %v", err)
 	}
@@ -1031,6 +1039,7 @@ func TestWorktree_findStaleRPISiblingWorktrees_AllBranches(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", staleDirtyWt, "config", "commit.gpgsign", "false").Run()
 	if err := exec.Command("git", "-C", staleDirtyWt, "commit", "--allow-empty", "-m", "init").Run(); err != nil {
 		t.Fatalf("git commit: %v", err)
 	}
@@ -1080,6 +1089,7 @@ func TestWorktree_findStaleRPISiblingWorktrees_IncludeDirty(t *testing.T) {
 			t.Fatalf("git config: %v", err)
 		}
 	}
+	exec.Command("git", "-C", staleDirtyWt, "config", "commit.gpgsign", "false").Run()
 	if err := exec.Command("git", "-C", staleDirtyWt, "commit", "--allow-empty", "-m", "init").Run(); err != nil {
 		t.Fatalf("git commit: %v", err)
 	}

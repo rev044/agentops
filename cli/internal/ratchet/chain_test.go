@@ -643,6 +643,9 @@ func TestFindAgentsDirNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when no .agents dir exists")
 	}
+	if !errors.Is(err, ErrAgentsDirNotFound) {
+		t.Errorf("expected ErrAgentsDirNotFound, got %v", err)
+	}
 }
 
 func TestLegacyChainEmptyStarted(t *testing.T) {
@@ -791,6 +794,9 @@ func TestChainAppendNoPath(t *testing.T) {
 }
 
 func TestChainSaveReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -823,6 +829,9 @@ func TestLoadChainNonexistent(t *testing.T) {
 }
 
 func TestChainAppendReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnly := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnly, 0500); err != nil {
@@ -884,6 +893,9 @@ func TestMigrateChainBadLegacyYAML(t *testing.T) {
 }
 
 func TestChain_Save_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the open file error path in Save.
 	tmp := t.TempDir()
 	readOnlyDir := filepath.Join(tmp, "readonly")
@@ -908,6 +920,9 @@ func TestChain_Save_ReadOnlyDir(t *testing.T) {
 }
 
 func TestChain_Append_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the open file error path in Append.
 	tmp := t.TempDir()
 	readOnlyDir := filepath.Join(tmp, "readonly")
@@ -1000,6 +1015,9 @@ func TestLoadLegacyYAMLChain_InvalidYAML(t *testing.T) {
 }
 
 func TestMigrateChain_SaveError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the chain.Save() error path in MigrateChain (line 404-406).
 	// Create a valid legacy chain, but make the target directory read-only
 	// so Save() fails.
@@ -1075,6 +1093,9 @@ func TestFileLock_lockAndUnlock(t *testing.T) {
 }
 
 func TestSave_WriteMetadataError_ReadOnlyFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Exercise the writeMetadata error path inside Save's withLockedFile callback.
 	// We create a chain file that is writable (so OpenFile succeeds) but then
 	// replace it with a read-only file descriptor by making the directory read-only
@@ -1493,6 +1514,9 @@ func benchWriteChainFile(b *testing.B, dir string, numEntries int) {
 // --- Save/Append write error paths ---
 
 func TestChainSave_ReadOnlyDir(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	// Create a chain that points to a path inside a read-only directory,
 	// so withLockedFile's MkdirAll succeeds but OpenFile fails.
 	tmpDir := t.TempDir()
@@ -1524,6 +1548,9 @@ func TestChainSave_ReadOnlyDir(t *testing.T) {
 }
 
 func TestChainAppend_ReadOnlyFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	chainDir := filepath.Join(tmpDir, "locked")
 	if err := os.MkdirAll(chainDir, 0755); err != nil {
@@ -1559,6 +1586,9 @@ func TestChainAppend_ReadOnlyFile(t *testing.T) {
 }
 
 func TestChainSave_MkdirAllFails(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	// Point chain path inside a read-only directory that doesn't have the subdir
 	readOnlyDir := filepath.Join(tmpDir, "noperm")
@@ -1584,6 +1614,9 @@ func TestChainSave_MkdirAllFails(t *testing.T) {
 }
 
 func TestChainAppend_MkdirAllFails(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "noperm")
 	if err := os.MkdirAll(readOnlyDir, 0500); err != nil {

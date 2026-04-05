@@ -15,6 +15,7 @@ func TestCollectSearchRoots_UsesGitWorktreeList(t *testing.T) {
 	runGit(t, repoRoot, "init", "-q")
 	runGit(t, repoRoot, "config", "user.email", "test@example.com")
 	runGit(t, repoRoot, "config", "user.name", "Test User")
+	runGit(t, repoRoot, "config", "commit.gpgsign", "false")
 
 	if err := os.WriteFile(filepath.Join(repoRoot, "README.md"), []byte("seed\n"), 0644); err != nil {
 		t.Fatalf("write seed file: %v", err)

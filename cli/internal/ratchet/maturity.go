@@ -311,10 +311,10 @@ func updateJSONLFirstLine(path string, updates map[string]any) error {
 		return fmt.Errorf("read learning for update: %w", err)
 	}
 
-	lines := strings.Split(string(content), "\n")
-	if len(lines) == 0 {
+	if len(content) == 0 {
 		return ErrEmptyFile
 	}
+	lines := strings.Split(string(content), "\n")
 
 	newJSON, err := mergeJSONData(lines[0], updates)
 	if err != nil {
