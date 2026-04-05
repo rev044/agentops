@@ -43,6 +43,7 @@ func TestContextAssemble_Integration_FullAgents(t *testing.T) {
 
 	var buf bytes.Buffer
 	contextCmd.SetOut(&buf)
+	t.Cleanup(func() { contextCmd.SetOut(nil) })
 	err := runContextAssemble(contextCmd, []string{})
 	out := buf.String()
 	if err != nil {
@@ -87,6 +88,7 @@ func TestContextAssemble_Integration_MinimalAgents(t *testing.T) {
 
 	var buf bytes.Buffer
 	contextCmd.SetOut(&buf)
+	t.Cleanup(func() { contextCmd.SetOut(nil) })
 	err := runContextAssemble(contextCmd, []string{})
 	out := buf.String()
 	if err != nil {
@@ -129,6 +131,7 @@ func TestContextAssemble_Integration_Empty(t *testing.T) {
 
 	var buf bytes.Buffer
 	contextCmd.SetOut(&buf)
+	t.Cleanup(func() { contextCmd.SetOut(nil) })
 	err := runContextAssemble(contextCmd, []string{})
 	// Should not error even with no .agents/ directory
 	if err != nil {

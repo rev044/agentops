@@ -78,6 +78,10 @@ func executeCommand(args ...string) (string, error) {
 	origFindingsPullForce := findingsPullForce
 	origFindingsRetireBy := findingsRetireBy
 	origScenarioListStatus := scenarioListStatus
+	// Struct-type flag vars (fields persist across Execute calls):
+	origContextPacketFlags := contextPacketFlags
+	origContextExplainFlags := contextExplainFlags
+	origContextPacketStatusFlags := contextPacketStatusFlags
 	defer func() {
 		dryRun = origDryRun
 		verbose = origVerbose
@@ -126,6 +130,9 @@ func executeCommand(args ...string) (string, error) {
 		findingsPullForce = origFindingsPullForce
 		findingsRetireBy = origFindingsRetireBy
 		scenarioListStatus = origScenarioListStatus
+		contextPacketFlags = origContextPacketFlags
+		contextExplainFlags = origContextExplainFlags
+		contextPacketStatusFlags = origContextPacketStatusFlags
 	}()
 
 	// Reset all command-local flags to defaults before execution.
@@ -170,6 +177,23 @@ func executeCommand(args ...string) (string, error) {
 	findingsPullForce = false
 	findingsRetireBy = ""
 	scenarioListStatus = ""
+	contextPacketFlags = struct {
+		goal  string
+		epic  string
+		repo  string
+		limit int
+		json  bool
+	}{limit: defaultStigmergicPacketLimit}
+	contextExplainFlags = struct {
+		task  string
+		phase string
+		limit int
+	}{}
+	contextPacketStatusFlags = struct {
+		task  string
+		phase string
+		limit int
+	}{}
 
 	// Reset Cobra flag Changed state on all commands recursively.
 	resetFlagChangesRecursive(rootCmd)
@@ -347,6 +371,7 @@ func TestCobraVersionCommand(t *testing.T) {
 
 // TestCobraDoctorCommand exercises the doctor command in a temp directory.
 func TestCobraDoctorCommand(t *testing.T) {
+	resetCommandState(t)
 	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
@@ -698,6 +723,7 @@ Increase coverage
 
 // TestCobraIndexCommand exercises ao index in a temp directory.
 func TestCobraIndexCommand(t *testing.T) {
+	resetCommandState(t)
 	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 

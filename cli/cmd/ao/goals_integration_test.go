@@ -8,6 +8,7 @@ import (
 )
 
 func TestGoals_Integration_FullLifecycle(t *testing.T) {
+	resetCommandState(t)
 	dir := chdirTemp(t)
 
 	// Step 1: init creates GOALS.md with --non-interactive

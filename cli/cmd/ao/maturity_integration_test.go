@@ -166,6 +166,7 @@ maturity: provisional
 }
 
 func TestMaturity_Integration_ScanPendingTransitions(t *testing.T) {
+	resetCommandState(t)
 	dir := chdirTemp(t)
 	setupAgentsDir(t, dir)
 

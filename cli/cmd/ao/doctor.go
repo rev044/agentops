@@ -493,18 +493,24 @@ func formatNumber(n int) string {
 
 // checkFlywheelHealth checks if .agents/ao/learnings/ has files.
 // Counts .md and .jsonl files only, matching the metrics/badge counting method.
-func checkFlywheelHealth() doctorCheck {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return doctorCheck{Name: "Flywheel Health", Status: "warn", Detail: "cannot determine working directory", Required: false}
+func checkFlywheelHealth(baseDir ...string) doctorCheck {
+	dir := ""
+	if len(baseDir) > 0 && baseDir[0] != "" {
+		dir = baseDir[0]
+	} else {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			return doctorCheck{Name: "Flywheel Health", Status: "warn", Detail: "cannot determine working directory", Required: false}
+		}
 	}
 
-	learningsDir := filepath.Join(cwd, storage.DefaultBaseDir, "learnings")
+	learningsDir := filepath.Join(dir, storage.DefaultBaseDir, "learnings")
 	total := countLearningFiles(learningsDir)
 
 	if total == 0 {
 		// Also check the older path
-		altDir := filepath.Join(cwd, ".agents", "learnings")
+		altDir := filepath.Join(dir, ".agents", "learnings")
 		total = countLearningFiles(altDir)
 	}
 
@@ -518,10 +524,10 @@ func checkFlywheelHealth() doctorCheck {
 	}
 
 	// Count established learnings (those with "established" or "promoted" in filename or content)
-	established := countEstablished(filepath.Join(cwd, storage.DefaultBaseDir, "learnings"))
+	established := countEstablished(filepath.Join(dir, storage.DefaultBaseDir, "learnings"))
 	if established == 0 {
 		// Check alt path too
-		established = countEstablished(filepath.Join(cwd, ".agents", "learnings"))
+		established = countEstablished(filepath.Join(dir, ".agents", "learnings"))
 	}
 
 	detail := fmt.Sprintf("%d learnings in flywheel", total)

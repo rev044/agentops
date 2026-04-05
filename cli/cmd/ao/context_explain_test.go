@@ -10,6 +10,7 @@ import (
 )
 
 func TestContextExplainCmdJSONOutput(t *testing.T) {
+	resetCommandState(t)
 	dir := t.TempDir()
 	for _, rel := range []string{
 		filepath.Join(".agents", "findings"),

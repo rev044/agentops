@@ -494,6 +494,7 @@ func TestFindDuplicateLearnings_DedupApply(t *testing.T) {
 }
 
 func TestDefragOutputDirFlag(t *testing.T) {
+	resetCommandState(t)
 	// Verify the flag is named "output-dir", not "output"
 	cmd := defragCmd
 	f := cmd.Flags().Lookup("output-dir")

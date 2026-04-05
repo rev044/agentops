@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -54,7 +53,8 @@ id: "f-packet-001"
 		t.Fatal(err)
 	}
 
-	// Change to temp dir so the command picks it up.
+	// Use t.Setenv to temporarily change working directory via chdir,
+	// with automatic cleanup. This is safer than bare os.Chdir.
 	origDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -64,19 +64,14 @@ id: "f-packet-001"
 	}
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	var buf bytes.Buffer
-	cmd := rootCmd
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"context", "packet", "--json", "--goal", "packet cli inspection", "--epic", "ag-test", "--repo", "agentops"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("command failed: %v\noutput: %s", err, buf.String())
+	out, err := executeCommand("context", "packet", "--json", "--goal", "packet cli inspection", "--epic", "ag-test", "--repo", "agentops")
+	if err != nil {
+		t.Fatalf("command failed: %v\noutput: %s", err, out)
 	}
 
 	var packet StigmergicPacket
-	if err := json.Unmarshal(buf.Bytes(), &packet); err != nil {
-		t.Fatalf("invalid JSON output: %v\nraw: %s", err, buf.String())
+	if err := json.Unmarshal([]byte(out), &packet); err != nil {
+		t.Fatalf("invalid JSON output: %v\nraw: %s", err, out)
 	}
 
 	if packet.Scorecard.PromotedFindings != 1 {
@@ -126,25 +121,13 @@ func TestContextPacketCmd_HumanOutput(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	var buf bytes.Buffer
-	cmd := rootCmd
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	// Reset package-level flag state from prior test runs.
-	contextPacketFlags.json = false
-	contextPacketFlags.goal = ""
-	contextPacketFlags.epic = ""
-	contextPacketFlags.repo = ""
-	contextPacketFlags.limit = defaultStigmergicPacketLimit
-	cmd.SetArgs([]string{"context", "packet"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("command failed: %v\noutput: %s", err, buf.String())
+	out, err := executeCommand("context", "packet")
+	if err != nil {
+		t.Fatalf("command failed: %v\noutput: %s", err, out)
 	}
 
-	output := buf.String()
 	for _, section := range []string{"## Scorecard", "## Applied Findings", "## Planning Rules", "## Known Risks", "## Matched Next-Work"} {
-		if !strings.Contains(output, section) {
+		if !strings.Contains(out, section) {
 			t.Errorf("output missing section %q", section)
 		}
 	}

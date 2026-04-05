@@ -119,6 +119,7 @@ func TestCurate_Integration_StatusJSON(t *testing.T) {
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
+	t.Cleanup(func() { rootCmd.SetOut(nil); rootCmd.SetErr(nil); rootCmd.SetArgs(nil) })
 	rootCmd.SetArgs([]string{"curate", "status"})
 	err := rootCmd.Execute()
 	out := buf.String()

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -14,16 +13,12 @@ func TestDoctor_Integration_HealthyState(t *testing.T) {
 	// Create learnings file so knowledge check passes
 	writeFile(t, dir+"/.agents/learnings/test-learning.md", "# Test Learning\nSome content here.\n")
 
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"doctor"})
-	err := rootCmd.Execute()
-	out := buf.String()
+	out, err := executeCommand("doctor")
 
 	// Doctor may return error if required checks fail (e.g., missing hooks in temp dir)
 	// but it should always produce output
 	if out == "" {
-		t.Fatal("expected doctor output, got empty string")
+		t.Fatalf("expected doctor output, got empty string (err=%v)", err)
 	}
 
 	// Should contain the header
@@ -41,8 +36,6 @@ func TestDoctor_Integration_HealthyState(t *testing.T) {
 	if !hasSummary {
 		t.Errorf("expected output to contain a summary (checks passed / HEALTHY / DEGRADED / UNHEALTHY), got:\n%s", out)
 	}
-
-	_ = err // doctor may error on missing optional deps; we care about output structure
 }
 
 func TestDoctor_Integration_JSONOutput(t *testing.T) {
@@ -50,11 +43,7 @@ func TestDoctor_Integration_JSONOutput(t *testing.T) {
 	setupAgentsDir(t, dir)
 	writeFile(t, dir+"/.agents/learnings/test-learning.md", "# Learning\nContent.\n")
 
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"doctor", "--json"})
-	_ = rootCmd.Execute()
-	out := buf.String()
+	out, _ := executeCommand("doctor", "--json")
 
 	if out == "" {
 		t.Fatal("expected JSON output, got empty string")
@@ -93,11 +82,7 @@ func TestDoctor_Integration_DegradedState(t *testing.T) {
 	writeFile(t, dir+"/.agents/ao/sessions/.gitkeep", "")
 	// Deliberately skip .agents/learnings/ to trigger degraded state
 
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"doctor", "--json"})
-	_ = rootCmd.Execute()
-	out := buf.String()
+	out, _ := executeCommand("doctor", "--json")
 
 	if out == "" {
 		t.Fatal("expected JSON output, got empty string")
@@ -125,11 +110,7 @@ func TestDoctor_Integration_NoAgentsDir(t *testing.T) {
 	// Completely empty directory — no .agents/ at all
 	chdirTemp(t)
 
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"doctor", "--json"})
-	_ = rootCmd.Execute()
-	out := buf.String()
+	out, _ := executeCommand("doctor", "--json")
 
 	if out == "" {
 		t.Fatal("expected JSON output, got empty string")

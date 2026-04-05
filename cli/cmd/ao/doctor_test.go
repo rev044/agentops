@@ -234,7 +234,7 @@ func TestCheckSearchIndex(t *testing.T) {
 
 func TestCheckFlywheelHealth(t *testing.T) {
 	t.Run("with learnings", func(t *testing.T) {
-		tmp := chdirTemp(t)
+		tmp := t.TempDir()
 		learningsDir := filepath.Join(tmp, ".agents", "ao", "learnings")
 		if err := os.MkdirAll(learningsDir, 0755); err != nil {
 			t.Fatal(err)
@@ -246,22 +246,22 @@ func TestCheckFlywheelHealth(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		result := checkFlywheelHealth()
+		result := checkFlywheelHealth(tmp)
 		if result.Status != "pass" {
 			t.Errorf("status=%q, want pass (detail: %s)", result.Status, result.Detail)
 		}
 	})
 
 	t.Run("no learnings", func(t *testing.T) {
-		chdirTemp(t)
-		result := checkFlywheelHealth()
+		tmp := t.TempDir()
+		result := checkFlywheelHealth(tmp)
 		if result.Status != "warn" {
 			t.Errorf("status=%q, want warn (detail: %s)", result.Status, result.Detail)
 		}
 	})
 
 	t.Run("alt path learnings", func(t *testing.T) {
-		tmp := chdirTemp(t)
+		tmp := t.TempDir()
 		altDir := filepath.Join(tmp, ".agents", "learnings")
 		if err := os.MkdirAll(altDir, 0755); err != nil {
 			t.Fatal(err)
@@ -270,7 +270,7 @@ func TestCheckFlywheelHealth(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		result := checkFlywheelHealth()
+		result := checkFlywheelHealth(tmp)
 		if result.Status != "pass" {
 			t.Errorf("status=%q, want pass (detail: %s)", result.Status, result.Detail)
 		}
@@ -1346,6 +1346,7 @@ func TestRunDoctor_TableOutput(t *testing.T) {
 	var buf bytes.Buffer
 	doctorCmd.SetOut(&buf)
 	doctorCmd.SetErr(&buf)
+	t.Cleanup(func() { doctorCmd.SetOut(nil); doctorCmd.SetErr(nil) })
 
 	// runDoctor may return error (required check failure) — we just ensure it runs
 	_ = runDoctor(doctorCmd, nil)
@@ -1372,6 +1373,7 @@ func TestRunDoctor_JSONOutput(t *testing.T) {
 	var buf bytes.Buffer
 	doctorCmd.SetOut(&buf)
 	doctorCmd.SetErr(&buf)
+	t.Cleanup(func() { doctorCmd.SetOut(nil); doctorCmd.SetErr(nil) })
 
 	_ = runDoctor(doctorCmd, nil)
 

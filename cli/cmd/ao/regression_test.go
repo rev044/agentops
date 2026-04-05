@@ -12,7 +12,7 @@ import (
 // seedAgentsFixture copies testdata/agents-fixture/ into a temp dir and returns the temp dir path.
 func seedAgentsFixture(t *testing.T) string {
 	t.Helper()
-	src := filepath.Join("testdata", "agents-fixture", ".agents")
+	src := filepath.Join(packageDir, "testdata", "agents-fixture", ".agents")
 	dst := t.TempDir()
 	dstAgents := filepath.Join(dst, ".agents")
 	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
@@ -41,17 +41,7 @@ func seedAgentsFixture(t *testing.T) string {
 func TestDoctorFlywheelFindsFixtureArtifacts(t *testing.T) {
 	tmp := seedAgentsFixture(t)
 
-	// chdir into the fixture root so checkFlywheelHealth can find .agents/
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prev) })
-
-	result := checkFlywheelHealth()
+	result := checkFlywheelHealth(tmp)
 
 	// Fixture has 3 .md + 1 .jsonl in learnings = 4 learning files
 	// checkFlywheelHealth should find learnings > 0 and report pass

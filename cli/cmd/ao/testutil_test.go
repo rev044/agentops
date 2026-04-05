@@ -14,7 +14,23 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/spf13/pflag"
 )
+
+// packageDir holds the absolute path to the test package directory, captured
+// at init time before any test can call os.Chdir. Use this as the base for
+// resolving testdata/ paths so that concurrent os.Chdir calls in other tests
+// cannot break fixture loading.
+var packageDir string
+
+func init() {
+	var err error
+	packageDir, err = os.Getwd()
+	if err != nil {
+		panic("testutil_test: cannot get package directory: " + err.Error())
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Stdout capture helpers
@@ -192,6 +208,198 @@ func captureJSONStdout(t *testing.T, fn func()) string {
 		panic(panicValue)
 	}
 	return result.output
+}
+
+// ---------------------------------------------------------------------------
+// Global state reset helper
+// ---------------------------------------------------------------------------
+
+// resetCommandState saves all cobra-bound package-level globals, resets them
+// to defaults, clears cobra flag Changed state, and registers t.Cleanup to
+// restore originals. Call this at the start of any test that uses rootCmd
+// directly instead of executeCommand.
+func resetCommandState(t *testing.T) {
+	t.Helper()
+
+	// Save originals.
+	origDryRun := dryRun
+	origVerbose := verbose
+	origOutput := output
+	origJSON := jsonFlag
+	origCfg := cfgFile
+	origDemoConcepts := demoConcepts
+	origDemoQuick := demoQuick
+	origConfigShow := configShow
+	origSeedForce := seedForce
+	origGoalsJSON := goalsJSON
+	origMemorySyncQuiet := memorySyncQuiet
+	origMemorySyncMaxEntries := memorySyncMaxEntries
+	origMemorySyncOutput := memorySyncOutput
+	origHooksFull := hooksFull
+	origHooksDryRun := hooksDryRun
+	origHooksForce := hooksForce
+	origSearchLimit := searchLimit
+	origSearchType := searchType
+	origSearchCiteType := searchCiteType
+	origSearchSession := searchSession
+	origSearchUseSC := searchUseSC
+	origSearchUseCASS := searchUseCASS
+	origSearchUseLocal := searchUseLocal
+	origCodexStartLimit := codexStartLimit
+	origCodexStartQuery := codexStartQuery
+	origCodexStartNoMaintenance := codexStartNoMaintenance
+	origFactoryStartGoal := factoryStartGoal
+	origFactoryStartLimit := factoryStartLimit
+	origFactoryStartNoMaintenance := factoryStartNoMaintenance
+	origCodexStopSessionID := codexStopSessionID
+	origCodexStopTranscriptPath := codexStopTranscriptPath
+	origCodexStopAutoExtract := codexStopAutoExtract
+	origCodexStopNoHistoryFallback := codexStopNoHistoryFallback
+	origCodexStopNoCloseLoop := codexStopNoCloseLoop
+	origCodexStatusDays := codexStatusDays
+	origAutodevFile := autodevFile
+	origAutodevForce := autodevForce
+	origFindingsListLimit := findingsListLimit
+	origFindingsListAll := findingsListAll
+	origFindingsExportTo := findingsExportTo
+	origFindingsExportAll := findingsExportAll
+	origFindingsExportForce := findingsExportForce
+	origFindingsPullFrom := findingsPullFrom
+	origFindingsPullAll := findingsPullAll
+	origFindingsPullForce := findingsPullForce
+	origFindingsRetireBy := findingsRetireBy
+	origScenarioListStatus := scenarioListStatus
+	origContextPacketFlags := contextPacketFlags
+	origContextExplainFlags := contextExplainFlags
+	origContextPacketStatusFlags := contextPacketStatusFlags
+	origDoctorJSON := doctorJSON
+
+	t.Cleanup(func() {
+		dryRun = origDryRun
+		verbose = origVerbose
+		output = origOutput
+		jsonFlag = origJSON
+		cfgFile = origCfg
+		demoConcepts = origDemoConcepts
+		demoQuick = origDemoQuick
+		configShow = origConfigShow
+		seedForce = origSeedForce
+		goalsJSON = origGoalsJSON
+		memorySyncQuiet = origMemorySyncQuiet
+		memorySyncMaxEntries = origMemorySyncMaxEntries
+		memorySyncOutput = origMemorySyncOutput
+		hooksFull = origHooksFull
+		hooksDryRun = origHooksDryRun
+		hooksForce = origHooksForce
+		searchLimit = origSearchLimit
+		searchType = origSearchType
+		searchCiteType = origSearchCiteType
+		searchSession = origSearchSession
+		searchUseSC = origSearchUseSC
+		searchUseCASS = origSearchUseCASS
+		searchUseLocal = origSearchUseLocal
+		codexStartLimit = origCodexStartLimit
+		codexStartQuery = origCodexStartQuery
+		codexStartNoMaintenance = origCodexStartNoMaintenance
+		factoryStartGoal = origFactoryStartGoal
+		factoryStartLimit = origFactoryStartLimit
+		factoryStartNoMaintenance = origFactoryStartNoMaintenance
+		codexStopSessionID = origCodexStopSessionID
+		codexStopTranscriptPath = origCodexStopTranscriptPath
+		codexStopAutoExtract = origCodexStopAutoExtract
+		codexStopNoHistoryFallback = origCodexStopNoHistoryFallback
+		codexStopNoCloseLoop = origCodexStopNoCloseLoop
+		codexStatusDays = origCodexStatusDays
+		autodevFile = origAutodevFile
+		autodevForce = origAutodevForce
+		findingsListLimit = origFindingsListLimit
+		findingsListAll = origFindingsListAll
+		findingsExportTo = origFindingsExportTo
+		findingsExportAll = origFindingsExportAll
+		findingsExportForce = origFindingsExportForce
+		findingsPullFrom = origFindingsPullFrom
+		findingsPullAll = origFindingsPullAll
+		findingsPullForce = origFindingsPullForce
+		findingsRetireBy = origFindingsRetireBy
+		scenarioListStatus = origScenarioListStatus
+		contextPacketFlags = origContextPacketFlags
+		contextExplainFlags = origContextExplainFlags
+		contextPacketStatusFlags = origContextPacketStatusFlags
+		doctorJSON = origDoctorJSON
+	})
+
+	// Reset to defaults.
+	dryRun = false
+	verbose = false
+	output = ""
+	jsonFlag = false
+	cfgFile = ""
+	demoConcepts = false
+	demoQuick = false
+	configShow = false
+	seedForce = false
+	goalsJSON = false
+	memorySyncQuiet = false
+	memorySyncMaxEntries = 10
+	memorySyncOutput = ""
+	hooksFull = false
+	hooksDryRun = false
+	hooksForce = false
+	searchLimit = 10
+	searchType = ""
+	searchCiteType = ""
+	searchSession = ""
+	searchUseSC = false
+	searchUseCASS = false
+	searchUseLocal = false
+	codexStartLimit = 3
+	codexStartQuery = ""
+	codexStartNoMaintenance = false
+	codexStopSessionID = ""
+	codexStopTranscriptPath = ""
+	codexStopAutoExtract = true
+	codexStopNoHistoryFallback = false
+	codexStopNoCloseLoop = false
+	codexStatusDays = 7
+	autodevFile = ""
+	autodevForce = false
+	findingsListLimit = 20
+	findingsListAll = false
+	findingsExportTo = ""
+	findingsExportAll = false
+	findingsExportForce = false
+	findingsPullFrom = ""
+	findingsPullAll = false
+	findingsPullForce = false
+	findingsRetireBy = ""
+	scenarioListStatus = ""
+	doctorJSON = false
+	contextPacketFlags = struct {
+		goal  string
+		epic  string
+		repo  string
+		limit int
+		json  bool
+	}{limit: defaultStigmergicPacketLimit}
+	contextExplainFlags = struct {
+		task  string
+		phase string
+		limit int
+	}{}
+	contextPacketStatusFlags = struct {
+		task  string
+		phase string
+		limit int
+	}{}
+
+	// Reset Cobra flag Changed state.
+	resetFlagChangesRecursive(rootCmd)
+	rootCmd.Flags().VisitAll(func(f *pflag.Flag) {
+		f.Changed = false
+	})
+	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		f.Changed = false
+	})
 }
 
 // ---------------------------------------------------------------------------
