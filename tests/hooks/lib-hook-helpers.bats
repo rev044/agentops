@@ -882,53 +882,10 @@ EOF
     [ "$staged_child" = "ag-durable.1" ]
 }
 
-@test "closure-integrity-audit.sh: accepts durable closure packet without scoped files" {
-    local audit_repo="$TMP_TEST_DIR/audit-packet-only"
-    local durable_packet="$TMP_TEST_DIR/packet-only.json"
-    local packet_child=""
-    setup_audit_repo "$audit_repo"
-    mkdir -p "$audit_repo/.agents/releases/evidence-only-closures"
-    write_fake_bd_json "$audit_repo" "ag-packet" "ag-packet.1" \
-        "Validation-only closure with durable proof packet." \
-        "2026-03-09T10:00:00Z" "2026-03-09T10:05:00Z" "2026-03-09T10:05:00Z"
-    jq -n '{
-        schema_version: 1,
-        artifact_id: "evidence-only-closure-ag-packet.1",
-        target_id: "ag-packet.1",
-        target_type: "issue",
-        created_at: "2026-03-09T10:05:00Z",
-        producer: "bats",
-        evidence_mode: "worktree",
-        validation_commands: ["bash tests/hooks/lib-hook-helpers.bats"],
-        repo_state: {
-            repo_root: ".",
-            git_branch: "main",
-            git_dirty: false,
-            head_sha: "abc123",
-            modified_files: [],
-            staged_files: [],
-            unstaged_files: [],
-            untracked_files: []
-        },
-        evidence: {
-            summary: "Durable packet preserves validation-only closure evidence.",
-            artifacts: [
-                ".agents/releases/evidence-only-closures/ag-packet.1.json",
-                ".agents/council/report.md"
-            ],
-            notes: []
-        }
-    }' > "$durable_packet"
-    /bin/cp "$durable_packet" "$audit_repo/.agents/releases/evidence-only-closures/ag-packet.1.json"
-
-    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-packet' -- \
-        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
-    [ "$status" -eq 0 ]
-    packet_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.worktree[0]')
-    [ "$packet_child" = "ag-packet.1" ]
-    run jq -r '.failures | length' <<<"$output"
-    [ "$output" = "0" ]
-}
+# NOTE: "accepts durable closure packet without scoped files" test removed —
+# it was cherry-picked from ag-dcp but depends on the branch's refactored
+# closure-integrity-audit.sh (scope-aware packet_matches_scope). Main uses
+# a different packet fallback path. Re-add when the script refactor lands.
 
 # ═══════════════════════════════════════════════════════════════════════
 # 8. No-jq fallback paths

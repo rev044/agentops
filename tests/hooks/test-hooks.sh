@@ -848,6 +848,31 @@ fi
 
 # ============================================================
 echo ""
+echo "=== holdout-isolation-gate.sh ==="
+# ============================================================
+
+# Test: Non-holdout Read => pass
+EC=0
+echo '{"tool_name":"Read","tool_input":{"file_path":"src/main.go"}}' | bash "$HOOKS_DIR/holdout-isolation-gate.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then pass "holdout-isolation-gate passes non-holdout Read"; else fail "holdout-isolation-gate passes non-holdout Read"; fi
+
+# Test: Holdout Read without evaluator => block (exit 2)
+EC=0
+echo '{"tool_name":"Read","tool_input":{"file_path":".agents/holdout/test.json"}}' | AGENTOPS_HOLDOUT_EVALUATOR= bash "$HOOKS_DIR/holdout-isolation-gate.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 2 ]; then pass "holdout-isolation-gate blocks holdout Read"; else fail "holdout-isolation-gate blocks holdout Read (got exit $EC)"; fi
+
+# Test: Holdout Read with evaluator => pass
+EC=0
+echo '{"tool_name":"Read","tool_input":{"file_path":".agents/holdout/test.json"}}' | AGENTOPS_HOLDOUT_EVALUATOR=1 bash "$HOOKS_DIR/holdout-isolation-gate.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then pass "holdout-isolation-gate passes evaluator Read"; else fail "holdout-isolation-gate passes evaluator Read"; fi
+
+# Test: Kill switch => pass
+EC=0
+echo '{"tool_name":"Read","tool_input":{"file_path":".agents/holdout/test.json"}}' | AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/holdout-isolation-gate.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then pass "holdout-isolation-gate respects kill switch"; else fail "holdout-isolation-gate respects kill switch"; fi
+
+# ============================================================
+echo ""
 echo "=== pre-mortem-gate.sh ==="
 # ============================================================
 
