@@ -589,6 +589,12 @@
       "treatment": "parity_only",
       "wave": "catalog-parity",
       "reason": "New lifecycle skill; converter parity is acceptable."
+    },
+    {
+      "name": "scenario",
+      "treatment": "parity_only",
+      "wave": "catalog-parity",
+      "reason": "Stage 4 behavioral validation skill; converter parity is acceptable."
     }
   ]
 }
