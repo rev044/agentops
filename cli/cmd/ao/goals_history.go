@@ -32,11 +32,15 @@ var goalsHistoryCmd = &cobra.Command{
 			return nil
 		}
 
-		// Filter by --since
-		if goalsHistorySince != "" {
-			since, parseErr := time.Parse("2006-01-02", goalsHistorySince)
-			if parseErr != nil {
-				return fmt.Errorf("invalid --since date: %w", parseErr)
+		// Filter by --goal and/or --since
+		if goalsHistorySince != "" || goalsHistoryGoalID != "" {
+			var since time.Time
+			if goalsHistorySince != "" {
+				var parseErr error
+				since, parseErr = time.Parse("2006-01-02", goalsHistorySince)
+				if parseErr != nil {
+					return fmt.Errorf("invalid --since date: %w", parseErr)
+				}
 			}
 			entries = goals.QueryHistory(entries, goalsHistoryGoalID, since)
 		}

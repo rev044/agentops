@@ -622,7 +622,7 @@ else
     skip "headless runtime skills"
 fi
 
-# --- 23. CLI docs parity (generate-cli-reference.sh --check) ---
+# --- 24b. CLI docs parity (generate-cli-reference.sh --check) ---
 if needs_check go; then
     if [[ -x scripts/generate-cli-reference.sh ]]; then
         if cli_docs_output="$(run_without_git_env scripts/generate-cli-reference.sh --check 2>&1)"; then
