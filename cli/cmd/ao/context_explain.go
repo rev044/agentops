@@ -168,10 +168,11 @@ func collectContextExplainSelections(bundle rankedContextBundle, phase string) [
 		})
 	}
 	for _, item := range bundle.NextWork {
+		reason := nextWorkExplainReason(bundle.CWD, item)
 		selections = append(selections, contextExplainSelection{
 			Class:  "next-work",
 			Title:  item.Title,
-			Reason: "Selected from the backlog by repo affinity, severity, and query overlap.",
+			Reason: reason,
 		})
 	}
 	for _, item := range bundle.RecentSessions {
@@ -290,8 +291,109 @@ func collectContextExplainSuppressions(cwd string, bundle rankedContextBundle, p
 	if len(bundle.Findings) == 0 {
 		suppressed = append(suppressed, contextExplainSuppression{Class: "finding", Reason: fmt.Sprintf("No findings ranked into the %s payload for this query.", phase)})
 	}
+	suppressed = append(suppressed, collectContextExplainNextWorkProofSuppressions(cwd)...)
 
 	return suppressed
+}
+
+func nextWorkExplainReason(cwd string, item nextWorkItem) string {
+	if proof := classifyNextWorkCompletionProof(cwd, "", item); proof.Complete {
+		return proofBackedNextWorkReason(proof)
+	}
+	return "Selected from the backlog by repo affinity, severity, and query overlap."
+}
+
+func proofBackedNextWorkReason(proof nextWorkProofDecision) string {
+	sourceLabel := map[string]string{
+		"completed_run":         "completed-run",
+		"evidence_only_closure": "evidence-only-closure",
+		"execution_packet":      "execution-packet",
+	}[proof.Source]
+	if sourceLabel == "" {
+		sourceLabel = proof.Source
+	}
+	if proof.Detail == "" {
+		return fmt.Sprintf("Proof-backed next-work completion via %s proof.", sourceLabel)
+	}
+	return fmt.Sprintf("Proof-backed next-work completion via %s proof (%s).", sourceLabel, proof.Detail)
+}
+
+func collectContextExplainNextWorkProofSuppressions(cwd string) []contextExplainSuppression {
+	queuePath := filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl")
+	data, err := os.ReadFile(queuePath)
+	if err != nil || len(data) == 0 {
+		return nil
+	}
+
+	type aggregate struct {
+		count  int
+		detail string
+	}
+
+	aggregates := map[string]*aggregate{}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		entry, err := parseNextWorkEntryLine(line)
+		if err != nil {
+			continue
+		}
+		for _, item := range entry.Items {
+			proof := classifyNextWorkCompletionProof(cwd, entry.SourceEpic, item)
+			if !proof.Complete {
+				continue
+			}
+			agg, ok := aggregates[proof.Source]
+			if !ok {
+				agg = &aggregate{}
+				aggregates[proof.Source] = agg
+			}
+			agg.count++
+			if agg.detail == "" {
+				agg.detail = proof.Detail
+			}
+		}
+	}
+
+	order := []string{"completed_run", "evidence_only_closure", "execution_packet"}
+	suppressed := make([]contextExplainSuppression, 0, len(aggregates))
+	for _, source := range order {
+		agg, ok := aggregates[source]
+		if !ok || agg.count == 0 {
+			continue
+		}
+		suppressed = append(suppressed, contextExplainSuppression{
+			Class:  "next-work",
+			Count:  agg.count,
+			Reason: proofBackedNextWorkSuppressionReason(source, agg.count, agg.detail),
+		})
+	}
+	if len(aggregates) == 0 {
+		return nil
+	}
+	return suppressed
+}
+
+func proofBackedNextWorkSuppressionReason(source string, count int, detail string) string {
+	sourceLabel := map[string]string{
+		"completed_run":         "completed-run",
+		"evidence_only_closure": "evidence-only-closure",
+		"execution_packet":      "execution-packet",
+	}[source]
+	if sourceLabel == "" {
+		sourceLabel = source
+	}
+
+	plural := "item"
+	if count != 1 {
+		plural = "items"
+	}
+	if detail == "" {
+		return fmt.Sprintf("Proof-backed next-work completion suppressed %d %s via %s proof.", count, plural, sourceLabel)
+	}
+	return fmt.Sprintf("Proof-backed next-work completion suppressed %d %s via %s proof (%s).", count, plural, sourceLabel, detail)
 }
 
 func printContextExplainHuman(cmd *cobra.Command, result contextExplainResult) {

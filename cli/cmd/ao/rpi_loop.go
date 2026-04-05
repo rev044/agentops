@@ -63,6 +63,12 @@ type queuePreflightDecision struct {
 	Reason  string
 }
 
+type nextWorkProofDecision struct {
+	Complete bool
+	Source   string
+	Detail   string
+}
+
 var (
 	queueProofTargetPattern     = regexp.MustCompile(`\b[A-Za-z][A-Za-z0-9]*-[A-Za-z0-9][A-Za-z0-9-]*(?:\.[0-9]+)?\b`)
 	queueProofPacketPathPattern = regexp.MustCompile(`\.agents/(?:releases|council)/evidence-only-closures/([^/\s]+)\.json`)
@@ -164,22 +170,30 @@ type nextWorkEntry struct {
 	QueueIndex  int            `json:"-"`
 }
 
+type nextWorkProofRef struct {
+	Kind     string `json:"kind"`
+	TargetID string `json:"target_id,omitempty"`
+	RunID    string `json:"run_id,omitempty"`
+	Path     string `json:"path,omitempty"`
+}
+
 // nextWorkItem represents a single harvested work item.
 type nextWorkItem struct {
-	Title       string  `json:"title"`
-	Type        string  `json:"type"`
-	Severity    string  `json:"severity"`
-	Source      string  `json:"source"`
-	Description string  `json:"description"`
-	Evidence    string  `json:"evidence,omitempty"`
-	TargetRepo  string  `json:"target_repo,omitempty"`
-	Consumed    bool    `json:"consumed,omitempty"`
-	ClaimStatus string  `json:"claim_status,omitempty"`
-	ClaimedBy   *string `json:"claimed_by,omitempty"`
-	ClaimedAt   *string `json:"claimed_at,omitempty"`
-	ConsumedBy  *string `json:"consumed_by,omitempty"`
-	ConsumedAt  *string `json:"consumed_at,omitempty"`
-	FailedAt    *string `json:"failed_at,omitempty"`
+	Title       string            `json:"title"`
+	Type        string            `json:"type"`
+	Severity    string            `json:"severity"`
+	Source      string            `json:"source"`
+	Description string            `json:"description"`
+	Evidence    string            `json:"evidence,omitempty"`
+	TargetRepo  string            `json:"target_repo,omitempty"`
+	ProofRef    *nextWorkProofRef `json:"proof_ref,omitempty"`
+	Consumed    bool              `json:"consumed,omitempty"`
+	ClaimStatus string            `json:"claim_status,omitempty"`
+	ClaimedBy   *string           `json:"claimed_by,omitempty"`
+	ClaimedAt   *string           `json:"claimed_at,omitempty"`
+	ConsumedBy  *string           `json:"consumed_by,omitempty"`
+	ConsumedAt  *string           `json:"consumed_at,omitempty"`
+	FailedAt    *string           `json:"failed_at,omitempty"`
 }
 
 // queueSelection holds the selected item together with its source entry index
@@ -450,19 +464,89 @@ func preflightQueueSelection(cwd string, sel *queueSelection, cfg rpiLoopSupervi
 	if sel == nil {
 		return queuePreflightDecision{}, nil
 	}
-	if run := findCompletedRunForQueueSelection(cwd, sel); run != nil {
-		return queuePreflightDecision{
-			Consume: true,
-			Reason:  fmt.Sprintf("matched completed RPI run %s for source_epic %s", run.RunID, sel.SourceEpic),
-		}, nil
+	proof := classifyNextWorkCompletionProof(cwd, sel.SourceEpic, sel.Item)
+	if !proof.Complete {
+		return queuePreflightDecision{}, nil
 	}
-	if proof := findEvidenceOnlyClosureProofForQueueSelection(cwd, sel); proof != nil {
+	switch proof.Source {
+	case "completed_run":
 		return queuePreflightDecision{
 			Consume: true,
-			Reason:  fmt.Sprintf("matched evidence-only closure proof for %s (%s)", proof.TargetID, proof.PacketPath),
+			Reason:  fmt.Sprintf("matched completed RPI run %s for source_epic %s", proof.Detail, sel.SourceEpic),
+		}, nil
+	case "execution_packet":
+		return queuePreflightDecision{
+			Consume: true,
+			Reason:  fmt.Sprintf("matched execution packet proof for run %s", proof.Detail),
+		}, nil
+	case "evidence_only_closure":
+		return queuePreflightDecision{
+			Consume: true,
+			Reason:  fmt.Sprintf("matched evidence-only closure proof for %s", proof.Detail),
 		}, nil
 	}
 	return queuePreflightDecision{}, nil
+}
+
+func classifyNextWorkCompletionProof(cwd string, sourceEpic string, item nextWorkItem) nextWorkProofDecision {
+	if item.ProofRef != nil {
+		switch item.ProofRef.Kind {
+		case "completed_run":
+			if run := findCompletedRunByID(cwd, item.ProofRef.RunID); run != nil {
+				return nextWorkProofDecision{Complete: true, Source: "completed_run", Detail: run.RunID}
+			}
+		case "execution_packet":
+			if run := findCompletedRunByID(cwd, item.ProofRef.RunID); run != nil {
+				return nextWorkProofDecision{Complete: true, Source: "execution_packet", Detail: run.RunID}
+			}
+		case "evidence_only_closure":
+			if proof := findEvidenceOnlyClosureProofByTarget(cwd, item.ProofRef.TargetID); proof != nil {
+				return nextWorkProofDecision{
+					Complete: true,
+					Source:   "evidence_only_closure",
+					Detail:   fmt.Sprintf("%s (%s)", proof.TargetID, proof.PacketPath),
+				}
+			}
+		}
+	}
+
+	if run := findCompletedRunForQueueSelection(cwd, &queueSelection{
+		Item:       item,
+		SourceEpic: sourceEpic,
+	}); run != nil {
+		return nextWorkProofDecision{Complete: true, Source: "completed_run", Detail: run.RunID}
+	}
+	if proof := findEvidenceOnlyClosureProofForQueueSelection(cwd, &queueSelection{
+		Item:       item,
+		SourceEpic: sourceEpic,
+	}); proof != nil {
+		return nextWorkProofDecision{
+			Complete: true,
+			Source:   "evidence_only_closure",
+			Detail:   fmt.Sprintf("%s (%s)", proof.TargetID, proof.PacketPath),
+		}
+	}
+
+	return nextWorkProofDecision{}
+}
+
+func findCompletedRunByID(cwd, runID string) *rpiRunInfo {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return nil
+	}
+
+	_, historical := discoverRPIRunsRegistryFirst(cwd)
+	for i := range historical {
+		run := &historical[i]
+		if run.Status != "completed" {
+			continue
+		}
+		if strings.TrimSpace(run.RunID) == runID {
+			return run
+		}
+	}
+	return nil
 }
 
 func findCompletedRunForQueueSelection(cwd string, sel *queueSelection) *rpiRunInfo {
@@ -517,11 +601,18 @@ func findEvidenceOnlyClosureProofForQueueSelection(cwd string, sel *queueSelecti
 	}
 
 	for _, targetID := range queueProofTargetIDs(sel) {
-		if packetPath, ok := findValidEvidenceOnlyClosurePacket(cwd, targetID); ok {
-			return &evidenceOnlyClosureProof{
-				TargetID:   targetID,
-				PacketPath: packetPath,
-			}
+		if proof := findEvidenceOnlyClosureProofByTarget(cwd, targetID); proof != nil {
+			return proof
+		}
+	}
+	return nil
+}
+
+func findEvidenceOnlyClosureProofByTarget(cwd, targetID string) *evidenceOnlyClosureProof {
+	if packetPath, ok := findValidEvidenceOnlyClosurePacket(cwd, targetID); ok {
+		return &evidenceOnlyClosureProof{
+			TargetID:   targetID,
+			PacketPath: packetPath,
 		}
 	}
 	return nil
@@ -922,6 +1013,16 @@ func shouldSkipLegacyFailedEntry(entry nextWorkEntry) bool {
 	}
 	return entry.CompletionEvidence != ""
 }
+
+func nextWorkSearchRoot(path string) string {
+	dir := filepath.Dir(filepath.Clean(path))
+	parent := filepath.Dir(dir)
+	if filepath.Base(dir) == "rpi" && filepath.Base(parent) == ".agents" {
+		return filepath.Dir(parent)
+	}
+	return dir
+}
+
 // selectHighestSeverityEntry picks the best item across all eligible entries.
 // It returns a queueSelection containing the winning item and its source entry
 // parseable index in next-work.jsonl. Items filtered out by repoFilter are skipped.

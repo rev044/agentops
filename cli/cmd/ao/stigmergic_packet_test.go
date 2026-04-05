@@ -136,6 +136,62 @@ func TestLoadStigmergicScorecard_CountsCompiledAndQueueState(t *testing.T) {
 	}
 }
 
+func TestLoadStigmergicScorecard_ExcludesProofBackedSuppressedRows(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".agents", "rpi"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	writeCompletedLoopRegistryRun(t, dir, "run-proof", "ag-proof", "Already done backlog item")
+
+	queue := `{"source_epic":"ag-proof","timestamp":"2026-03-11T17:00:00Z","items":[{"title":"Already done backlog item","type":"task","severity":"high","source":"council-finding","description":"proof-backed stale work","target_repo":"` + detectRepoName(dir) + `","proof_ref":{"kind":"completed_run","run_id":"run-proof"},"consumed":false,"claim_status":"available"},{"title":"Fresh sibling","type":"task","severity":"medium","source":"retro-learning","description":"still actionable","target_repo":"` + detectRepoName(dir) + `","consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+`
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "rpi", "next-work.jsonl"), []byte(queue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	scorecard, err := loadStigmergicScorecard(dir)
+	if err != nil {
+		t.Fatalf("loadStigmergicScorecard: %v", err)
+	}
+	if scorecard.QueueEntries != 1 || scorecard.UnconsumedBatches != 1 {
+		t.Fatalf("queue entry counts = %+v, want one visible batch", scorecard)
+	}
+	if scorecard.UnconsumedItems != 1 {
+		t.Fatalf("UnconsumedItems = %d, want 1 visible item", scorecard.UnconsumedItems)
+	}
+	if scorecard.HighSeverityUnconsumed != 0 {
+		t.Fatalf("HighSeverityUnconsumed = %d, want proof-backed high severity item suppressed", scorecard.HighSeverityUnconsumed)
+	}
+}
+
+func TestCollectRankedContextBundle_ExcludesProofBackedNextWork(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".agents", "rpi"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := detectRepoName(dir)
+	writeCompletedLoopRegistryRun(t, dir, "run-proof", "ag-proof", "Already done backlog item")
+
+	queue := `{"source_epic":"ag-proof","timestamp":"2026-03-11T17:00:00Z","items":[{"title":"Already done backlog item","type":"task","severity":"high","source":"council-finding","description":"proof-backed stale work","target_repo":"` + repo + `","proof_ref":{"kind":"completed_run","run_id":"run-proof"},"consumed":false,"claim_status":"available"},{"title":"Fresh sibling","type":"task","severity":"medium","source":"retro-learning","description":"still actionable","target_repo":"` + repo + `","consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+`
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "rpi", "next-work.jsonl"), []byte(queue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bundle := collectRankedContextBundle(dir, "backlog item", 5)
+	if len(bundle.NextWork) != 1 {
+		t.Fatalf("NextWork = %+v, want only the live sibling", bundle.NextWork)
+	}
+	if bundle.NextWork[0].Title != "Fresh sibling" {
+		t.Fatalf("ranked next-work = %+v, want live sibling only", bundle.NextWork)
+	}
+	if len(bundle.Packet.PriorFindings) != 1 || bundle.Packet.PriorFindings[0].Title != "Fresh sibling" {
+		t.Fatalf("PriorFindings = %+v, want proof-backed item suppressed before ranking", bundle.Packet.PriorFindings)
+	}
+}
+
 func TestRankStigmergicFindings_PrefersChangedFileOverlap(t *testing.T) {
 	dir := t.TempDir()
 	findingsDir := filepath.Join(dir, ".agents", "findings")

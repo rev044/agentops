@@ -82,6 +82,43 @@ func assembleStigmergicPacket(cwd string, target StigmergicTarget) (StigmergicPa
 	}, nil
 }
 
+func loadVisibleNextWorkEntries(cwd, repoFilter string) ([]nextWorkEntry, error) {
+	entries, err := readQueueEntries(filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl"))
+	if err != nil {
+		return nil, err
+	}
+
+	visible := make([]nextWorkEntry, 0, len(entries))
+	for _, entry := range entries {
+		entryVisible := entry
+		entryVisible.Items = nil
+		for _, item := range entry.Items {
+			if !isQueueItemSelectable(item) {
+				continue
+			}
+			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
+				continue
+			}
+			if classifyNextWorkCompletionProof(cwd, entry.SourceEpic, item).Complete {
+				continue
+			}
+			entryVisible.Items = append(entryVisible.Items, item)
+		}
+		if len(entryVisible.Items) > 0 {
+			visible = append(visible, entryVisible)
+		}
+	}
+	return visible, nil
+}
+
+func flattenNextWorkEntries(entries []nextWorkEntry) []nextWorkItem {
+	items := make([]nextWorkItem, 0)
+	for _, entry := range entries {
+		items = append(items, entry.Items...)
+	}
+	return items
+}
+
 func loadStigmergicScorecard(cwd string) (stigmergicScorecard, error) {
 	scorecard := stigmergicScorecard{
 		PromotedFindings: countMatchingFiles(filepath.Join(cwd, ".agents", SectionFindings), "*.md"),
@@ -89,7 +126,7 @@ func loadStigmergicScorecard(cwd string) (stigmergicScorecard, error) {
 		PreMortemChecks:  countMatchingFiles(filepath.Join(cwd, ".agents", "pre-mortem-checks"), "*.md"),
 	}
 
-	entries, err := readQueueEntries(filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl"))
+	entries, err := loadVisibleNextWorkEntries(cwd, "")
 	if err != nil {
 		return stigmergicScorecard{}, err
 	}
@@ -158,7 +195,7 @@ func rankStigmergicFindings(cwd string, target StigmergicTarget) ([]knowledgeFin
 }
 
 func rankPriorFindings(cwd string, target StigmergicTarget) ([]nextWorkItem, error) {
-	entries, err := readQueueEntries(filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl"))
+	entries, err := loadVisibleNextWorkEntries(cwd, target.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -167,12 +204,6 @@ func rankPriorFindings(cwd string, target StigmergicTarget) ([]nextWorkItem, err
 	candidates := make([]stigmergicQueueCandidate, 0)
 	for _, entry := range entries {
 		for _, item := range entry.Items {
-			if !isQueueItemSelectable(item) {
-				continue
-			}
-			if target.Repo != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != target.Repo {
-				continue
-			}
 			affinity := repoAffinityRank(item, target.Repo)
 			score := scoreQueueCandidate(item, needles, target, affinity)
 			if score <= 0 {

@@ -72,7 +72,8 @@ func collectRankedContextBundle(cwd, query string, limit int) rankedContextBundl
 	patterns, _ := collectPatterns(cwd, query, limit, "", 0)
 	findings, _ := collectFindings(cwd, query, limit, "", 0)
 	recentSessions, _ := collectRecentSessions(cwd, query, minInt(limit, MaxSessionsToInject))
-	nextWork, _ := readUnconsumedItems(filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl"), repo)
+	nextWorkEntries, _ := loadVisibleNextWorkEntries(cwd, repo)
+	nextWork := flattenNextWorkEntries(nextWorkEntries)
 
 	return rankedContextBundle{
 		CWD:            cwd,

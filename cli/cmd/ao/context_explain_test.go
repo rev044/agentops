@@ -127,8 +127,57 @@ Keep startup payloads small and explainable.
 	if !containsSelectionClass(result.Selected, "planning-rule") {
 		t.Fatalf("expected planning-rule selection, got %+v", result.Selected)
 	}
+	if !containsSelectionClassWithReason(result.Selected, "next-work", "Selected from the backlog by repo affinity, severity, and query overlap.") {
+		t.Fatalf("expected generic next-work selection reason, got %+v", result.Selected)
+	}
 	if !containsSuppressionClass(result.Suppressed, "promoted-packets") {
 		t.Fatalf("expected promoted-packets suppression, got %+v", result.Suppressed)
+	}
+}
+
+func TestContextExplainReportsProofBackedNextWorkSuppression(t *testing.T) {
+	dir := t.TempDir()
+	for _, rel := range []string{
+		filepath.Join(".agents", "rpi"),
+		filepath.Join(".agents", "releases", "evidence-only-closures"),
+	} {
+		if err := os.MkdirAll(filepath.Join(dir, rel), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeCompletedLoopRegistryRun(t, dir, "run-complete", "ag-complete", "Complete via run")
+	writeEvidenceOnlyClosurePacket(t, dir, "ag-proof.2")
+	writeCompletedLoopRegistryRun(t, dir, "run-exec", "ag-exec", "Complete via packet")
+
+	queue := `{"source_epic":"ag-complete","timestamp":"2026-04-01T22:00:00Z","items":[{"title":"Already done by run","type":"task","severity":"high","source":"council-finding","description":"closed elsewhere","target_repo":"` + detectRepoName(dir) + `","proof_ref":{"kind":"completed_run","run_id":"run-complete"},"consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+{"source_epic":"ag-proof","timestamp":"2026-04-01T22:00:01Z","items":[{"title":"Already done by closure","type":"task","severity":"high","source":"council-finding","description":"closed elsewhere","target_repo":"` + detectRepoName(dir) + `","proof_ref":{"kind":"evidence_only_closure","target_id":"ag-proof.2"},"consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+{"source_epic":"ag-exec","timestamp":"2026-04-01T22:00:02Z","items":[{"title":"Already done by packet","type":"task","severity":"high","source":"council-finding","description":"closed elsewhere","target_repo":"` + detectRepoName(dir) + `","proof_ref":{"kind":"execution_packet","run_id":"run-exec"},"consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+{"source_epic":"ag-open","timestamp":"2026-04-01T22:00:03Z","items":[{"title":"Still open","type":"task","severity":"high","source":"council-finding","description":"needs work","target_repo":"` + detectRepoName(dir) + `","consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+`
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "rpi", "next-work.jsonl"), []byte(queue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	bundle := collectRankedContextBundle(dir, "proof-backed next work", defaultStigmergicPacketLimit)
+	result := buildContextExplainResult(dir, detectRepoName(dir), "proof-backed next work", "task", bundle)
+
+	if !containsSelectionClassWithReason(result.Selected, "next-work", "Selected from the backlog by repo affinity, severity, and query overlap.") {
+		t.Fatalf("expected generic selected next-work item, got %+v", result.Selected)
+	}
+	for _, want := range []string{"completed-run proof", "evidence-only-closure proof", "execution-packet proof"} {
+		if !containsSuppressionReason(result.Suppressed, want) {
+			t.Fatalf("expected suppression reason containing %q, got %+v", want, result.Suppressed)
+		}
 	}
 }
 
@@ -180,9 +229,27 @@ func containsSelectionClass(items []contextExplainSelection, class string) bool 
 	return false
 }
 
+func containsSelectionClassWithReason(items []contextExplainSelection, class, reason string) bool {
+	for _, item := range items {
+		if item.Class == class && strings.Contains(item.Reason, reason) {
+			return true
+		}
+	}
+	return false
+}
+
 func containsSuppressionClass(items []contextExplainSuppression, class string) bool {
 	for _, item := range items {
 		if item.Class == class {
+			return true
+		}
+	}
+	return false
+}
+
+func containsSuppressionReason(items []contextExplainSuppression, substring string) bool {
+	for _, item := range items {
+		if strings.Contains(item.Reason, substring) {
 			return true
 		}
 	}

@@ -161,8 +161,14 @@ entry_fields=(
   consumed_by consumed_at failed_at
 )
 item_fields=(
-  title type severity source description evidence target_repo consumed
+  title type severity source description evidence target_repo proof_ref consumed
   claim_status claimed_by claimed_at consumed_by consumed_at failed_at
+)
+proof_ref_fields=(
+  kind target_id run_id path
+)
+proof_ref_kinds=(
+  completed_run evidence_only_closure execution_packet
 )
 item_types=(
   tech-debt improvement pattern-fix process-improvement feature bug task
@@ -182,6 +188,25 @@ done
 for field in "${item_fields[@]}"; do
   require_contains "$SCHEMA" "\`$field\`" \
     "next-work schema missing item field \`$field\`"
+done
+
+for field in "${proof_ref_fields[@]}"; do
+  require_contains "$SCHEMA" "\`$field\`" \
+    "next-work schema missing proof_ref field \`$field\`"
+done
+
+for value in "${proof_ref_kinds[@]}"; do
+  require_contains "$SCHEMA" "\`$value\`" \
+    "next-work schema missing proof_ref kind $value"
+  require_contains "$HARVEST_REF" "$value" \
+    "harvest-next-work reference missing proof_ref kind $value"
+done
+
+require_contains "$RUNTIME" 'json:"proof_ref,omitempty"' \
+  "runtime next-work structs missing json field proof_ref"
+for field in kind target_id run_id path; do
+  require_contains "$RUNTIME" "json:\"$field" \
+    "runtime proof_ref struct missing json field $field"
 done
 
 for value in "${item_types[@]}"; do
@@ -212,6 +237,8 @@ done
 
 require_contains "$HARVEST_REF" "docs/contracts/next-work.schema.md" \
   "harvest-next-work must reference the tracked next-work schema"
+require_contains "$HARVEST_REF" "proof_ref" \
+  "harvest-next-work must document proof_ref emission"
 require_contains "$POST_MORTEM_SKILL" "docs/contracts/next-work.schema.md" \
   "post-mortem skill must reference the tracked next-work schema"
 require_contains "$POST_MORTEM_CODEX_SKILL" "docs/contracts/next-work.schema.md" \
@@ -266,6 +293,9 @@ for skill in "$POST_MORTEM_SKILL" "$POST_MORTEM_CODEX_SKILL"; do
   require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     "items:" \
     "${skill#$ROOT/} ACT.3 must show batched item arrays"
+  require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
+    "\"proof_ref\"" \
+    "${skill#$ROOT/} ACT.3 must show proof_ref emission guidance"
   require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     'claim_status: "available"' \
     "${skill#$ROOT/} ACT.3 must initialize entry claim_status"

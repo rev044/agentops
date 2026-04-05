@@ -424,6 +424,32 @@ func TestPreflightQueueSelection_ConsumesMatchingEvidenceOnlyClosurePacket(t *te
 	}
 }
 
+func TestClassifyNextWorkCompletionProof_UsesProofRefBeforeTextFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	packetPath := writeEvidenceOnlyClosurePacket(t, tmpDir, "ag-proof.2")
+
+	proof := classifyNextWorkCompletionProof(tmpDir, "ag-parent", nextWorkItem{
+		Title:       "Close already-proven follow-up",
+		Description: "Legacy notes mention .agents/releases/evidence-only-closures/ag-wrong.9.json, but proof_ref should win.",
+		ProofRef: &nextWorkProofRef{
+			Kind:     "evidence_only_closure",
+			TargetID: "ag-proof.2",
+		},
+	})
+	if !proof.Complete {
+		t.Fatal("expected explicit proof_ref to classify the item as complete")
+	}
+	if proof.Source != "evidence_only_closure" {
+		t.Fatalf("unexpected proof source: %+v", proof)
+	}
+	if !strings.Contains(proof.Detail, packetPath) {
+		t.Fatalf("expected proof detail to cite explicit proof_ref packet path, got %q", proof.Detail)
+	}
+	if strings.Contains(proof.Detail, "ag-wrong.9") {
+		t.Fatalf("expected proof_ref precedence over text fallback, got %q", proof.Detail)
+	}
+}
+
 func TestPreflightQueueSelection_DoesNotConsumeWithoutExplicitProof(t *testing.T) {
 	decision, err := preflightQueueSelection(t.TempDir(), &queueSelection{
 		Item: nextWorkItem{

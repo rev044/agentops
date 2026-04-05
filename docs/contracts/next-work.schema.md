@@ -51,6 +51,7 @@ One actionable follow-up item.
 | `description` | string | yes | Full problem statement and recommended action |
 | `evidence` | string | no | Concrete supporting evidence |
 | `target_repo` | string | no | Repo slug this applies to, or `*` for cross-repo/process work |
+| `proof_ref` | Proof Reference | no | Explicit completion-proof anchor for later consumers; prefer this over burying target IDs or artifact paths in free text |
 | `consumed` | boolean | no | Item lifecycle flag; omitted or `false` means not yet consumed |
 | `claim_status` | enum | no | Item lifecycle state; omitted means `available` |
 | `claimed_by` | string or null | no | Item claimant identifier |
@@ -61,7 +62,28 @@ One actionable follow-up item.
 
 Compatibility notes:
 - omitted item `claim_status` means `available`
+- new producers should prefer `proof_ref` when they already know the authoritative completion-proof surface for a harvested item
 - producers may attach extra metadata fields (for example `id`, `file`, or `func`); readers MUST ignore unknown fields
+
+### Proof Reference Object
+
+`proof_ref` is an optional object that tells later consumers which authoritative
+completion-proof surface to check before re-running a harvested item. This
+eliminates the need to scrape target IDs or packet paths from `title`,
+`description`, or `evidence`.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | enum | yes | Proof surface type |
+| `target_id` | string | conditional | Required for `evidence_only_closure`; optional otherwise |
+| `run_id` | string | conditional | Required for `completed_run`; recommended when `execution_packet` points at a run archive |
+| `path` | string | conditional | Required for `execution_packet`; recommended when a durable proof artifact path is known |
+
+Allowed `kind` values:
+
+- `completed_run` — proof is anchored to a completed RPI run; `run_id` is required
+- `evidence_only_closure` — proof is anchored to an evidence-only closure packet; `target_id` is required
+- `execution_packet` — proof is anchored to an execution packet artifact; `path` is required
 
 ---
 
@@ -133,5 +155,5 @@ Runtime readers still tolerate older flat rows with top-level `title`, `type`, `
 ## Canonical Example
 
 ```jsonl
-{"source_epic":"na-fr0","timestamp":"2026-03-08T17:30:00Z","items":[{"title":"Publish next-work schema v1.3 and add contract parity checks","type":"tech-debt","severity":"high","source":"council-finding","description":"Collapse next-work queue docs to one tracked v1.3 contract and validate drift against runtime behavior.","evidence":"March 8 audit found the local schema file at v1.2 while runtime and skill docs had already moved to per-item lifecycle semantics.","target_repo":"agentops","consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+{"source_epic":"na-fr0","timestamp":"2026-03-08T17:30:00Z","items":[{"title":"Publish next-work schema v1.3 and add contract parity checks","type":"tech-debt","severity":"high","source":"council-finding","description":"Collapse next-work queue docs to one tracked v1.3 contract and validate drift against runtime behavior.","evidence":"March 8 audit found the local schema file at v1.2 while runtime and skill docs had already moved to per-item lifecycle semantics.","target_repo":"agentops","proof_ref":{"kind":"execution_packet","run_id":"run-2026-03-08","path":".agents/rpi/runs/run-2026-03-08/execution-packet.json"},"consumed":false,"claim_status":"available"}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
 ```
