@@ -400,3 +400,165 @@ func TestPrintStringCountMap_Empty(t *testing.T) {
 		t.Errorf("empty map should produce no output, got: %q", out)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// printFindingTransferResult
+// ---------------------------------------------------------------------------
+
+func TestPrintFindingTransferResult_Human_Empty(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	out, err := captureStdout(t, func() error {
+		return printFindingTransferResult("exported", nil)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "No findings exported.") {
+		t.Errorf("missing empty message, got: %q", out)
+	}
+}
+
+func TestPrintFindingTransferResult_Human_WithPaths(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	out, err := captureStdout(t, func() error {
+		return printFindingTransferResult("imported", []string{"/tmp/a.json", "/tmp/b.json"})
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Imported 2 finding(s):") {
+		t.Errorf("missing count message, got: %q", out)
+	}
+	if !strings.Contains(out, "/tmp/a.json") {
+		t.Errorf("missing first path, got: %q", out)
+	}
+}
+
+func TestPrintFindingTransferResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	out, err := captureStdout(t, func() error {
+		return printFindingTransferResult("exported", []string{"/tmp/f1.json"})
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if parsed["action"] != "exported" {
+		t.Errorf("action = %v, want %q", parsed["action"], "exported")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// runFindingsStats (functional test with fixture dir)
+// ---------------------------------------------------------------------------
+
+func TestRunFindingsStats_Human(t *testing.T) {
+	tmp := chdirTemp(t)
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	findingsDir := filepath.Join(tmp, ".agents", "findings")
+	if err := os.MkdirAll(findingsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// collectFindingsFromDir reads .md files with YAML frontmatter
+	findingMD := `---
+id: F-TEST-001
+title: Test finding
+status: active
+severity: high
+hit_count: 3
+---
+Test finding body.
+`
+	if err := os.WriteFile(filepath.Join(findingsDir, "F-TEST-001.md"), []byte(findingMD), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := captureStdout(t, func() error {
+		return runFindingsStats(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Total findings:") {
+		t.Errorf("missing total count, got: %q", out)
+	}
+	if !strings.Contains(out, "Total hits:") {
+		t.Errorf("missing total hits, got: %q", out)
+	}
+	if !strings.Contains(out, "By status:") {
+		t.Errorf("missing by status, got: %q", out)
+	}
+}
+
+func TestRunFindingsStats_JSON(t *testing.T) {
+	tmp := chdirTemp(t)
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	findingsDir := filepath.Join(tmp, ".agents", "findings")
+	if err := os.MkdirAll(findingsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := captureStdout(t, func() error {
+		return runFindingsStats(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed findingStats
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if parsed.Total != 0 {
+		t.Errorf("Total = %d, want 0 for empty dir", parsed.Total)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// buildFindingStats
+// ---------------------------------------------------------------------------
+
+func TestBuildFindingStats(t *testing.T) {
+	findings := []knowledgeFinding{
+		{ID: "F-1", Status: "active", Severity: "high", HitCount: 5, Detectability: "automated"},
+		{ID: "F-2", Status: "active", Severity: "medium", HitCount: 2, Detectability: "manual"},
+		{ID: "F-3", Status: "retired", Severity: "high", HitCount: 0, Detectability: "automated"},
+	}
+
+	stats := buildFindingStats(findings)
+	if stats.Total != 3 {
+		t.Errorf("Total = %d, want 3", stats.Total)
+	}
+	if stats.TotalHits != 7 {
+		t.Errorf("TotalHits = %d, want 7", stats.TotalHits)
+	}
+	if stats.ByStatus["active"] != 2 {
+		t.Errorf("ByStatus[active] = %d, want 2", stats.ByStatus["active"])
+	}
+	if stats.BySeverity["high"] != 2 {
+		t.Errorf("BySeverity[high] = %d, want 2", stats.BySeverity["high"])
+	}
+	if stats.ByDetectability["automated"] != 2 {
+		t.Errorf("ByDetectability[automated] = %d, want 2", stats.ByDetectability["automated"])
+	}
+}

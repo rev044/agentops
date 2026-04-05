@@ -946,3 +946,79 @@ func TestIsLocalhostOrigin_RejectsEmpty(t *testing.T) {
 		t.Fatal("expected false for empty string")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// sortServeRuns
+// ---------------------------------------------------------------------------
+
+func TestSortServeRuns_ActiveFirst(t *testing.T) {
+	runs := []rpiRunInfo{
+		{RunID: "inactive-1", IsActive: false, StartedAt: "2026-04-04T12:00:00Z"},
+		{RunID: "active-1", IsActive: true, StartedAt: "2026-04-04T10:00:00Z"},
+		{RunID: "inactive-2", IsActive: false, StartedAt: "2026-04-04T11:00:00Z"},
+	}
+
+	sortServeRuns(runs)
+
+	if !runs[0].IsActive {
+		t.Errorf("first run should be active, got RunID=%q IsActive=%v", runs[0].RunID, runs[0].IsActive)
+	}
+	if runs[0].RunID != "active-1" {
+		t.Errorf("first run RunID = %q, want %q", runs[0].RunID, "active-1")
+	}
+}
+
+func TestSortServeRuns_ByHeartbeat(t *testing.T) {
+	now := time.Now()
+	runs := []rpiRunInfo{
+		{RunID: "old", IsActive: true, LastHeartbeat: now.Add(-10 * time.Minute)},
+		{RunID: "new", IsActive: true, LastHeartbeat: now.Add(-1 * time.Minute)},
+		{RunID: "zero", IsActive: true}, // zero heartbeat
+	}
+
+	sortServeRuns(runs)
+
+	if runs[0].RunID != "new" {
+		t.Errorf("first run = %q, want %q (most recent heartbeat)", runs[0].RunID, "new")
+	}
+	if runs[1].RunID != "old" {
+		t.Errorf("second run = %q, want %q", runs[1].RunID, "old")
+	}
+	// Zero heartbeat should be last among active
+	if runs[2].RunID != "zero" {
+		t.Errorf("last run = %q, want %q (zero heartbeat)", runs[2].RunID, "zero")
+	}
+}
+
+func TestSortServeRuns_ByStartedAt(t *testing.T) {
+	runs := []rpiRunInfo{
+		{RunID: "early", IsActive: false, StartedAt: "2026-04-01T10:00:00Z"},
+		{RunID: "late", IsActive: false, StartedAt: "2026-04-04T10:00:00Z"},
+		{RunID: "mid", IsActive: false, StartedAt: "2026-04-02T10:00:00Z"},
+	}
+
+	sortServeRuns(runs)
+
+	if runs[0].RunID != "late" {
+		t.Errorf("first = %q, want %q (latest start)", runs[0].RunID, "late")
+	}
+	if runs[1].RunID != "mid" {
+		t.Errorf("second = %q, want %q", runs[1].RunID, "mid")
+	}
+	if runs[2].RunID != "early" {
+		t.Errorf("third = %q, want %q (earliest start)", runs[2].RunID, "early")
+	}
+}
+
+func TestSortServeRuns_ByRunIDTiebreak(t *testing.T) {
+	runs := []rpiRunInfo{
+		{RunID: "aaa", IsActive: false, StartedAt: "2026-04-01T10:00:00Z"},
+		{RunID: "zzz", IsActive: false, StartedAt: "2026-04-01T10:00:00Z"},
+	}
+
+	sortServeRuns(runs)
+
+	if runs[0].RunID != "zzz" {
+		t.Errorf("first = %q, want %q (greater RunID first)", runs[0].RunID, "zzz")
+	}
+}

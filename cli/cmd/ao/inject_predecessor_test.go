@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -191,5 +192,50 @@ func TestExtractFirstParagraphs_SkipsFrontMatterDelimiters(t *testing.T) {
 	want := "First real paragraph. \nSecond paragraph."
 	if result != want {
 		t.Errorf("expected %q, got %q", want, result)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// truncatePredecessor
+// ---------------------------------------------------------------------------
+
+func TestTruncatePredecessor_UnderBudget(t *testing.T) {
+	ctx := &predecessorContext{
+		WorkingOn: "small task",
+		Progress:  "50% done",
+		Blocker:   "none",
+		NextStep:  "finish it",
+	}
+	truncatePredecessor(ctx)
+	if ctx.WorkingOn != "small task" {
+		t.Errorf("WorkingOn modified: %q", ctx.WorkingOn)
+	}
+}
+
+func TestTruncatePredecessor_OverBudget(t *testing.T) {
+	longText := strings.Repeat("x", 300)
+	ctx := &predecessorContext{
+		WorkingOn:  longText,
+		Progress:   longText,
+		Blocker:    longText,
+		NextStep:   longText,
+		RawSummary: longText,
+	}
+	truncatePredecessor(ctx)
+
+	if len(ctx.WorkingOn) > 103 {
+		t.Errorf("WorkingOn not truncated: len=%d", len(ctx.WorkingOn))
+	}
+	if len(ctx.Progress) > 253 {
+		t.Errorf("Progress not truncated: len=%d", len(ctx.Progress))
+	}
+	if len(ctx.Blocker) > 203 {
+		t.Errorf("Blocker not truncated: len=%d", len(ctx.Blocker))
+	}
+	if len(ctx.NextStep) > 153 {
+		t.Errorf("NextStep not truncated: len=%d", len(ctx.NextStep))
+	}
+	if len(ctx.RawSummary) > 303 {
+		t.Errorf("RawSummary not truncated: len=%d", len(ctx.RawSummary))
 	}
 }

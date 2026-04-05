@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -412,5 +413,109 @@ func TestPool_outputPoolShow_withHumanReview(t *testing.T) {
 	}
 	if !strings.Contains(out, "test-user") {
 		t.Errorf("expected reviewer name, got:\n%s", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputPoolAutoPromoteResult
+// ---------------------------------------------------------------------------
+
+func TestOutputPoolAutoPromoteResult_Human_NoPromotions(t *testing.T) {
+	origOutput := output
+	origDryRun := dryRun
+	output = "table"
+	dryRun = false
+	defer func() { output = origOutput; dryRun = origDryRun }()
+
+	result := poolAutoPromotePromoteResult{
+		Threshold: "0.7",
+		Promoted:  0,
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputPoolAutoPromoteResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "No candidates eligible") {
+		t.Errorf("missing no-candidates message, got: %q", out)
+	}
+}
+
+func TestOutputPoolAutoPromoteResult_Human_WithPromotions(t *testing.T) {
+	origOutput := output
+	origDryRun := dryRun
+	output = "table"
+	dryRun = false
+	defer func() { output = origOutput; dryRun = origDryRun }()
+
+	result := poolAutoPromotePromoteResult{
+		Threshold: "0.8",
+		Promoted:  2,
+		Artifacts: []string{"/tmp/a.md", "/tmp/b.md"},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputPoolAutoPromoteResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Promoted 2 candidate(s):") {
+		t.Errorf("missing promoted message, got: %q", out)
+	}
+	if !strings.Contains(out, "/tmp/a.md") {
+		t.Errorf("missing first artifact, got: %q", out)
+	}
+}
+
+func TestOutputPoolAutoPromoteResult_DryRun(t *testing.T) {
+	origOutput := output
+	origDryRun := dryRun
+	output = "table"
+	dryRun = true
+	defer func() { output = origOutput; dryRun = origDryRun }()
+
+	result := poolAutoPromotePromoteResult{
+		Threshold: "0.7",
+		Promoted:  3,
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputPoolAutoPromoteResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "[dry-run]") {
+		t.Errorf("missing dry-run marker, got: %q", out)
+	}
+}
+
+func TestOutputPoolAutoPromoteResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	result := poolAutoPromotePromoteResult{
+		Threshold: "0.7",
+		Promoted:  1,
+		Artifacts: []string{"/tmp/test.md"},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputPoolAutoPromoteResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed poolAutoPromotePromoteResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if parsed.Promoted != 1 {
+		t.Errorf("Promoted = %d, want 1", parsed.Promoted)
 	}
 }

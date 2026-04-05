@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -96,5 +98,93 @@ date: 2026-02-20
 	}
 	if _, err := os.Stat(filepath.Join(pendingDir, "legacy.md")); !os.IsNotExist(err) {
 		t.Fatalf("pending file should not exist in dry-run, stat err=%v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputPoolMigrateLegacyResult
+// ---------------------------------------------------------------------------
+
+func TestOutputPoolMigrateLegacyResult_Human(t *testing.T) {
+	origOutput := output
+	origDryRun := dryRun
+	output = "table"
+	dryRun = false
+	defer func() { output = origOutput; dryRun = origDryRun }()
+
+	result := poolMigrateLegacyResult{
+		Scanned:  10,
+		Eligible: 5,
+		Moved:    3,
+		Skipped:  2,
+		Errors:   0,
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputPoolMigrateLegacyResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "moved=3") {
+		t.Errorf("missing moved count, got: %q", out)
+	}
+	if !strings.Contains(out, "scanned=10") {
+		t.Errorf("missing scanned count, got: %q", out)
+	}
+}
+
+func TestOutputPoolMigrateLegacyResult_DryRun(t *testing.T) {
+	origOutput := output
+	origDryRun := dryRun
+	output = "table"
+	dryRun = true
+	defer func() { output = origOutput; dryRun = origDryRun }()
+
+	result := poolMigrateLegacyResult{
+		Moved: 2,
+		Moves: []legacyMove{
+			{From: "/tmp/old/a.md", To: "/tmp/new/a.md"},
+			{From: "/tmp/old/b.md", To: "/tmp/new/b.md"},
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputPoolMigrateLegacyResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "[dry-run]") {
+		t.Errorf("missing dry-run marker, got: %q", out)
+	}
+	if !strings.Contains(out, "a.md") {
+		t.Errorf("missing move entry, got: %q", out)
+	}
+}
+
+func TestOutputPoolMigrateLegacyResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	result := poolMigrateLegacyResult{
+		Scanned: 5,
+		Moved:   2,
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputPoolMigrateLegacyResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed poolMigrateLegacyResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if parsed.Scanned != 5 {
+		t.Errorf("Scanned = %d, want 5", parsed.Scanned)
 	}
 }

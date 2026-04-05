@@ -695,3 +695,69 @@ func runGitCheckBranch(repoPath, name string) error {
 	cmd.Dir = repoPath
 	return cmd.Run()
 }
+
+// ---------------------------------------------------------------------------
+// updateFlatStateIfMatches
+// ---------------------------------------------------------------------------
+
+func TestUpdateFlatStateIfMatches_MatchingRunID(t *testing.T) {
+	tmp := t.TempDir()
+	flatPath := filepath.Join(tmp, "phased-state.json")
+
+	state := map[string]any{
+		"run_id": "run-abc",
+		"phase":  1,
+		"status": "running",
+	}
+	data, _ := json.MarshalIndent(state, "", "  ")
+	os.WriteFile(flatPath, data, 0644)
+
+	updateFlatStateIfMatches(flatPath, "run-abc", "stale-worktree", "2026-04-04T12:00:00Z")
+
+	updated, _ := os.ReadFile(flatPath)
+	var result map[string]any
+	if err := json.Unmarshal(updated, &result); err != nil {
+		t.Fatalf("invalid JSON after update: %v", err)
+	}
+	if result["terminal_status"] != "stale" {
+		t.Errorf("terminal_status = %v, want %q", result["terminal_status"], "stale")
+	}
+	if result["terminal_reason"] != "stale-worktree" {
+		t.Errorf("terminal_reason = %v, want %q", result["terminal_reason"], "stale-worktree")
+	}
+	if result["terminated_at"] != "2026-04-04T12:00:00Z" {
+		t.Errorf("terminated_at = %v, want %q", result["terminated_at"], "2026-04-04T12:00:00Z")
+	}
+}
+
+func TestUpdateFlatStateIfMatches_NonMatchingRunID(t *testing.T) {
+	tmp := t.TempDir()
+	flatPath := filepath.Join(tmp, "phased-state.json")
+
+	state := map[string]any{"run_id": "run-abc", "status": "running"}
+	data, _ := json.MarshalIndent(state, "", "  ")
+	os.WriteFile(flatPath, data, 0644)
+
+	updateFlatStateIfMatches(flatPath, "run-DIFFERENT", "reason", "2026-04-04T12:00:00Z")
+
+	updated, _ := os.ReadFile(flatPath)
+	var result map[string]any
+	json.Unmarshal(updated, &result)
+	if _, exists := result["terminal_status"]; exists {
+		t.Error("terminal_status should not be set for non-matching run_id")
+	}
+}
+
+func TestUpdateFlatStateIfMatches_NonexistentFile(t *testing.T) {
+	// Should not panic
+	updateFlatStateIfMatches("/nonexistent/path.json", "run-1", "reason", "2026-04-04T12:00:00Z")
+}
+
+func TestUpdateFlatStateIfMatches_InvalidJSON(t *testing.T) {
+	tmp := t.TempDir()
+	flatPath := filepath.Join(tmp, "bad.json")
+	os.WriteFile(flatPath, []byte("not json"), 0644)
+
+	// Should not panic
+	updateFlatStateIfMatches(flatPath, "run-1", "reason", "2026-04-04T12:00:00Z")
+}

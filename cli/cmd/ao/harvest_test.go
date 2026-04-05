@@ -218,3 +218,29 @@ func TestRunHarvest_JSONOutput(t *testing.T) {
 		t.Error("expected RigsScanned > 0 in JSON output")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// duplicateArtifactCount
+// ---------------------------------------------------------------------------
+
+func TestDuplicateArtifactCount_NoDuplicates(t *testing.T) {
+	cat := &harvest.Catalog{}
+	got := duplicateArtifactCount(cat)
+	if got != 0 {
+		t.Errorf("duplicateArtifactCount(no dups) = %d, want 0", got)
+	}
+}
+
+func TestDuplicateArtifactCount_WithDuplicates(t *testing.T) {
+	cat := &harvest.Catalog{
+		Duplicates: []harvest.DuplicateGroup{
+			{Count: 3}, // 3-1 = 2 extra
+			{Count: 2}, // 2-1 = 1 extra
+			{Count: 1}, // 1-1 = 0 extra
+		},
+	}
+	got := duplicateArtifactCount(cat)
+	if got != 3 {
+		t.Errorf("duplicateArtifactCount = %d, want 3", got)
+	}
+}

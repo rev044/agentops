@@ -119,3 +119,120 @@ func TestMetricsCite_ValidArtifact(t *testing.T) {
 		t.Fatalf("runMetricsCite failed: %v", err)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// detectModelVendor
+// ---------------------------------------------------------------------------
+
+func TestDetectModelVendor_Codex(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "sess-123")
+	t.Setenv("CODEX_SANDBOX_TYPE", "")
+	t.Setenv("CLAUDE_CODE_SESSION", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	got := detectModelVendor()
+	if got != "codex" {
+		t.Errorf("detectModelVendor() = %q, want %q", got, "codex")
+	}
+}
+
+func TestDetectModelVendor_CodexSandbox(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "")
+	t.Setenv("CODEX_SANDBOX_TYPE", "docker")
+	t.Setenv("CLAUDE_CODE_SESSION", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	got := detectModelVendor()
+	if got != "codex" {
+		t.Errorf("detectModelVendor() = %q, want %q", got, "codex")
+	}
+}
+
+func TestDetectModelVendor_Claude(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "")
+	t.Setenv("CODEX_SANDBOX_TYPE", "")
+	t.Setenv("CLAUDE_CODE_SESSION", "active")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	got := detectModelVendor()
+	if got != "claude" {
+		t.Errorf("detectModelVendor() = %q, want %q", got, "claude")
+	}
+}
+
+func TestDetectModelVendor_ClaudeSessionID(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "")
+	t.Setenv("CODEX_SANDBOX_TYPE", "")
+	t.Setenv("CLAUDE_CODE_SESSION", "")
+	t.Setenv("CLAUDE_SESSION_ID", "sess-claude")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	got := detectModelVendor()
+	if got != "claude" {
+		t.Errorf("detectModelVendor() = %q, want %q", got, "claude")
+	}
+}
+
+func TestDetectModelVendor_OpenAIKeyOnly(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "")
+	t.Setenv("CODEX_SANDBOX_TYPE", "")
+	t.Setenv("CLAUDE_CODE_SESSION", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("OPENAI_API_KEY", "sk-test")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	got := detectModelVendor()
+	if got != "codex" {
+		t.Errorf("detectModelVendor() = %q, want %q", got, "codex")
+	}
+}
+
+func TestDetectModelVendor_AnthropicKeyOnly(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "")
+	t.Setenv("CODEX_SANDBOX_TYPE", "")
+	t.Setenv("CLAUDE_CODE_SESSION", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+	got := detectModelVendor()
+	if got != "claude" {
+		t.Errorf("detectModelVendor() = %q, want %q", got, "claude")
+	}
+}
+
+func TestDetectModelVendor_Unknown(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "")
+	t.Setenv("CODEX_SANDBOX_TYPE", "")
+	t.Setenv("CLAUDE_CODE_SESSION", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	got := detectModelVendor()
+	if got != "" {
+		t.Errorf("detectModelVendor() = %q, want empty", got)
+	}
+}
+
+func TestDetectModelVendor_BothKeys(t *testing.T) {
+	t.Setenv("CODEX_SESSION", "")
+	t.Setenv("CODEX_SANDBOX_TYPE", "")
+	t.Setenv("CLAUDE_CODE_SESSION", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("OPENAI_API_KEY", "sk-test")
+	t.Setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+	got := detectModelVendor()
+	// Both keys set, neither condition matches (one requires the other to be empty)
+	if got != "" {
+		t.Errorf("detectModelVendor() = %q, want empty (both keys set)", got)
+	}
+}

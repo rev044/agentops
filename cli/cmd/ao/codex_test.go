@@ -1005,3 +1005,450 @@ func TestCodexValidateState_FullValidState(t *testing.T) {
 		t.Fatalf("expected no error for fully valid state, got: %v", err)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// printNamedItems
+// ---------------------------------------------------------------------------
+
+func TestPrintNamedItems_EmptySlice(t *testing.T) {
+	out := captureJSONStdout(t, func() {
+		printNamedItems("Briefings", []codexArtifactRef{}, func(item codexArtifactRef) string { return item.Title })
+	})
+	if !strings.Contains(out, "Briefings:") {
+		t.Errorf("output missing heading, got: %q", out)
+	}
+	if !strings.Contains(out, "- none") {
+		t.Errorf("output missing '- none', got: %q", out)
+	}
+}
+
+func TestPrintNamedItems_WithItems(t *testing.T) {
+	items := []codexArtifactRef{
+		{Title: "First briefing", Path: "/a"},
+		{Title: "Second briefing", Path: "/b"},
+	}
+	out := captureJSONStdout(t, func() {
+		printNamedItems("Research", items, func(item codexArtifactRef) string { return item.Title })
+	})
+	if !strings.Contains(out, "Research:") {
+		t.Errorf("output missing heading, got: %q", out)
+	}
+	if !strings.Contains(out, "- First briefing") {
+		t.Errorf("output missing first item, got: %q", out)
+	}
+	if !strings.Contains(out, "- Second briefing") {
+		t.Errorf("output missing second item, got: %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputCodexStartResult (human mode)
+// ---------------------------------------------------------------------------
+
+func TestOutputCodexStartResult_Human(t *testing.T) {
+	// Ensure we're in human/table mode
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := codexStartResult{
+		Runtime: lifecycleRuntimeProfile{
+			Mode:    lifecycleModeCodexHookless,
+			Runtime: runtimeKindCodex,
+		},
+		StartupContextPath: "/tmp/startup.md",
+		MemoryPath:         "/tmp/MEMORY.md",
+		Learnings: []learning{
+			{Title: "Auth fix learning"},
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputCodexStartResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Codex Start") {
+		t.Errorf("output missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "codex-hookless") {
+		t.Errorf("output missing mode, got: %q", out)
+	}
+	if !strings.Contains(out, "Startup context:") {
+		t.Errorf("output missing startup context, got: %q", out)
+	}
+	if !strings.Contains(out, "Memory:") {
+		t.Errorf("output missing memory, got: %q", out)
+	}
+	if !strings.Contains(out, "Auth fix learning") {
+		t.Errorf("output missing learning title, got: %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputCodexStartResult (JSON mode)
+// ---------------------------------------------------------------------------
+
+func TestOutputCodexStartResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	result := codexStartResult{
+		Runtime: lifecycleRuntimeProfile{
+			Mode:    lifecycleModeCodexHookless,
+			Runtime: runtimeKindCodex,
+		},
+		StartupContextPath: "/tmp/startup.md",
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputCodexStartResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed codexStartResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON output: %v\nraw: %s", err, out)
+	}
+	if parsed.StartupContextPath != "/tmp/startup.md" {
+		t.Errorf("StartupContextPath = %q, want %q", parsed.StartupContextPath, "/tmp/startup.md")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputCodexStopResult (human mode)
+// ---------------------------------------------------------------------------
+
+func TestOutputCodexStopResult_Human(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := codexStopResult{
+		Runtime: lifecycleRuntimeProfile{
+			Mode:    lifecycleModeCodexHookless,
+			Runtime: runtimeKindCodex,
+		},
+		TranscriptPath:      "/tmp/transcript.jsonl",
+		TranscriptSource:    "archived",
+		SyntheticTranscript: true,
+		Session: SessionCloseResult{
+			SessionID:           "sess-1",
+			LearningsExtracted:  3,
+			LearningsRejected:   1,
+			HandoffWritten:      "/tmp/handoff.md",
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputCodexStopResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Codex Stop") {
+		t.Errorf("missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "synthesized from Codex history.jsonl") {
+		t.Errorf("missing synthetic notice, got: %q", out)
+	}
+	if !strings.Contains(out, "3 extracted") {
+		t.Errorf("missing learnings count, got: %q", out)
+	}
+	if !strings.Contains(out, "Handoff:") {
+		t.Errorf("missing handoff path, got: %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputCodexEnsureStartResult (human mode)
+// ---------------------------------------------------------------------------
+
+func TestOutputCodexEnsureStartResult_Human(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := codexEnsureStartResult{
+		Runtime: lifecycleRuntimeProfile{
+			Mode:       lifecycleModeCodexHookless,
+			Runtime:    runtimeKindCodex,
+			ThreadName: "test-thread",
+		},
+		Performed:          true,
+		SessionID:          "sess-42",
+		Reason:             "first session",
+		StartupContextPath: "/tmp/ctx.md",
+		MemoryPath:         "/tmp/mem.md",
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputCodexEnsureStartResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Codex Ensure Start") {
+		t.Errorf("missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "Thread: test-thread") {
+		t.Errorf("missing thread name, got: %q", out)
+	}
+	if !strings.Contains(out, "Session: sess-42") {
+		t.Errorf("missing session ID, got: %q", out)
+	}
+	if !strings.Contains(out, "Performed: true") {
+		t.Errorf("missing performed flag, got: %q", out)
+	}
+	if !strings.Contains(out, "Reason: first session") {
+		t.Errorf("missing reason, got: %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputCodexEnsureStopResult (human mode)
+// ---------------------------------------------------------------------------
+
+func TestOutputCodexEnsureStopResult_Human(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := codexEnsureStopResult{
+		Runtime: lifecycleRuntimeProfile{
+			Mode:       lifecycleModeCodexHookless,
+			Runtime:    runtimeKindCodex,
+			ThreadName: "stop-thread",
+		},
+		Performed:           true,
+		SessionID:           "sess-99",
+		Reason:              "session ended",
+		TranscriptPath:      "/tmp/t.jsonl",
+		TranscriptSource:    "history-fallback",
+		SyntheticTranscript: true,
+		HandoffPath:         "/tmp/handoff.md",
+		MemoryPath:          "/tmp/mem.md",
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputCodexEnsureStopResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Codex Ensure Stop") {
+		t.Errorf("missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "Thread: stop-thread") {
+		t.Errorf("missing thread, got: %q", out)
+	}
+	if !strings.Contains(out, "Performed: true") {
+		t.Errorf("missing performed, got: %q", out)
+	}
+	if !strings.Contains(out, "synthesized from Codex history.jsonl") {
+		t.Errorf("missing synthetic notice, got: %q", out)
+	}
+	if !strings.Contains(out, "Handoff:") {
+		t.Errorf("missing handoff, got: %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputCodexStatusResult (human mode)
+// ---------------------------------------------------------------------------
+
+func TestOutputCodexStatusResult_Human(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := codexStatusResult{
+		Runtime: lifecycleRuntimeProfile{
+			Mode:       lifecycleModeCodexHookless,
+			Runtime:    runtimeKindCodex,
+			ThreadName: "status-thread",
+		},
+		Capture: codexCaptureHealth{
+			SessionsIndexed:  5,
+			PendingKnowledge: 2,
+			LastForgeAge:     "3h",
+		},
+		Retrieval: codexRetrievalHealth{
+			Learnings: 10,
+			Patterns:  5,
+			Findings:  3,
+			NextWork:  7,
+			Briefings: 2,
+			Research:  4,
+		},
+		Promotion: codexPromotionHealth{
+			PendingPool: 3,
+			StagedPool:  1,
+		},
+		Citations: codexCitationHealth{
+			WindowDays:      30,
+			Total:           50,
+			UniqueArtifacts: 20,
+			Retrieved:       30,
+			Reference:       15,
+			Applied:         5,
+		},
+		Flywheel: &flywheelBrief{
+			Status:   "healthy",
+			Velocity: 0.5,
+		},
+		State: &codexLifecycleState{
+			LastStart: &codexLifecycleEvent{Timestamp: "2026-04-01T10:00:00Z"},
+			LastStop:  &codexLifecycleEvent{Timestamp: "2026-04-01T11:00:00Z"},
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputCodexStatusResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Codex Lifecycle Status") {
+		t.Errorf("missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "Thread: status-thread") {
+		t.Errorf("missing thread, got: %q", out)
+	}
+	if !strings.Contains(out, "sessions=5") {
+		t.Errorf("missing sessions count, got: %q", out)
+	}
+	if !strings.Contains(out, "Last forge: 3h ago") {
+		t.Errorf("missing forge age, got: %q", out)
+	}
+	if !strings.Contains(out, "learnings=10") {
+		t.Errorf("missing learnings count, got: %q", out)
+	}
+	if !strings.Contains(out, "healthy") {
+		t.Errorf("missing flywheel status, got: %q", out)
+	}
+	if !strings.Contains(out, "Last start: 2026-04-01T10:00:00Z") {
+		t.Errorf("missing last start, got: %q", out)
+	}
+	if !strings.Contains(out, "Last stop: 2026-04-01T11:00:00Z") {
+		t.Errorf("missing last stop, got: %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputCodexStatusResult (JSON mode)
+// ---------------------------------------------------------------------------
+
+func TestOutputCodexStatusResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	result := codexStatusResult{
+		Runtime: lifecycleRuntimeProfile{
+			Mode:    lifecycleModeCodexHookless,
+			Runtime: runtimeKindCodex,
+		},
+		Capture: codexCaptureHealth{SessionsIndexed: 3},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputCodexStatusResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed codexStatusResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if parsed.Capture.SessionsIndexed != 3 {
+		t.Errorf("SessionsIndexed = %d, want 3", parsed.Capture.SessionsIndexed)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// extractSessionIDFromCodexArchivedPath
+// ---------------------------------------------------------------------------
+
+func TestExtractSessionIDFromCodexArchivedPath_InCodexTest(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"/home/.codex/archived_sessions/a1b2c3d4-e5f6-7890-abcd-ef1234567890.jsonl", "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+		{"/home/.codex/foo.jsonl", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := extractSessionIDFromCodexArchivedPath(tt.path)
+		if got != tt.want {
+			t.Errorf("extractSessionIDFromCodexArchivedPath(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// normalizeCodexLifecyclePath
+// ---------------------------------------------------------------------------
+
+func TestNormalizeCodexLifecyclePath(t *testing.T) {
+	tests := []struct {
+		input string
+		empty bool
+	}{
+		{"", true},
+		{"  ", true},
+		{"/tmp/foo", false},
+		{"  /tmp/bar  ", false},
+	}
+	for _, tt := range tests {
+		got := normalizeCodexLifecyclePath(tt.input)
+		if tt.empty && got != "" {
+			t.Errorf("normalizeCodexLifecyclePath(%q) = %q, want empty", tt.input, got)
+		}
+		if !tt.empty && got == "" {
+			t.Errorf("normalizeCodexLifecyclePath(%q) = empty, want non-empty", tt.input)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// firstNonEmptyTrimmed
+// ---------------------------------------------------------------------------
+
+func TestFirstNonEmptyTrimmed(t *testing.T) {
+	tests := []struct {
+		values []string
+		want   string
+	}{
+		{[]string{"", "  ", "hello"}, "hello"},
+		{[]string{"first", "second"}, "first"},
+		{[]string{"", "", ""}, ""},
+		{[]string{" trimmed "}, "trimmed"},
+		{nil, ""},
+	}
+	for _, tt := range tests {
+		got := firstNonEmptyTrimmed(tt.values...)
+		if got != tt.want {
+			t.Errorf("firstNonEmptyTrimmed(%v) = %q, want %q", tt.values, got, tt.want)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// codexLifecycleStatePath
+// ---------------------------------------------------------------------------
+
+func TestCodexLifecycleStatePath(t *testing.T) {
+	got := codexLifecycleStatePath("/tmp/repo")
+	want := filepath.Join("/tmp/repo", ".agents", "ao", "codex", "state.json")
+	if got != want {
+		t.Errorf("codexLifecycleStatePath = %q, want %q", got, want)
+	}
+}

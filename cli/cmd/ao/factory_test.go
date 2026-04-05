@@ -110,3 +110,123 @@ func TestFactoryStartJSONWarnsWhenBriefingCannotBeBuiltYet(t *testing.T) {
 		t.Fatalf("startup context missing: %q", result.Codex.StartupContextPath)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// outputFactoryStartResult
+// ---------------------------------------------------------------------------
+
+func TestOutputFactoryStartResult_Human_WithGoal(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := factoryStartResult{
+		Workspace: "/tmp/repo",
+		Goal:      "Deploy auth service",
+		Briefing:  "/tmp/repo/.agents/briefing.md",
+		Codex: codexStartResult{
+			StartupContextPath: "/tmp/repo/.agents/startup.md",
+			MemoryPath:         "/tmp/repo/MEMORY.md",
+		},
+		Recommended: []string{"ao rpi phased --goal 'Deploy auth service'", "ao codex stop"},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputFactoryStartResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Software Factory Start") {
+		t.Errorf("missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "Goal: Deploy auth service") {
+		t.Errorf("missing goal, got: %q", out)
+	}
+	if !strings.Contains(out, "Briefing: /tmp/repo/.agents/briefing.md") {
+		t.Errorf("missing briefing, got: %q", out)
+	}
+	if !strings.Contains(out, "Memory:") {
+		t.Errorf("missing memory, got: %q", out)
+	}
+	if !strings.Contains(out, "Factory lane:") {
+		t.Errorf("missing factory lane, got: %q", out)
+	}
+}
+
+func TestOutputFactoryStartResult_Human_NoGoal(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := factoryStartResult{
+		Workspace: "/tmp/repo",
+		Codex: codexStartResult{
+			StartupContextPath: "/tmp/ctx.md",
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputFactoryStartResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Briefing: skipped (no --goal provided)") {
+		t.Errorf("missing no-goal briefing message, got: %q", out)
+	}
+}
+
+func TestOutputFactoryStartResult_Human_GoalNoBriefing(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := factoryStartResult{
+		Workspace:       "/tmp/repo",
+		Goal:            "Some goal",
+		BriefingWarning: "no topic packets",
+		Codex: codexStartResult{
+			StartupContextPath: "/tmp/ctx.md",
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputFactoryStartResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Briefing: not built") {
+		t.Errorf("missing 'not built' for goal without briefing, got: %q", out)
+	}
+	if !strings.Contains(out, "Briefing note: no topic packets") {
+		t.Errorf("missing briefing warning, got: %q", out)
+	}
+}
+
+func TestOutputFactoryStartResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	result := factoryStartResult{
+		Workspace: "/tmp/repo",
+		Goal:      "test goal",
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputFactoryStartResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed factoryStartResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if parsed.Goal != "test goal" {
+		t.Errorf("Goal = %q, want %q", parsed.Goal, "test goal")
+	}
+}

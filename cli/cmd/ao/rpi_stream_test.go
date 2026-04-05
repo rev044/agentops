@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -44,6 +48,155 @@ func TestWriteStreamEvent_NilFile(t *testing.T) {
 // ---------------------------------------------------------------------------
 // directExecutor
 // ---------------------------------------------------------------------------
+
+func TestWriteStreamEvent_JSON(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "events.jsonl")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	event := RPIC2Event{
+		EventID:   "evt-001",
+		Type:      "phase.start",
+		Phase:     1,
+		WorkerID:  "w1",
+		Message:   "starting discovery",
+		Source:    "stream",
+		Timestamp: "2026-04-04T10:00:00Z",
+	}
+
+	if err := writeStreamEvent(f, event, "json"); err != nil {
+		t.Fatalf("writeStreamEvent(json) error: %v", err)
+	}
+	f.Close()
+
+	data, _ := os.ReadFile(path)
+	var parsed RPIC2Event
+	if err := json.Unmarshal(bytes.TrimSpace(data), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, data)
+	}
+	if parsed.EventID != "evt-001" {
+		t.Errorf("EventID = %q, want %q", parsed.EventID, "evt-001")
+	}
+	if parsed.Type != "phase.start" {
+		t.Errorf("Type = %q, want %q", parsed.Type, "phase.start")
+	}
+}
+
+func TestWriteStreamEvent_SSE(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "events.sse")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	event := RPIC2Event{
+		EventID:   "evt-002",
+		Type:      "phase.complete",
+		Phase:     2,
+		Message:   "planning done",
+		Timestamp: "2026-04-04T11:00:00Z",
+	}
+
+	if err := writeStreamEvent(f, event, "sse"); err != nil {
+		t.Fatalf("writeStreamEvent(sse) error: %v", err)
+	}
+	f.Close()
+
+	data, _ := os.ReadFile(path)
+	content := string(data)
+	if !strings.Contains(content, "id: evt-002") {
+		t.Errorf("SSE missing id line, got: %q", content)
+	}
+	if !strings.Contains(content, "event: phase.complete") {
+		t.Errorf("SSE missing event line, got: %q", content)
+	}
+	if !strings.Contains(content, "data: ") {
+		t.Errorf("SSE missing data line, got: %q", content)
+	}
+}
+
+func TestWriteStreamEvent_Human(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "events.log")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	event := RPIC2Event{
+		EventID:   "evt-003",
+		Type:      "worker.log",
+		Phase:     3,
+		WorkerID:  "worker-A",
+		Message:   "implementing feature",
+		Source:    "direct",
+		Timestamp: "2026-04-04T12:00:00Z",
+	}
+
+	if err := writeStreamEvent(f, event, "human"); err != nil {
+		t.Fatalf("writeStreamEvent(human) error: %v", err)
+	}
+	f.Close()
+
+	data, _ := os.ReadFile(path)
+	content := string(data)
+	if !strings.Contains(content, "phase=3") {
+		t.Errorf("human output missing phase, got: %q", content)
+	}
+	if !strings.Contains(content, "worker=worker-A") {
+		t.Errorf("human output missing worker, got: %q", content)
+	}
+	if !strings.Contains(content, "type=worker.log") {
+		t.Errorf("human output missing type, got: %q", content)
+	}
+	if !strings.Contains(content, "msg=implementing feature") {
+		t.Errorf("human output missing message, got: %q", content)
+	}
+}
+
+func TestWriteStreamEvent_HumanDefaults(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "events.log")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	// Event with zero phase, empty worker, empty message, empty source
+	event := RPIC2Event{
+		EventID:   "evt-004",
+		Type:      "info",
+		Timestamp: "2026-04-04T13:00:00Z",
+	}
+
+	if err := writeStreamEvent(f, event, "human"); err != nil {
+		t.Fatalf("writeStreamEvent(human defaults) error: %v", err)
+	}
+	f.Close()
+
+	data, _ := os.ReadFile(path)
+	content := string(data)
+	if !strings.Contains(content, "phase=-") {
+		t.Errorf("expected phase=-, got: %q", content)
+	}
+	if !strings.Contains(content, "worker=-") {
+		t.Errorf("expected worker=-, got: %q", content)
+	}
+	if !strings.Contains(content, "msg=-") {
+		t.Errorf("expected msg=-, got: %q", content)
+	}
+	if !strings.Contains(content, "source=-") {
+		t.Errorf("expected source=-, got: %q", content)
+	}
+}
 
 func TestStreamCoverage_DirectExecutorName(t *testing.T) {
 	d := &directExecutor{runtimeCommand: "claude", phaseTimeout: 90 * time.Minute}

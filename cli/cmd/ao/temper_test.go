@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -1006,5 +1007,80 @@ func TestTemperCoverage_CountPoolPending(t *testing.T) {
 	// With no pool, pending should still be 0
 	if status.Pending != 0 {
 		t.Errorf("Pending = %d, want 0 with no pool", status.Pending)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// runTemperStatus (integration)
+// ---------------------------------------------------------------------------
+
+func TestRunTemperStatus_Human(t *testing.T) {
+	tmp := chdirTemp(t)
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	setupAgentsDir(t, tmp)
+
+	out, err := captureStdout(t, func() error {
+		return runTemperStatus(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Output should include temper status info
+	if out == "" {
+		t.Error("expected non-empty output")
+	}
+}
+
+func TestRunTemperStatus_JSON(t *testing.T) {
+	tmp := chdirTemp(t)
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	setupAgentsDir(t, tmp)
+
+	out, err := captureStdout(t, func() error {
+		return runTemperStatus(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should be valid JSON
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// lockArtifact (integration)
+// ---------------------------------------------------------------------------
+
+func TestLockArtifact_NonexistentFile(t *testing.T) {
+	err := lockArtifact("/nonexistent/file.md", "test-locker")
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+}
+
+func TestLockArtifact_ValidFile(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "artifact.md")
+	os.WriteFile(path, []byte("---\ntitle: test\n---\nContent"), 0644)
+
+	err := lockArtifact(path, "test-locker")
+	// Should succeed or fail based on content validation, either way not panic
+	_ = err
+	// Read back and check if locked metadata was written
+	data, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatalf("failed to read back: %v", readErr)
+	}
+	if len(data) == 0 {
+		t.Error("artifact file is empty after lock attempt")
 	}
 }

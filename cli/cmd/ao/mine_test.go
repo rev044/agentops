@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMineWorkItemID_HotspotUsesFileFunc(t *testing.T) {
@@ -547,6 +548,147 @@ func TestMineAgentsDir_OrphanedResearch(t *testing.T) {
 	}
 	if len(findings.OrphanedResearch) > 0 && findings.OrphanedResearch[0] != "2026-01-01-orphan.md" {
 		t.Errorf("OrphanedResearch[0] = %q, want %q", findings.OrphanedResearch[0], "2026-01-01-orphan.md")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// parseMineWindow
+// ---------------------------------------------------------------------------
+
+func TestParseMineWindow(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    int64 // in hours for comparison
+		wantErr bool
+	}{
+		{"7d", 168, false},
+		{"1d", 24, false},
+		{"24h", 24, false},
+		{"2h", 2, false},
+		{"30m", 0, false}, // 30 minutes = 0 full hours
+		{"", 0, true},
+		{"0d", 0, true},
+		{"-1h", 0, true},
+		{"abc", 0, true},
+		{"10x", 0, true},
+		{"d", 0, true},   // no number
+		{"3.5d", 0, true}, // non-integer
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := parseMineWindow(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("parseMineWindow(%q) = %v, want error", tt.input, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseMineWindow(%q) error = %v", tt.input, err)
+			}
+			gotHours := int64(got.Hours())
+			if gotHours != tt.want {
+				t.Errorf("parseMineWindow(%q) = %d hours, want %d", tt.input, gotHours, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseMineWindow_MinutesPrecision(t *testing.T) {
+	got, err := parseMineWindow("30m")
+	if err != nil {
+		t.Fatalf("parseMineWindow(\"30m\") error = %v", err)
+	}
+	if got.Minutes() != 30 {
+		t.Errorf("parseMineWindow(\"30m\") = %v minutes, want 30", got.Minutes())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// splitSources
+// ---------------------------------------------------------------------------
+
+func TestSplitSources(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    []string
+		wantErr bool
+	}{
+		{"git", []string{"git"}, false},
+		{"git,agents", []string{"git", "agents"}, false},
+		{"git, agents, code", []string{"git", "agents", "code"}, false},
+		{"events", []string{"events"}, false},
+		{"git,code,agents,events", []string{"git", "code", "agents", "events"}, false},
+		{"", nil, true},
+		{",,,", nil, true},
+		{"invalid", nil, true},
+		{"git,invalid", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := splitSources(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("splitSources(%q) = %v, want error", tt.input, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("splitSources(%q) error = %v", tt.input, err)
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("splitSources(%q) = %v (len %d), want %v (len %d)", tt.input, got, len(got), tt.want, len(tt.want))
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("splitSources(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// countRecentEdits
+// ---------------------------------------------------------------------------
+
+func TestCountRecentEdits_InGitRepo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git operations in short mode")
+	}
+	dir := initGitHistoryFixtureRepo(t, []gitCommitFixture{
+		{Path: "main.go", Content: "package main\n", Message: "add main", Timestamp: time.Now().Add(-1 * time.Hour)},
+		{Path: "main.go", Content: "package main\n// v2\n", Message: "update main", Timestamp: time.Now().Add(-30 * time.Minute)},
+	})
+
+	count := countRecentEdits(dir, "main.go", 24*time.Hour)
+	if count != 2 {
+		t.Errorf("countRecentEdits = %d, want 2", count)
+	}
+}
+
+func TestCountRecentEdits_NoEditsInWindow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git operations in short mode")
+	}
+	dir := initGitHistoryFixtureRepo(t, []gitCommitFixture{
+		{Path: "old.go", Content: "package old\n", Message: "ancient commit", Timestamp: time.Now().Add(-365 * 24 * time.Hour)},
+	})
+
+	count := countRecentEdits(dir, "old.go", 1*time.Hour)
+	if count != 0 {
+		t.Errorf("countRecentEdits = %d, want 0 (commit outside window)", count)
+	}
+}
+
+func TestCountRecentEdits_NonexistentFile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git operations in short mode")
+	}
+	dir := initTestRepo(t)
+	count := countRecentEdits(dir, "nonexistent.go", 24*time.Hour)
+	if count != 0 {
+		t.Errorf("countRecentEdits = %d, want 0 for nonexistent file", count)
 	}
 }
 

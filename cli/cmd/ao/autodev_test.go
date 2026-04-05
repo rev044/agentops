@@ -172,3 +172,122 @@ func TestCobraAutodevShowPrefersPROGRAMOverAUTODEV(t *testing.T) {
 		t.Fatalf("objective = %q, want PROGRAM preferred contract", objective)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// outputAutodevValidateResult
+// ---------------------------------------------------------------------------
+
+func TestOutputAutodevValidateResult_Human_Valid(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := autodevValidateResult{
+		Path:                 "/tmp/program.yaml",
+		Valid:                true,
+		Format:               "yaml",
+		MutableScopeCount:    3,
+		ImmutableScopeCount:  2,
+		ValidationCommandCnt: 5,
+		StopConditionCount:   1,
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputAutodevValidateResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "VALID: /tmp/program.yaml (yaml)") {
+		t.Errorf("missing valid header, got: %q", out)
+	}
+	if !strings.Contains(out, "Mutable scope: 3") {
+		t.Errorf("missing mutable scope, got: %q", out)
+	}
+	if !strings.Contains(out, "Immutable scope: 2") {
+		t.Errorf("missing immutable scope, got: %q", out)
+	}
+	if !strings.Contains(out, "Validation commands: 5") {
+		t.Errorf("missing validation commands, got: %q", out)
+	}
+	if !strings.Contains(out, "Stop conditions: 1") {
+		t.Errorf("missing stop conditions, got: %q", out)
+	}
+}
+
+func TestOutputAutodevValidateResult_Human_Invalid(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := autodevValidateResult{
+		Path:   "/tmp/bad.yaml",
+		Valid:  false,
+		Errors: []string{"missing objective", "no stop conditions"},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputAutodevValidateResult(result)
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid result")
+	}
+	if !strings.Contains(out, "INVALID: /tmp/bad.yaml") {
+		t.Errorf("missing invalid header, got: %q", out)
+	}
+	if !strings.Contains(out, "ERROR: missing objective") {
+		t.Errorf("missing first error, got: %q", out)
+	}
+	if !strings.Contains(out, "ERROR: no stop conditions") {
+		t.Errorf("missing second error, got: %q", out)
+	}
+}
+
+func TestOutputAutodevValidateResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	result := autodevValidateResult{
+		Path:  "/tmp/test.yaml",
+		Valid: true,
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputAutodevValidateResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed autodevValidateResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !parsed.Valid {
+		t.Error("Valid should be true")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// displayProgramPath
+// ---------------------------------------------------------------------------
+
+func TestDisplayProgramPath(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"", ""},
+		{"/tmp/something.yaml", "/tmp/something.yaml"},
+	}
+	for _, tt := range tests {
+		got := displayProgramPath(tt.input)
+		if tt.input == "" && got != "" {
+			t.Errorf("displayProgramPath(%q) = %q, want empty", tt.input, got)
+		}
+		if tt.input != "" && got == "" {
+			t.Errorf("displayProgramPath(%q) = empty, want non-empty", tt.input)
+		}
+	}
+}

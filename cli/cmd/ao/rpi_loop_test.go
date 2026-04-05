@@ -3127,4 +3127,50 @@ func TestMaybeCompactQueue_RunsAtInterval(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// entryConsumedTime
+// ---------------------------------------------------------------------------
+
+func TestEntryConsumedTime_EntryLevel(t *testing.T) {
+	ts := "2026-04-01T10:00:00Z"
+	entry := &nextWorkEntry{ConsumedAt: &ts}
+	got := entryConsumedTime(entry)
+	want, _ := time.Parse(time.RFC3339, ts)
+	if !got.Equal(want) {
+		t.Errorf("entryConsumedTime = %v, want %v", got, want)
+	}
+}
+
+func TestEntryConsumedTime_ItemLevel(t *testing.T) {
+	ts1 := "2026-04-01T10:00:00Z"
+	ts2 := "2026-04-02T10:00:00Z"
+	entry := &nextWorkEntry{
+		Items: []nextWorkItem{
+			{ConsumedAt: &ts1},
+			{ConsumedAt: &ts2},
+		},
+	}
+	got := entryConsumedTime(entry)
+	want, _ := time.Parse(time.RFC3339, ts2)
+	if !got.Equal(want) {
+		t.Errorf("entryConsumedTime = %v, want %v (should be latest)", got, want)
+	}
+}
+
+func TestEntryConsumedTime_NoTimestamp(t *testing.T) {
+	entry := &nextWorkEntry{}
+	got := entryConsumedTime(entry)
+	if !got.IsZero() {
+		t.Errorf("entryConsumedTime = %v, want zero", got)
+	}
+}
+
+func TestEntryConsumedTime_InvalidFormat(t *testing.T) {
+	ts := "not-a-date"
+	entry := &nextWorkEntry{ConsumedAt: &ts}
+	got := entryConsumedTime(entry)
+	if !got.IsZero() {
+		t.Errorf("entryConsumedTime with invalid format = %v, want zero", got)
+	}
+}
 

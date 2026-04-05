@@ -576,3 +576,161 @@ func TestCountArtifactsSince_MalformedJSON(t *testing.T) {
 		t.Errorf("count = %d, want 0 for malformed JSON", count)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// countArtifactsInDir
+// ---------------------------------------------------------------------------
+
+func TestCountArtifactsInDir_Empty(t *testing.T) {
+	dir := t.TempDir()
+	counts, latest := countArtifactsInDir(dir)
+	if len(counts) != 0 {
+		t.Errorf("counts = %v, want empty for empty dir", counts)
+	}
+	if !latest.IsZero() {
+		t.Errorf("latest = %v, want zero for empty dir", latest)
+	}
+}
+
+func TestCountArtifactsInDir_NonexistentDir(t *testing.T) {
+	counts, latest := countArtifactsInDir("/nonexistent-dir-xyz")
+	if len(counts) != 0 {
+		t.Errorf("counts = %v, want empty for nonexistent dir", counts)
+	}
+	if !latest.IsZero() {
+		t.Errorf("latest = %v, want zero for nonexistent dir", latest)
+	}
+}
+
+func TestCountArtifactsInDir_ValidArtifacts(t *testing.T) {
+	dir := t.TempDir()
+
+	artifacts := []curateArtifact{
+		{ID: "1", Type: "learning", CuratedAt: "2026-04-01T10:00:00Z"},
+		{ID: "2", Type: "learning", CuratedAt: "2026-04-02T10:00:00Z"},
+		{ID: "3", Type: "pattern", CuratedAt: "2026-04-03T10:00:00Z"},
+	}
+
+	for _, a := range artifacts {
+		data, _ := json.Marshal(a)
+		if err := os.WriteFile(filepath.Join(dir, a.ID+".json"), data, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Also add a non-JSON file to verify it's skipped
+	os.WriteFile(filepath.Join(dir, "readme.md"), []byte("skip me"), 0644)
+
+	counts, latest := countArtifactsInDir(dir)
+	if counts["learning"] != 2 {
+		t.Errorf("learning count = %d, want 2", counts["learning"])
+	}
+	if counts["pattern"] != 1 {
+		t.Errorf("pattern count = %d, want 1", counts["pattern"])
+	}
+
+	expectedLatest, _ := time.Parse(time.RFC3339, "2026-04-03T10:00:00Z")
+	if !latest.Equal(expectedLatest) {
+		t.Errorf("latest = %v, want %v", latest, expectedLatest)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// runCurateStatus
+// ---------------------------------------------------------------------------
+
+func TestRunCurateStatus_Human(t *testing.T) {
+	tmp := chdirTemp(t)
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	// Setup minimal .agents structure with some artifacts
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	patternsDir := filepath.Join(tmp, ".agents", "patterns")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(patternsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	l1, _ := json.Marshal(curateArtifact{ID: "l1", Type: "learning", CuratedAt: "2026-04-01T10:00:00Z"})
+	l2, _ := json.Marshal(curateArtifact{ID: "l2", Type: "decision", CuratedAt: "2026-04-02T10:00:00Z"})
+	p1, _ := json.Marshal(curateArtifact{ID: "p1", Type: "pattern", CuratedAt: "2026-04-03T10:00:00Z"})
+
+	os.WriteFile(filepath.Join(learningsDir, "l1.json"), l1, 0644)
+	os.WriteFile(filepath.Join(learningsDir, "l2.json"), l2, 0644)
+	os.WriteFile(filepath.Join(patternsDir, "p1.json"), p1, 0644)
+
+	out, err := captureStdout(t, func() error {
+		return runCurateStatus(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Learnings:") {
+		t.Errorf("missing learnings label, got: %q", out)
+	}
+	if !strings.Contains(out, "Patterns:") {
+		t.Errorf("missing patterns label, got: %q", out)
+	}
+	if !strings.Contains(out, "Total:") {
+		t.Errorf("missing total label, got: %q", out)
+	}
+}
+
+func TestRunCurateStatus_JSON(t *testing.T) {
+	tmp := chdirTemp(t)
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	os.MkdirAll(filepath.Join(tmp, ".agents", "learnings"), 0755)
+	os.MkdirAll(filepath.Join(tmp, ".agents", "patterns"), 0755)
+
+	out, err := captureStdout(t, func() error {
+		return runCurateStatus(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed curateStatusResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if parsed.Total != 0 {
+		t.Errorf("Total = %d, want 0 for empty dirs", parsed.Total)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// detectVerifyRegressions
+// ---------------------------------------------------------------------------
+
+func TestDetectVerifyRegressions_NoBaseline(t *testing.T) {
+	tmp := t.TempDir()
+	// No baseline dir exists
+	regressions, err := detectVerifyRegressions(filepath.Join(tmp, "nonexistent"), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(regressions) != 0 {
+		t.Errorf("regressions = %v, want empty (no baseline)", regressions)
+	}
+}
+
+func TestCountArtifactsInDir_MalformedJSON(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "bad.json"), []byte("{invalid"), 0644)
+	os.WriteFile(filepath.Join(dir, "empty.json"), []byte(""), 0644)
+
+	counts, latest := countArtifactsInDir(dir)
+	if len(counts) != 0 {
+		t.Errorf("counts = %v, want empty for malformed JSON", counts)
+	}
+	if !latest.IsZero() {
+		t.Errorf("latest = %v, want zero for malformed JSON", latest)
+	}
+}

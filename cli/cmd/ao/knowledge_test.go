@@ -532,3 +532,277 @@ print("chunk_bundles=1")
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// outputKnowledgeGapSummary
+// ---------------------------------------------------------------------------
+
+func TestOutputKnowledgeGapSummary_Human_Empty(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	summary := knowledgeGapSummary{
+		Workspace: "/tmp/repo",
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputKnowledgeGapSummary(summary)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Knowledge gaps for /tmp/repo") {
+		t.Errorf("missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "- None surfaced") {
+		t.Errorf("missing 'None surfaced' for empty gaps, got: %q", out)
+	}
+	if !strings.Contains(out, "- No follow-up work surfaced") {
+		t.Errorf("missing no follow-up work, got: %q", out)
+	}
+}
+
+func TestOutputKnowledgeGapSummary_Human_Populated(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	summary := knowledgeGapSummary{
+		Workspace: "/tmp/repo",
+		ThinTopics: []knowledgeTopicGap{
+			{Title: "Auth", Health: "thin", OpenGaps: []string{"missing evidence"}},
+			{Title: "Logging", Health: "sparse"},
+		},
+		PromotionGaps: []knowledgePromotionGap{
+			{Title: "Security pattern", Missing: []string{"proof", "citation"}},
+		},
+		WeakClaims: []knowledgeWeakClaim{
+			{Title: "Perf claim", Reason: "no benchmark data"},
+		},
+		NextRecommendedWork: []string{"Run security audit", "Add benchmarks"},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputKnowledgeGapSummary(summary)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "- Auth: missing evidence") {
+		t.Errorf("missing thin topic with open gap, got: %q", out)
+	}
+	if !strings.Contains(out, "- Logging: sparse") {
+		t.Errorf("missing thin topic with health fallback, got: %q", out)
+	}
+	if !strings.Contains(out, "- Security pattern: missing proof, citation") {
+		t.Errorf("missing promotion gap, got: %q", out)
+	}
+	if !strings.Contains(out, "- Perf claim: no benchmark data") {
+		t.Errorf("missing weak claim, got: %q", out)
+	}
+	if !strings.Contains(out, "- Run security audit") {
+		t.Errorf("missing recommended work, got: %q", out)
+	}
+}
+
+func TestOutputKnowledgeGapSummary_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	summary := knowledgeGapSummary{
+		Workspace:  "/tmp/repo",
+		ThinTopics: []knowledgeTopicGap{{Title: "Test"}},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputKnowledgeGapSummary(summary)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed knowledgeGapSummary
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if parsed.Workspace != "/tmp/repo" {
+		t.Errorf("Workspace = %q, want %q", parsed.Workspace, "/tmp/repo")
+	}
+	if len(parsed.ThinTopics) != 1 {
+		t.Errorf("ThinTopics len = %d, want 1", len(parsed.ThinTopics))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputKnowledgeActivateResult
+// ---------------------------------------------------------------------------
+
+func TestOutputKnowledgeActivateResult_Human(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := knowledgeActivateResult{
+		Workspace:      "/tmp/repo",
+		BeliefBook:     "/tmp/repo/.agents/beliefs.md",
+		PlaybooksIndex: "/tmp/repo/.agents/playbooks/index.md",
+		Briefing:       "/tmp/repo/.agents/briefing.md",
+		Steps: []knowledgeBuilderRun{
+			{knowledgeBuilderInvocation: knowledgeBuilderInvocation{Step: "consolidate"}, Path: "/tmp/repo/.agents/consolidated.md"},
+			{knowledgeBuilderInvocation: knowledgeBuilderInvocation{Step: "promote"}},
+		},
+		Gaps: knowledgeGapSummary{
+			ThinTopics:    []knowledgeTopicGap{{Title: "a"}, {Title: "b"}},
+			PromotionGaps: []knowledgePromotionGap{{Title: "c"}},
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputKnowledgeActivateResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Knowledge activation target: /tmp/repo") {
+		t.Errorf("missing header, got: %q", out)
+	}
+	if !strings.Contains(out, "- consolidate: consolidated.md") {
+		t.Errorf("missing step with path, got: %q", out)
+	}
+	if !strings.Contains(out, "Belief book:") {
+		t.Errorf("missing belief book, got: %q", out)
+	}
+	if !strings.Contains(out, "Playbooks index:") {
+		t.Errorf("missing playbooks index, got: %q", out)
+	}
+	if !strings.Contains(out, "Briefing:") {
+		t.Errorf("missing briefing, got: %q", out)
+	}
+	if !strings.Contains(out, "Thin topics: 2") {
+		t.Errorf("missing thin topics count, got: %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputKnowledgeBuilderResult
+// ---------------------------------------------------------------------------
+
+func TestOutputKnowledgeBuilderResult_Human(t *testing.T) {
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+
+	result := knowledgeBuilderResult{
+		Workspace: "/tmp/repo",
+		Step: knowledgeBuilderRun{
+			knowledgeBuilderInvocation: knowledgeBuilderInvocation{
+				Step:           "consolidate",
+				Implementation: "python3",
+			},
+			Output: "Consolidated 5 artifacts",
+		},
+		OutputPath: "/tmp/repo/.agents/consolidated.md",
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputKnowledgeBuilderResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Knowledge builder: consolidate") {
+		t.Errorf("missing step, got: %q", out)
+	}
+	if !strings.Contains(out, "Workspace: /tmp/repo") {
+		t.Errorf("missing workspace, got: %q", out)
+	}
+	if !strings.Contains(out, "Implementation: python3") {
+		t.Errorf("missing implementation, got: %q", out)
+	}
+	if !strings.Contains(out, "Output: /tmp/repo/.agents/consolidated.md") {
+		t.Errorf("missing output path, got: %q", out)
+	}
+	if !strings.Contains(out, "Consolidated 5 artifacts") {
+		t.Errorf("missing builder output, got: %q", out)
+	}
+}
+
+func TestOutputKnowledgeBuilderResult_JSON(t *testing.T) {
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	result := knowledgeBuilderResult{
+		Workspace: "/tmp/repo",
+		Step: knowledgeBuilderRun{
+			knowledgeBuilderInvocation: knowledgeBuilderInvocation{Step: "test"},
+		},
+	}
+
+	out, err := captureStdout(t, func() error {
+		return outputKnowledgeBuilderResult(result)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed knowledgeBuilderResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if parsed.Workspace != "/tmp/repo" {
+		t.Errorf("Workspace = %q, want %q", parsed.Workspace, "/tmp/repo")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// knowledgeBuilderDisplayTarget
+// ---------------------------------------------------------------------------
+
+func TestKnowledgeBuilderDisplayTarget(t *testing.T) {
+	tests := []struct {
+		name string
+		step knowledgeBuilderRun
+		want string
+	}{
+		{
+			name: "path takes priority",
+			step: knowledgeBuilderRun{
+				knowledgeBuilderInvocation: knowledgeBuilderInvocation{Step: "consolidate", Script: "run.py", Implementation: "python3"},
+				Path:                       "/tmp/output/result.md",
+			},
+			want: "result.md",
+		},
+		{
+			name: "script fallback",
+			step: knowledgeBuilderRun{
+				knowledgeBuilderInvocation: knowledgeBuilderInvocation{Step: "consolidate", Script: "run.py", Implementation: "python3"},
+			},
+			want: "run.py",
+		},
+		{
+			name: "implementation fallback",
+			step: knowledgeBuilderRun{
+				knowledgeBuilderInvocation: knowledgeBuilderInvocation{Step: "consolidate", Implementation: "python3"},
+			},
+			want: "python3",
+		},
+		{
+			name: "step fallback",
+			step: knowledgeBuilderRun{
+				knowledgeBuilderInvocation: knowledgeBuilderInvocation{Step: "consolidate"},
+			},
+			want: "consolidate",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := knowledgeBuilderDisplayTarget(tt.step)
+			if got != tt.want {
+				t.Errorf("knowledgeBuilderDisplayTarget() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
