@@ -10,12 +10,12 @@ FIRE is the reconciliation loop that extracts progress from chaos. Like a forge 
 
 ```
     ┌──────────────────────────────────────────────────────────┐
-    │                       FIRE LOOP                           │
-    │                                                           │
+    │                       FIRE LOOP                          │
+    │                                                          │
     │     FIND ────► IGNITE ────► REAP ────► ESCALATE          │
     │    (state)    (chaos)    (ratchet)   (recovery)          │
-    │       │                                   │               │
-    │       └───────────────────────────────────┘               │
+    │       │                                   │              │
+    │       └───────────────────────────────────┘              │
     │                      (loop)                               │
     │                                                           │
     │     EXIT when: all children closed                        │
@@ -142,7 +142,7 @@ gt convoy status <convoy-id>                 # FUTURE: gt convoy not yet impleme
 gt polecat status <rig>/<name>
 
 # Tertiary: Peek at work (debugging only)
-tmux capture-pane -t gt-<rig>-<polecat> -p | tail -20
+gc session peek <agent> --lines 20
 ```
 
 **Poll interval**: 30 seconds
@@ -289,7 +289,7 @@ Mayor (FIRE Loop)
 
 **Polecat lifecycle**:
 1. `gt sling` ignites polecat with hooked work
-2. Polecat executes via `$implement`
+2. Polecat executes via `/implement`
 3. On completion: `gt done` → push → merge queue → exit
 4. Witness nukes sandbox after merge
 5. No idle state - polecats don't wait
@@ -325,7 +325,7 @@ Sustainable for long-running autonomous execution.
 **Mayor session crash**:
 ```bash
 # State is in beads, not memory
-$crank <epic> <rig>  # Resumes from beads state
+/crank <epic> <rig>  # Resumes from beads state
 ```
 
 **Polecat stalled**:

@@ -91,3 +91,16 @@ cli/*cov*.out
 cli/*cov*.html
 cli/cmd/ao/.tmp
 MEMORY.md
+
+# Beads / Dolt files (added by bd init)
+.beads-credential-key
+
+# Gas City runtime (created by gc init)
+.gc/
+city.toml
+city.toml.bak
+prompts/
+formulas/
+orders/
+hooks/claude.json
+packs/

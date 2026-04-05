@@ -13,16 +13,16 @@ Failures in crank execution fall into distinct categories, each with specific de
 **Symptoms**:
 - No status change for 5+ poll intervals (2.5 min)
 - Convoy shows `running` but no progress
-- tmux pane shows idle prompt or repeated error
+- gc session shows no progress
 
 **Detection**:
 
 ```bash
-# Check convoy status history
-gt convoy status <id> --history               # FUTURE: gt convoy not yet implemented
+# Check session status
+gc session list --json | jq '.[] | select(.state == "active")'
 
-# Peek at polecat
-tmux capture-pane -t gt-<rig>-<polecat> -p | tail -30
+# Peek at agent output
+gc session peek <agent> --lines 30
 ```
 
 **Causes**:
@@ -34,13 +34,13 @@ tmux capture-pane -t gt-<rig>-<polecat> -p | tail -30
 **Remediation**:
 
 ```bash
-# Step 1: Nudge the polecat
-tmux send-keys -t gt-<rig>-<polecat> "continue with your assigned task" Enter
+# Step 1: Nudge the agent
+gc session nudge <agent> "continue with your assigned task"
 
 # Step 2: Wait one poll interval (30s)
 
 # Step 3: If still stuck, check for usage limit
-tmux capture-pane -t gt-<rig>-<polecat> -p | grep -i "limit"
+gc session peek <agent> --lines 50 | grep -i "limit"
 
 # Step 4: If usage limit, nuke and re-sling after cooldown
 # WARNING: This destroys the polecat session. Ensure work is saved.
@@ -69,7 +69,7 @@ gt sling <issue> <rig>
 
 ```bash
 # Check polecat output
-tmux capture-pane -t gt-<rig>-<polecat> -p | grep -i "fail\|error"
+gc session peek <agent> --lines 50 | grep -i "fail\|error"
 
 # Check validation artifacts
 ls ./polecats/<polecat>/.agents/validations/
@@ -159,7 +159,7 @@ May need manual integration after both complete."
 **Detection**:
 
 ```bash
-tmux capture-pane -t gt-<rig>-<polecat> -p | grep -i "context\|token\|limit"
+gc session peek <agent> --lines 50 | grep -i "context\|token\|limit"
 ```
 
 **Causes**:
@@ -244,7 +244,7 @@ gt sling <issue> <rig>
 **Detection**:
 
 ```bash
-tmux capture-pane -t gt-<rig>-<polecat> -p | grep -i "timeout\|429\|500\|network\|connection"
+gc session peek <agent> --lines 50 | grep -i "timeout\|429\|500\|network\|connection"
 ```
 
 **Causes**:
@@ -280,15 +280,15 @@ bd comments add <issue> "Paused: <service> outage. Resume when service recovers.
 ### 7. Polecat Crash
 
 **Symptoms**:
-- tmux session gone
-- No polecat in `gt polecat list`
+- gc session disappeared from session list
+- Agent not in `gc status --json`
 - Issue still shows `in_progress`
 
 **Detection**:
 
 ```bash
-gt polecat list <rig> | grep <polecat-name>
-tmux has-session -t gt-<rig>-<polecat> 2>/dev/null && echo "exists" || echo "gone"
+gc session list --json | jq '.[] | select(.alias == "<agent>")'
+gc status --json | jq '.agents[] | select(.name == "<agent>")'
 ```
 
 **Causes**:
@@ -386,7 +386,7 @@ bd list --parent=<epic> --has-label=WAITING_EXTERNAL
 # (requires custom tooling or log analysis)
 
 # Feed into retrospective
-$retro --topic="crank failures on <epic>"
+/retro --topic="crank failures on <epic>"
 ```
 
 ## Prevention Strategies

@@ -203,18 +203,21 @@ Read `references/examples.md` for full lifecycle, resume, and interactive exampl
 ## Troubleshooting
 Read `references/troubleshooting.md` for common problems and solutions.
 ## Runtime Compatibility
-RPI runs in two runtime modes. Both must produce identical phase artifacts.
-| Concern | Hook-capable (Claude Code) | Hook-less (Codex) |
-|---------|---------------------------|-------------------|
-| Session start | `session-start.sh` hook fires automatically | `ao codex start` called explicitly |
-| Session stop | `session-end.sh` hook fires automatically | `ao codex stop` called explicitly |
-| Phase state | `.agents/rpi/phased-state.json` | `.agents/rpi/phased-state.json` |
-| Phase numbering | 1 = discovery, 2 = implementation, 3 = validation | Same |
-| Ratchet checkpoints | `ao ratchet check` | `ao ratchet check` |
+RPI runs in three runtime modes. All must produce identical phase artifacts.
+| Concern | gc (default) | Hook-capable (Claude Code) | Hook-less (Codex) |
+|---------|-------------|---------------------------|-------------------|
+| Session start | gc controller starts session | `session-start.sh` hook fires automatically | `ao codex start` called explicitly |
+| Session stop | gc controller stops session | `session-end.sh` hook fires automatically | `ao codex stop` called explicitly |
+| Phase execution | `gcExecutor` via gc sessions | `streamExecutor` via Claude CLI | `directExecutor` via Codex CLI |
+| Event capture | gc event bus (`ao:phase`, `ao:gate`, `ao:failure`, `ao:metric`) | local events.jsonl (legacy) | local events.jsonl (legacy) |
+| Phase state | `.agents/rpi/phased-state.json` | `.agents/rpi/phased-state.json` | `.agents/rpi/phased-state.json` |
+| Phase numbering | 1 = discovery, 2 = implementation, 3 = validation | Same | Same |
+| Ratchet checkpoints | `ao ratchet check` | `ao ratchet check` | `ao ratchet check` |
+| Agent health | `gc status --json` | manual / tmux inspection | manual |
 
-**Minimal contract across both modes:** phase state is always written to `.agents/rpi/phased-state.json`; phase numbering stays `1=discovery`, `2=implementation`, `3=validation`; `ao ratchet check` reads that shared state unchanged; the close-loop flywheel still runs at stop time.
+**gc is the default when available.** `ao rpi` auto-selects `gcExecutor` when `gc` binary is on PATH, version >= 0.13.0, and `city.toml` exists. Falls back to `streamExecutor` otherwise. Use `--runtime stream` or `--runtime tmux` to force legacy executors.
 
-Hook-less runtimes skip hook-only side effects (e.g., automatic knowledge injection at session start). Use `ao codex start --query` to get equivalent startup context.
+**Minimal contract across all modes:** phase state is always written to `.agents/rpi/phased-state.json`; phase numbering stays `1=discovery`, `2=implementation`, `3=validation`; `ao ratchet check` reads that shared state unchanged; the close-loop flywheel still runs at stop time.
 ## Reference Documents
 - [references/complexity-scaling.md](references/complexity-scaling.md)
 - [references/context-windowing.md](references/context-windowing.md)

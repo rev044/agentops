@@ -248,10 +248,14 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 			phaseTimeout: opts.PhaseTimeout,
 			pollInterval: 10 * time.Second,
 		}, "runtime=gc"
-	default: // auto
-		// Always use stream for live JSONL output visibility.
-		// streamExecutor falls back to direct if the runtime does not
-		// support stream-json (e.g. codex).
+	default: // auto — prefer gc when available, fall back to stream
+		if gcExecutorAvailable(opts.WorkingDir) {
+			return &gcExecutor{
+				cityPath:     gcCityPathFromOpts(opts),
+				phaseTimeout: opts.PhaseTimeout,
+				pollInterval: 10 * time.Second,
+			}, "runtime=auto (gc)"
+		}
 		return &streamExecutor{
 			runtimeCommand:       opts.RuntimeCommand,
 			statusPath:           statusPath,

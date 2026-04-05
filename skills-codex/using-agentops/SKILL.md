@@ -169,7 +169,8 @@ AgentOps has three runtime modes. Do not assume hook automation exists everywher
 
 | Mode | When it applies | Start path | Closeout path | Guarantees |
 |------|-----------------|------------|---------------|------------|
-| `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces | `ao codex start` or `ao codex ensure-start` | `ao codex stop` or `ao codex ensure-stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
+| `gc` | Gas City (`gc`) binary available and `city.toml` present | gc controller manages sessions; `ao rpi` auto-selects gc executor | gc event bus captures phase/gate/failure/metric events | Default when gc is available. Phase execution via gc sessions, events via gc event bus |
+| `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces (no gc) | `ao codex start` or `ao codex ensure-start` | `ao codex stop` or `ao codex ensure-stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
 | `manual` | Codex cannot resolve repo/runtime state automatically | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Works everywhere, but lifecycle actions are operator-driven |
 
 In Codex hookless mode, entry skills such as `$rpi`, `$research`, `$implement`,

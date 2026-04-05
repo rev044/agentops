@@ -229,7 +229,20 @@ The `ao` CLI has a Gas City (`gc`) bridge that enables RPI phases to run as gc s
 - Phase events are emitted to the gc event bus for observability (`gcEmitPhaseEvent`, `gcEmitGateEvent`).
 - When gc is not available, event emission silently no-ops (graceful degradation).
 
-**Testing:** Run `go test ./cmd/ao/ -run "TestGC"` for all gc bridge tests (L1 unit + L2 integration).
+**Testing:** Run `go test ./cmd/ao/ -run "TestGC"` for all gc bridge tests (L1 unit + L2 integration + L3 live controller).
+
+**Deprecation status:** The following files are superseded by gc and marked deprecated:
+
+| File | Status | gc replacement |
+|------|--------|----------------|
+| `rpi_loop_supervisor.go` | Deprecated | gc controller + session management |
+| `rpi_c2_events.go` | Deprecated | gc event bus (`gc event emit`) |
+| `rpi_phased_tmux.go` | Deprecated | `gcExecutor` in `rpi_phased_gc.go` |
+| `rpi_workers.go` | Deprecated (partial) | gc agent health patrol |
+| `rpi_parallel.go` | Deprecated (partial) | gc convoys + sling (pending worktree support) |
+| `fire.go` | Deprecated (partial) | gc sling + bead dispatch (pending FIRE semantics) |
+
+Do not write new tests for deprecated files. Do not add features to them.
 
 ### Execution Discipline
 

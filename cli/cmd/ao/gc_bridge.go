@@ -10,6 +10,14 @@ import (
 	"strings"
 )
 
+// gcExecCommand is the function used to create exec.Cmd instances.
+// Tests can replace this to intercept shell-outs.
+var gcExecCommand = exec.Command
+
+// gcLookPath is the function used to find binaries on PATH.
+// Tests can replace this to simulate gc presence/absence.
+var gcLookPath = exec.LookPath
+
 // gcMinVersion is the minimum gc version required for bridge compatibility.
 const gcMinVersion = "0.13.0"
 
@@ -23,8 +31,9 @@ type GCStatus struct {
 
 // GCController represents the controller state within GCStatus.
 type GCController struct {
-	State string `json:"state"`
-	PID   int    `json:"pid"`
+	Running bool   `json:"running"`
+	PID     int    `json:"pid"`
+	Mode    string `json:"mode"`
 }
 
 // GCAgentInfo represents a single agent entry within GCStatus.
@@ -51,13 +60,13 @@ type GCSession struct {
 
 // gcBridgeAvailable returns true if the gc binary is on PATH.
 func gcBridgeAvailable() bool {
-	_, err := exec.LookPath("gc")
+	_, err := gcLookPath("gc")
 	return err == nil
 }
 
 // gcBridgeVersion returns the gc version string.
 func gcBridgeVersion() (string, error) {
-	out, err := exec.Command("gc", "version").Output()
+	out, err := gcExecCommand("gc", "version").Output()
 	if err != nil {
 		return "", fmt.Errorf("gc version: %w", err)
 	}
@@ -115,7 +124,7 @@ func gcBridgeReady(cityPath string) (bool, string) {
 	if cityPath != "" {
 		args = append([]string{"--city", cityPath}, args...)
 	}
-	out, err := exec.Command("gc", args...).Output()
+	out, err := gcExecCommand("gc", args...).Output()
 	if err != nil {
 		return false, fmt.Sprintf("gc controller not running: %v", err)
 	}
@@ -123,8 +132,8 @@ func gcBridgeReady(cityPath string) (bool, string) {
 	if err != nil {
 		return false, fmt.Sprintf("gc status parse error: %v", err)
 	}
-	if status.Controller.State != "running" {
-		return false, fmt.Sprintf("gc controller state: %s", status.Controller.State)
+	if !status.Controller.Running {
+		return false, "gc controller not running"
 	}
 	return true, "gc bridge ready"
 }
@@ -159,7 +168,7 @@ func gcPeekArgs(agent string, lines int) []string {
 
 // gcEventEmitArgs returns the command arguments for `gc event emit`.
 func gcEventEmitArgs(eventType, dataJSON string) []string {
-	return []string{"event", "emit", eventType, "--data", dataJSON}
+	return []string{"event", "emit", eventType, "--payload", dataJSON}
 }
 
 // gcBridgeCityPath walks up from cwd looking for city.toml.

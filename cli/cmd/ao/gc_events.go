@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"time"
 )
 
@@ -72,7 +71,7 @@ func gcEmitEvent(cityPath, eventType string, data map[string]any) error {
 	if cityPath != "" {
 		args = append([]string{"--city", cityPath}, args...)
 	}
-	cmd := exec.Command("gc", args...)
+	cmd := gcExecCommand("gc", args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("gc event emit %s: %w (output: %s)", eventType, err, string(out))
 	}
@@ -88,5 +87,5 @@ func gcEventsAvailable(cityPath string) bool {
 	if cityPath != "" {
 		args = append([]string{"--city", cityPath}, args...)
 	}
-	return exec.Command("gc", args...).Run() == nil
+	return gcExecCommand("gc", args...).Run() == nil
 }

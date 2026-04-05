@@ -142,7 +142,7 @@ gt convoy status <convoy-id>                 # FUTURE: gt convoy not yet impleme
 gt polecat status <rig>/<name>
 
 # Tertiary: Peek at work (debugging only)
-tmux capture-pane -t gt-<rig>-<polecat> -p | tail -20
+gc session peek <agent> --lines 20
 ```
 
 **Poll interval**: 30 seconds

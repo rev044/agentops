@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -89,7 +88,7 @@ func (g *gcExecutor) pollSessionCompletion(ctx context.Context, cityPath, sessio
 
 // checkSessionDone returns true if the session is closed/completed or has disappeared.
 func (g *gcExecutor) checkSessionDone(cityPath, sessionAlias string) (bool, error) {
-	out, err := exec.Command("gc", "--city", cityPath, "session", "list", "--json").Output()
+	out, err := gcExecCommand("gc", "--city", cityPath, "session", "list", "--json").Output()
 	if err != nil {
 		return false, fmt.Errorf("gc session list: %w", err)
 	}
@@ -122,7 +121,7 @@ func gcRunCommand(cityPath string, args ...string) error {
 			args = append([]string{"--city", cityPath}, args...)
 		}
 	}
-	cmd := exec.Command("gc", args...)
+	cmd := gcExecCommand("gc", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
