@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/user"
@@ -52,6 +53,17 @@ Use "ao <command> --help" for more information about a command.`,
 		if err := repairSharedCoreWorktreeConfig(cwd); err != nil {
 			return err
 		}
+
+		// Build App struct from resolved flag values and inject into context.
+		app := NewApp()
+		app.DryRun = dryRun
+		app.Verbose = verbose
+		app.Output = output
+		app.JSON = jsonFlag
+		app.CfgFile = cfgFile
+		app.WorkDir = cwd
+		cmd.SetContext(context.WithValue(cmd.Context(), appKey, app))
+
 		return nil
 	},
 }
