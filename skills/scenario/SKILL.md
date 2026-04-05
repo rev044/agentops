@@ -1,9 +1,9 @@
 ---
 name: scenario
 description: "Author and manage holdout scenarios for behavioral validation. Scenarios are stored outside the codebase in .agents/holdout/ where implementing agents cannot see them. Triggers: scenario, holdout, behavioral scenario, create scenario, list scenarios."
-skill_api_version: 2
+skill_api_version: 1
 metadata:
-  tier: solo
+  tier: execution
   stability: experimental
 output_contract: "Scenario artifacts in .agents/holdout/*.json"
 ---

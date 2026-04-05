@@ -694,7 +694,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "afce1fac76a1e506e9405b76886ecdf390c3eead5d863d82b8311286ad00d6a4",
-      "generated_hash": "3713e3e77b86eb040ef77f41d6ad5fb8cc2fdd4db299c6d786ea50a55171cbed"
+      "generated_hash": "4024a9449735ede7a9cab65ca26d90c6a00014942f80af908ddf4fadace45d60"
     },
     {
       "name": "pr-implement",
@@ -833,6 +833,12 @@
       "source_skill": "skills/scaffold",
       "source_hash": "8b5c25a85dfabd7d7b0b263d1f580c0d33691d3c1b6630b92aabd50f3c5bda6c",
       "generated_hash": "a7d589b01a63727549fb180c587460e9301beff7086aca144371ad22a92a0e3c"
+    },
+    {
+      "name": "scenario",
+      "source_skill": "skills/scenario",
+      "source_hash": "5795f67b06b9240dfeb017a4621180f119583878fcb80946863c32209ae885b6",
+      "generated_hash": "9bc187e562df24a7fb3dc322f66d6df1b61542ec4b677c3696142dc99cbe36ff"
     },
     {
       "name": "security",

@@ -56,9 +56,7 @@ ao metrics cite "<learning-path>" --type applied 2>/dev/null || true
 ```
 
 Skip silently if ao is unavailable or returns no results.
-
 **Run every step in order. Do not stop between steps.**
-
 ```
 STEP 1  ──  Skill(skill="vibe", args="recent [--quick]")
               Use --quick for fast/standard. Full council for full.
@@ -105,32 +103,10 @@ STEP 1.7 ── Lifecycle Checks (advisory except critical dependency findings)
                    worker, pool, codec).
 
 STEP 1.8 ── Stage 4: Behavioral Validation (holdout scenarios + agent-built specs)
-            Skip if: no .agents/holdout/ directory AND no .agents/specs/ directory
-            Skip if: --no-behavioral flag set
-            
-            Sub-steps:
-              a) List active scenarios and agent-built specs:
-                   ao scenario list --status active 2>/dev/null
-                   find .agents/specs -name "*.json" -type f 2>/dev/null
-              a.5) For each agent-built spec in .agents/specs/, treat as a scenario
-                   with source="agent". Validate against scenario schema (auto-* id
-                   pattern). Add to evaluation set alongside holdout scenarios.
-              b) If 0 scenarios AND 0 specs → skip with note "No behavioral validation artifacts found"
-              c) Spawn evaluator council with AGENTOPS_HOLDOUT_EVALUATOR=1
-                 Pass scenarios + implementation diff as judge context
-              d) Each judge evaluates: "Does the implementation satisfy the scenario's
-                 expected_outcome? Score each acceptance_vector dimension 0.0-1.0."
-              e) Compute satisfaction_score per scenario (mean of dimension scores)
-              f) Aggregate: mean satisfaction across all scenarios
-              g) Gate:
-                   mean >= scenario.satisfaction_threshold → PASS
-                   mean >= 0.5 → WARN ("Partial satisfaction — review scenarios")
-                   mean < 0.5 → FAIL ("Implementation does not satisfy holdout scenarios")
-              h) Write results to .agents/rpi/scenario-results.json
-              i) Include satisfaction_score in validation_state
-            
-            PASS/WARN? → continue to STEP 2
-            FAIL? → write summary, output <promise>FAIL</promise>, stop
+            Skip if: no .agents/holdout/ AND no .agents/specs/, or --no-behavioral
+            Read `references/step-1.8-behavioral-validation.md` for full sub-steps.
+            Loads holdout scenarios + agent specs → evaluator council → satisfaction gate.
+            PASS/WARN? → continue | FAIL? → <promise>FAIL</promise>, stop
 
 STEP 2  ──  if epic_id:
               Skill(skill="post-mortem", args="<epic-id> [--quick]")
@@ -269,7 +245,4 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 - [skills/crank/SKILL.md](../crank/SKILL.md) — previous phase (implementation)
 - [skills/discovery/SKILL.md](../discovery/SKILL.md) — first phase (discovery)
 - [skills/rpi/SKILL.md](../rpi/SKILL.md) — full lifecycle orchestrator
-- [skills/test/SKILL.md](../test/SKILL.md) — test coverage (lifecycle STEP 1.7a)
-- [skills/deps/SKILL.md](../deps/SKILL.md) — dependency vuln scan (lifecycle STEP 1.7b)
-- [skills/review/SKILL.md](../review/SKILL.md) — structured review (lifecycle STEP 1.7c)
-- [skills/perf/SKILL.md](../perf/SKILL.md) — performance profiling (lifecycle STEP 1.7d)
+- [skills/test/SKILL.md](../test/SKILL.md), [skills/deps/SKILL.md](../deps/SKILL.md), [skills/review/SKILL.md](../review/SKILL.md), [skills/perf/SKILL.md](../perf/SKILL.md) — lifecycle STEP 1.7 skills
