@@ -57,6 +57,15 @@ if [[ -f "$CODEX_COUNTERPART" ]]; then
 fi
 WARNING="$WARNING Run: scripts/regen-codex-hashes.sh after sync."
 
+# Opt-in blocking mode: set AGENTOPS_CODEX_PARITY_BLOCK=1 to block edits
+# that drift from codex copies. Default remains non-blocking (advisory).
+if [[ "${AGENTOPS_CODEX_PARITY_BLOCK:-}" == "1" ]]; then
+    cat <<BLOCK
+{"decision":"block","reason":"$WARNING"}
+BLOCK
+    exit 2
+fi
+
 cat <<EOF
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"$WARNING"}}
 EOF
