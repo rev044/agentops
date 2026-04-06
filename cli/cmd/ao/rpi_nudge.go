@@ -1,15 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	cliRPI "github.com/boshu2/agentops/cli/internal/rpi"
 )
 
 var (
@@ -38,13 +37,8 @@ worker session for a phase (--all-workers).`,
 	rpiCmd.AddCommand(nudgeCmd)
 }
 
-type rpiNudgeRecord struct {
-	Timestamp string   `json:"timestamp"`
-	RunID     string   `json:"run_id"`
-	Phase     int      `json:"phase"`
-	Targets   []string `json:"targets"`
-	Message   string   `json:"message"`
-}
+// rpiNudgeRecord is a thin alias for the internal NudgeRecord type.
+type rpiNudgeRecord = cliRPI.NudgeRecord
 
 func runRPINudge(cmd *cobra.Command, args []string) error {
 	if rpiNudgeAllWorkers && rpiNudgeWorker > 0 {
@@ -184,74 +178,18 @@ func resolveNudgeRun(cwd, requestedRunID string) (runID string, state *phasedSta
 }
 
 func resolveNudgePhase(state *phasedState, requestedPhase int) (int, error) {
-	if requestedPhase > 0 {
-		if requestedPhase < 1 || requestedPhase > 3 {
-			return 0, fmt.Errorf("--phase must be 1, 2, or 3 (got %d)", requestedPhase)
-		}
-		return requestedPhase, nil
+	statePhase := 0
+	if state != nil {
+		statePhase = state.Phase
 	}
-	if state != nil && state.Phase >= 1 && state.Phase <= 3 {
-		return state.Phase, nil
-	}
-	return 0, fmt.Errorf("could not infer phase from state; pass --phase")
+	return cliRPI.ResolveNudgePhase(statePhase, requestedPhase)
 }
 
 func resolveNudgeTargets(sessions []string, phaseSession string, allWorkers bool, worker int) ([]string, error) {
-	sessionSet := make(map[string]struct{}, len(sessions))
-	for _, s := range sessions {
-		sessionSet[s] = struct{}{}
-	}
-	has := func(name string) bool {
-		_, ok := sessionSet[name]
-		return ok
-	}
-
-	if worker > 0 {
-		target := fmt.Sprintf("%s-w%d", phaseSession, worker)
-		if !has(target) {
-			return nil, fmt.Errorf("worker session %q not found", target)
-		}
-		return []string{target}, nil
-	}
-
-	if allWorkers {
-		targets := filterTmuxWorkerSessions(sessions, phaseSession)
-		sort.Strings(targets)
-		if len(targets) == 0 {
-			return nil, fmt.Errorf("no worker sessions found for %q", phaseSession)
-		}
-		return targets, nil
-	}
-
-	if has(phaseSession) {
-		return []string{phaseSession}, nil
-	}
-
-	workers := filterTmuxWorkerSessions(sessions, phaseSession)
-	sort.Strings(workers)
-	switch len(workers) {
-	case 0:
-		return nil, fmt.Errorf("no tmux session found for %q", phaseSession)
-	case 1:
-		return workers, nil
-	default:
-		return nil, fmt.Errorf("multiple worker sessions found for %q; use --all-workers or --worker", phaseSession)
-	}
+	return cliRPI.ResolveNudgeTargets(sessions, phaseSession, allWorkers, worker)
 }
 
 func appendRPINudgeAudit(root, runID string, record rpiNudgeRecord) error {
 	runDir := rpiRunRegistryDir(root, runID)
-	if runDir == "" {
-		return nil
-	}
-	if err := os.MkdirAll(runDir, 0o750); err != nil {
-		return err
-	}
-	path := filepath.Join(runDir, "nudges.jsonl")
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	return json.NewEncoder(file).Encode(record)
+	return cliRPI.AppendNudgeAudit(runDir, record)
 }

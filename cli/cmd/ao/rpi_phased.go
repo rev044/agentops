@@ -44,14 +44,15 @@ var (
 	phasedMixed                bool
 )
 
-// phaseFailureReason classifies why a phase spawn failed.
-type phaseFailureReason string
+// phaseFailureReason is a thin alias for the internal PhaseFailureReason type.
+type phaseFailureReason = cliRPI.PhaseFailureReason
 
-const (
-	failReasonTimeout phaseFailureReason = "timeout"
-	failReasonStall   phaseFailureReason = "stall"
-	failReasonExit    phaseFailureReason = "exit_error"
-	failReasonUnknown phaseFailureReason = "unknown"
+// Phase failure reason constants delegate to internal/rpi.
+var (
+	failReasonTimeout = cliRPI.FailReasonTimeout
+	failReasonStall   = cliRPI.FailReasonStall
+	failReasonExit    = cliRPI.FailReasonExit
+	failReasonUnknown = cliRPI.FailReasonUnknown
 )
 
 func init() {
@@ -238,16 +239,7 @@ func preflightOpts(opts *phasedEngineOptions) error {
 }
 
 func minPositiveDuration(a, b time.Duration) time.Duration {
-	if a <= 0 {
-		return b
-	}
-	if b <= 0 {
-		return a
-	}
-	if a < b {
-		return a
-	}
-	return b
+	return cliRPI.MinPositiveDuration(a, b)
 }
 
 // initExecutorAndPersist selects the executor backend for the run and persists
@@ -425,23 +417,7 @@ func emitRunCompleted(spawnCwd string, state *phasedState, runStart time.Time) {
 }
 
 func appendTimeBoxedMarker(spawnCwd string, p phase, budget time.Duration) error {
-	stateDir := filepath.Join(spawnCwd, ".agents", "rpi")
-	if err := os.MkdirAll(stateDir, 0755); err != nil {
-		return fmt.Errorf("create rpi state directory: %w", err)
-	}
-
-	summaryPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-summary.md", p.Num))
-	f, err := os.OpenFile(summaryPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return fmt.Errorf("open phase summary for marker: %w", err)
-	}
-	defer f.Close()
-
-	marker := fmt.Sprintf("[TIME-BOXED] Phase %s time-boxed at %ds (budget: %ds)\n", p.Name, int(budget.Seconds()), int(budget.Seconds()))
-	if _, err := f.WriteString(marker); err != nil {
-		return fmt.Errorf("write time-box marker: %w", err)
-	}
-	return nil
+	return cliRPI.AppendTimeBoxedMarker(spawnCwd, p.Num, p.Name, budget)
 }
 
 func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget time.Duration, logPath string, phaseStart time.Time) bool {
