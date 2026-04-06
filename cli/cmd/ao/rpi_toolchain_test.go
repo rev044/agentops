@@ -37,6 +37,9 @@ func TestRpiToolchain_FlagSetFields(t *testing.T) {
 }
 
 func TestRpiToolchain_ResolveDefaults(t *testing.T) {
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_COMMAND", "")
 	// resolveRPIToolchainDefaults should not panic and should return
 	// a valid toolchain (may fail config load, which is logged as warning).
 	tc, err := resolveRPIToolchainDefaults()

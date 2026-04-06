@@ -1721,9 +1721,18 @@ func TestSelectHighestSeverityEntry_UsesParseableQueueIndex(t *testing.T) {
 	}
 }
 
+// clearRPIEnv neutralizes environment variables that leak into RPILoop tests.
+func clearRPIEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_COMMAND", "")
+}
+
 // ---- RPILoop dry-run ----
 
 func TestRPILoop_DryRun_ExplicitGoal(t *testing.T) {
+	clearRPIEnv(t)
 	// The loop should not call the phased engine in dry-run mode.
 	// It should print what it would do and return nil.
 	prevDryRun := dryRun
@@ -1742,6 +1751,7 @@ func TestRPILoop_DryRun_ExplicitGoal(t *testing.T) {
 }
 
 func TestRPILoop_DryRun_EmptyQueue(t *testing.T) {
+	clearRPIEnv(t)
 	prevDryRun := dryRun
 	dryRun = true
 	defer func() { dryRun = prevDryRun }()
@@ -1762,6 +1772,7 @@ func TestRPILoop_DryRun_EmptyQueue(t *testing.T) {
 }
 
 func TestRPILoop_DryRun_FromQueue(t *testing.T) {
+	clearRPIEnv(t)
 	prevDryRun := dryRun
 	dryRun = true
 	defer func() { dryRun = prevDryRun }()
@@ -1809,6 +1820,7 @@ func TestRPILoop_DryRun_FromQueue(t *testing.T) {
 }
 
 func TestRPILoop_InfraFailure_DoesNotMarkQueueFailed(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -1873,6 +1885,7 @@ func TestRPILoop_InfraFailure_DoesNotMarkQueueFailed(t *testing.T) {
 }
 
 func TestRPILoop_InfraFailure_ContinuePolicy_RetriesUntilMaxCycles(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -1936,6 +1949,7 @@ func TestRPILoop_InfraFailure_ContinuePolicy_RetriesUntilMaxCycles(t *testing.T)
 }
 
 func TestRPILoop_TaskFailure_MarksQueueFailed(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -1998,6 +2012,7 @@ func TestRPILoop_TaskFailure_MarksQueueFailed(t *testing.T) {
 }
 
 func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesAfterFailingEntry(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2088,6 +2103,7 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesAfterFailingEntry(t *testing
 }
 
 func TestRPILoop_TaskFailure_StopPolicy_DoesNotAdvanceQueue(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2164,6 +2180,7 @@ func TestRPILoop_TaskFailure_StopPolicy_DoesNotAdvanceQueue(t *testing.T) {
 }
 
 func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesToSiblingItemInSameEntry(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2258,6 +2275,7 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesToSiblingItemInSameEntry(t *
 }
 
 func TestRPILoop_KillSwitchDuringRetry_StopsWithoutQueueMutation(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2341,6 +2359,7 @@ func TestRPILoop_KillSwitchDuringRetry_StopsWithoutQueueMutation(t *testing.T) {
 }
 
 func TestRPILoop_ExplicitGoalReportsExecutedCycles(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2391,6 +2410,7 @@ func TestRPILoop_ExplicitGoalReportsExecutedCycles(t *testing.T) {
 }
 
 func TestRPILoop_PreflightCompletedRunConsumesStaleItemAndAdvances(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2479,6 +2499,7 @@ func TestRPILoop_PreflightCompletedRunConsumesStaleItemAndAdvances(t *testing.T)
 }
 
 func TestRPILoop_PreflightEvidenceOnlyClosureConsumesStaleItemAndAdvances(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2569,6 +2590,7 @@ func TestRPILoop_PreflightEvidenceOnlyClosureConsumesStaleItemAndAdvances(t *tes
 }
 
 func TestRPILoop_KillSwitchStopsBeforeCycleExecution(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2632,6 +2654,7 @@ func TestRPILoop_KillSwitchStopsBeforeCycleExecution(t *testing.T) {
 }
 
 func TestRPILoop_CompileCadence_RunsOncePerInterval(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2723,6 +2746,7 @@ func TestRPILoop_CompileCadence_RunsOncePerInterval(t *testing.T) {
 }
 
 func TestRPILoop_CompileCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 
@@ -2794,6 +2818,7 @@ func TestRPILoop_CompileCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 }
 
 func TestRPILoop_CompileCadence_ProducerFailure_StopPolicy(t *testing.T) {
+	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prevGlobals)
 

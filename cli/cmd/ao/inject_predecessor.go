@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/search"
 )
@@ -59,7 +61,7 @@ func parsePredecessorFile(path string) *predecessorContext {
 
 	// Derive session age from file modification time
 	if info, err := os.Stat(path); err == nil {
-		ctx.SessionAge = formatAge(info.ModTime())
+		ctx.SessionAge = formatAgeSince(info.ModTime())
 	}
 
 	// Truncate all fields to fit token budget
@@ -79,4 +81,18 @@ func extractFirstParagraphs(content string, maxParas int) string {
 func deriveTopicFromPath(path string) string { return search.DeriveTopicFromPath(path) }
 func truncatePredecessor(ctx *predecessorContext) {
 	search.TruncatePredecessor(ctx, maxPredecessorChars)
+}
+
+func formatAgeSince(t time.Time) string {
+	age := time.Since(t)
+	if age < time.Minute {
+		return fmt.Sprintf("%ds ago", int(age.Seconds()))
+	}
+	if age < time.Hour {
+		return fmt.Sprintf("%dm ago", int(age.Minutes()))
+	}
+	if age < 24*time.Hour {
+		return fmt.Sprintf("%dh ago", int(age.Hours()))
+	}
+	return t.Format("Jan 2")
 }

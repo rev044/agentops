@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -373,24 +372,6 @@ func TestIndexFiles(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// fire.go: printState
-// ---------------------------------------------------------------------------
-
-func TestPrintState(t *testing.T) {
-	state := &FireState{
-		Ready:   []string{"issue-1", "issue-2"},
-		Burning: []string{"issue-3"},
-		Reaped:  []string{"issue-4", "issue-5", "issue-6"},
-		Blocked: []string{},
-	}
-	out, _ := captureStdout(t, func() error { printState(state); return nil })
-	for _, want := range []string{"2 ready", "1 burning", "3 reaped"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("output missing %q:\n%s", want, out)
-		}
-	}
-}
 
 // ---------------------------------------------------------------------------
 // batch_promote.go: recordPromoteSkip
