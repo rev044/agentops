@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/search"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
@@ -594,13 +595,13 @@ func TestHelper_truncateContext(t *testing.T) {
 		},
 		{
 			name:  "exactly at limit",
-			input: strings.Repeat("x", ContextLineMaxLength),
-			want:  strings.Repeat("x", ContextLineMaxLength),
+			input: strings.Repeat("x", search.ContextLineMaxLength),
+			want:  strings.Repeat("x", search.ContextLineMaxLength),
 		},
 		{
 			name:  "over limit truncated",
-			input: strings.Repeat("x", ContextLineMaxLength+10),
-			want:  strings.Repeat("x", ContextLineMaxLength) + "...",
+			input: strings.Repeat("x", search.ContextLineMaxLength+10),
+			want:  strings.Repeat("x", search.ContextLineMaxLength) + "...",
 		},
 		{
 			name:  "empty string",
