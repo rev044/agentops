@@ -2,8 +2,6 @@ package main
 
 import (
 	"bufio"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,15 +12,16 @@ import (
 
 	"github.com/spf13/cobra"
 
+	plansPkg "github.com/boshu2/agentops/cli/internal/plans"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 const (
 	// ManifestFileName is the name of the plan manifest file.
-	ManifestFileName = "manifest.jsonl"
+	ManifestFileName = plansPkg.ManifestFileName
 
 	// PlansDir is the subdirectory under .agents for plan manifests.
-	PlansDir = "plans"
+	PlansDir = plansPkg.PlansDir
 )
 
 var (
@@ -138,45 +137,16 @@ func init() {
 }
 
 // computePlanChecksum returns first 8 bytes of SHA256 as hex
-func computePlanChecksum(path string) (string, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	checksum := sha256.Sum256(content)
-	return hex.EncodeToString(checksum[:8]), nil
-}
+func computePlanChecksum(path string) (string, error) { return plansPkg.ComputePlanChecksum(path) }
 
 // createPlanEntry builds a manifest entry from path and metadata
 func createPlanEntry(absPath string, modTime time.Time, projectPath, name, beadsID, checksum string) types.PlanManifestEntry {
-	return types.PlanManifestEntry{
-		Path:        absPath,
-		CreatedAt:   modTime,
-		ProjectPath: projectPath,
-		PlanName:    name,
-		Status:      types.PlanStatusActive,
-		BeadsID:     beadsID,
-		UpdatedAt:   time.Now(),
-		Checksum:    checksum,
-	}
+	return plansPkg.CreatePlanEntry(absPath, modTime, projectPath, name, beadsID, checksum)
 }
 
 // appendManifestEntry appends an entry to the manifest file
 func appendManifestEntry(manifestPath string, entry types.PlanManifestEntry) error {
-	f, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // write complete, close best-effort
-	}()
-
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-	_, err = f.WriteString(string(data) + "\n")
-	return err
+	return plansPkg.AppendManifestEntry(manifestPath, entry)
 }
 
 // resolveProjectPath returns the explicit project path or detects it from the plan file.
@@ -189,10 +159,7 @@ func resolveProjectPath(explicit, planPath string) string {
 
 // resolvePlanName returns the explicit name or derives one from the file path.
 func resolvePlanName(explicit, planPath string) string {
-	if explicit != "" {
-		return explicit
-	}
-	return strings.TrimSuffix(filepath.Base(planPath), filepath.Ext(planPath))
+	return plansPkg.ResolvePlanName(explicit, planPath)
 }
 
 // upsertManifestEntry updates an existing entry or appends a new one.
@@ -298,17 +265,7 @@ var planStatusSymbols = map[types.PlanStatus]string{
 
 // filterPlans returns entries matching the project and status filters.
 func filterPlans(entries []types.PlanManifestEntry, project, status string) []types.PlanManifestEntry {
-	var out []types.PlanManifestEntry
-	for _, e := range entries {
-		if project != "" && !strings.Contains(e.ProjectPath, project) {
-			continue
-		}
-		if status != "" && string(e.Status) != status {
-			continue
-		}
-		out = append(out, e)
-	}
-	return out
+	return plansPkg.FilterPlans(entries, project, status)
 }
 
 // printPlanEntry prints a single plan entry with optional verbose detail.
@@ -402,21 +359,8 @@ func runPlansSearch(cmd *cobra.Command, args []string) error {
 }
 
 // applyPlanUpdates applies status and beadsID updates to the manifest entry matching absPath.
-// Returns true if a matching entry was found.
 func applyPlanUpdates(entries []types.PlanManifestEntry, absPath, status, beadsID string) bool {
-	for i, e := range entries {
-		if e.Path == absPath {
-			if status != "" {
-				entries[i].Status = types.PlanStatus(status)
-			}
-			if beadsID != "" {
-				entries[i].BeadsID = beadsID
-			}
-			entries[i].UpdatedAt = time.Now()
-			return true
-		}
-	}
-	return false
+	return plansPkg.ApplyPlanUpdates(entries, absPath, status, beadsID)
 }
 
 func runPlansUpdate(cmd *cobra.Command, args []string) error {
@@ -474,131 +418,29 @@ func getManifestPath() (string, error) {
 }
 
 // findAgentsDir looks for .agents directory walking up to rig root.
-func findAgentsDir(startDir string) string {
-	dir := startDir
-	for {
-		candidate := filepath.Join(dir, ".agents")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-
-		// Check for rig markers
-		markers := []string{".beads", "crew", "polecats"}
-		for _, marker := range markers {
-			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
-				return filepath.Join(dir, ".agents")
-			}
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
-}
+func findAgentsDir(startDir string) string { return plansPkg.FindAgentsDir(startDir) }
 
 // loadManifest reads all entries from the manifest file.
 func loadManifest(path string) ([]types.PlanManifestEntry, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only manifest load, close error non-fatal
-	}()
-
-	var entries []types.PlanManifestEntry
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-
-		var entry types.PlanManifestEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			continue // Skip invalid lines
-		}
-		entries = append(entries, entry)
-	}
-
-	return entries, scanner.Err()
+	return plansPkg.LoadManifest(path)
 }
 
 // saveManifest writes all entries to the manifest file.
 func saveManifest(path string, entries []types.PlanManifestEntry) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // write complete, close best-effort
-	}()
-
-	for _, e := range entries {
-		data, err := json.Marshal(e)
-		if err != nil {
-			continue
-		}
-		if _, err := f.WriteString(string(data) + "\n"); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return plansPkg.SaveManifest(path, entries)
 }
 
 // detectProjectPath attempts to find the project path for a plan file.
-func detectProjectPath(planPath string) string {
-	// If plan is in ~/.claude/plans/, extract project from plan content
-	if strings.Contains(planPath, ".claude/plans/") {
-		content, err := os.ReadFile(planPath)
-		if err != nil {
-			return ""
-		}
-
-		// Look for project path in content
-		lines := strings.Split(string(content), "\n")
-		for _, line := range lines {
-			if strings.Contains(line, "Project:") || strings.Contains(line, "Working directory:") {
-				parts := strings.SplitN(line, ":", 2)
-				if len(parts) == 2 {
-					return strings.TrimSpace(parts[1])
-				}
-			}
-		}
-	}
-
-	// Default to cwd
-	cwd, _ := os.Getwd()
-	return cwd
-}
+func detectProjectPath(planPath string) string { return plansPkg.DetectProjectPath(planPath) }
 
 // buildBeadsIDIndex creates a map of beadsID -> slice index
 func buildBeadsIDIndex(entries []types.PlanManifestEntry) map[string]int {
-	index := make(map[string]int)
-	for i, e := range entries {
-		if e.BeadsID != "" {
-			index[e.BeadsID] = i
-		}
-	}
-	return index
+	return plansPkg.BuildBeadsIDIndex(entries)
 }
 
 // syncEpicStatus syncs a single epic status and returns true if changed
 func syncEpicStatus(entries []types.PlanManifestEntry, idx int, beadsStatus string) bool {
-	newStatus := types.PlanStatusActive
-	if beadsStatus == "closed" {
-		newStatus = types.PlanStatusCompleted
-	}
-	if entries[idx].Status != newStatus {
-		entries[idx].Status = newStatus
-		entries[idx].UpdatedAt = time.Now()
-		return true
-	}
-	return false
+	return plansPkg.SyncEpicStatus(entries, idx, beadsStatus)
 }
 
 // countUnlinkedEntries counts entries without beads linkage
@@ -717,11 +559,11 @@ type driftEntry struct {
 
 // buildBeadsStatusIndex creates a map of epic ID -> status from beads
 func buildBeadsStatusIndex(epics []beadsEpic) map[string]string {
-	index := make(map[string]string)
-	for _, e := range epics {
-		index[e.ID] = e.Status
+	conv := make([]plansPkg.BeadsEpic, len(epics))
+	for i, e := range epics {
+		conv[i] = plansPkg.BeadsEpic{ID: e.ID, Status: e.Status}
 	}
-	return index
+	return plansPkg.BuildBeadsStatusIndex(conv)
 }
 
 // detectStatusDrifts finds status mismatches between manifest and beads

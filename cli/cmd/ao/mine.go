@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	minePkg "github.com/boshu2/agentops/cli/internal/mine"
 )
 
 var (
@@ -127,12 +129,7 @@ type GateVerdictSummary struct {
 }
 
 // validMineSources enumerates the allowed source names.
-var validMineSources = map[string]bool{
-	"git":    true,
-	"agents": true,
-	"code":   true,
-	"events": true,
-}
+var validMineSources = minePkg.ValidSources
 
 func runMine(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
@@ -233,68 +230,10 @@ func finalizeMineReport(cmd *cobra.Command, cwd string, report *MineReport) erro
 }
 
 // parseMineWindow parses a duration string with support for "h", "m", and "d" suffixes.
-// "d" is converted to hours (e.g. "7d" → 168h).
-func parseMineWindow(s string) (time.Duration, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0, fmt.Errorf("empty duration string")
-	}
-
-	suffix := s[len(s)-1:]
-	numStr := s[:len(s)-1]
-
-	switch suffix {
-	case "d":
-		days, err := strconv.Atoi(numStr)
-		if err != nil {
-			return 0, fmt.Errorf("invalid day count %q: %w", numStr, err)
-		}
-		if days <= 0 {
-			return 0, fmt.Errorf("duration must be positive, got %q", s)
-		}
-		return time.Duration(days) * 24 * time.Hour, nil
-	case "h":
-		hours, err := strconv.Atoi(numStr)
-		if err != nil {
-			return 0, fmt.Errorf("invalid hour count %q: %w", numStr, err)
-		}
-		if hours <= 0 {
-			return 0, fmt.Errorf("duration must be positive, got %q", s)
-		}
-		return time.Duration(hours) * time.Hour, nil
-	case "m":
-		mins, err := strconv.Atoi(numStr)
-		if err != nil {
-			return 0, fmt.Errorf("invalid minute count %q: %w", numStr, err)
-		}
-		if mins <= 0 {
-			return 0, fmt.Errorf("duration must be positive, got %q", s)
-		}
-		return time.Duration(mins) * time.Minute, nil
-	default:
-		return 0, fmt.Errorf("unsupported duration suffix %q (use h, d, or m)", suffix)
-	}
-}
+func parseMineWindow(s string) (time.Duration, error) { return minePkg.ParseWindow(s) }
 
 // splitSources splits and validates a comma-separated source list.
-func splitSources(s string) ([]string, error) {
-	parts := strings.Split(s, ",")
-	var sources []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		if !validMineSources[p] {
-			return nil, fmt.Errorf("unknown source %q (valid: git, agents, code, events)", p)
-		}
-		sources = append(sources, p)
-	}
-	if len(sources) == 0 {
-		return nil, fmt.Errorf("no valid sources specified")
-	}
-	return sources, nil
-}
+func splitSources(s string) ([]string, error) { return minePkg.SplitSources(s) }
 
 // mineGitLog extracts signal from git log within the given time window.
 func mineGitLog(cwd string, window time.Duration) (*GitFindings, error) {
@@ -418,26 +357,8 @@ func mineAgentsDir(cwd string) (*AgentsFindings, error) {
 	return findings, nil
 }
 
-// readDirContent reads all .md file contents from a directory, returning a map of filename→content.
-func readDirContent(dir string) (map[string]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	contents := make(map[string]string)
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
-		if err != nil {
-			continue
-		}
-		contents[e.Name()] = string(data)
-	}
-	return contents, nil
-}
+// readDirContent reads all .md file contents from a directory.
+func readDirContent(dir string) (map[string]string, error) { return minePkg.ReadDirContent(dir) }
 
 // gocycloLineRe matches gocyclo output lines like "15 main runMine cli/cmd/ao/mine.go:100:1"
 var gocycloLineRe = regexp.MustCompile(`^(\d+)\s+(\S+)\s+(\S+)\s+(\S+):(\d+):\d+$`)

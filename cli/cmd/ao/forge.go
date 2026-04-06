@@ -9,11 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/forge"
 	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/boshu2/agentops/cli/internal/parser"
 	"github.com/boshu2/agentops/cli/internal/search"
@@ -147,29 +147,7 @@ func resolveMarkdownFiles(args []string) ([]string, error) {
 }
 
 func collectFilesFromPatterns(patterns []string, matchFilter func(string) bool) ([]string, error) {
-	var files []string
-	for _, pattern := range patterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid pattern %q: %w", pattern, err)
-		}
-
-		if len(matches) == 0 {
-			// Treat as literal path.
-			if _, err := os.Stat(pattern); err == nil {
-				files = append(files, pattern)
-			}
-			continue
-		}
-
-		for _, match := range matches {
-			if matchFilter == nil || matchFilter(match) {
-				files = append(files, match)
-			}
-		}
-	}
-
-	return files, nil
+	return forge.CollectFilesFromPatterns(patterns, matchFilter)
 }
 
 func handleForgeDryRun(w io.Writer, quiet bool, files []string, noun string) bool {
@@ -458,31 +436,7 @@ func finalizeTranscriptSession(session *storage.Session, state *transcriptState,
 
 // detectSessionTypeFromContent infers session type from forged content.
 func detectSessionTypeFromContent(summary string, knowledge, decisions []string) string {
-	combined := strings.ToLower(summary)
-	for _, k := range knowledge {
-		combined += " " + strings.ToLower(k)
-	}
-	for _, d := range decisions {
-		combined += " " + strings.ToLower(d)
-	}
-	switch {
-	case strings.Contains(combined, "career") || strings.Contains(combined, "interview") ||
-		strings.Contains(combined, "resume") || strings.Contains(combined, "salary"):
-		return "career"
-	case strings.Contains(combined, "debug") || strings.Contains(combined, "stack trace") ||
-		strings.Contains(combined, "broken") || strings.Contains(combined, "error log"):
-		return "debug"
-	case strings.Contains(combined, "brainstorm") || strings.Contains(combined, "what if") ||
-		strings.Contains(combined, "option a vs"):
-		return "brainstorm"
-	case strings.Contains(combined, "research") || strings.Contains(combined, "explore"):
-		return "research"
-	case strings.Contains(combined, "go test") || strings.Contains(combined, "git commit") ||
-		strings.Contains(combined, "implement") || strings.Contains(combined, "feat("):
-		return "implement"
-	default:
-		return "general"
-	}
+	return forge.DetectSessionTypeFromContent(summary, knowledge, decisions)
 }
 
 // transcriptState holds accumulated state during transcript processing.
@@ -573,16 +527,7 @@ func isConversationMessage(msg types.TranscriptMessage) bool {
 }
 
 func inferSessionIDFromPath(filePath string) string {
-	base := filepath.Base(filePath)
-	if match := sessionClaudeTranscriptPattern.FindStringSubmatch(base); len(match) > 1 {
-		return match[1]
-	}
-
-	matches := sessionUUIDPattern.FindAllString(base, -1)
-	if len(matches) == 0 {
-		return ""
-	}
-	return matches[len(matches)-1]
+	return forge.InferSessionIDFromPath(filePath)
 }
 
 // extractIssueRefs extracts issue IDs from message content.
@@ -598,110 +543,27 @@ func extractIssueRefs(content string, state *transcriptState) {
 
 // generateSummary creates a session summary from extracted content.
 func generateSummary(decisions, knowledge []string, date time.Time) string {
-	if len(decisions) > 0 {
-		return truncateString(decisions[0], SummaryMaxLength)
-	}
-	if len(knowledge) > 0 {
-		return truncateString(knowledge[0], SummaryMaxLength)
-	}
-	return fmt.Sprintf("Session from %s", date.Format("2006-01-02"))
+	return forge.GenerateSummary(decisions, knowledge, date)
 }
 
 // countLines quickly counts lines in a file.
-func countLines(path string) int {
-	f, err := os.Open(path)
-	if err != nil {
-		return 0
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only line count, close error non-fatal
-	}()
-
-	buf := make([]byte, 64*1024)
-	count := 0
-
-	for {
-		n, err := f.Read(buf)
-		if n > 0 {
-			for _, b := range buf[:n] {
-				if b == '\n' {
-					count++
-				}
-			}
-		}
-		if err != nil {
-			break
-		}
-	}
-
-	return count
-}
+func countLines(path string) int { return forge.CountLines(path) }
 
 // extractSnippet extracts a text snippet around a match.
 func extractSnippet(content string, startIdx, maxLen int) string {
-	if startIdx < 0 {
-		startIdx = 0
-	}
-	if startIdx >= len(content) {
-		return ""
-	}
-
-	end := startIdx + maxLen
-	if end > len(content) {
-		end = len(content)
-	}
-
-	snippet := content[startIdx:end]
-
-	// Trim to word boundary
-	if end < len(content) {
-		if idx := lastSpaceIndex(snippet); idx > maxLen/2 {
-			snippet = snippet[:idx]
-		}
-		snippet += "..."
-	}
-
-	return snippet
+	return forge.ExtractSnippet(content, startIdx, maxLen)
 }
 
-func lastSpaceIndex(s string) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == ' ' {
-			return i
-		}
-	}
-	return -1
-}
+func lastSpaceIndex(s string) int { return forge.LastSpaceIndex(s) }
 
 // extractIssueIDs finds issue IDs like "ol-0001", "at-v123" in content.
-func extractIssueIDs(content string) []string {
-	matches := issueIDPattern.FindAllString(content, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-	return matches
-}
+func extractIssueIDs(content string) []string { return forge.ExtractIssueIDs(content) }
 
 // truncateString limits a string to maxLen characters.
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
+func truncateString(s string, maxLen int) string { return forge.TruncateString(s, maxLen) }
 
 // dedup removes duplicates from a string slice.
-func dedup(items []string) []string {
-	seen := make(map[string]bool)
-	result := make([]string, 0, len(items))
-	for _, item := range items {
-		if !seen[item] {
-			seen[item] = true
-			result = append(result, item)
-		}
-	}
-	return result
-}
+func dedup(items []string) []string { return forge.Dedup(items) }
 
 // queueForExtraction adds a session to the pending extraction queue.
 func queueForExtraction(session *storage.Session, sessionPath, transcriptPath, cwd string) error {
@@ -900,29 +762,8 @@ func processMarkdown(filePath string, extractor *parser.Extractor, quiet bool) (
 }
 
 // splitMarkdownSections splits markdown content by heading boundaries.
-// Returns sections including their heading line.
 func splitMarkdownSections(content string) []string {
-	lines := strings.Split(content, "\n")
-	var sections []string
-	var current []string
-
-	for _, line := range lines {
-		if (strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "## ")) && len(current) > 0 {
-			sections = append(sections, strings.Join(current, "\n"))
-			current = nil
-		}
-		current = append(current, line)
-	}
-	if len(current) > 0 {
-		sections = append(sections, strings.Join(current, "\n"))
-	}
-
-	// If no headings found, treat entire content as one section
-	if len(sections) == 0 {
-		sections = []string{content}
-	}
-
-	return sections
+	return forge.SplitMarkdownSections(content)
 }
 
 // updateSearchIndexForFile loads the search index (if it exists), updates the
@@ -962,32 +803,17 @@ type fileWithTime struct {
 }
 
 func isTranscriptCandidate(path string, info os.FileInfo, projectsDir string) bool {
-	if info.IsDir() || filepath.Ext(path) != ".jsonl" {
-		return false
-	}
-	rel, _ := filepath.Rel(projectsDir, path)
-	depth := len(filepath.SplitList(rel))
-	return depth <= 3 && info.Size() > 100
+	return forge.IsTranscriptCandidate(path, info, projectsDir)
 }
 
 func collectTranscriptCandidates(projectsDir string) ([]fileWithTime, error) {
-	var candidates []fileWithTime
-
-	err := filepath.Walk(projectsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() && info.Name() == "subagents" {
-			return filepath.SkipDir
-		}
-		if isTranscriptCandidate(path, info, projectsDir) {
-			candidates = append(candidates, fileWithTime{
-				path:    path,
-				modTime: info.ModTime(),
-			})
-		}
-		return nil
-	})
-
-	return candidates, err
+	pkgCands, err := forge.CollectTranscriptCandidates(projectsDir)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]fileWithTime, len(pkgCands))
+	for i, c := range pkgCands {
+		out[i] = fileWithTime{path: c.Path, modTime: c.ModTime}
+	}
+	return out, nil
 }
