@@ -1,20 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/boshu2/agentops/cli/internal/config"
-	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/search"
-	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 const (
@@ -22,7 +18,7 @@ const (
 	DefaultInjectMaxTokens = 1500
 
 	// InjectCharsPerToken is the approximate characters per token (conservative estimate)
-	InjectCharsPerToken = 4
+	InjectCharsPerToken = search.InjectCharsPerToken
 
 	// MaxLearningsToInject is the maximum number of learnings to include
 	MaxLearningsToInject = 10
@@ -32,9 +28,6 @@ const (
 
 	// MaxSessionsToInject is the maximum number of recent sessions to summarize
 	MaxSessionsToInject = 5
-
-	// quarantineRelPath is the path to OL quarantine constraints relative to the .ol/ directory.
-	quarantineRelPath = "constraints/quarantine.json"
 
 	// Knowledge section directory names under .agents/.
 	SectionLearnings = "learnings"
@@ -120,12 +113,37 @@ func init() {
 	injectCmd.Flags().BoolVar(&injectProfile, "profile", false, "Include .agents/profile.md identity artifact in output")
 }
 
+// injectOptionsFromFlags builds an InjectOptions from the cobra flag vars + positional args.
+func injectOptionsFromFlags(args []string) *search.InjectOptions {
+	opts := &search.InjectOptions{
+		MaxTokens:         injectMaxTokens,
+		Context:           injectContext,
+		Format:            injectFormat,
+		SessionID:         injectSessionID,
+		NoCite:            injectNoCite,
+		ApplyDecay:        injectApplyDecay,
+		Bead:              injectBead,
+		Predecessor:       injectPredecessor,
+		IndexOnly:         injectIndexOnly,
+		QuarantineFlagged: injectQuarantineFlagged,
+		ForSkill:          injectForSkill,
+		SessionType:       injectSessionType,
+		Profile:           injectProfile,
+	}
+	if len(args) > 0 {
+		opts.Query = args[0]
+	} else {
+		opts.Query = injectContext
+	}
+	return opts
+}
+
 func runInject(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(os.Stderr, "NOTICE: ao inject is deprecated (removal target: v3.0.0). Use 'ao lookup' for learnings or see .agents/AGENTS.md for navigation.")
-	query := resolveInjectQuery(args)
+	opts := injectOptionsFromFlags(args)
 
 	if GetDryRun() {
-		printInjectDryRun(query)
+		printInjectDryRun(opts)
 		return nil
 	}
 
@@ -134,23 +152,23 @@ func runInject(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	maybeQuarantineFlagged(cwd)
+	maybeQuarantineFlagged(cwd, opts)
 
 	cfg := loadInjectConfig()
-	beadCtx := resolveInjectBeadContext(cwd)
+	beadCtx := resolveInjectBeadContext(cwd, opts)
 
-	sessionID := resolveSessionID(injectSessionID)
-	knowledge := gatherKnowledge(cwd, query, sessionID, cfg)
-	knowledge.BeadID = injectBead
+	sessionID := resolveSessionID(opts.SessionID)
+	knowledge := gatherKnowledge(cwd, opts, sessionID, cfg)
+	knowledge.BeadID = opts.Bead
 
 	// Dedup: skip learnings whose title already appears in MEMORY.md
-	knowledge.Learnings = filterMemoryDuplicates(cwd, knowledge.Learnings)
+	knowledge.Learnings = search.FilterMemoryDuplicates(cwd, knowledge.Learnings)
 
-	if err := applyInjectModifiers(cwd, knowledge, beadCtx); err != nil {
+	if err := applyInjectModifiers(cwd, opts, knowledge, beadCtx); err != nil {
 		return err
 	}
 
-	output, err := renderInjectOutput(cwd, knowledge)
+	output, err := renderInjectOutput(cwd, opts, knowledge)
 	if err != nil {
 		return err
 	}
@@ -159,8 +177,8 @@ func runInject(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func maybeQuarantineFlagged(cwd string) {
-	if !injectQuarantineFlagged {
+func maybeQuarantineFlagged(cwd string, opts *search.InjectOptions) {
+	if !opts.QuarantineFlagged {
 		return
 	}
 	if qErr := runQuarantineFlagged(cwd); qErr != nil {
@@ -176,41 +194,41 @@ func loadInjectConfig() *config.Config {
 	return cfg
 }
 
-func resolveInjectBeadContext(cwd string) *BeadContext {
-	if injectBead == "" {
+func resolveInjectBeadContext(cwd string, opts *search.InjectOptions) *BeadContext {
+	if opts.Bead == "" {
 		return nil
 	}
-	beadCtx := resolveBeadContext(injectBead, cwd)
-	VerbosePrintf("Bead context: id=%s title=%q labels=%v\n", injectBead, beadCtx.Title, beadCtx.Labels)
+	beadCtx := resolveBeadContext(opts.Bead, cwd)
+	VerbosePrintf("Bead context: id=%s title=%q labels=%v\n", opts.Bead, beadCtx.Title, beadCtx.Labels)
 	return beadCtx
 }
 
-func applyInjectModifiers(cwd string, knowledge *injectedKnowledge, beadCtx *BeadContext) error {
+func applyInjectModifiers(cwd string, opts *search.InjectOptions, knowledge *injectedKnowledge, beadCtx *BeadContext) error {
 	if beadCtx != nil {
 		for i := range knowledge.Learnings {
 			applyBeadBoost(&knowledge.Learnings[i], beadCtx)
 		}
-		resortLearnings(knowledge.Learnings)
+		search.ResortLearnings(knowledge.Learnings)
 	}
 
-	if injectSessionType != "" {
+	if opts.SessionType != "" {
 		for i := range knowledge.Learnings {
-			knowledge.Learnings[i].CompositeScore *= sessionTypeBoost(knowledge.Learnings[i], injectSessionType)
+			knowledge.Learnings[i].CompositeScore *= sessionTypeBoost(knowledge.Learnings[i], opts.SessionType)
 		}
-		resortLearnings(knowledge.Learnings)
+		search.ResortLearnings(knowledge.Learnings)
 	}
 
-	if injectPredecessor != "" {
-		knowledge.Predecessor = parsePredecessorFile(injectPredecessor)
+	if opts.Predecessor != "" {
+		knowledge.Predecessor = parsePredecessorFile(opts.Predecessor)
 	}
 
-	if injectForSkill == "" {
+	if opts.ForSkill == "" {
 		return nil
 	}
 
-	decl, err := parseContextDeclaration(injectForSkill)
+	decl, err := parseContextDeclaration(opts.ForSkill)
 	if err != nil {
-		return fmt.Errorf("parse context declaration for %s: %w", injectForSkill, err)
+		return fmt.Errorf("parse context declaration for %s: %w", opts.ForSkill, err)
 	}
 	if decl != nil {
 		filtered := applyContextFilter(knowledge, decl)
@@ -228,26 +246,26 @@ func applyInjectModifiers(cwd string, knowledge *injectedKnowledge, beadCtx *Bea
 	return nil
 }
 
-func renderInjectOutput(cwd string, knowledge *injectedKnowledge) (string, error) {
+func renderInjectOutput(cwd string, opts *search.InjectOptions, knowledge *injectedKnowledge) (string, error) {
 	output := renderKnowledgeIndex(knowledge)
-	if !injectIndexOnly {
-		rendered, err := renderKnowledge(knowledge, injectFormat)
+	if !opts.IndexOnly {
+		rendered, err := renderKnowledge(knowledge, opts.Format)
 		if err != nil {
 			return "", err
 		}
 		output = rendered
 	}
 
-	charBudget := injectMaxTokens * InjectCharsPerToken
+	charBudget := opts.MaxTokens * InjectCharsPerToken
 	if len(output) > charBudget {
-		if injectFormat == "json" {
-			output = trimJSONToCharBudget(knowledge, charBudget)
+		if opts.Format == "json" {
+			output = search.TrimJSONToCharBudget(knowledge, charBudget)
 		} else {
-			output = trimToCharBudget(output, charBudget)
+			output = search.TrimToCharBudget(output, charBudget)
 		}
 	}
 
-	if !injectProfile {
+	if !opts.Profile {
 		return output, nil
 	}
 
@@ -260,30 +278,14 @@ func renderInjectOutput(cwd string, knowledge *injectedKnowledge) (string, error
 
 // runQuarantineFlagged reads .agents/defrag/quality-report.json and quarantines flagged learnings.
 func runQuarantineFlagged(cwd string) error {
-	reportPath := filepath.Join(cwd, ".agents", "defrag", "quality-report.json")
-	data, err := os.ReadFile(reportPath)
+	paths, err := search.ReadFlaggedQualityPaths(cwd)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("no quality report found at %s", reportPath)
-		}
-		return fmt.Errorf("read quality report: %w", err)
+		return err
 	}
-
-	var report struct {
-		FlaggedPaths []string `json:"flagged_paths"`
-	}
-	if err := json.Unmarshal(data, &report); err != nil {
-		return fmt.Errorf("parse quality report: %w", err)
-	}
-
 	quarantined := 0
-	for _, p := range report.FlaggedPaths {
-		absPath := p
-		if !filepath.IsAbs(p) {
-			absPath = filepath.Join(cwd, p)
-		}
+	for _, absPath := range paths {
 		if err := quarantineLearning(absPath, "flagged by quality report"); err != nil {
-			VerbosePrintf("Warning: quarantine %s: %v\n", p, err)
+			VerbosePrintf("Warning: quarantine %s: %v\n", absPath, err)
 			continue
 		}
 		quarantined++
@@ -294,28 +296,20 @@ func runQuarantineFlagged(cwd string) error {
 	return nil
 }
 
-// resolveInjectQuery returns the query from positional args or the --context flag.
-func resolveInjectQuery(args []string) string {
-	if len(args) > 0 {
-		return args[0]
-	}
-	return injectContext
-}
-
 // printInjectDryRun prints the dry-run message for inject.
-func printInjectDryRun(query string) {
+func printInjectDryRun(opts *search.InjectOptions) {
 	fmt.Printf("[dry-run] Would inject knowledge")
-	if query != "" {
-		fmt.Printf(" filtered by: %s", query)
+	if opts.Query != "" {
+		fmt.Printf(" filtered by: %s", opts.Query)
 	}
-	fmt.Printf(" (max %d tokens)\n", injectMaxTokens)
+	fmt.Printf(" (max %d tokens)\n", opts.MaxTokens)
 }
 
 // gatherKnowledge collects all knowledge sources and records citations.
-func gatherKnowledge(cwd, query, sessionID string, cfg *config.Config) *injectedKnowledge {
+func gatherKnowledge(cwd string, opts *search.InjectOptions, sessionID string, cfg *config.Config) *injectedKnowledge {
 	knowledge := &injectedKnowledge{
 		Timestamp: time.Now(),
-		Query:     query,
+		Query:     opts.Query,
 	}
 
 	globalLearningsDir := ""
@@ -327,30 +321,29 @@ func gatherKnowledge(cwd, query, sessionID string, cfg *config.Config) *injected
 		globalWeight = cfg.Paths.GlobalWeight
 	}
 
-	knowledge.Learnings = gatherLearnings(cwd, query, sessionID, globalLearningsDir, globalWeight)
-	knowledge.Patterns = gatherPatterns(cwd, query, sessionID, globalPatternsDir, globalWeight)
+	knowledge.Learnings = gatherLearnings(cwd, opts, sessionID, globalLearningsDir, globalWeight)
+	knowledge.Patterns = gatherPatterns(cwd, opts, sessionID, globalPatternsDir, globalWeight)
 
 	// Non-verbose quality gate summary (stderr — does not pollute stdout inject output)
 	if len(knowledge.Learnings) > 0 || len(knowledge.Patterns) > 0 {
 		fmt.Fprintf(os.Stderr, "Injected %d learnings, %d patterns\n",
 			len(knowledge.Learnings), len(knowledge.Patterns))
 	}
-	knowledge.Sessions = gatherSessions(cwd, query)
-	knowledge.OLConstraints = gatherOLConstraints(cwd, query)
+	knowledge.Sessions = gatherSessions(cwd, opts.Query)
+	knowledge.OLConstraints = gatherOLConstraints(cwd, opts.Query)
 
 	return knowledge
 }
 
 // gatherLearnings collects learnings and records their citations.
-func gatherLearnings(cwd, query, sessionID, globalDir string, globalWeight float64) []learning {
-	learnings, err := collectLearnings(cwd, query, MaxLearningsToInject, globalDir, globalWeight)
+func gatherLearnings(cwd string, opts *search.InjectOptions, sessionID, globalDir string, globalWeight float64) []learning {
+	learnings, err := collectLearnings(cwd, opts.Query, MaxLearningsToInject, globalDir, globalWeight)
 	if err != nil {
 		VerbosePrintf("Warning: failed to collect learnings: %v\n", err)
 	}
 
-	// Record citations for retrieved learnings (Phase 0: Critical for MemRL feedback loop)
-	if !injectNoCite && len(learnings) > 0 {
-		if err := recordCitations(cwd, learnings, sessionID, query); err != nil {
+	if !opts.NoCite && len(learnings) > 0 {
+		if err := recordCitations(cwd, learnings, sessionID, opts.Query); err != nil {
 			VerbosePrintf("Warning: failed to record citations: %v\n", err)
 		} else {
 			VerbosePrintf("Recorded %d citations for session %s\n", len(learnings), sessionID)
@@ -361,15 +354,14 @@ func gatherLearnings(cwd, query, sessionID, globalDir string, globalWeight float
 }
 
 // gatherPatterns collects patterns and records their citations.
-func gatherPatterns(cwd, query, sessionID, globalDir string, globalWeight float64) []pattern {
-	patterns, err := collectPatterns(cwd, query, MaxPatternsToInject, globalDir, globalWeight)
+func gatherPatterns(cwd string, opts *search.InjectOptions, sessionID, globalDir string, globalWeight float64) []pattern {
+	patterns, err := collectPatterns(cwd, opts.Query, MaxPatternsToInject, globalDir, globalWeight)
 	if err != nil {
 		VerbosePrintf("Warning: failed to collect patterns: %v\n", err)
 	}
 
-	// Record citations for retrieved patterns (closes σ gap: patterns were retrieved but never cited)
-	if !injectNoCite && len(patterns) > 0 {
-		if err := recordPatternCitations(cwd, patterns, sessionID, query); err != nil {
+	if !opts.NoCite && len(patterns) > 0 {
+		if err := recordPatternCitations(cwd, patterns, sessionID, opts.Query); err != nil {
 			VerbosePrintf("Warning: failed to record pattern citations: %v\n", err)
 		} else {
 			VerbosePrintf("Recorded %d pattern citations for session %s\n", len(patterns), sessionID)
@@ -390,275 +382,39 @@ func gatherSessions(cwd, query string) []session {
 
 // gatherOLConstraints collects Olympus constraints (no-op if .ol/ doesn't exist).
 func gatherOLConstraints(cwd, query string) []olConstraint {
-	olConstraints, err := collectOLConstraints(cwd, query)
+	olConstraints, err := search.CollectOLConstraints(cwd, query)
 	if err != nil {
 		VerbosePrintf("Warning: failed to collect OL constraints: %v\n", err)
 	}
 	return olConstraints
 }
 
-// renderKnowledge formats the knowledge struct into the requested output format.
-func renderKnowledge(knowledge *injectedKnowledge, format string) (string, error) {
-	if format == "json" {
-		data, err := json.MarshalIndent(knowledge, "", "  ")
-		if err != nil {
-			return "", fmt.Errorf("marshal json: %w", err)
-		}
-		return string(data), nil
-	}
-	return formatKnowledgeMarkdown(knowledge), nil
+// Thin wrappers — canonical definitions in internal/search/inject_run.go.
+// These exist for test call sites and for readable use within this file.
+func renderKnowledge(k *injectedKnowledge, format string) (string, error) {
+	return search.RenderKnowledge(k, format, compactText)
 }
-
-// findAgentsSubdir looks for .agents/{subdir}/ walking up to rig root
 func findAgentsSubdir(startDir, subdir string) string {
-	dir := startDir
-	for {
-		candidate := filepath.Join(dir, ".agents", subdir)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-
-		// Check if we're at rig root (has .beads, crew, or polecats)
-		markers := []string{".beads", "crew", "polecats"}
-		atRigRoot := false
-		for _, marker := range markers {
-			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
-				atRigRoot = true
-				break
-			}
-		}
-		if atRigRoot {
-			break
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
+	return search.FindAgentsSubdir(startDir, subdir)
 }
-
-func writeLearningsSection(sb *strings.Builder, learnings []learning) {
-	if len(learnings) == 0 {
-		return
-	}
-	sb.WriteString("### Recent Learnings\n")
-	for _, l := range learnings {
-		text := l.Title
-		if l.Summary != "" {
-			text = l.Summary
-		}
-		if l.SectionHeading != "" {
-			text += fmt.Sprintf(" (match: %s", l.SectionHeading)
-			if l.MatchedSnippet != "" {
-				text += fmt.Sprintf(" -> %s", compactText(l.MatchedSnippet))
-			}
-			text += ")"
-		}
-		sb.WriteString(fmt.Sprintf("- **%s**: %s\n", l.ID, text))
-	}
-	sb.WriteString("\n")
+func resortLearnings(ls []learning)                  { search.ResortLearnings(ls) }
+func trimToCharBudget(out string, budget int) string { return search.TrimToCharBudget(out, budget) }
+func trimJSONToCharBudget(k *injectedKnowledge, b int) string {
+	return search.TrimJSONToCharBudget(k, b)
 }
-
-func writePatternsSection(sb *strings.Builder, patterns []pattern) {
-	if len(patterns) == 0 {
-		return
-	}
-	sb.WriteString("### Active Patterns\n")
-	for _, p := range patterns {
-		if p.Description != "" {
-			sb.WriteString(fmt.Sprintf("- **%s**: %s\n", p.Name, p.Description))
-		} else {
-			sb.WriteString(fmt.Sprintf("- **%s**\n", p.Name))
-		}
-	}
-	sb.WriteString("\n")
+func collectOLConstraints(cwd, q string) ([]olConstraint, error) {
+	return search.CollectOLConstraints(cwd, q)
 }
-
-func writeSessionsSection(sb *strings.Builder, sessions []session) {
-	if len(sessions) == 0 {
-		return
-	}
-	sb.WriteString("### Recent Sessions\n")
-	for _, s := range sessions {
-		sb.WriteString(fmt.Sprintf("- [%s] %s\n", s.Date, s.Summary))
-	}
-	sb.WriteString("\n")
+func filterMemoryDuplicates(cwd string, ls []learning) []learning {
+	return search.FilterMemoryDuplicates(cwd, ls)
 }
-
-func writeConstraintsSection(sb *strings.Builder, constraints []olConstraint) {
-	if len(constraints) == 0 {
-		return
-	}
-	sb.WriteString("### Olympus Constraints\n")
-	for _, c := range constraints {
-		sb.WriteString(fmt.Sprintf("- **[olympus constraint]** %s: %s\n", c.Pattern, c.Detection))
-	}
-	sb.WriteString("\n")
-}
-
-// resortLearnings re-sorts learnings by CompositeScore after bead boosting.
-func resortLearnings(learnings []learning) {
-	slices.SortFunc(learnings, func(a, b learning) int {
-		if a.CompositeScore > b.CompositeScore {
-			return -1
-		}
-		if a.CompositeScore < b.CompositeScore {
-			return 1
-		}
-		return 0
-	})
-}
-
-// filterMemoryDuplicates removes learnings whose Title or ID already appears in MEMORY.md.
-// Uses exact title/ID match to avoid false positives.
-func filterMemoryDuplicates(cwd string, learnings []learning) []learning {
-	memoryFile, err := findMemoryFile(cwd)
-	if err != nil {
-		return learnings // no MEMORY.md = no dedup
-	}
-	content, err := os.ReadFile(memoryFile)
-	if err != nil {
-		return learnings
-	}
-	memoryText := string(content)
-
-	filtered := make([]learning, 0, len(learnings))
-	for _, l := range learnings {
-		// Skip if learning ID appears verbatim in MEMORY.md
-		if l.ID != "" && strings.Contains(memoryText, l.ID) {
-			continue
-		}
-		// Skip if learning Title appears verbatim in MEMORY.md
-		if l.Title != "" && strings.Contains(memoryText, l.Title) {
-			continue
-		}
-		filtered = append(filtered, l)
-	}
-	return filtered
-}
-
-// formatKnowledgeMarkdown formats knowledge as markdown
 func formatKnowledgeMarkdown(k *injectedKnowledge) string {
-	var sb strings.Builder
-	sb.WriteString("## Injected Knowledge (ao inject)\n\n")
-	writePredecessorSection(&sb, k.Predecessor)
-	writeLearningsSection(&sb, k.Learnings)
-	writePatternsSection(&sb, k.Patterns)
-	writeSessionsSection(&sb, k.Sessions)
-	writeConstraintsSection(&sb, k.OLConstraints)
-	if k.Predecessor == nil && len(k.Learnings) == 0 && len(k.Patterns) == 0 && len(k.Sessions) == 0 && len(k.OLConstraints) == 0 {
-		sb.WriteString("*No prior knowledge found.*\n\n")
-	}
-	sb.WriteString(fmt.Sprintf("*Last injection: %s*\n", k.Timestamp.Format(time.RFC3339)))
-	return sb.String()
+	return search.FormatKnowledgeMarkdown(k, compactText)
 }
 
-// writePredecessorSection writes the predecessor context block.
+// writePredecessorSection — thin wrapper for tests.
 func writePredecessorSection(sb *strings.Builder, pred *predecessorContext) {
-	if pred == nil {
-		return
-	}
-	sb.WriteString("### Predecessor Context")
-	if pred.SessionAge != "" {
-		sb.WriteString(fmt.Sprintf(" (%s ago)", pred.SessionAge))
-	}
-	sb.WriteString("\n")
-	if pred.WorkingOn != "" {
-		sb.WriteString(fmt.Sprintf("- **Working on:** %s\n", pred.WorkingOn))
-	}
-	if pred.Progress != "" {
-		sb.WriteString(fmt.Sprintf("- **Progress:** %s\n", pred.Progress))
-	}
-	if pred.Blocker != "" {
-		sb.WriteString(fmt.Sprintf("- **Blocker:** %s\n", pred.Blocker))
-	}
-	if pred.NextStep != "" {
-		sb.WriteString(fmt.Sprintf("- **Next step:** %s\n", pred.NextStep))
-	}
-	if pred.RawSummary != "" && pred.Progress == "" {
-		sb.WriteString(fmt.Sprintf("- %s\n", pred.RawSummary))
-	}
-	sb.WriteString("\n")
-}
-
-// trimJSONToCharBudget truncates JSON output by progressively removing items
-// from the knowledge struct until it fits the budget, then adds a "truncated" field.
-func trimJSONToCharBudget(knowledge *injectedKnowledge, budget int) string {
-	// Progressively trim: sessions first, then patterns, then learnings
-	trimmed := *knowledge
-	trimmed.Learnings = append([]learning(nil), knowledge.Learnings...)
-	trimmed.Patterns = append([]pattern(nil), knowledge.Patterns...)
-	trimmed.Sessions = append([]session(nil), knowledge.Sessions...)
-	trimmed.OLConstraints = append([]olConstraint(nil), knowledge.OLConstraints...)
-
-	type truncatedKnowledge struct {
-		injectedKnowledge
-		Truncated bool `json:"truncated"`
-	}
-
-	tryMarshal := func() string {
-		tk := truncatedKnowledge{injectedKnowledge: trimmed, Truncated: true}
-		data, err := json.MarshalIndent(tk, "", "  ")
-		if err != nil {
-			return "{\"truncated\": true}"
-		}
-		return string(data)
-	}
-
-	// Remove sessions first
-	for len(trimmed.Sessions) > 0 {
-		if out := tryMarshal(); len(out) <= budget {
-			return out
-		}
-		trimmed.Sessions = trimmed.Sessions[:len(trimmed.Sessions)-1]
-	}
-	// Remove OL constraints
-	for len(trimmed.OLConstraints) > 0 {
-		if out := tryMarshal(); len(out) <= budget {
-			return out
-		}
-		trimmed.OLConstraints = trimmed.OLConstraints[:len(trimmed.OLConstraints)-1]
-	}
-	// Remove patterns
-	for len(trimmed.Patterns) > 0 {
-		if out := tryMarshal(); len(out) <= budget {
-			return out
-		}
-		trimmed.Patterns = trimmed.Patterns[:len(trimmed.Patterns)-1]
-	}
-	// Remove learnings
-	for len(trimmed.Learnings) > 0 {
-		if out := tryMarshal(); len(out) <= budget {
-			return out
-		}
-		trimmed.Learnings = trimmed.Learnings[:len(trimmed.Learnings)-1]
-	}
-
-	return tryMarshal()
-}
-
-// trimToCharBudget truncates output to fit character budget
-func trimToCharBudget(output string, budget int) string {
-	if len(output) <= budget {
-		return output
-	}
-
-	// Try to truncate at a section boundary
-	lines := strings.Split(output, "\n")
-	var result strings.Builder
-	for _, line := range lines {
-		if result.Len()+len(line)+1 > budget-50 { // Leave room for truncation marker
-			break
-		}
-		result.WriteString(line)
-		result.WriteString("\n")
-	}
-
-	result.WriteString("\n*[truncated to fit token budget]*\n")
-	return result.String()
+	search.WritePredecessorSection(sb, pred)
 }
 
 // Thin wrappers — canonical definitions in internal/search/util.go.
@@ -666,44 +422,6 @@ func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
 	return search.AtomicWriteFile(path, data, perm)
 }
 func truncateText(s string, maxLen int) string { return search.TruncateText(s, maxLen) }
-
-// collectOLConstraints reads constraints from .ol/constraints/quarantine.json.
-// Returns nil (no-op) if .ol/ directory doesn't exist.
-func collectOLConstraints(cwd, query string) ([]olConstraint, error) {
-	olDir := filepath.Join(cwd, ".ol")
-	if _, err := os.Stat(olDir); os.IsNotExist(err) {
-		return nil, nil // Not an Olympus project
-	}
-
-	quarantinePath := filepath.Join(olDir, quarantineRelPath)
-	data, err := os.ReadFile(quarantinePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil // No quarantine file
-		}
-		return nil, fmt.Errorf("read quarantine.json: %w", err)
-	}
-
-	var raw []olConstraint
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parse quarantine.json: %w", err)
-	}
-
-	// Filter by query if provided
-	if query == "" {
-		return raw, nil
-	}
-
-	queryLower := strings.ToLower(query)
-	var filtered []olConstraint
-	for _, c := range raw {
-		content := strings.ToLower(c.Pattern + " " + c.Detection)
-		if strings.Contains(content, queryLower) {
-			filtered = append(filtered, c)
-		}
-	}
-	return filtered, nil
-}
 
 // recordCitations records citation events for retrieved learnings.
 // This is critical for closing the MemRL feedback loop (Phase 0).
@@ -713,27 +431,11 @@ func recordCitations(baseDir string, learnings []learning, sessionID, query stri
 }
 
 func recordCitationsInNamespace(baseDir string, learnings []learning, sessionID, query, namespace string) error {
-	canonicalSession := canonicalSessionID(sessionID)
-	canonicalNamespace := canonicalMetricNamespace(namespace)
-	for _, l := range learnings {
-		event := types.CitationEvent{
-			ArtifactPath:    canonicalArtifactPath(baseDir, l.Source),
-			SessionID:       canonicalSession,
-			CitedAt:         time.Now(),
-			CitationType:    "retrieved", // Will be upgraded to "applied" if session succeeds
-			Query:           query,
-			MetricNamespace: canonicalNamespace,
-			MatchConfidence: l.MatchConfidence,
-			MatchProvenance: l.MatchProvenance,
-			SectionHeading:  l.SectionHeading,
-			SectionLocator:  l.SectionLocator,
-		}
-
-		if err := ratchet.RecordCitation(baseDir, event); err != nil {
-			return fmt.Errorf("record citation for %s: %w", l.ID, err)
-		}
-	}
-	return nil
+	return search.RecordLearningCitations(
+		baseDir, learnings,
+		canonicalSessionID(sessionID), query, canonicalMetricNamespace(namespace),
+		canonicalArtifactPath,
+	)
 }
 
 // recordPatternCitations records citation events for retrieved patterns.
@@ -742,23 +444,9 @@ func recordPatternCitations(baseDir string, patterns []pattern, sessionID, query
 }
 
 func recordPatternCitationsInNamespace(baseDir string, patterns []pattern, sessionID, query, namespace string) error {
-	canonicalSession := canonicalSessionID(sessionID)
-	canonicalNamespace := canonicalMetricNamespace(namespace)
-	for _, p := range patterns {
-		if p.FilePath == "" {
-			continue
-		}
-		event := types.CitationEvent{
-			ArtifactPath:    canonicalArtifactPath(baseDir, p.FilePath),
-			SessionID:       canonicalSession,
-			CitedAt:         time.Now(),
-			CitationType:    "retrieved",
-			Query:           query,
-			MetricNamespace: canonicalNamespace,
-		}
-		if err := ratchet.RecordCitation(baseDir, event); err != nil {
-			return fmt.Errorf("record citation for pattern %s: %w", p.Name, err)
-		}
-	}
-	return nil
+	return search.RecordPatternCitations(
+		baseDir, patterns,
+		canonicalSessionID(sessionID), query, canonicalMetricNamespace(namespace),
+		canonicalArtifactPath,
+	)
 }

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/search"
 )
 
 // TestIntegration_TwoPhaseInjection tests the full two-phase injection lifecycle:
@@ -56,7 +58,7 @@ Use specialized, independent judges for validation.
 
 	// Phase 1: Test index-only output
 	t.Run("phase1_index_output", func(t *testing.T) {
-		knowledge := gatherKnowledge(tmpDir, "", "test-session", nil)
+		knowledge := gatherKnowledge(tmpDir, &search.InjectOptions{}, "test-session", nil)
 		indexOutput := renderKnowledgeIndex(knowledge)
 
 		// Should contain table headers
@@ -122,7 +124,7 @@ Use specialized, independent judges for validation.
 			os.WriteFile(filepath.Join(learningsDir, "extra-"+string(rune('a'+i))+".md"), []byte(content), 0644)
 		}
 
-		knowledge := gatherKnowledge(tmpDir, "", "test-session-2", nil)
+		knowledge := gatherKnowledge(tmpDir, &search.InjectOptions{}, "test-session-2", nil)
 		indexOutput := renderKnowledgeIndex(knowledge)
 		fullOutput := formatKnowledgeMarkdown(knowledge)
 

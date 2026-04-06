@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/ratchet"
+	"github.com/boshu2/agentops/cli/internal/search"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
@@ -1432,8 +1433,8 @@ func TestInject_printInjectDryRun(t *testing.T) {
 	defer func() { injectMaxTokens = origMaxTokens }()
 
 	out, _ := captureStdout(t, func() error {
-		printInjectDryRun("")
-		printInjectDryRun("some query")
+		printInjectDryRun(&search.InjectOptions{MaxTokens: injectMaxTokens})
+		printInjectDryRun(&search.InjectOptions{MaxTokens: injectMaxTokens, Query: "some query"})
 		return nil
 	})
 	if !strings.Contains(out, "2000") {
