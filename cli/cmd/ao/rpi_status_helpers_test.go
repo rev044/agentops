@@ -319,22 +319,22 @@ func TestRPIStatus_ResolveRunID(t *testing.T) {
 	s := newOrchestrationLogState()
 
 	// With an explicit run ID, it returns as-is.
-	if got := s.resolveRunID("explicit", "start"); got != "explicit" {
+	if got := s.ResolveRunID("explicit", "start"); got != "explicit" {
 		t.Errorf("expected 'explicit', got %q", got)
 	}
 
 	// Without a run ID and phase "start", creates anon-1.
-	if got := s.resolveRunID("", "start"); got != "anon-1" {
+	if got := s.ResolveRunID("", "start"); got != "anon-1" {
 		t.Errorf("expected 'anon-1', got %q", got)
 	}
 
 	// Without a run ID and a non-start phase, uses current anon counter.
-	if got := s.resolveRunID("", "discovery"); got != "anon-1" {
+	if got := s.ResolveRunID("", "discovery"); got != "anon-1" {
 		t.Errorf("expected 'anon-1' for non-start, got %q", got)
 	}
 
 	// Another "start" increments the counter.
-	if got := s.resolveRunID("", "start"); got != "anon-2" {
+	if got := s.ResolveRunID("", "start"); got != "anon-2" {
 		t.Errorf("expected 'anon-2', got %q", got)
 	}
 }
@@ -343,7 +343,7 @@ func TestRPIStatus_ResolveRunID_NoStartFirst(t *testing.T) {
 	s := newOrchestrationLogState()
 
 	// When anonymousCounter is 0 and phase is not "start", it initializes to 1.
-	if got := s.resolveRunID("", "discovery"); got != "anon-1" {
+	if got := s.ResolveRunID("", "discovery"); got != "anon-1" {
 		t.Errorf("expected 'anon-1' for first non-start line, got %q", got)
 	}
 }
@@ -351,7 +351,7 @@ func TestRPIStatus_ResolveRunID_NoStartFirst(t *testing.T) {
 func TestRPIStatus_GetOrCreateRun(t *testing.T) {
 	s := newOrchestrationLogState()
 
-	run1 := s.getOrCreateRun("run-a")
+	run1 := s.GetOrCreateRun("run-a")
 	if run1.RunID != "run-a" {
 		t.Errorf("expected RunID 'run-a', got %q", run1.RunID)
 	}
@@ -360,13 +360,13 @@ func TestRPIStatus_GetOrCreateRun(t *testing.T) {
 	}
 
 	// Getting the same ID returns the same pointer.
-	run1Again := s.getOrCreateRun("run-a")
+	run1Again := s.GetOrCreateRun("run-a")
 	if run1 != run1Again {
 		t.Error("expected same pointer for same runID")
 	}
 
 	// Different ID creates a new run.
-	run2 := s.getOrCreateRun("run-b")
+	run2 := s.GetOrCreateRun("run-b")
 	if run2.RunID != "run-b" {
 		t.Errorf("expected RunID 'run-b', got %q", run2.RunID)
 	}
@@ -375,11 +375,11 @@ func TestRPIStatus_GetOrCreateRun(t *testing.T) {
 func TestRPIStatus_OrderedRuns(t *testing.T) {
 	s := newOrchestrationLogState()
 
-	s.getOrCreateRun("c")
-	s.getOrCreateRun("a")
-	s.getOrCreateRun("b")
+	s.GetOrCreateRun("c")
+	s.GetOrCreateRun("a")
+	s.GetOrCreateRun("b")
 
-	runs := s.orderedRuns()
+	runs := s.OrderedRuns()
 	if len(runs) != 3 {
 		t.Fatalf("expected 3 runs, got %d", len(runs))
 	}
@@ -1079,14 +1079,14 @@ func TestRPIStatus_ApplyCompletePhase_NoTimestamp(t *testing.T) {
 
 func TestRPIStatus_NewOrchestrationLogState(t *testing.T) {
 	s := newOrchestrationLogState()
-	if s.runMap == nil {
+	if s.RunMap == nil {
 		t.Error("expected non-nil runMap")
 	}
-	if len(s.runOrder) != 0 {
-		t.Errorf("expected empty runOrder, got %d", len(s.runOrder))
+	if len(s.RunOrder) != 0 {
+		t.Errorf("expected empty runOrder, got %d", len(s.RunOrder))
 	}
-	if s.anonymousCounter != 0 {
-		t.Errorf("expected anonymousCounter 0, got %d", s.anonymousCounter)
+	if s.AnonymousCounter != 0 {
+		t.Errorf("expected anonymousCounter 0, got %d", s.AnonymousCounter)
 	}
 }
 

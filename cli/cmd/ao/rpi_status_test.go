@@ -1836,7 +1836,7 @@ func TestOrchestrationLogState_ResolveRunID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			state := newOrchestrationLogState()
-			got := state.resolveRunID(tt.runID, tt.phaseName)
+			got := state.ResolveRunID(tt.runID, tt.phaseName)
 			if tt.wantAnon {
 				if !strings.HasPrefix(got, "anon-") {
 					t.Errorf("expected anon- prefix, got %q", got)
@@ -1854,19 +1854,19 @@ func TestOrchestrationLogState_ResolveRunID_Sequential(t *testing.T) {
 	state := newOrchestrationLogState()
 
 	// First anonymous start
-	id1 := state.resolveRunID("", "start")
+	id1 := state.ResolveRunID("", "start")
 	if id1 != "anon-1" {
 		t.Errorf("first start: expected anon-1, got %s", id1)
 	}
 
 	// Non-start anonymous should use current counter
-	id2 := state.resolveRunID("", "discovery")
+	id2 := state.ResolveRunID("", "discovery")
 	if id2 != "anon-1" {
 		t.Errorf("non-start: expected anon-1, got %s", id2)
 	}
 
 	// Second start bumps counter
-	id3 := state.resolveRunID("", "start")
+	id3 := state.ResolveRunID("", "start")
 	if id3 != "anon-2" {
 		t.Errorf("second start: expected anon-2, got %s", id3)
 	}
@@ -1875,7 +1875,7 @@ func TestOrchestrationLogState_ResolveRunID_Sequential(t *testing.T) {
 func TestOrchestrationLogState_GetOrCreateRun(t *testing.T) {
 	state := newOrchestrationLogState()
 
-	run1 := state.getOrCreateRun("run-1")
+	run1 := state.GetOrCreateRun("run-1")
 	if run1.RunID != "run-1" {
 		t.Errorf("expected run-1, got %s", run1.RunID)
 	}
@@ -1884,13 +1884,13 @@ func TestOrchestrationLogState_GetOrCreateRun(t *testing.T) {
 	}
 
 	// Second call returns the same run
-	run1Again := state.getOrCreateRun("run-1")
+	run1Again := state.GetOrCreateRun("run-1")
 	if run1Again != run1 {
 		t.Error("expected same pointer for existing run")
 	}
 
 	// Different run creates new
-	run2 := state.getOrCreateRun("run-2")
+	run2 := state.GetOrCreateRun("run-2")
 	if run2.RunID != "run-2" {
 		t.Errorf("expected run-2, got %s", run2.RunID)
 	}
@@ -1898,11 +1898,11 @@ func TestOrchestrationLogState_GetOrCreateRun(t *testing.T) {
 
 func TestOrchestrationLogState_OrderedRuns(t *testing.T) {
 	state := newOrchestrationLogState()
-	state.getOrCreateRun("first")
-	state.getOrCreateRun("second")
-	state.getOrCreateRun("third")
+	state.GetOrCreateRun("first")
+	state.GetOrCreateRun("second")
+	state.GetOrCreateRun("third")
 
-	runs := state.orderedRuns()
+	runs := state.OrderedRuns()
 	if len(runs) != 3 {
 		t.Fatalf("expected 3 runs, got %d", len(runs))
 	}
