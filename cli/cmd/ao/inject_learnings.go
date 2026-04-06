@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"cmp"
 	"encoding/json"
 	"fmt"
@@ -14,22 +13,15 @@ import (
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/resolver"
+	"github.com/boshu2/agentops/cli/internal/search"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
-// validPhases is the set of canonical RPI phase values for source_phase.
-var validPhases = map[string]bool{
-	"research": true, "plan": true, "implement": true, "validate": true,
-}
+// validPhases — canonical definition in internal/search.
+var validPhases = search.ValidPhases
 
-// sanitizeSourcePhase returns the phase if valid, or empty string if not.
-func sanitizeSourcePhase(phase string) string {
-	p := strings.ToLower(strings.TrimSpace(phase))
-	if validPhases[p] {
-		return p
-	}
-	return ""
-}
+// sanitizeSourcePhase delegates to search.SanitizeSourcePhase.
+func sanitizeSourcePhase(phase string) string { return search.SanitizeSourcePhase(phase) }
 
 // collectLearnings finds recent learnings from .agents/learnings/ and optionally ~/.agents/learnings/.
 // Implements MemRL Two-Phase retrieval: Phase A (similarity/freshness) + Phase B (utility-weighted)
@@ -125,58 +117,18 @@ func findLearningFiles(cwd string) ([]string, error) {
 	return resolver.NewFileResolver(cwd).DiscoverAll()
 }
 
-// queryTokens splits a lowercased query into individual search tokens.
-// Tokens shorter than 2 characters are dropped to avoid noise.
-func queryTokens(queryLower string) []string {
-	words := strings.Fields(queryLower)
-	tokens := make([]string, 0, len(words))
-	for _, w := range words {
-		if len(w) >= 2 {
-			tokens = append(tokens, w)
-		}
-	}
-	return tokens
-}
-
-// matchesQuery returns true if the learning matches at least one query token.
-// Returns the match ratio (0.0 to 1.0) as a score multiplier via matchRatio.
-// Full AND match = 1.0, partial match = fraction of tokens matched.
-// Single-token queries behave identically to the old substring filter.
-func matchesQuery(tokens []string, title, summary, body string) bool {
-	ratio := matchRatio(tokens, title, summary, body)
-	return ratio > 0
-}
-
-// matchRatio returns the fraction of query tokens found in the text (0.0 to 1.0).
-// Used by processLearningFile to scale utility for partial matches.
-func matchRatio(tokens []string, title, summary, body string) float64 {
-	if len(tokens) == 0 {
-		return 1.0
-	}
-	text := strings.ToLower(title + " " + summary + " " + body)
-	matched := 0
-	for _, tok := range tokens {
-		if strings.Contains(text, tok) {
-			matched++
-		}
-	}
-	return float64(matched) / float64(len(tokens))
-}
+// Thin wrappers — canonical definitions in internal/search/learnings.go.
+func queryTokens(queryLower string) []string                          { return search.QueryTokens(queryLower) }
+func matchesQuery(tokens []string, title, summary, body string) bool  { return search.MatchesQuery(tokens, title, summary, body) }
+func matchRatio(tokens []string, title, summary, body string) float64 { return search.MatchRatio(tokens, title, summary, body) }
 
 const (
-	sectionCoverageBonusCap    = 0.15
-	sectionCoverageBonusWeight = 0.15
-	sectionSnippetMaxChars     = 160
+	sectionCoverageBonusCap    = search.SectionCoverageBonusCap
+	sectionCoverageBonusWeight = search.SectionCoverageBonusWeight
+	sectionSnippetMaxChars     = search.SectionSnippetMaxChars
 )
 
-type learningSectionCandidate struct {
-	Heading string
-	Locator string
-	Content string
-	Snippet string
-	Score   float64
-	Index   int
-}
+type learningSectionCandidate = search.LearningSectionCandidate
 
 func applyLearningSectionEvidence(l *learning, queryTokensList []string) bool {
 	l.SectionHeading = ""
@@ -283,61 +235,15 @@ func buildLearningSectionCandidates(l learning) []learningSectionCandidate {
 }
 
 func extractLearningSectionHeading(section, fallbackTitle string, index int) (string, string) {
-	lines := strings.Split(section, "\n")
-	heading := strings.TrimSpace(fallbackTitle)
-	bodyStart := 0
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "#") {
-			heading = strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
-			bodyStart = i + 1
-		} else {
-			bodyStart = i
-		}
-		break
-	}
-
-	if heading == "" {
-		heading = fmt.Sprintf("Section %d", index+1)
-	}
-
-	content := strings.TrimSpace(strings.Join(lines[bodyStart:], "\n"))
-	if content == "" {
-		content = strings.TrimSpace(section)
-	}
-	return heading, content
+	return search.ExtractLearningSectionHeading(section, fallbackTitle, index)
 }
 
 func buildLearningSectionLocator(heading string, index int, seen map[string]int) string {
-	slug := slugifyLearningSectionHeading(heading)
-	if slug == "" {
-		slug = fmt.Sprintf("section-%d", index+1)
-	}
-	seen[slug]++
-	if seen[slug] == 1 {
-		return "heading:" + slug
-	}
-	return fmt.Sprintf("heading:%s#%d", slug, seen[slug])
+	return search.BuildLearningSectionLocator(heading, index, seen)
 }
 
 func slugifyLearningSectionHeading(heading string) string {
-	var sb strings.Builder
-	lastDash := false
-	for _, r := range strings.ToLower(strings.TrimSpace(heading)) {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			sb.WriteRune(r)
-			lastDash = false
-		case !lastDash && sb.Len() > 0:
-			sb.WriteByte('-')
-			lastDash = true
-		}
-	}
-	return strings.Trim(sb.String(), "-")
+	return search.SlugifyLearningSectionHeading(heading)
 }
 
 // processLearningFile parses, filters, and scores a single learning file.
@@ -390,57 +296,17 @@ func processLearningFile(file string, queryTokensList []string, now time.Time) (
 	return l, true
 }
 
-// passesQualityGate returns true if a learning meets minimum injection standards.
-// Requires maturity >= provisional (provisional, candidate, or established) AND utility > 0.3.
-// Empty maturity defaults to provisional (legacy learnings lack metadata).
-// Also rejects content that is too short or lacks a heading — catches auto-extracted garbage.
-func passesQualityGate(l learning) bool {
-	mat := types.Maturity(l.Maturity)
-	if mat == "" {
-		mat = types.MaturityProvisional
-	}
-	switch mat {
-	case types.MaturityProvisional, types.MaturityCandidate, types.MaturityEstablished:
-		// maturity OK
-	default:
-		// "draft" or unknown → fail gate
-		return false
-	}
-	if l.Utility > 0 && l.Utility <= 0.3 {
-		return false
-	}
-	// Content quality: reject auto-extracted fragments with very short body.
-	// Only applies when BodyText was populated by the parser (markdown files).
-	// JSONL learnings and test fixtures may have empty BodyText — skip this check for them.
-	if l.BodyText != "" && len(strings.TrimSpace(l.BodyText)) < 50 {
-		return false
-	}
-	return true
-}
+// passesQualityGate delegates to search.PassesQualityGate.
+func passesQualityGate(l learning) bool { return search.PassesQualityGate(l) }
 
-// applyFreshnessScore sets the freshness score on a learning based on file modification time.
+// applyFreshnessScore delegates to search.ApplyFreshnessToLearning.
 func applyFreshnessScore(l *learning, file string, now time.Time) {
-	info, statErr := os.Stat(file)
-	if info == nil {
-		if statErr != nil {
-			VerbosePrintf("Warning: stat %s: %v\n", file, statErr)
-		}
-		l.FreshnessScore = 0.5
-		return
-	}
-	ageWeeks := now.Sub(info.ModTime()).Hours() / (24 * 7)
-	l.AgeWeeks = ageWeeks
-	l.FreshnessScore = freshnessScore(ageWeeks)
+	search.ApplyFreshnessToLearning(l, file, now)
 }
 
-// rankLearnings applies composite scoring and sorts by score descending.
+// rankLearnings delegates to search.RankLearnings + sort.
 func rankLearnings(learnings []learning) {
-	items := make([]scorable, len(learnings))
-	for i := range learnings {
-		items[i] = &learnings[i]
-	}
-	applyCompositeScoringTo(items, types.DefaultLambda)
-
+	search.RankLearnings(learnings)
 	slices.SortFunc(learnings, func(a, b learning) int {
 		return cmp.Compare(b.CompositeScore, a.CompositeScore)
 	})
@@ -578,327 +444,44 @@ func applyConfidenceDecayMarkdown(l learning, filePath string, now time.Time) le
 	return l
 }
 
-// parseFrontmatterFromContent extracts specific fields from YAML frontmatter in a string.
-// Like parseFrontmatterFields but operates on already-read content instead of opening the file.
+// Thin wrappers — canonical definitions in internal/search/learnings.go.
 func parseFrontmatterFromContent(content string, fields ...string) map[string]string {
-	result := make(map[string]string)
-	lines := strings.Split(content, "\n")
-	inFrontmatter := false
-	dashCount := 0
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "---" {
-			dashCount++
-			if dashCount == 1 {
-				inFrontmatter = true
-				continue
-			}
-			if dashCount == 2 {
-				break
-			}
-		}
-		if inFrontmatter {
-			for _, field := range fields {
-				prefix := field + ":"
-				if strings.HasPrefix(trimmed, prefix) {
-					val := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
-					val = strings.Trim(val, "\"'")
-					result[field] = val
-				}
-			}
-		}
-	}
-	return result
+	return search.ParseFrontmatterFromContent(content, fields...)
 }
-
-// jsonFloat extracts a float64 from a map, returning defaultVal if missing or non-positive.
 func jsonFloat(data map[string]any, key string, defaultVal float64) float64 {
-	if c, ok := data[key].(float64); ok && c > 0 {
-		return c
-	}
-	return defaultVal
+	return search.JSONFloat(data, key, defaultVal)
 }
-
-// jsonTimeField tries to parse a time.Time from the first non-empty string field found among keys.
 func jsonTimeField(data map[string]any, keys ...string) time.Time {
-	for _, k := range keys {
-		if v, ok := data[k].(string); ok && v != "" {
-			if t, err := time.Parse(time.RFC3339, v); err == nil {
-				return t
-			}
-		}
-	}
-	return time.Time{}
+	return search.JSONTimeField(data, keys...)
 }
-
-// computeDecayedConfidence applies exponential decay and clamps to a minimum of 0.1.
 func computeDecayedConfidence(confidence, weeks float64) float64 {
-	decayFactor := math.Exp(-weeks * types.ConfidenceDecayRate)
-	result := confidence * decayFactor
-	if result < 0.1 {
-		return 0.1
-	}
-	return result
+	return search.ComputeDecayedConfidence(confidence, weeks)
 }
-
-// writeDecayFields updates the data map with new confidence, timestamp, and incremented decay count.
 func writeDecayFields(data map[string]any, newConfidence float64, now time.Time) {
-	data["confidence"] = newConfidence
-	data["last_decay_at"] = now.Format(time.RFC3339)
-	decayCount := 0.0
-	if dc, ok := data["decay_count"].(float64); ok {
-		decayCount = dc
-	}
-	data["decay_count"] = decayCount + 1
+	search.WriteDecayFields(data, newConfidence, now)
 }
 
-// frontMatter holds parsed YAML front matter fields
-type frontMatter struct {
-	SupersededBy string
-	PromotedTo   string
-	Utility      float64
-	HasUtility   bool
-	SourceBead   string
-	SourcePhase  string
-	Maturity     string
-	Stability    string
-}
+// Type alias + thin wrappers — canonical definitions in internal/search/learnings.go.
+type frontMatter = search.FrontMatter
 
-// parseFrontMatter extracts YAML front matter from markdown content
-func parseFrontMatter(lines []string) (frontMatter, int) {
-	var fm frontMatter
+func parseFrontMatter(lines []string) (frontMatter, int)    { return search.ParseFrontMatter(lines) }
+func parseFrontMatterLine(line string, fm *frontMatter)      { search.ParseFrontMatterLine(line, fm) }
+func isInlineMetadata(line string) bool                      { return search.IsInlineMetadata(line) }
+func extractSummary(lines []string, startIdx int) string     { return search.ExtractSummary(lines, startIdx) }
+func isSuperseded(fm frontMatter) bool                       { return search.IsSuperseded(fm) }
+func isPromoted(fm frontMatter) bool                         { return search.IsPromoted(fm) }
 
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return fm, 0
-	}
-
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "---" {
-			return fm, i + 1
-		}
-		parseFrontMatterLine(line, &fm)
-	}
-	return fm, 0
-}
-
-// parseFrontMatterLine parses a single YAML front matter line into fm fields.
-func parseFrontMatterLine(line string, fm *frontMatter) {
-	switch {
-	case strings.HasPrefix(line, "superseded_by:"), strings.HasPrefix(line, "superseded-by:"):
-		fm.SupersededBy = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-	case strings.HasPrefix(line, "promoted_to:"), strings.HasPrefix(line, "promoted-to:"):
-		fm.PromotedTo = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-	case strings.HasPrefix(line, "utility:"):
-		utilityStr := strings.TrimSpace(strings.TrimPrefix(line, "utility:"))
-		if utility, err := strconv.ParseFloat(utilityStr, 64); err == nil && utility > 0 {
-			fm.Utility = utility
-			fm.HasUtility = true
-		}
-	case strings.HasPrefix(line, "source_bead:"), strings.HasPrefix(line, "source-bead:"):
-		fm.SourceBead = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-	case strings.HasPrefix(line, "source_phase:"), strings.HasPrefix(line, "source-phase:"):
-		fm.SourcePhase = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-	case strings.HasPrefix(line, "maturity:"):
-		fm.Maturity = strings.TrimSpace(strings.TrimPrefix(line, "maturity:"))
-	case strings.HasPrefix(line, "stability:"):
-		fm.Stability = strings.TrimSpace(strings.TrimPrefix(line, "stability:"))
-	}
-}
-
-// isInlineMetadata returns true for lines like "**ID**: L1" or "**Category**: process"
-// that are formatting artifacts from older learning/pattern file formats, not actual content.
-func isInlineMetadata(line string) bool {
-	for _, field := range []string{"ID", "Category", "Confidence", "Date", "Source", "Type", "Status"} {
-		if strings.HasPrefix(line, "**"+field+"**:") || strings.HasPrefix(line, "**"+field+":**") {
-			return true
-		}
-	}
-	return false
-}
-
-// extractSummary finds the first content paragraph after headings,
-// skipping inline metadata lines like "**ID**: L1".
-func extractSummary(lines []string, startIdx int) string {
-	for i := startIdx; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "---") || isInlineMetadata(line) {
-			continue
-		}
-		// Take first paragraph (up to 3 lines)
-		summary := line
-		for j := i + 1; j < len(lines) && j < i+3; j++ {
-			nextLine := strings.TrimSpace(lines[j])
-			if nextLine == "" || strings.HasPrefix(nextLine, "#") || isInlineMetadata(nextLine) {
-				break
-			}
-			summary += " " + nextLine
-		}
-		return truncateText(summary, 200)
-	}
-	return ""
-}
-
-// isSuperseded returns true if the front matter indicates a superseded learning.
-func isSuperseded(fm frontMatter) bool {
-	return fm.SupersededBy != "" && fm.SupersededBy != "null" && fm.SupersededBy != "~"
-}
-
-// isPromoted returns true if the learning was promoted to a global location.
-func isPromoted(fm frontMatter) bool {
-	return fm.PromotedTo != "" && fm.PromotedTo != "null" && fm.PromotedTo != "~"
-}
-
-// parseLearningBody extracts title, ID, and maturity from markdown body lines into l.
-func parseLearningBody(lines []string, start int, l *learning) {
-	defaultID := filepath.Base(l.Source)
-	for i := start; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(line, "# ") && l.Title == "" {
-			l.Title = strings.TrimPrefix(line, "# ")
-		} else if (strings.HasPrefix(line, "ID:") || strings.HasPrefix(line, "id:")) && l.ID == defaultID {
-			l.ID = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-		}
-		// Extract maturity from inline metadata format: "**Maturity**: X" or "- **Maturity**: X"
-		if l.Maturity == "" {
-			trimmed := strings.TrimPrefix(line, "- ")
-			if strings.HasPrefix(trimmed, "**Maturity**:") {
-				l.Maturity = strings.TrimSpace(strings.TrimPrefix(trimmed, "**Maturity**:"))
-			}
-		}
-	}
-}
-
-// parseLearningFile extracts learning info from a file
-// Sets Superseded=true if superseded_by field is found
-func parseLearningFile(path string) (learning, error) {
-	if strings.HasSuffix(path, ".jsonl") {
-		return parseLearningJSONL(path)
-	}
-
-	l := learning{
-		ID:     filepath.Base(path),
-		Source: path,
-	}
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return l, err
-	}
-
-	lines := strings.Split(string(content), "\n")
-	fm, contentStart := parseFrontMatter(lines)
-
-	if isSuperseded(fm) {
-		l.Superseded = true
-		return l, nil
-	}
-	if isPromoted(fm) {
-		l.Superseded = true // reuse existing skip mechanism
-		return l, nil
-	}
-	if fm.HasUtility {
-		l.Utility = fm.Utility
-	}
-	l.SourceBead = fm.SourceBead
-	l.SourcePhase = sanitizeSourcePhase(fm.SourcePhase)
-	l.Maturity = fm.Maturity
-	l.Stability = fm.Stability
-
-	parseLearningBody(lines, contentStart, &l)
-	l.Summary = extractSummary(lines, contentStart)
-	// Store full body text for search (used by lookup --query body matching)
-	l.BodyText = strings.Join(lines[contentStart:], "\n")
-
-	if l.Title == "" {
-		l.Title = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	}
-
-	return l, nil
-}
-
-// populateLearningFromJSON fills learning fields from a parsed JSON map.
+func parseLearningBody(lines []string, start int, l *learning) { search.ParseLearningBody(lines, start, l) }
+func parseLearningFile(path string) (learning, error)         { return search.ParseLearningFile(path) }
 func populateLearningFromJSON(data map[string]any, l *learning) {
-	if id, ok := data["id"].(string); ok {
-		l.ID = id
-	}
-	if title, ok := data["title"].(string); ok {
-		l.Title = title
-	}
-	if summary, ok := data["summary"].(string); ok {
-		l.Summary = truncateText(summary, 200)
-	}
-	if content, ok := data["content"].(string); ok && l.Summary == "" {
-		l.Summary = truncateText(content, 200)
-	}
-	if utility, ok := data["utility"].(float64); ok && utility > 0 {
-		l.Utility = utility
-	}
-	if sb, ok := data["source_bead"].(string); ok {
-		l.SourceBead = sb
-	}
-	if sp, ok := data["source_phase"].(string); ok {
-		l.SourcePhase = sanitizeSourcePhase(sp)
-	}
-	if m, ok := data["maturity"].(string); ok {
-		l.Maturity = m
-	}
-	if s, ok := data["stability"].(string); ok {
-		l.Stability = s
-	}
+	search.PopulateLearningFromJSON(data, l)
 }
 
-// parseLearningJSONL extracts learning from JSONL file
-// Returns empty learning (with Superseded=true) if superseded_by field is set
+// parseLearningJSONL wraps search.ParseLearningJSONL with verbose logging.
 func parseLearningJSONL(path string) (learning, error) {
-	l := learning{
-		ID:      filepath.Base(path),
-		Source:  path,
-		Utility: types.InitialUtility, // Default to 0.5
-	}
-
-	f, err := os.Open(path)
-	if err != nil {
-		return l, err
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only learning load, close error non-fatal
-	}()
-
-	scanner := bufio.NewScanner(f)
-	if !scanner.Scan() {
-		return l, nil
-	}
-
-	var data map[string]any
-	if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
-		VerbosePrintf("Warning: parse JSONL %s: %v\n", path, err)
-		return l, nil
-	}
-
-	// F3: Filter superseded learnings - skip if superseded_by is set
-	if supersededBy, ok := data["superseded_by"]; ok && supersededBy != nil && supersededBy != "" {
-		l.Superseded = true
-		return l, nil
-	}
-
-	populateLearningFromJSON(data, &l)
-	// Populate body text from content field for search
-	if content, ok := data["content"].(string); ok {
-		l.BodyText = content
-	}
-	return l, nil
+	l, err := search.ParseLearningJSONL(path)
+	return l, err
 }
 
-// quarantineLearning moves a learning file to .quarantine/ subdirectory with reason.
-func quarantineLearning(path, reason string) error {
-	dir := filepath.Dir(path)
-	quarantineDir := filepath.Join(dir, ".quarantine")
-	if err := os.MkdirAll(quarantineDir, 0o755); err != nil {
-		return err
-	}
-	base := filepath.Base(path)
-	dest := filepath.Join(quarantineDir, base)
-	return os.Rename(path, dest)
-}
+// quarantineLearning delegates to search.QuarantineLearning.
+func quarantineLearning(path, _ string) error { return search.QuarantineLearning(path) }
