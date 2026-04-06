@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/boshu2/agentops/cli/internal/search"
 )
 
 const (
@@ -13,15 +15,8 @@ const (
 	maxPredecessorChars = maxPredecessorTokens * InjectCharsPerToken
 )
 
-// predecessorContext holds structured context from a predecessor agent's handoff.
-type predecessorContext struct {
-	WorkingOn  string `json:"working_on,omitempty"`
-	Progress   string `json:"progress,omitempty"`
-	Blocker    string `json:"blocker,omitempty"`
-	NextStep   string `json:"next_step,omitempty"`
-	SessionAge string `json:"session_age,omitempty"`
-	RawSummary string `json:"raw_summary,omitempty"` // Fallback when no structured headers found
-}
+// predecessorContext — canonical definition in internal/search/types.go.
+type predecessorContext = search.PredecessorContext
 
 // parsePredecessorFile reads a handoff file and extracts structured predecessor context.
 // Supports three handoff formats:
