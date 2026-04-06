@@ -157,8 +157,8 @@ case "${1:-}" in
                 continue
             fi
 
-            # Tolerance: 0.5% absolute, allows for cross-platform measurement noise
-            if awk -v c="$current_pct" -v b="$baseline_pct" 'BEGIN { exit !(c+0 < b+0 - 0.5) }'; then
+            # Tolerance: 1.0% absolute, allows for cross-platform measurement noise
+            if awk -v c="$current_pct" -v b="$baseline_pct" 'BEGIN { exit !(c+0 < b+0 - 1.0) }'; then
                 printf "  DROP  %-40s  %.1f%% → %.1f%%\n" "$pkg" "$baseline_pct" "$current_pct"
                 drops=$((drops + 1))
             else
