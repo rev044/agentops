@@ -9,41 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/rpi"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 func classifyByPhase(phaseNum int, verdict string) types.MemRLFailureClass {
-	switch phaseNum {
-	case 1:
-		if verdict == "FAIL" {
-			return types.MemRLFailureClassPreMortemFail
-		}
-	case 2:
-		switch verdict {
-		case "BLOCKED":
-			return types.MemRLFailureClassCrankBlocked
-		case "PARTIAL":
-			return types.MemRLFailureClassCrankPartial
-		}
-	case 3:
-		if verdict == "FAIL" {
-			return types.MemRLFailureClassVibeFail
-		}
-	}
-	return ""
+	return rpi.ClassifyByPhase(phaseNum, verdict)
 }
 
 func classifyByVerdict(verdict string) types.MemRLFailureClass {
-	switch verdict {
-	case string(failReasonTimeout):
-		return types.MemRLFailureClassPhaseTimeout
-	case string(failReasonStall):
-		return types.MemRLFailureClassPhaseStall
-	case string(failReasonExit):
-		return types.MemRLFailureClassPhaseExitError
-	default:
-		return types.MemRLFailureClass(strings.ToLower(verdict))
-	}
+	return rpi.ClassifyByVerdict(verdict)
 }
 
 // --- Verdict extraction helpers ---

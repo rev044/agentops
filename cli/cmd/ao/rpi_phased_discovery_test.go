@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/boshu2/agentops/cli/internal/rpi"
 )
 
-// --- issueTypeFromMap ---
+// --- rpi.IssueTypeFromMap ---
 
 func TestIssueTypeFromMap_NilMap(t *testing.T) {
-	isEpic, ok := issueTypeFromMap(nil)
+	isEpic, ok := rpi.IssueTypeFromMap(nil)
 	if ok {
 		t.Error("expected ok=false for nil map")
 	}
@@ -21,7 +23,7 @@ func TestIssueTypeFromMap_NilMap(t *testing.T) {
 
 func TestIssueTypeFromMap_EpicBoolTrue(t *testing.T) {
 	m := map[string]any{"epic": true}
-	isEpic, ok := issueTypeFromMap(m)
+	isEpic, ok := rpi.IssueTypeFromMap(m)
 	if !ok {
 		t.Error("expected ok=true when epic field is present")
 	}
@@ -32,7 +34,7 @@ func TestIssueTypeFromMap_EpicBoolTrue(t *testing.T) {
 
 func TestIssueTypeFromMap_EpicBoolFalse(t *testing.T) {
 	m := map[string]any{"epic": false}
-	isEpic, ok := issueTypeFromMap(m)
+	isEpic, ok := rpi.IssueTypeFromMap(m)
 	if !ok {
 		t.Error("expected ok=true when epic field is present")
 	}
@@ -57,7 +59,7 @@ func TestIssueTypeFromMap_TypeFieldEpic(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			isEpic, ok := issueTypeFromMap(tc.payload)
+			isEpic, ok := rpi.IssueTypeFromMap(tc.payload)
 			if !ok {
 				t.Error("expected ok=true")
 			}
@@ -74,7 +76,7 @@ func TestIssueTypeFromMap_NestedIssueField(t *testing.T) {
 			"type": "epic",
 		},
 	}
-	isEpic, ok := issueTypeFromMap(m)
+	isEpic, ok := rpi.IssueTypeFromMap(m)
 	if !ok {
 		t.Error("expected ok=true for nested issue field")
 	}
@@ -89,7 +91,7 @@ func TestIssueTypeFromMap_NestedIssueField_NonEpic(t *testing.T) {
 			"type": "task",
 		},
 	}
-	isEpic, ok := issueTypeFromMap(m)
+	isEpic, ok := rpi.IssueTypeFromMap(m)
 	if !ok {
 		t.Error("expected ok=true for nested issue field")
 	}
@@ -100,7 +102,7 @@ func TestIssueTypeFromMap_NestedIssueField_NonEpic(t *testing.T) {
 
 func TestIssueTypeFromMap_NoTypeFields(t *testing.T) {
 	m := map[string]any{"title": "some issue", "status": "open"}
-	_, ok := issueTypeFromMap(m)
+	_, ok := rpi.IssueTypeFromMap(m)
 	if ok {
 		t.Error("expected ok=false when no type-related fields exist")
 	}
@@ -109,7 +111,7 @@ func TestIssueTypeFromMap_NoTypeFields(t *testing.T) {
 func TestIssueTypeFromMap_EpicFieldNonBool(t *testing.T) {
 	// When "epic" field is a non-bool (e.g. string), fall through to type/kind fields
 	m := map[string]any{"epic": "yes", "type": "epic"}
-	isEpic, ok := issueTypeFromMap(m)
+	isEpic, ok := rpi.IssueTypeFromMap(m)
 	if !ok {
 		t.Error("expected ok=true (should fall through to type field)")
 	}

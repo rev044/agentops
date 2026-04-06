@@ -8,20 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/rpi"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // maxGateRetryDepth is the hard ceiling for gate retry attempts.
-// Attempts 1 through maxGateRetryDepth proceed normally; attempt
-// maxGateRetryDepth+1 forces escalation regardless of MemRL policy.
-// Set higher than default MaxRetries (3) to catch runaway MemRL
-// policy overrides without capping normal retries.
-const maxGateRetryDepth = 5
+const maxGateRetryDepth = rpi.MaxGateRetryDepth
 
 // shouldForceEscalation returns true when the attempt count exceeds the hard ceiling.
-func shouldForceEscalation(attempt int) bool {
-	return attempt > maxGateRetryDepth
-}
+func shouldForceEscalation(attempt int) bool { return rpi.ShouldForceEscalation(attempt) }
 
 // gateFailError signals a gate check failure that may be retried.
 type gateFailError struct {
@@ -299,21 +294,14 @@ func processValidationPhase(cwd string, state *phasedState, phaseNum int, logPat
 }
 
 func legacyGateAction(attempt, maxRetries int) types.MemRLAction {
-	if attempt >= maxRetries {
-		return types.MemRLActionEscalate
-	}
-	return types.MemRLActionRetry
+	return rpi.LegacyGateAction(attempt, maxRetries)
 }
 
 func classifyGateFailureClass(phaseNum int, gateErr *gateFailError) types.MemRLFailureClass {
 	if gateErr == nil {
 		return ""
 	}
-	verdict := strings.ToUpper(strings.TrimSpace(gateErr.Verdict))
-	if fc := classifyByPhase(phaseNum, verdict); fc != "" {
-		return fc
-	}
-	return classifyByVerdict(verdict)
+	return rpi.ClassifyGateFailureClass(phaseNum, gateErr.Verdict)
 }
 
 func resolveGateRetryAction(state *phasedState, phaseNum int, gateErr *gateFailError, attempt int) (types.MemRLAction, types.MemRLPolicyDecision) {
@@ -329,7 +317,7 @@ func resolveGateRetryAction(state *phasedState, phaseNum int, gateErr *gateFailE
 		MetadataPresent: metadataPresent,
 	})
 
-	legacy := legacyGateAction(attempt, state.Opts.MaxRetries)
+	legacy := rpi.LegacyGateAction(attempt, state.Opts.MaxRetries)
 	if mode == types.MemRLModeEnforce {
 		return decision.Action, decision
 	}
