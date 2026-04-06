@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -842,74 +841,9 @@ func nextWorkSearchRoot(path string) string {
 	return rpi.NextWorkSearchRoot(path)
 }
 
-// selectHighestSeverityEntry picks the best item across all eligible entries.
-// It returns a queueSelection containing the winning item and its source entry
-// parseable index in next-work.jsonl. Items filtered out by repoFilter are skipped.
-// Returns nil if no eligible items exist.
+// selectHighestSeverityEntry delegates to internal/rpi.SelectHighestSeverityEntry.
 func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *queueSelection {
-	type candidate struct {
-		item       nextWorkItem
-		entryIndex int
-		itemIndex  int
-		sourceEpic string
-		severity   int
-		affinity   int
-		freshness  int
-		typeRank   int
-	}
-
-	var candidates []candidate
-	for _, entry := range entries {
-		for itemIdx, item := range entry.Items {
-			if !isQueueItemSelectable(item) {
-				continue
-			}
-			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
-				continue
-			}
-			candidates = append(candidates, candidate{
-				item:       item,
-				entryIndex: entry.QueueIndex,
-				itemIndex:  itemIdx,
-				sourceEpic: entry.SourceEpic,
-				severity:   severityRank(item.Severity),
-				affinity:   repoAffinityRank(item, repoFilter),
-				freshness:  freshnessRank(item),
-				typeRank:   workTypeRank(item),
-			})
-		}
-	}
-
-	if len(candidates) == 0 {
-		return nil
-	}
-
-	slices.SortFunc(candidates, func(a, b candidate) int {
-		if diff := cmp.Compare(b.affinity, a.affinity); diff != 0 {
-			return diff
-		}
-		if diff := cmp.Compare(b.freshness, a.freshness); diff != 0 {
-			return diff
-		}
-		if diff := cmp.Compare(b.severity, a.severity); diff != 0 {
-			return diff
-		}
-		if diff := cmp.Compare(b.typeRank, a.typeRank); diff != 0 {
-			return diff
-		}
-		if diff := cmp.Compare(a.entryIndex, b.entryIndex); diff != 0 {
-			return diff
-		}
-		return cmp.Compare(a.itemIndex, b.itemIndex)
-	})
-
-	best := candidates[0]
-	return &queueSelection{
-		Item:       best.item,
-		EntryIndex: best.entryIndex,
-		ItemIndex:  best.itemIndex,
-		SourceEpic: best.sourceEpic,
-	}
+	return rpi.SelectHighestSeverityEntry(entries, repoFilter)
 }
 
 func freshnessRank(item nextWorkItem) int                          { return rpi.FreshnessRank(item) }

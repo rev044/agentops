@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/boshu2/agentops/cli/internal/bench"
 )
 
 var (
@@ -315,34 +317,14 @@ func loadBenchCases(corpusDir string) ([]benchCase, error) {
 	return nil, nil
 }
 
-func normalizeBenchSplit(split string) string {
-	return strings.ToLower(strings.TrimSpace(split))
-}
+func normalizeBenchSplit(split string) string { return bench.NormalizeSplit(split) }
 
 func scoreBenchResults(results []learning, expectedSet map[string]bool, bestID string, k int) (float64, float64) {
-	if k <= 0 || len(results) == 0 {
-		return 0, 0
-	}
-	n := k
-	if n > len(results) {
-		n = len(results)
-	}
-	hits := 0
-	for _, r := range results[:n] {
-		if expectedSet[r.ID] {
-			hits++
-		}
-	}
-	pAtK := float64(hits) / float64(k)
-
-	mrr := 0.0
+	ids := make([]string, len(results))
 	for i, r := range results {
-		if r.ID == bestID {
-			mrr = 1.0 / float64(i+1)
-			break
-		}
+		ids[i] = r.ID
 	}
-	return pAtK, mrr
+	return bench.ScoreResults(ids, expectedSet, bestID, k)
 }
 
 func scoreBenchSections(corpusDir, query, expectedSection string) ([]sectionCandidate, float64, bool) {
@@ -414,33 +396,9 @@ func benchSectionScore(tokens []string, section string) float64 {
 	return score
 }
 
-func benchSectionHeading(section string) string {
-	lines := strings.Split(section, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
-			return strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
-		}
-	}
-	return ""
-}
-
-func normalizeBenchSection(section string) string {
-	return strings.ToLower(strings.TrimSpace(strings.TrimLeft(section, "#")))
-}
-
-func stripBenchFrontMatter(content string) string {
-	lines := strings.Split(content, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return content
-	}
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
-			return strings.Join(lines[i+1:], "\n")
-		}
-	}
-	return content
-}
+func benchSectionHeading(section string) string  { return bench.SectionHeading(section) }
+func normalizeBenchSection(section string) string { return bench.NormalizeSection(section) }
+func stripBenchFrontMatter(content string) string { return bench.StripFrontMatter(content) }
 
 // runLiveBench benchmarks against the actual .agents/learnings/ directory.
 // When global is true, benchmarks against ~/.agents/learnings/ (cross-rig aggregated store).

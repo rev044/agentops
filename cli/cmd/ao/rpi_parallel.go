@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	cliRPI "github.com/boshu2/agentops/cli/internal/rpi"
 )
 
 var (
@@ -224,11 +226,7 @@ func validateParallelPrereqs(args []string) ([]parallelEpic, string, string, err
 }
 
 func parallelWorktreeRoot(baseCwd, runtimeCmd string) string {
-	runtimeName := filepath.Base(runtimeCmd)
-	if runtimeName == "." || runtimeName == string(filepath.Separator) || runtimeName == "" {
-		runtimeName = "claude"
-	}
-	return filepath.Join(baseCwd, "."+runtimeName, "worktrees")
+	return cliRPI.ParallelWorktreeRoot(baseCwd, runtimeCmd)
 }
 
 // createParallelWorktrees creates git worktrees for each epic.
@@ -514,75 +512,24 @@ func resolveParallelEpics(args []string) ([]parallelEpic, error) {
 // resolveMergeOrder returns indices in the order they should be merged.
 func resolveMergeOrder(epics []parallelEpic, results []parallelResult) []int {
 	if parallelMergeOrder != "" {
-		// Parse explicit order.
-		names := strings.Split(parallelMergeOrder, ",")
-		indices := make([]int, 0, len(names))
-		for _, name := range names {
-			name = strings.TrimSpace(name)
-			for i, e := range epics {
-				if e.Name == name {
-					indices = append(indices, i)
-					break
-				}
-			}
+		names := make([]string, len(epics))
+		for i, e := range epics {
+			names[i] = e.Name
 		}
-		return indices
+		return cliRPI.ResolveMergeOrderByNames(names, parallelMergeOrder)
 	}
-
-	// Default: sort by MergeOrder field.
-	type indexed struct {
-		idx   int
-		order int
-	}
-	items := make([]indexed, len(epics))
+	orders := make([]int, len(epics))
 	for i, e := range epics {
-		items[i] = indexed{idx: i, order: e.MergeOrder}
+		orders[i] = e.MergeOrder
 	}
-	// Simple insertion sort (N is small).
-	for i := 1; i < len(items); i++ {
-		for j := i; j > 0 && items[j].order < items[j-1].order; j-- {
-			items[j], items[j-1] = items[j-1], items[j]
-		}
-	}
-	indices := make([]int, len(items))
-	for i, item := range items {
-		indices[i] = item.idx
-	}
-	return indices
+	return cliRPI.ResolveMergeOrderByField(orders)
 }
 
-// goalSlug creates a short filesystem-safe name from a goal string.
-func goalSlug(goal string) string {
-	// Take first 3 significant words.
-	words := strings.Fields(strings.ToLower(goal))
-	skip := map[string]bool{"add": true, "the": true, "a": true, "an": true, "to": true, "for": true, "and": true, "with": true, "in": true, "on": true}
-	var sig []string
-	for _, w := range words {
-		// Strip non-alphanumeric.
-		clean := strings.Map(func(r rune) rune {
-			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-				return r
-			}
-			return -1
-		}, w)
-		if clean == "" || skip[clean] {
-			continue
-		}
-		sig = append(sig, clean)
-		if len(sig) >= 3 {
-			break
-		}
-	}
-	if len(sig) == 0 {
-		return ""
-	}
-	return strings.Join(sig, "-")
-}
+// goalSlug delegates to internal/rpi.GoalSlug.
+func goalSlug(goal string) string { return cliRPI.GoalSlug(goal) }
 
-// shellQuote wraps a string in single quotes, escaping embedded single quotes.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
-}
+// shellQuote delegates to internal/rpi.ShellQuote.
+func shellQuote(s string) string { return cliRPI.ShellQuote(s) }
 
 // tmuxPaneIsDead checks whether a tmux pane has exited.
 // Returns (dead, exitCode). If the pane/window is gone, returns (true, 1).

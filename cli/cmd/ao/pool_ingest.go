@@ -206,133 +206,18 @@ func resolveIngestFiles(cwd, defaultDir string, args []string) ([]string, error)
 	return files, nil
 }
 
-type learningBlock struct {
-	Title      string
-	ID         string
-	Category   string
-	Confidence string
-	Body       string
-}
+// learningBlock is an alias for pool.LearningBlock to keep cmd-layer callers stable.
+type learningBlock = pool.LearningBlock
 
 var (
-	reLearningHeader = regexp.MustCompile(`(?m)^# Learning:\s*(.+)\s*$`)
-	// Support both "**ID**: X" and "**ID:** X" (colon outside vs inside bold).
-	reIDLine         = regexp.MustCompile(`(?m)^\*\*ID:?\*\*:?\s*(.+)\s*$`)
-	reCategoryLine   = regexp.MustCompile(`(?m)^\*\*Category:?\*\*:?\s*(.+)\s*$`)
-	reConfidenceLine = regexp.MustCompile(`(?m)^\*\*Confidence:?\*\*:?\s*(.+)\s*$`)
-	reFrontmatter    = regexp.MustCompile(`(?s)^---\s*\n(.*?)\n---\s*\n`)
-	reDateMD         = regexp.MustCompile(`(?m)^\*\*Date:?\*\*:?\s*(\d{4}-\d{2}-\d{2})\s*$`)
-	reDateYAML       = regexp.MustCompile(`(?m)^date:\s*(\d{4}-\d{2}-\d{2})\s*$`)
-	reSessionHint    = regexp.MustCompile(`\bag-[a-z0-9]+\b`)
+	reDateMD      = regexp.MustCompile(`(?m)^\*\*Date:?\*\*:?\s*(\d{4}-\d{2}-\d{2})\s*$`)
+	reDateYAML    = regexp.MustCompile(`(?m)^date:\s*(\d{4}-\d{2}-\d{2})\s*$`)
+	reFrontmatter = regexp.MustCompile(`(?s)^---\s*\n(.*?)\n---\s*\n`)
+	reSessionHint = regexp.MustCompile(`\bag-[a-z0-9]+\b`)
 )
 
 func parseLearningBlocks(md string) []learningBlock {
-	locs := reLearningHeader.FindAllStringSubmatchIndex(md, -1)
-	if len(locs) == 0 {
-		if legacy, ok := parseLegacyFrontmatterLearning(md); ok {
-			return []learningBlock{legacy}
-		}
-		return nil
-	}
-
-	var blocks []learningBlock
-	for i, loc := range locs {
-		// loc[0:2] is full match span, loc[2:4] is title group span.
-		start := loc[0]
-		end := len(md)
-		if i+1 < len(locs) {
-			end = locs[i+1][0]
-		}
-		title := strings.TrimSpace(md[loc[2]:loc[3]])
-		body := strings.TrimSpace(md[start:end])
-
-		b := learningBlock{
-			Title: title,
-			Body:  body,
-		}
-
-		if m := reIDLine.FindStringSubmatch(body); len(m) == 2 {
-			b.ID = strings.TrimSpace(m[1])
-		}
-		if m := reCategoryLine.FindStringSubmatch(body); len(m) == 2 {
-			b.Category = strings.TrimSpace(m[1])
-		}
-		if m := reConfidenceLine.FindStringSubmatch(body); len(m) == 2 {
-			b.Confidence = strings.TrimSpace(m[1])
-		}
-
-		blocks = append(blocks, b)
-	}
-	return blocks
-}
-
-// parseYAMLFrontmatter parses a raw YAML frontmatter block into a string map.
-func parseYAMLFrontmatter(raw string) map[string]string {
-	fm := make(map[string]string)
-	for _, line := range strings.Split(raw, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.ToLower(strings.TrimSpace(parts[0]))
-		val := strings.TrimSpace(parts[1])
-		fm[key] = strings.Trim(val, `"'`)
-	}
-	return fm
-}
-
-// extractFirstHeadingText finds the first non-empty, non-heading-marker text line from body.
-func extractFirstHeadingText(body string) string {
-	for _, line := range strings.Split(body, "\n") {
-		l := strings.TrimSpace(line)
-		if l == "" {
-			continue
-		}
-		l = strings.TrimSpace(strings.TrimPrefix(l, "#"))
-		if l != "" {
-			return l
-		}
-	}
-	return ""
-}
-
-func parseLegacyFrontmatterLearning(md string) (learningBlock, bool) {
-	fmMatch := reFrontmatter.FindStringSubmatchIndex(md)
-	if len(fmMatch) < 4 {
-		return learningBlock{}, false
-	}
-
-	fmRaw := md[fmMatch[2]:fmMatch[3]]
-	body := strings.TrimSpace(md[fmMatch[1]:])
-	if body == "" {
-		return learningBlock{}, false
-	}
-
-	frontmatter := parseYAMLFrontmatter(fmRaw)
-
-	// Legacy /learn files include type/source/date frontmatter. Require type to
-	// avoid treating arbitrary markdown files as candidates.
-	category := strings.TrimSpace(frontmatter["type"])
-	if category == "" {
-		return learningBlock{}, false
-	}
-
-	title := extractFirstHeadingText(body)
-	if title == "" {
-		return learningBlock{}, false
-	}
-
-	return learningBlock{
-		Title:      title,
-		ID:         cmp.Or(strings.TrimSpace(frontmatter["id"]), "legacy"),
-		Category:   category,
-		Confidence: cmp.Or(strings.TrimSpace(frontmatter["confidence"]), "medium"),
-		Body:       body,
-	}, true
+	return pool.ParseLearningBlocks(md)
 }
 
 // dateStrategy is a function that attempts to extract a date from its inputs.
@@ -551,94 +436,20 @@ func inferKnowledgeType(b learningBlock) types.KnowledgeType {
 	return types.KnowledgeTypeLearning
 }
 
-func confidenceToScore(s string) float64 {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "high":
-		return 0.9
-	case "medium":
-		return 0.7
-	case "low":
-		return 0.5
-	default:
-		return 0.6
-	}
-}
-
-func computeSpecificityScore(body, lower string) float64 {
-	spec := 0.4
-	if strings.Contains(body, "`") || strings.Contains(body, "```") {
-		spec += 0.2
-	}
-	if regexp.MustCompile(`\d`).MatchString(body) {
-		spec += 0.2
-	}
-	if regexp.MustCompile(`\b[a-zA-Z0-9_./-]+\.(go|ts|js|py|sh|yaml|yml|json|md)\b`).MatchString(body) {
-		spec += 0.2
-	}
-	if strings.Contains(lower, "line ") {
-		spec += 0.1
-	}
-	if spec > 1.0 {
-		spec = 1.0
-	}
-	return spec
-}
-
-func computeActionabilityScore(body string) float64 {
-	act := 0.4
-	if regexp.MustCompile(`(?m)^\s*[-*]\s+`).MatchString(body) {
-		act += 0.2
-	}
-	if regexp.MustCompile(`(?i)\b(run|add|remove|use|ensure|check|grep|rg|fix|avoid|prefer|must|should)\b`).MatchString(body) {
-		act += 0.2
-	}
-	if strings.Contains(body, "```") {
-		act += 0.2
-	}
-	if act > 1.0 {
-		act = 1.0
-	}
-	return act
-}
-
-func computeNoveltyScore(body string) float64 {
-	nov := 0.5
-	if len(body) > 800 {
-		nov += 0.1
-	}
-	if len(body) < 250 {
-		nov -= 0.1
-	}
-	if nov > 1.0 {
-		nov = 1.0
-	}
-	if nov < 0.0 {
-		nov = 0.0
-	}
-	return nov
-}
-
-func computeContextScore(lower string) float64 {
-	ctx := 0.5
-	if strings.Contains(lower, "## source") || strings.Contains(lower, "**source**") {
-		ctx += 0.2
-	}
-	if strings.Contains(lower, "## why it matters") {
-		ctx += 0.1
-	}
-	if ctx > 1.0 {
-		ctx = 1.0
-	}
-	return ctx
-}
+func confidenceToScore(s string) float64           { return pool.ConfidenceToScore(s) }
+func isSlugAlphanumeric(r rune) bool                { return pool.IsSlugAlphanumeric(r) }
+func computeSpecificityScore(b, l string) float64   { return pool.ComputeSpecificityScore(b, l) }
+func computeActionabilityScore(body string) float64 { return pool.ComputeActionabilityScore(body) }
+func computeNoveltyScore(body string) float64       { return pool.ComputeNoveltyScore(body) }
+func computeContextScore(lower string) float64      { return pool.ComputeContextScore(lower) }
 
 func computeRubricScores(body string, confidence float64) types.RubricScores {
 	lower := strings.ToLower(body)
 	return types.RubricScores{
-		Specificity:   computeSpecificityScore(body, lower),
-		Actionability: computeActionabilityScore(body),
-		Novelty:       computeNoveltyScore(body),
-		Context:       computeContextScore(lower),
+		Specificity:   pool.ComputeSpecificityScore(body, lower),
+		Actionability: pool.ComputeActionabilityScore(body),
+		Novelty:       pool.ComputeNoveltyScore(body),
+		Context:       pool.ComputeContextScore(lower),
 		Confidence:    confidence,
 	}
 }
@@ -651,23 +462,9 @@ func rubricWeightedSum(r types.RubricScores, w taxonomy.RubricWeights) float64 {
 		r.Confidence*w.Confidence
 }
 
-// isSlugAlphanumeric returns true if the rune should be kept as-is in a slug.
-func isSlugAlphanumeric(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
-}
-
-func slugify(s string) string {
-	s = strings.ToLower(s)
-	var b strings.Builder
-	lastDash := false
-	for _, r := range s {
-		if isSlugAlphanumeric(r) {
-			b.WriteRune(r)
-			lastDash = false
-		} else if !lastDash {
-			b.WriteRune('-')
-			lastDash = true
-		}
-	}
-	return cmp.Or(strings.Trim(b.String(), "-"), "cand")
+func slugify(s string) string                          { return pool.Slugify(s) }
+func parseYAMLFrontmatter(raw string) map[string]string { return pool.ParseYAMLFrontmatter(raw) }
+func extractFirstHeadingText(body string) string        { return pool.ExtractFirstHeadingText(body) }
+func parseLegacyFrontmatterLearning(md string) (learningBlock, bool) {
+	return pool.ParseLegacyFrontmatterLearning(md)
 }

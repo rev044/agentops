@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/pool"
 	"github.com/boshu2/agentops/cli/internal/taxonomy"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -629,7 +630,7 @@ func TestPoolIngest_isSlugAlphanumeric(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(string(tc.r), func(t *testing.T) {
-			got := isSlugAlphanumeric(tc.r)
+			got := pool.IsSlugAlphanumeric(tc.r)
 			if got != tc.want {
 				t.Errorf("isSlugAlphanumeric(%q) = %v, want %v", tc.r, got, tc.want)
 			}

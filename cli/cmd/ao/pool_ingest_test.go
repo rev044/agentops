@@ -280,7 +280,7 @@ func TestPoolIngestCoverage_IsSlugAlphanumeric(t *testing.T) {
 		{'_', false},
 	}
 	for _, tt := range tests {
-		got := isSlugAlphanumeric(tt.r)
+		got := pool.IsSlugAlphanumeric(tt.r)
 		if got != tt.want {
 			t.Errorf("isSlugAlphanumeric(%q) = %v, want %v", tt.r, got, tt.want)
 		}

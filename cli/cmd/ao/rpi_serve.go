@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -37,39 +35,18 @@ var (
 	rpiServeRuntimeCmd  string
 )
 
-// rpiRunIDPattern matches persisted run IDs: rpi-<8-12hex> or bare 12-hex.
-// Bare 8-hex is excluded to avoid false positives with short git SHAs.
-var rpiRunIDPattern = regexp.MustCompile(`^(rpi-[a-f0-9]{8,12}|[a-f0-9]{12})$`)
+// rpiRunIDPattern matches persisted run IDs. Kept as a package-level alias
+// for call sites that still reference it; the authoritative regex lives in
+// internal/rpi.ServeRunIDPattern.
+var rpiRunIDPattern = cliRPI.ServeRunIDPattern
 
-// classifyServeArg returns (goal, runID) from flags and positional args.
-// Flag --run-id wins over the positional arg. A token matching rpiRunIDPattern
-// is treated as a run ID to watch; anything else is a goal string.
+// classifyServeArg delegates to internal/rpi.ClassifyServeArg.
 func classifyServeArg(flagRunID string, args []string) (goal, runID string) {
-	if tok := strings.TrimSpace(flagRunID); tok != "" {
-		if rpiRunIDPattern.MatchString(tok) {
-			return "", tok
-		}
-		return tok, ""
-	}
-	if len(args) > 0 {
-		tok := strings.TrimSpace(args[0])
-		if rpiRunIDPattern.MatchString(tok) {
-			return "", tok
-		}
-		return tok, ""
-	}
-	return "", ""
+	return cliRPI.ClassifyServeArg(flagRunID, args)
 }
 
 func validateExplicitServeRunID(flagRunID string) (string, error) {
-	tok := strings.TrimSpace(flagRunID)
-	if tok == "" {
-		return "", nil
-	}
-	if !rpiRunIDPattern.MatchString(tok) {
-		return "", fmt.Errorf("invalid --run-id %q: expected rpi-<8-12 hex> or <12 hex>", tok)
-	}
-	return tok, nil
+	return cliRPI.ValidateExplicitServeRunID(flagRunID)
 }
 
 func init() {
@@ -412,17 +389,7 @@ func sortServeRuns(runs []rpiRunInfo) {
 }
 
 func parseServeRunTime(raw string) time.Time {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return time.Time{}
-	}
-	if ts, err := time.Parse(time.RFC3339Nano, raw); err == nil {
-		return ts
-	}
-	if ts, err := time.Parse(time.RFC3339, raw); err == nil {
-		return ts
-	}
-	return time.Time{}
+	return cliRPI.ParseServeRunTime(raw)
 }
 
 func resolveServeRun(root, runID string) (*phasedState, string) {
@@ -687,17 +654,9 @@ func setCORSHeaders(w http.ResponseWriter, r ...*http.Request) {
 	w.Header().Set("Access-Control-Max-Age", "86400")
 }
 
-// isLocalhostOrigin returns true if the origin is a localhost URL.
+// isLocalhostOrigin delegates to internal/rpi.IsLocalhostOrigin.
 func isLocalhostOrigin(origin string) bool {
-	u, err := url.Parse(origin)
-	if err != nil {
-		return false
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return false
-	}
-	host := u.Hostname()
-	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+	return cliRPI.IsLocalhostOrigin(origin)
 }
 
 // openBrowserURL opens url in the default system browser.

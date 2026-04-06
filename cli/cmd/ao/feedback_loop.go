@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -87,14 +87,9 @@ func init() {
 }
 
 // annealedAlpha computes a decaying learning rate.
-// Starts at 3*baseAlpha for new learnings, decays toward baseAlpha/10 floor.
+// Delegates to lifecycle.AnnealedAlpha.
 func annealedAlpha(baseAlpha float64, citationCount int) float64 {
-	alpha := (baseAlpha * 3.0) * math.Exp(-float64(citationCount)*0.1)
-	floor := baseAlpha / 10.0
-	if alpha < floor {
-		return floor
-	}
-	return alpha
+	return lifecycle.AnnealedAlpha(baseAlpha, citationCount)
 }
 
 // getLearningRewardCount reads the reward_count from a learning file.
