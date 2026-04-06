@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/boshu2/agentops/cli/embedded"
+	"github.com/boshu2/agentops/cli/internal/bridge"
 	"github.com/spf13/cobra"
 )
 
@@ -22,57 +23,28 @@ var (
 	hooksSourceDir    string
 )
 
-// HookEntry represents a single hook command (e.g., {"type": "command", "command": "..."}).
-type HookEntry struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
-}
+// HookEntry is a type alias for bridge.HookEntry.
+type HookEntry = bridge.HookEntry
 
-// HookGroup represents a hook group with optional matcher and a hooks array.
-// Hook manifest format: {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "..."}]}
-type HookGroup struct {
-	Matcher string      `json:"matcher,omitempty"`
-	Hooks   []HookEntry `json:"hooks"`
-}
+// HookGroup is a type alias for bridge.HookGroup.
+type HookGroup = bridge.HookGroup
 
 // AllEventNames returns all 12 hook event names in canonical order.
 // These map to Claude Code events. Codex uses a skill-driven lifecycle instead.
 // See docs/contracts/hook-runtime-contract.md for the cross-runtime mapping.
 func AllEventNames() []string {
-	return []string{
-		"SessionStart", "SessionEnd",
-		"PreToolUse", "PostToolUse",
-		"UserPromptSubmit", "TaskCompleted",
-		"Stop", "PreCompact",
-		"SubagentStop", "WorktreeCreate",
-		"WorktreeRemove", "ConfigChange",
-	}
+	return bridge.AllEventNames()
 }
 
 // hookCoverageContract describes the active coverage contract for runtime checks.
-// Active events are derived from hooks.json when available.
-type hookCoverageContract struct {
-	ActiveEvents   []string
-	FallbackReason string
-}
+type hookCoverageContract = bridge.HookCoverageContract
 
 func fallbackHookCoverageContract(reason string) hookCoverageContract {
-	events := append([]string(nil), AllEventNames()...)
-	return hookCoverageContract{
-		ActiveEvents:   events,
-		FallbackReason: reason,
-	}
+	return bridge.FallbackHookCoverageContract(reason)
 }
 
 func activeEventNamesFromConfig(config *HooksConfig) []string {
-	active := make([]string, 0)
-	for _, event := range AllEventNames() {
-		if len(config.GetEventGroups(event)) > 0 {
-			active = append(active, event)
-		}
-	}
-	return active
+	return bridge.ActiveEventNamesFromConfig(config)
 }
 
 func resolveHookCoverageContract() hookCoverageContract {
@@ -94,42 +66,15 @@ func resolveHookCoverageContract() hookCoverageContract {
 }
 
 func countInstalledEventsForList(hooksMap map[string]any, events []string) int {
-	installed := 0
-	for _, event := range events {
-		if groups, ok := hooksMap[event].([]any); ok && len(groups) > 0 {
-			installed++
-		}
-	}
-	return installed
+	return bridge.CountInstalledEventsForList(hooksMap, events)
 }
 
 func collectLegacyAoManagedEvents(hooksMap map[string]any, activeEvents []string) []string {
-	activeSet := make(map[string]struct{}, len(activeEvents))
-	for _, event := range activeEvents {
-		activeSet[event] = struct{}{}
-	}
-
-	legacyEvents := make([]string, 0)
-	for _, event := range AllEventNames() {
-		if _, ok := activeSet[event]; ok {
-			continue
-		}
-		if hookGroupContainsAo(hooksMap, event) {
-			legacyEvents = append(legacyEvents, event)
-		}
-	}
-	return legacyEvents
+	return bridge.CollectLegacyAoManagedEvents(hooksMap, activeEvents)
 }
 
 func formatLegacyPreservationReport(legacyEvents []string) string {
-	if len(legacyEvents) == 0 {
-		return ""
-	}
-	return fmt.Sprintf(
-		"Preserved legacy ao-managed hooks outside active contract (%d): %s",
-		len(legacyEvents),
-		strings.Join(legacyEvents, ", "),
-	)
+	return bridge.FormatLegacyPreservationReport(legacyEvents)
 }
 
 func printLegacyPreservationReport(legacyEvents []string) {
@@ -140,65 +85,8 @@ func printLegacyPreservationReport(legacyEvents []string) {
 	fmt.Println(msg)
 }
 
-// HooksConfig represents the hooks section of Claude settings.
-// Supports all 12 hook events (Claude Code runtime).
-type HooksConfig struct {
-	SessionStart     []HookGroup `json:"SessionStart,omitempty"`
-	SessionEnd       []HookGroup `json:"SessionEnd,omitempty"`
-	PreToolUse       []HookGroup `json:"PreToolUse,omitempty"`
-	PostToolUse      []HookGroup `json:"PostToolUse,omitempty"`
-	UserPromptSubmit []HookGroup `json:"UserPromptSubmit,omitempty"`
-	TaskCompleted    []HookGroup `json:"TaskCompleted,omitempty"`
-	Stop             []HookGroup `json:"Stop,omitempty"`
-	PreCompact       []HookGroup `json:"PreCompact,omitempty"`
-	SubagentStop     []HookGroup `json:"SubagentStop,omitempty"`
-	WorktreeCreate   []HookGroup `json:"WorktreeCreate,omitempty"`
-	WorktreeRemove   []HookGroup `json:"WorktreeRemove,omitempty"`
-	ConfigChange     []HookGroup `json:"ConfigChange,omitempty"`
-}
-
-// eventGroupPtrs returns a map from event name to a pointer to the corresponding
-// []HookGroup field. Used by GetEventGroups and SetEventGroups.
-func (c *HooksConfig) eventGroupPtrs() map[string]*[]HookGroup {
-	return map[string]*[]HookGroup{
-		"SessionStart":     &c.SessionStart,
-		"SessionEnd":       &c.SessionEnd,
-		"PreToolUse":       &c.PreToolUse,
-		"PostToolUse":      &c.PostToolUse,
-		"UserPromptSubmit": &c.UserPromptSubmit,
-		"TaskCompleted":    &c.TaskCompleted,
-		"Stop":             &c.Stop,
-		"PreCompact":       &c.PreCompact,
-		"SubagentStop":     &c.SubagentStop,
-		"WorktreeCreate":   &c.WorktreeCreate,
-		"WorktreeRemove":   &c.WorktreeRemove,
-		"ConfigChange":     &c.ConfigChange,
-	}
-}
-
-// eventGroupPtr returns a pointer to the []HookGroup field for the given event name,
-// or nil if the event is unknown.
-func (c *HooksConfig) eventGroupPtr(event string) *[]HookGroup {
-	return c.eventGroupPtrs()[event]
-}
-
-// GetEventGroups returns the hook groups for a given event name.
-func (c *HooksConfig) GetEventGroups(event string) []HookGroup {
-	ptr := c.eventGroupPtr(event)
-	if ptr == nil {
-		return nil
-	}
-	return *ptr
-}
-
-// SetEventGroups sets the hook groups for a given event name.
-func (c *HooksConfig) SetEventGroups(event string, groups []HookGroup) {
-	ptr := c.eventGroupPtr(event)
-	if ptr == nil {
-		return
-	}
-	*ptr = groups
-}
+// HooksConfig is a type alias for bridge.HooksConfig.
+type HooksConfig = bridge.HooksConfig
 
 // ClaudeSettings represents the Claude Code settings.json structure.
 type ClaudeSettings struct {
@@ -311,22 +199,9 @@ func init() {
 	hooksTestCmd.Flags().BoolVar(&hooksDryRun, "dry-run", false, "Show test steps without running hooks")
 }
 
-// hooksManifest wraps the hooks.json file format which has a top-level "hooks" key.
-type hooksManifest struct {
-	Hooks *HooksConfig `json:"hooks"`
-}
-
 // ReadHooksManifest parses a hooks.json manifest from raw bytes.
-// The manifest wraps events in a top-level "hooks" key and may contain a "$schema" key.
 func ReadHooksManifest(data []byte) (*HooksConfig, error) {
-	var manifest hooksManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("parse hooks manifest: %w", err)
-	}
-	if manifest.Hooks == nil {
-		return nil, fmt.Errorf("hooks manifest missing 'hooks' key")
-	}
-	return manifest.Hooks, nil
+	return bridge.ReadHooksManifest(data)
 }
 
 // findHooksManifest searches for hooks.json in known locations.
@@ -368,49 +243,13 @@ func findHooksManifest() ([]byte, error) {
 }
 
 // replacePluginRoot replaces ${CLAUDE_PLUGIN_ROOT} in command strings with the given base path.
-// If basePath is empty, the placeholder is removed (leaving commands that reference scripts broken
-// until --full resolves them with absolute paths).
 func replacePluginRoot(config *HooksConfig, basePath string) {
-	for _, event := range AllEventNames() {
-		groups := config.GetEventGroups(event)
-		for i := range groups {
-			for j := range groups[i].Hooks {
-				groups[i].Hooks[j].Command = strings.ReplaceAll(
-					groups[i].Hooks[j].Command,
-					"${CLAUDE_PLUGIN_ROOT}",
-					basePath,
-				)
-			}
-		}
-	}
+	bridge.ReplacePluginRoot(config, basePath)
 }
 
 // generateMinimalHooksConfig returns the bare-minimum flywheel config (SessionStart + SessionEnd + Stop).
-// Uses script-based commands matching the full mode pattern for consistency.
 func generateMinimalHooksConfig() *HooksConfig {
-	return &HooksConfig{
-		SessionStart: []HookGroup{
-			{
-				Hooks: []HookEntry{
-					{Type: "command", Command: "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"},
-				},
-			},
-		},
-		SessionEnd: []HookGroup{
-			{
-				Hooks: []HookEntry{
-					{Type: "command", Command: "${CLAUDE_PLUGIN_ROOT}/hooks/session-end-maintenance.sh", Timeout: 35},
-				},
-			},
-		},
-		Stop: []HookGroup{
-			{
-				Hooks: []HookEntry{
-					{Type: "command", Command: "${CLAUDE_PLUGIN_ROOT}/hooks/ao-flywheel-close.sh", Timeout: 15},
-				},
-			},
-		},
-	}
+	return bridge.GenerateMinimalHooksConfig()
 }
 
 // generateFullHooksConfig attempts to load the full hooks configuration from hooks.json
@@ -1001,57 +840,20 @@ func runHooksShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// rawGroupIsAoManaged checks whether a single raw hook group (map[string]any) contains
-// an ao-managed command. Handles both new format (hooks array) and legacy format
-// (top-level command array).
 func rawGroupIsAoManaged(group map[string]any) bool {
-	return rawGroupHooksContainAo(group) || rawGroupLegacyContainsAo(group)
+	return bridge.RawGroupIsAoManaged(group)
 }
 
-// rawGroupHooksContainAo checks the new-format hooks array for ao commands.
 func rawGroupHooksContainAo(group map[string]any) bool {
-	hooks, ok := group["hooks"].([]any)
-	if !ok {
-		return false
-	}
-	for _, h := range hooks {
-		hook, ok := h.(map[string]any)
-		if !ok {
-			continue
-		}
-		if cmd, ok := hook["command"].(string); ok && isAoManagedHookCommand(cmd) {
-			return true
-		}
-	}
-	return false
+	return bridge.RawGroupHooksContainAo(group)
 }
 
-// rawGroupLegacyContainsAo checks the legacy-format top-level command array for ao commands.
 func rawGroupLegacyContainsAo(group map[string]any) bool {
-	cmd, ok := group["command"].([]any)
-	if !ok || len(cmd) <= 1 {
-		return false
-	}
-	cmdStr, ok := cmd[1].(string)
-	return ok && isAoManagedHookCommand(cmdStr)
+	return bridge.RawGroupLegacyContainsAo(group)
 }
 
-// hookGroupContainsAo checks if any hook group in the given event contains an ao command.
 func hookGroupContainsAo(hooksMap map[string]any, event string) bool {
-	groups, ok := hooksMap[event].([]any)
-	if !ok {
-		return false
-	}
-	for _, g := range groups {
-		group, ok := g.(map[string]any)
-		if !ok {
-			continue
-		}
-		if rawGroupIsAoManaged(group) {
-			return true
-		}
-	}
-	return false
+	return bridge.HookGroupContainsAo(hooksMap, event)
 }
 
 // filterNonAoHookGroups returns hook groups that don't contain ao commands.
@@ -1066,7 +868,7 @@ func filterNonAoHookGroups(hooksMap map[string]any, event string) []map[string]a
 		if !ok {
 			continue
 		}
-		if !rawGroupIsAoManaged(group) {
+		if !bridge.RawGroupIsAoManaged(group) {
 			result = append(result, group)
 		}
 	}
@@ -1074,35 +876,12 @@ func filterNonAoHookGroups(hooksMap map[string]any, event string) []map[string]a
 }
 
 func isAoManagedHookCommand(cmd string) bool {
-	if strings.Contains(cmd, "ao ") {
-		return true
-	}
-
-	// Installed scripts live under ~/.agentops/hooks/*.sh and should be treated as ao-managed.
-	normalized := filepath.ToSlash(cmd)
-	return strings.Contains(normalized, "/.agentops/hooks/")
+	return bridge.IsAoManagedHookCommand(cmd)
 }
 
 // hookGroupToMap converts a HookGroup to a map for JSON serialization.
 func hookGroupToMap(g HookGroup) map[string]any {
-	hooks := make([]map[string]any, len(g.Hooks))
-	for i, h := range g.Hooks {
-		entry := map[string]any{
-			"type":    h.Type,
-			"command": h.Command,
-		}
-		if h.Timeout > 0 {
-			entry["timeout"] = h.Timeout
-		}
-		hooks[i] = entry
-	}
-	result := map[string]any{
-		"hooks": hooks,
-	}
-	if g.Matcher != "" {
-		result["matcher"] = g.Matcher
-	}
-	return result
+	return bridge.HookGroupToMap(g)
 }
 
 func runAoPathTest(testNum int, allPassed *bool) {

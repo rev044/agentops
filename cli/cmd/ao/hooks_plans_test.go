@@ -618,16 +618,19 @@ func TestHooksPlans_countInstalledHookEvents(t *testing.T) {
 
 func TestHooksPlans_eventGroupPtrs(t *testing.T) {
 	config := &HooksConfig{}
-	ptrs := config.eventGroupPtrs()
 
-	if len(ptrs) != 12 {
-		t.Fatalf("expected 12 event pointers, got %d", len(ptrs))
+	// Verify all 12 canonical event names are addressable via GetEventGroups/SetEventGroups
+	events := AllEventNames()
+	if len(events) != 12 {
+		t.Fatalf("expected 12 event names, got %d", len(events))
 	}
 
-	// Verify all canonical event names have entries
-	for _, event := range AllEventNames() {
-		if _, ok := ptrs[event]; !ok {
-			t.Errorf("missing pointer for event %q", event)
+	for _, event := range events {
+		// SetEventGroups should accept the event without panicking
+		config.SetEventGroups(event, []HookGroup{{Hooks: []HookEntry{{Type: "command", Command: "test"}}}})
+		groups := config.GetEventGroups(event)
+		if len(groups) != 1 {
+			t.Errorf("event %q: expected 1 group after set, got %d", event, len(groups))
 		}
 	}
 }
@@ -635,16 +638,17 @@ func TestHooksPlans_eventGroupPtrs(t *testing.T) {
 func TestHooksPlans_eventGroupPtr(t *testing.T) {
 	config := &HooksConfig{}
 
-	// Known event
-	ptr := config.eventGroupPtr("SessionStart")
-	if ptr == nil {
-		t.Error("expected non-nil pointer for SessionStart")
+	// Known event — GetEventGroups should return a non-nil (possibly empty) slice after Set
+	config.SetEventGroups("SessionStart", []HookGroup{{Hooks: []HookEntry{{Type: "command", Command: "test"}}}})
+	groups := config.GetEventGroups("SessionStart")
+	if len(groups) != 1 {
+		t.Errorf("expected 1 group for SessionStart, got %d", len(groups))
 	}
 
-	// Unknown event
-	ptr = config.eventGroupPtr("UnknownEvent")
-	if ptr != nil {
-		t.Error("expected nil pointer for unknown event")
+	// Unknown event — GetEventGroups should return nil
+	groups = config.GetEventGroups("UnknownEvent")
+	if groups != nil {
+		t.Error("expected nil for unknown event")
 	}
 }
 

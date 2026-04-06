@@ -22,15 +22,10 @@ import (
 
 func TestHooksEventCountMatchesCode(t *testing.T) {
 	// AllEventNames() claims 12 events in the doc comment.
-	// HooksConfig has one field per event.
-	// eventGroupPtrs() returns a map with one entry per field.
-	// All three must agree.
+	// HooksConfig has one field per event accessible via Get/SetEventGroups.
+	// All must agree.
 
 	events := AllEventNames()
-
-	// Build a HooksConfig so we can count fields via eventGroupPtrs.
-	config := &HooksConfig{}
-	ptrs := config.eventGroupPtrs()
 
 	// 1. Comment says 12
 	const commentedCount = 12
@@ -38,30 +33,23 @@ func TestHooksEventCountMatchesCode(t *testing.T) {
 		t.Errorf("AllEventNames() returns %d events, but comment claims %d", len(events), commentedCount)
 	}
 
-	// 2. eventGroupPtrs must have exactly len(events) entries.
-	if len(ptrs) != len(events) {
-		t.Errorf("eventGroupPtrs has %d entries, AllEventNames has %d", len(ptrs), len(events))
-	}
-
-	// 3. Every name from AllEventNames must appear as a key in eventGroupPtrs.
+	// 2. Every event from AllEventNames must be addressable via SetEventGroups/GetEventGroups.
+	config := &HooksConfig{}
+	addressable := 0
 	for _, name := range events {
-		if _, ok := ptrs[name]; !ok {
-			t.Errorf("event %q in AllEventNames but missing from eventGroupPtrs", name)
+		config.SetEventGroups(name, []HookGroup{{Hooks: []HookEntry{{Type: "command", Command: "test"}}}})
+		groups := config.GetEventGroups(name)
+		if len(groups) == 1 {
+			addressable++
+		} else {
+			t.Errorf("event %q not addressable via Get/SetEventGroups", name)
 		}
 	}
-
-	// 4. Every key in eventGroupPtrs must appear in AllEventNames.
-	eventSet := make(map[string]bool, len(events))
-	for _, name := range events {
-		eventSet[name] = true
-	}
-	for name := range ptrs {
-		if !eventSet[name] {
-			t.Errorf("event %q in eventGroupPtrs but missing from AllEventNames", name)
-		}
+	if addressable != len(events) {
+		t.Errorf("addressable events %d != AllEventNames %d", addressable, len(events))
 	}
 
-	// 5. HooksConfig struct field count (exported, non-empty json tag) must match.
+	// 3. HooksConfig struct field count (exported, non-empty json tag) must match.
 	rt := reflect.TypeOf(HooksConfig{})
 	hookFieldCount := 0
 	for i := range rt.NumField() {

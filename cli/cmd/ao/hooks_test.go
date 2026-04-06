@@ -792,13 +792,16 @@ func TestHooksCommand_TestDryRun(t *testing.T) {
 
 func TestHooksCoverage_eventGroupPtrs_ReturnsAllEvents(t *testing.T) {
 	config := &HooksConfig{}
-	ptrs := config.eventGroupPtrs()
-	if len(ptrs) != 12 {
-		t.Errorf("expected 12 event pointers, got %d", len(ptrs))
+	// Verify all 12 canonical events are addressable via the public API
+	events := AllEventNames()
+	if len(events) != 12 {
+		t.Errorf("expected 12 event names, got %d", len(events))
 	}
-	for _, event := range AllEventNames() {
-		if _, ok := ptrs[event]; !ok {
-			t.Errorf("missing event pointer for %s", event)
+	for _, event := range events {
+		config.SetEventGroups(event, []HookGroup{{Hooks: []HookEntry{{Type: "command", Command: "test"}}}})
+		groups := config.GetEventGroups(event)
+		if len(groups) != 1 {
+			t.Errorf("event %q: expected 1 group after set, got %d", event, len(groups))
 		}
 	}
 }
@@ -2537,15 +2540,15 @@ func TestHooksCoverage_HooksConfig_JSONRoundTrip(t *testing.T) {
 
 func TestHooksCoverage_hooksManifest_Unmarshal(t *testing.T) {
 	data := []byte(`{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "test"}]}]}}`)
-	var m hooksManifest
-	if err := json.Unmarshal(data, &m); err != nil {
+	config, err := ReadHooksManifest(data)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Hooks == nil {
-		t.Fatal("expected non-nil Hooks")
+	if config == nil {
+		t.Fatal("expected non-nil config")
 	}
-	if len(m.Hooks.SessionStart) != 1 {
-		t.Errorf("expected 1 SessionStart group, got %d", len(m.Hooks.SessionStart))
+	if len(config.SessionStart) != 1 {
+		t.Errorf("expected 1 SessionStart group, got %d", len(config.SessionStart))
 	}
 }
 

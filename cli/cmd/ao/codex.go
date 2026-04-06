@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/bridge"
 	"github.com/boshu2/agentops/cli/internal/pool"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/storage"
@@ -512,25 +513,12 @@ func codexStopAlreadyClosed(state *codexLifecycleState, sessionID, transcriptPat
 	if state == nil || state.LastStop == nil {
 		return false
 	}
-
-	lastSessionID := strings.TrimSpace(state.LastStop.SessionID)
-	lastTranscript := normalizeCodexLifecyclePath(state.LastStop.TranscriptPath)
-	currentTranscript := normalizeCodexLifecyclePath(transcriptPath)
-
-	if currentTranscript != "" && lastTranscript != "" {
-		if currentTranscript != lastTranscript {
-			return false
-		}
-		if sessionID != "" && lastSessionID != "" && strings.TrimSpace(sessionID) != lastSessionID {
-			return false
-		}
-		return true
-	}
-
-	if sessionID == "" || lastSessionID == "" {
-		return false
-	}
-	return strings.TrimSpace(sessionID) == lastSessionID
+	return bridge.CodexStopAlreadyClosed(
+		state.LastStop.SessionID,
+		state.LastStop.TranscriptPath,
+		sessionID,
+		transcriptPath,
+	)
 }
 
 func buildCodexStopAlreadyClosedResult(profile lifecycleRuntimeProfile, state *codexLifecycleState, statePath, sessionID, transcriptPath, transcriptSource string, syntheticTranscript bool) codexStopResult {
@@ -564,10 +552,7 @@ func buildCodexStopAlreadyClosedResult(profile lifecycleRuntimeProfile, state *c
 }
 
 func ensureStopReason(result codexStopResult) string {
-	if result.Session.Status == "already_closed" {
-		return "closeout already recorded for this Codex thread"
-	}
-	return "closeout recorded for current Codex thread"
+	return bridge.EnsureStopReason(result.Session.Status)
 }
 
 func runCodexStatus(cmd *cobra.Command, args []string) error {
@@ -742,23 +727,11 @@ func codexLifecycleStatePath(cwd string) string {
 }
 
 func normalizeCodexLifecyclePath(path string) string {
-	trimmed := strings.TrimSpace(path)
-	if trimmed == "" {
-		return ""
-	}
-	if abs, err := filepath.Abs(trimmed); err == nil {
-		return filepath.Clean(abs)
-	}
-	return filepath.Clean(trimmed)
+	return bridge.NormalizeCodexLifecyclePath(path)
 }
 
 func firstNonEmptyTrimmed(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
+	return bridge.FirstNonEmptyTrimmed(values...)
 }
 
 func firstNonEmptyLifecycleField(state *codexLifecycleState, getter func(*codexLifecycleEvent) string) string {

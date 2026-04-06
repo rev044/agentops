@@ -2102,21 +2102,23 @@ func TestHooks_AllEventNames_Count(t *testing.T) {
 
 func TestHooks_EventGroupPtrs_AllMapped(t *testing.T) {
 	config := &HooksConfig{}
-	ptrs := config.eventGroupPtrs()
-	for _, event := range AllEventNames() {
-		if _, ok := ptrs[event]; !ok {
-			t.Errorf("event %s not mapped in eventGroupPtrs", event)
+	events := AllEventNames()
+	for _, event := range events {
+		config.SetEventGroups(event, []HookGroup{{Hooks: []HookEntry{{Type: "command", Command: "test"}}}})
+		groups := config.GetEventGroups(event)
+		if len(groups) != 1 {
+			t.Errorf("event %s: expected 1 group after set, got %d", event, len(groups))
 		}
 	}
-	if len(ptrs) != 12 {
-		t.Errorf("expected 12 event pointers, got %d", len(ptrs))
+	if len(events) != 12 {
+		t.Errorf("expected 12 events, got %d", len(events))
 	}
 }
 
 func TestHooks_EventGroupPtr_UnknownEvent(t *testing.T) {
 	config := &HooksConfig{}
-	ptr := config.eventGroupPtr("Nonexistent")
-	if ptr != nil {
+	groups := config.GetEventGroups("Nonexistent")
+	if groups != nil {
 		t.Error("expected nil for unknown event")
 	}
 }
