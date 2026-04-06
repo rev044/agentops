@@ -34,7 +34,13 @@ POST_MORTEM_SKILL="$ROOT/skills/post-mortem/SKILL.md"
 POST_MORTEM_CODEX_SKILL="$ROOT/skills-codex/post-mortem/SKILL.md"
 PHASE_CONTRACT="$ROOT/skills/rpi/references/phase-data-contracts.md"
 GATE4="$ROOT/skills/rpi/references/gate4-loop-and-spawn.md"
-RUNTIME="$ROOT/cli/cmd/ao/rpi_loop.go"
+RUNTIME="$(mktemp -t nextwork-runtime.XXXXXX)"
+trap 'rm -f "$RUNTIME"' EXIT
+cat \
+  "$ROOT/cli/internal/rpi/types.go" \
+  "$ROOT/cli/internal/rpi/helpers.go" \
+  "$ROOT/cli/cmd/ao/rpi_loop.go" \
+  > "$RUNTIME" 2>/dev/null || true
 SMOKE="$ROOT/tests/smoke-test.sh"
 
 failures=0

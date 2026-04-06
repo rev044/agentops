@@ -60,7 +60,7 @@ func WorkTypeRank(item NextWorkItem) int {
 	}
 }
 
-// NormalizeClaimStatus keeps omitted item claim_status semantically
+// NormalizeClaimStatus keeps omitted item `claim_status` semantically
 // equivalent to available unless the item is already consumed.
 func NormalizeClaimStatus(consumed bool, claimStatus string) string {
 	switch claimStatus {
