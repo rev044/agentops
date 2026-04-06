@@ -12,12 +12,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/rpi"
 	"github.com/spf13/cobra"
 )
 
@@ -50,28 +50,38 @@ var (
 	rpiBDSyncPolicy          string
 	rpiCommandTimeout        time.Duration
 	rpiKillSwitchPath        string
-	rpiCompile                bool
-	rpiCompileInterval        time.Duration
-	rpiCompileSince           string
-	rpiCompileDefrag          bool
+	rpiCompile               bool
+	rpiCompileInterval       time.Duration
+	rpiCompileSince          string
+	rpiCompileDefrag         bool
 )
 
-var errQueueClaimConflict = errors.New("next-work item no longer available for this consumer")
+// Type aliases — canonical definitions live in internal/rpi.
+type (
+	nextWorkEntry              = rpi.NextWorkEntry
+	nextWorkProofRef           = rpi.NextWorkProofRef
+	nextWorkItem               = rpi.NextWorkItem
+	queueSelection             = rpi.QueueSelection
+	queuePreflightDecision     = rpi.QueuePreflightDecision
+	nextWorkProofDecision      = rpi.NextWorkProofDecision
+	evidenceOnlyClosureProof   = rpi.EvidenceOnlyClosureProof
+	evidenceOnlyClosurePacket  = rpi.EvidenceOnlyClosurePacket
+	loopCycleResult            = rpi.LoopCycleResult
+	compileProducerState       = rpi.CompileProducerState
+)
 
-type queuePreflightDecision struct {
-	Consume bool
-	Reason  string
-}
+var errQueueClaimConflict = rpi.ErrQueueClaimConflict
 
-type nextWorkProofDecision struct {
-	Complete bool
-	Source   string
-	Detail   string
-}
+// Loop control constants — canonical definitions live in internal/rpi.
+var (
+	loopContinue = rpi.LoopContinue
+	loopBreak    = rpi.LoopBreak
+	loopReturn   = rpi.LoopReturn
+)
 
 var (
-	queueProofTargetPattern     = regexp.MustCompile(`\b[A-Za-z][A-Za-z0-9]*-[A-Za-z0-9][A-Za-z0-9-]*(?:\.[0-9]+)?\b`)
-	queueProofPacketPathPattern = regexp.MustCompile(`\.agents/(?:releases|council)/evidence-only-closures/([^/\s]+)\.json`)
+	queueProofTargetPattern     = rpi.QueueProofTargetPattern
+	queueProofPacketPathPattern = rpi.QueueProofPacketPathPattern
 	preflightQueueSelectionFn   = preflightQueueSelection
 	queuePreflightConsumedBy    = "ao-rpi-loop:preflight"
 )
@@ -144,71 +154,9 @@ Examples:
 	rpiCmd.AddCommand(loopCmd)
 }
 
-// nextWorkEntry represents one line in next-work.jsonl.
-type nextWorkEntry struct {
-	SourceEpic  string         `json:"source_epic"`
-	Timestamp   string         `json:"timestamp"`
-	Items       []nextWorkItem `json:"items,omitempty"`
-	Consumed    bool           `json:"consumed"`
-	ClaimStatus string         `json:"claim_status,omitempty"`
-	ClaimedBy   *string        `json:"claimed_by,omitempty"`
-	ClaimedAt   *string        `json:"claimed_at,omitempty"`
-	ConsumedBy  *string        `json:"consumed_by"`
-	ConsumedAt  *string        `json:"consumed_at"`
-	FailedAt            *string `json:"failed_at,omitempty"`
-	CompletionEvidence  string  `json:"completion_evidence,omitempty"`  // proof-backed: "bead_closed", "commit_ref", "evidence_packet"
-	CompletionEvidenceAt *string `json:"completion_evidence_at,omitempty"`
-	LegacyID            string  `json:"id,omitempty"`
-	CreatedAt   string         `json:"created_at,omitempty"`
-	Title       string         `json:"title,omitempty"`
-	Type        string         `json:"type,omitempty"`
-	Severity    string         `json:"severity,omitempty"`
-	Source      string         `json:"source,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Evidence    string         `json:"evidence,omitempty"`
-	TargetRepo  string         `json:"target_repo,omitempty"`
-	QueueIndex  int            `json:"-"`
-}
-
-type nextWorkProofRef struct {
-	Kind     string `json:"kind"`
-	TargetID string `json:"target_id,omitempty"`
-	RunID    string `json:"run_id,omitempty"`
-	Path     string `json:"path,omitempty"`
-}
-
-// nextWorkItem represents a single harvested work item.
-type nextWorkItem struct {
-	Title       string            `json:"title"`
-	Type        string            `json:"type"`
-	Severity    string            `json:"severity"`
-	Source      string            `json:"source"`
-	Description string            `json:"description"`
-	Evidence    string            `json:"evidence,omitempty"`
-	TargetRepo  string            `json:"target_repo,omitempty"`
-	ProofRef    *nextWorkProofRef `json:"proof_ref,omitempty"`
-	Consumed    bool              `json:"consumed,omitempty"`
-	ClaimStatus string            `json:"claim_status,omitempty"`
-	ClaimedBy   *string           `json:"claimed_by,omitempty"`
-	ClaimedAt   *string           `json:"claimed_at,omitempty"`
-	ConsumedBy  *string           `json:"consumed_by,omitempty"`
-	ConsumedAt  *string           `json:"consumed_at,omitempty"`
-	FailedAt    *string           `json:"failed_at,omitempty"`
-}
-
-// queueSelection holds the selected item together with its source entry index
-// so the caller can mark the correct entry consumed/failed.
-type queueSelection struct {
-	Item       nextWorkItem
-	EntryIndex int // 0-based index among parseable JSON entries in next-work.jsonl
-	ItemIndex  int // index of the selected item within the entry
-	SourceEpic string
-	ClaimedBy  string
-}
-
 var (
-	runRPISupervisedCycleFn func(context.Context, string, string, int, int, rpiLoopSupervisorConfig) error = runRPISupervisedCycle
-	runCompileProducerTickFn = runCompileProducerTick
+	runRPISupervisedCycleFn  func(context.Context, string, string, int, int, rpiLoopSupervisorConfig) error = runRPISupervisedCycle
+	runCompileProducerTickFn                                                                                = runCompileProducerTick
 )
 
 func runRPILoop(cmd *cobra.Command, args []string) error {
@@ -247,15 +195,6 @@ func runRPILoop(cmd *cobra.Command, args []string) error {
 
 	return executeLoopCycles(cwd, explicitGoal, nextWorkPath, cfg)
 }
-
-// loopCycleResult signals the loop iteration outcome.
-type loopCycleResult int
-
-const (
-	loopContinue loopCycleResult = iota
-	loopBreak
-	loopReturn
-)
 
 // errKillSwitchActivated is a sentinel returned when the kill switch fires
 // during cycle retries, signaling a clean early exit without queue mutation.
@@ -311,10 +250,6 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 
 	fmt.Printf("\nRPI loop finished after %d cycle(s).\n", executedCycles)
 	return nil
-}
-
-type compileProducerState struct {
-	LastTick time.Time
 }
 
 func maybeRunCompileProducerCadence(cwd, explicitGoal string, cfg rpiLoopSupervisorConfig, state *compileProducerState) error {
@@ -582,19 +517,6 @@ func findCompletedRunForQueueSelection(cwd string, sel *queueSelection) *rpiRunI
 	return best
 }
 
-type evidenceOnlyClosureProof struct {
-	TargetID   string
-	PacketPath string
-}
-
-type evidenceOnlyClosurePacket struct {
-	TargetID     string `json:"target_id"`
-	EvidenceMode string `json:"evidence_mode"`
-	Evidence     struct {
-		Artifacts []string `json:"artifacts"`
-	} `json:"evidence"`
-}
-
 func findEvidenceOnlyClosureProofForQueueSelection(cwd string, sel *queueSelection) *evidenceOnlyClosureProof {
 	if sel == nil {
 		return nil
@@ -618,46 +540,8 @@ func findEvidenceOnlyClosureProofByTarget(cwd, targetID string) *evidenceOnlyClo
 	return nil
 }
 
-func queueProofTargetIDs(sel *queueSelection) []string {
-	if sel == nil {
-		return nil
-	}
-
-	texts := []string{
-		strings.TrimSpace(sel.SourceEpic),
-		strings.TrimSpace(sel.Item.Title),
-		strings.TrimSpace(sel.Item.Description),
-		strings.TrimSpace(sel.Item.Evidence),
-	}
-
-	candidates := make([]string, 0, len(texts))
-	seen := make(map[string]struct{}, 8)
-	add := func(value string) {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			return
-		}
-		if _, ok := seen[value]; ok {
-			return
-		}
-		seen[value] = struct{}{}
-		candidates = append(candidates, value)
-	}
-
-	add(sel.SourceEpic)
-	for _, text := range texts[1:] {
-		for _, match := range queueProofPacketPathPattern.FindAllStringSubmatch(text, -1) {
-			if len(match) >= 2 {
-				add(match[1])
-			}
-		}
-		for _, match := range queueProofTargetPattern.FindAllString(text, -1) {
-			add(match)
-		}
-	}
-
-	return candidates
-}
+// Thin wrappers delegating to internal/rpi pure functions.
+func queueProofTargetIDs(sel *queueSelection) []string { return rpi.QueueProofTargetIDs(sel) }
 
 func findValidEvidenceOnlyClosurePacket(cwd, targetID string) (string, bool) {
 	if strings.TrimSpace(targetID) == "" {
@@ -928,99 +812,34 @@ func readQueueEntries(path string) ([]nextWorkEntry, error) {
 	return entries, scanner.Err()
 }
 
+// Thin wrappers delegating pure logic to internal/rpi.
+
 func parseNextWorkEntryLine(line string) (nextWorkEntry, error) {
-	var entry nextWorkEntry
-	if err := json.Unmarshal([]byte(line), &entry); err != nil {
-		return nextWorkEntry{}, err
-	}
-
-	if entry.Timestamp == "" && entry.CreatedAt != "" {
-		entry.Timestamp = entry.CreatedAt
-	}
-
-	if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(entry) {
-		entry.Items = []nextWorkItem{{
-			Title:       entry.Title,
-			Type:        entry.Type,
-			Severity:    entry.Severity,
-			Source:      entry.Source,
-			Description: entry.Description,
-			Evidence:    entry.Evidence,
-			TargetRepo:  entry.TargetRepo,
-			Consumed:    entry.Consumed,
-			ClaimStatus: normalizeClaimStatus(entry.Consumed, entry.ClaimStatus),
-			ClaimedBy:   entry.ClaimedBy,
-			ClaimedAt:   entry.ClaimedAt,
-			ConsumedBy:  entry.ConsumedBy,
-			ConsumedAt:  entry.ConsumedAt,
-			FailedAt:    entry.FailedAt,
-		}}
-	}
-
-	return entry, nil
+	return rpi.ParseNextWorkEntryLine(line)
 }
 
 func hasLegacyFlatNextWorkItem(entry nextWorkEntry) bool {
-	return strings.TrimSpace(entry.Title) != "" ||
-		strings.TrimSpace(entry.Type) != "" ||
-		strings.TrimSpace(entry.Severity) != "" ||
-		strings.TrimSpace(entry.Description) != "" ||
-		strings.TrimSpace(entry.Evidence) != "" ||
-		strings.TrimSpace(entry.TargetRepo) != "" ||
-		strings.TrimSpace(entry.Source) != ""
+	return rpi.HasLegacyFlatNextWorkItem(entry)
 }
 
-// normalizeClaimStatus keeps omitted item `claim_status` semantically
-// equivalent to available unless the item is already consumed.
 func normalizeClaimStatus(consumed bool, claimStatus string) string {
-	switch claimStatus {
-	case "available", "in_progress", "consumed":
-		if consumed && claimStatus != "in_progress" {
-			return "consumed"
-		}
-		return claimStatus
-	default:
-		if consumed {
-			return "consumed"
-		}
-		return "available"
-	}
+	return rpi.NormalizeClaimStatus(consumed, claimStatus)
 }
 
 func isQueueItemSelectable(item nextWorkItem) bool {
-	if item.Consumed || normalizeClaimStatus(item.Consumed, item.ClaimStatus) == "consumed" {
-		return false
-	}
-	return normalizeClaimStatus(item.Consumed, item.ClaimStatus) != "in_progress"
+	return rpi.IsQueueItemSelectable(item)
 }
 
 func hasQueueItemLifecycleMetadata(item nextWorkItem) bool {
-	return item.ClaimStatus != "" ||
-		item.ClaimedBy != nil ||
-		item.ClaimedAt != nil ||
-		item.ConsumedBy != nil ||
-		item.ConsumedAt != nil ||
-		item.FailedAt != nil
+	return rpi.HasQueueItemLifecycleMetadata(item)
 }
 
-// shouldSkipLegacyFailedEntry returns true when a failed entry has proof-backed
-// completion evidence (bead_closed, commit_ref, evidence_packet) indicating the
-// work was completed despite the failure marker. Entries without completion
-// evidence remain available for retry even if FailedAt is set.
 func shouldSkipLegacyFailedEntry(entry nextWorkEntry) bool {
-	if entry.FailedAt == nil {
-		return false
-	}
-	return entry.CompletionEvidence != ""
+	return rpi.ShouldSkipLegacyFailedEntry(entry)
 }
 
 func nextWorkSearchRoot(path string) string {
-	dir := filepath.Dir(filepath.Clean(path))
-	parent := filepath.Dir(dir)
-	if filepath.Base(dir) == "rpi" && filepath.Base(parent) == ".agents" {
-		return filepath.Dir(parent)
-	}
-	return dir
+	return rpi.NextWorkSearchRoot(path)
 }
 
 // selectHighestSeverityEntry picks the best item across all eligible entries.
@@ -1093,38 +912,21 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 	}
 }
 
-func freshnessRank(item nextWorkItem) int {
-	if item.FailedAt != nil {
-		return 0
-	}
-	return 1
+func freshnessRank(item nextWorkItem) int                          { return rpi.FreshnessRank(item) }
+func repoAffinityRank(item nextWorkItem, repoFilter string) int   { return rpi.RepoAffinityRank(item, repoFilter) }
+func workTypeRank(item nextWorkItem) int                           { return rpi.WorkTypeRank(item) }
+func selectHighestSeverityItem(items []nextWorkItem) string        { return rpi.SelectHighestSeverityItem(items) }
+func severityRank(s string) int                                    { return rpi.SeverityRank(s) }
+func isFullyConsumed(entry *nextWorkEntry) bool                    { return rpi.IsFullyConsumed(entry) }
+func entryConsumedTime(entry *nextWorkEntry) time.Time             { return rpi.EntryConsumedTime(entry) }
+func recomputeEntryLifecycle(entry *nextWorkEntry)                 { rpi.RecomputeEntryLifecycle(entry) }
+
+func ensureQueueItemClaimable(status string, currentClaimedBy *string, claimedBy string) error {
+	return rpi.EnsureQueueItemClaimable(status, currentClaimedBy, claimedBy)
 }
 
-func repoAffinityRank(item nextWorkItem, repoFilter string) int {
-	if repoFilter == "" {
-		return 0
-	}
-	switch item.TargetRepo {
-	case repoFilter:
-		return 3
-	case "*":
-		return 2
-	case "":
-		return 1
-	default:
-		return 0
-	}
-}
-
-func workTypeRank(item nextWorkItem) int {
-	switch item.Type {
-	case "feature", "improvement", "tech-debt", "pattern-fix", "bug", "task":
-		return 2
-	case "process-improvement":
-		return 1
-	default:
-		return 0
-	}
+func requireQueueClaimOwner(currentClaimedBy *string, expectedClaimedBy string) error {
+	return rpi.RequireQueueClaimOwner(currentClaimedBy, expectedClaimedBy)
 }
 
 // rewriteNextWorkFile rewrites the JSONL file with updated entries applied via
@@ -1436,114 +1238,6 @@ func releaseQueueItem(path string, entryIndex int, itemIndex int, failedAt *stri
 	return nil
 }
 
-func ensureQueueItemClaimable(status string, currentClaimedBy *string, claimedBy string) error {
-	if status == "consumed" {
-		return errQueueClaimConflict
-	}
-	if status == "in_progress" && (currentClaimedBy == nil || *currentClaimedBy != claimedBy) {
-		return errQueueClaimConflict
-	}
-	return nil
-}
-
-func requireQueueClaimOwner(currentClaimedBy *string, expectedClaimedBy string) error {
-	if expectedClaimedBy == "" {
-		return nil
-	}
-	if currentClaimedBy == nil || *currentClaimedBy != expectedClaimedBy {
-		return errQueueClaimConflict
-	}
-	return nil
-}
-
-func recomputeEntryLifecycle(entry *nextWorkEntry) {
-	if len(entry.Items) == 0 {
-		return
-	}
-
-	allConsumed := true
-	claimedIndex := -1
-	var latestFailed *string
-	var finalConsumedBy *string
-	var finalConsumedAt *string
-
-	for i := range entry.Items {
-		status := normalizeClaimStatus(entry.Items[i].Consumed, entry.Items[i].ClaimStatus)
-		entry.Items[i].ClaimStatus = status
-
-		switch status {
-		case "consumed":
-			entry.Items[i].Consumed = true
-			if entry.Items[i].ConsumedBy != nil {
-				finalConsumedBy = entry.Items[i].ConsumedBy
-			}
-			if entry.Items[i].ConsumedAt != nil {
-				finalConsumedAt = entry.Items[i].ConsumedAt
-			}
-		default:
-			allConsumed = false
-		}
-
-		if status == "in_progress" && claimedIndex == -1 {
-			claimedIndex = i
-		}
-		if entry.Items[i].FailedAt != nil {
-			latestFailed = entry.Items[i].FailedAt
-		}
-	}
-
-	entry.FailedAt = latestFailed
-	if allConsumed {
-		entry.Consumed = true
-		entry.ClaimStatus = "consumed"
-		entry.ClaimedBy = nil
-		entry.ClaimedAt = nil
-		entry.ConsumedBy = finalConsumedBy
-		entry.ConsumedAt = finalConsumedAt
-		return
-	}
-
-	entry.Consumed = false
-	entry.ConsumedBy = nil
-	entry.ConsumedAt = nil
-	if claimedIndex >= 0 {
-		entry.ClaimStatus = "in_progress"
-		entry.ClaimedBy = entry.Items[claimedIndex].ClaimedBy
-		entry.ClaimedAt = entry.Items[claimedIndex].ClaimedAt
-		return
-	}
-	entry.ClaimStatus = "available"
-	entry.ClaimedBy = nil
-	entry.ClaimedAt = nil
-}
-
-// selectHighestSeverityItem returns the title of the highest-severity item.
-// Severity order: high > medium > low.
-func selectHighestSeverityItem(items []nextWorkItem) string {
-	if len(items) == 0 {
-		return ""
-	}
-
-	slices.SortFunc(items, func(a, b nextWorkItem) int {
-		return cmp.Compare(severityRank(b.Severity), severityRank(a.Severity))
-	})
-
-	return items[0].Title
-}
-
-func severityRank(s string) int {
-	switch s {
-	case "high":
-		return 3
-	case "medium":
-		return 2
-	case "low":
-		return 1
-	default:
-		return 0
-	}
-}
-
 // compactNextWorkFile removes entries from the JSONL queue where ALL items are
 // consumed and the consumed_at timestamp is older than maxConsumedAge. Returns
 // the number of compacted entries. If no entries qualify, the file is not
@@ -1622,40 +1316,6 @@ func compactNextWorkFile(path string, maxConsumedAge time.Duration) (int, error)
 		return 0, nil
 	}
 	return removed, nil
-}
-
-// isFullyConsumed returns true when the entry and all its items are consumed.
-func isFullyConsumed(entry *nextWorkEntry) bool {
-	if !entry.Consumed && normalizeClaimStatus(entry.Consumed, entry.ClaimStatus) != "consumed" {
-		return false
-	}
-	for _, item := range entry.Items {
-		if !item.Consumed && normalizeClaimStatus(item.Consumed, item.ClaimStatus) != "consumed" {
-			return false
-		}
-	}
-	return true
-}
-
-// entryConsumedTime returns the consumed_at time for the entry, falling back to
-// the latest item consumed_at.
-func entryConsumedTime(entry *nextWorkEntry) time.Time {
-	if entry.ConsumedAt != nil {
-		if t, err := time.Parse(time.RFC3339, *entry.ConsumedAt); err == nil {
-			return t
-		}
-	}
-	var latest time.Time
-	for _, item := range entry.Items {
-		if item.ConsumedAt != nil {
-			if t, err := time.Parse(time.RFC3339, *item.ConsumedAt); err == nil {
-				if t.After(latest) {
-					latest = t
-				}
-			}
-		}
-	}
-	return latest
 }
 
 // maybeCompactQueue runs queue compaction every `interval` cycles.
