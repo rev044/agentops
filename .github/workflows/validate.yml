@@ -488,7 +488,7 @@ jobs:
           echo "=== Running Go tests ==="
           cd cli
           set -o pipefail
-          go test -race -coverprofile=coverage.out -covermode=atomic ./... -v 2>&1 | tee /tmp/go-test-output.txt
+          go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic ./... -v 2>&1 | tee /tmp/go-test-output.txt
           echo ""
           echo "=== Coverage Summary ==="
           go tool cover -func=coverage.out | tail -1

@@ -7,6 +7,8 @@ import (
 )
 
 func TestDoctor_Integration_HealthyState(t *testing.T) {
+	resetCommandState(t)
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
 	dir := chdirTemp(t)
 	setupAgentsDir(t, dir)
 
@@ -39,6 +41,7 @@ func TestDoctor_Integration_HealthyState(t *testing.T) {
 }
 
 func TestDoctor_Integration_JSONOutput(t *testing.T) {
+	resetCommandState(t)
 	dir := chdirTemp(t)
 	setupAgentsDir(t, dir)
 	writeFile(t, dir+"/.agents/learnings/test-learning.md", "# Learning\nContent.\n")
@@ -76,6 +79,7 @@ func TestDoctor_Integration_JSONOutput(t *testing.T) {
 }
 
 func TestDoctor_Integration_DegradedState(t *testing.T) {
+	resetCommandState(t)
 	dir := chdirTemp(t)
 
 	// Create a minimal .agents/ without learnings dir — should trigger warnings
@@ -107,6 +111,7 @@ func TestDoctor_Integration_DegradedState(t *testing.T) {
 }
 
 func TestDoctor_Integration_NoAgentsDir(t *testing.T) {
+	resetCommandState(t)
 	// Completely empty directory — no .agents/ at all
 	chdirTemp(t)
 

@@ -18,6 +18,9 @@ import (
 func resetFlagChangesRecursive(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		f.Changed = false
+		// Reset value to default so local flags (e.g. --check on index)
+		// don't leak between tests.
+		_ = f.Value.Set(f.DefValue)
 	})
 	for _, child := range cmd.Commands() {
 		resetFlagChangesRecursive(child)
@@ -82,6 +85,17 @@ func executeCommand(args ...string) (string, error) {
 	origContextPacketFlags := contextPacketFlags
 	origContextExplainFlags := contextExplainFlags
 	origContextPacketStatusFlags := contextPacketStatusFlags
+	origDoctorJSON := doctorJSON
+	origMaturityApply := maturityApply
+	origMaturityScan := maturityScan
+	origMaturityCurate := maturityCurate
+	origMaturityExpire := maturityExpire
+	origMaturityArchive := maturityArchive
+	origMaturityEvict := maturityEvict
+	origMaturityGlobal := maturityGlobal
+	origMaturityMigrateMd := maturityMigrateMd
+	origMaturityRecalibrate := maturityRecalibrate
+	origMaturityUncitedDays := maturityUncitedDays
 	defer func() {
 		dryRun = origDryRun
 		verbose = origVerbose
@@ -133,6 +147,17 @@ func executeCommand(args ...string) (string, error) {
 		contextPacketFlags = origContextPacketFlags
 		contextExplainFlags = origContextExplainFlags
 		contextPacketStatusFlags = origContextPacketStatusFlags
+		doctorJSON = origDoctorJSON
+		maturityApply = origMaturityApply
+		maturityScan = origMaturityScan
+		maturityCurate = origMaturityCurate
+		maturityExpire = origMaturityExpire
+		maturityArchive = origMaturityArchive
+		maturityEvict = origMaturityEvict
+		maturityGlobal = origMaturityGlobal
+		maturityMigrateMd = origMaturityMigrateMd
+		maturityRecalibrate = origMaturityRecalibrate
+		maturityUncitedDays = origMaturityUncitedDays
 	}()
 
 	// Reset all command-local flags to defaults before execution.
@@ -177,6 +202,17 @@ func executeCommand(args ...string) (string, error) {
 	findingsPullForce = false
 	findingsRetireBy = ""
 	scenarioListStatus = ""
+	doctorJSON = false
+	maturityApply = false
+	maturityScan = false
+	maturityCurate = false
+	maturityExpire = false
+	maturityArchive = false
+	maturityEvict = false
+	maturityGlobal = false
+	maturityMigrateMd = false
+	maturityRecalibrate = false
+	maturityUncitedDays = 0
 	contextPacketFlags = struct {
 		goal  string
 		epic  string
@@ -751,6 +787,8 @@ func TestCobraIndexCommand(t *testing.T) {
 
 // TestCobraIndexCheckCommand exercises ao index --check.
 func TestCobraIndexCheckCommand(t *testing.T) {
+	resetCommandState(t)
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
 	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 

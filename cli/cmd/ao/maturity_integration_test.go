@@ -167,6 +167,7 @@ maturity: provisional
 
 func TestMaturity_Integration_ScanPendingTransitions(t *testing.T) {
 	resetCommandState(t)
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
 	dir := chdirTemp(t)
 	setupAgentsDir(t, dir)
 

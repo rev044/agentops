@@ -28,11 +28,11 @@ endif
 
 # Run tests
 test: build
-	go test -v ./...
+	go test -v -shuffle=on ./...
 
 # Run tests with coverage
 test-coverage: build
-	go test -v -coverprofile=coverage.out ./...
+	go test -v -shuffle=on -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 # Run linter

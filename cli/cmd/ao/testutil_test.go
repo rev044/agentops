@@ -273,6 +273,16 @@ func resetCommandState(t *testing.T) {
 	origContextExplainFlags := contextExplainFlags
 	origContextPacketStatusFlags := contextPacketStatusFlags
 	origDoctorJSON := doctorJSON
+	origMaturityApply := maturityApply
+	origMaturityScan := maturityScan
+	origMaturityCurate := maturityCurate
+	origMaturityExpire := maturityExpire
+	origMaturityArchive := maturityArchive
+	origMaturityEvict := maturityEvict
+	origMaturityGlobal := maturityGlobal
+	origMaturityMigrateMd := maturityMigrateMd
+	origMaturityRecalibrate := maturityRecalibrate
+	origMaturityUncitedDays := maturityUncitedDays
 
 	t.Cleanup(func() {
 		dryRun = origDryRun
@@ -326,6 +336,16 @@ func resetCommandState(t *testing.T) {
 		contextExplainFlags = origContextExplainFlags
 		contextPacketStatusFlags = origContextPacketStatusFlags
 		doctorJSON = origDoctorJSON
+		maturityApply = origMaturityApply
+		maturityScan = origMaturityScan
+		maturityCurate = origMaturityCurate
+		maturityExpire = origMaturityExpire
+		maturityArchive = origMaturityArchive
+		maturityEvict = origMaturityEvict
+		maturityGlobal = origMaturityGlobal
+		maturityMigrateMd = origMaturityMigrateMd
+		maturityRecalibrate = origMaturityRecalibrate
+		maturityUncitedDays = origMaturityUncitedDays
 	})
 
 	// Reset to defaults.
@@ -374,6 +394,16 @@ func resetCommandState(t *testing.T) {
 	findingsRetireBy = ""
 	scenarioListStatus = ""
 	doctorJSON = false
+	maturityApply = false
+	maturityScan = false
+	maturityCurate = false
+	maturityExpire = false
+	maturityArchive = false
+	maturityEvict = false
+	maturityGlobal = false
+	maturityMigrateMd = false
+	maturityRecalibrate = false
+	maturityUncitedDays = 0
 	contextPacketFlags = struct {
 		goal  string
 		epic  string
@@ -392,13 +422,11 @@ func resetCommandState(t *testing.T) {
 		limit int
 	}{}
 
-	// Reset Cobra flag Changed state.
+	// Reset Cobra flag Changed state and values to defaults.
 	resetFlagChangesRecursive(rootCmd)
-	rootCmd.Flags().VisitAll(func(f *pflag.Flag) {
-		f.Changed = false
-	})
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		f.Changed = false
+		_ = f.Value.Set(f.DefValue)
 	})
 }
 

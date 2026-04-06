@@ -1031,6 +1031,8 @@ func TestInjectForFlag_UnknownSkill(t *testing.T) {
 // TestInjectForFlag_NoDeclaration verifies --for with a skill that has no context field succeeds (passthrough).
 func TestInjectForFlag_NoDeclaration(t *testing.T) {
 	resetCommandState(t)
+	t.Setenv("RPI_RUN_ID", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
 	tmp := chdirTemp(t)
 	setupAgentsDir(t, tmp)
 
