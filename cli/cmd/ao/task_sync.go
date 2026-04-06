@@ -11,19 +11,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 func cloneMap(input map[string]any) map[string]any {
-	if len(input) == 0 {
-		return nil
-	}
-	cloned := make(map[string]any, len(input))
-	for key, value := range input {
-		cloned[key] = value
-	}
-	return cloned
+	return lifecycle.CloneStringAnyMap(input)
 }
 
 // TaskEvent represents a captured task from Claude Code's Task tool.
@@ -388,14 +382,7 @@ func updateTask(task *TaskEvent, input map[string]any) {
 
 // statusToMaturity maps Task status to CASS maturity.
 func statusToMaturity(status string) types.Maturity {
-	switch status {
-	case "completed":
-		return types.MaturityEstablished
-	case "in_progress":
-		return types.MaturityCandidate
-	default: // "pending"
-		return types.MaturityProvisional
-	}
+	return lifecycle.StatusToMaturity(status)
 }
 
 // generateTaskID creates a unique task identifier.

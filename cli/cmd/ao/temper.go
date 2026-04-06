@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/boshu2/agentops/cli/internal/pool"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
@@ -433,17 +434,7 @@ func parseJSONLMetadata(path string, meta *artifactMetadata) error {
 
 // parseMarkdownField extracts a value for a field from a markdown line.
 func parseMarkdownField(line, field string) (string, bool) {
-	prefixes := []string{
-		"**" + field + "**:",
-		"**" + field + ":**",
-		"- **" + field + "**:",
-	}
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(line, prefix) {
-			return strings.TrimSpace(strings.TrimPrefix(line, prefix)), true
-		}
-	}
-	return "", false
+	return lifecycle.ParseMarkdownField(line, field)
 }
 
 // applyMarkdownLine applies a single parsed markdown line to the metadata.
@@ -613,27 +604,12 @@ func computeTemperStatus(baseDir string) (*TemperStatus, error) {
 
 // isContainedPath checks if path is contained within baseDir.
 func isContainedPath(baseDir, path string) bool {
-	absBase, err := filepath.Abs(baseDir)
-	if err != nil {
-		return false
-	}
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return false
-	}
-	// Clean both paths and check prefix
-	cleanBase := filepath.Clean(absBase)
-	cleanPath := filepath.Clean(absPath)
-	// Ensure base ends with separator for proper prefix check
-	if !strings.HasSuffix(cleanBase, string(filepath.Separator)) {
-		cleanBase += string(filepath.Separator)
-	}
-	return strings.HasPrefix(cleanPath+string(filepath.Separator), cleanBase) || cleanPath == filepath.Clean(absBase)
+	return lifecycle.IsContainedPath(baseDir, path)
 }
 
 // isArtifactFile checks if a filename is a valid artifact file type.
 func isArtifactFile(name string) bool {
-	return strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".jsonl")
+	return lifecycle.IsArtifactFile(name)
 }
 
 // expandDirectoryRecursive walks a directory recursively collecting artifact files.

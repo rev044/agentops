@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	knowledgepkg "github.com/boshu2/agentops/cli/internal/knowledge"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 const knowledgeBuilderTimeout = 20 * time.Minute
@@ -384,23 +384,7 @@ func runKnowledgeBuilder(workspace, agentsRoot, scriptsRoot string, step knowled
 }
 
 func parseKnowledgeBuilderMetadata(output string) map[string]string {
-	metadata := make(map[string]string)
-	for _, line := range strings.Split(output, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || !strings.Contains(line, "=") {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-		if key != "" && value != "" {
-			metadata[key] = value
-		}
-	}
-	if len(metadata) == 0 {
-		return nil
-	}
-	return metadata
+	return knowledgepkg.ParseBuilderMetadata(output)
 }
 
 func outputKnowledgeActivateResult(result knowledgeActivateResult) error {
@@ -624,65 +608,19 @@ func loadKnowledgeTopics(agentsRoot string) []knowledgeTopicState {
 }
 
 func parseKnowledgeFrontmatter(text string) map[string]any {
-	if !strings.HasPrefix(text, "---\n") {
-		return nil
-	}
-	rest := strings.TrimPrefix(text, "---\n")
-	end := strings.Index(rest, "\n---")
-	if end < 0 {
-		return nil
-	}
-	var frontmatter map[string]any
-	if err := yaml.Unmarshal([]byte(rest[:end]), &frontmatter); err != nil {
-		return nil
-	}
-	return frontmatter
+	return knowledgepkg.ParseFrontmatter(text)
 }
 
 func knowledgeFrontmatterString(frontmatter map[string]any, key, fallback string) string {
-	if frontmatter == nil {
-		return fallback
-	}
-	if value, ok := frontmatter[key]; ok {
-		if text := strings.TrimSpace(fmt.Sprint(value)); text != "" && text != "<nil>" {
-			return text
-		}
-	}
-	return fallback
+	return knowledgepkg.FrontmatterString(frontmatter, key, fallback)
 }
 
 func extractKnowledgeBullets(text, heading string) []string {
-	lines := strings.Split(text, "\n")
-	items := make([]string, 0)
-	inSection := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == heading {
-			inSection = true
-			continue
-		}
-		if !inSection {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "## ") {
-			break
-		}
-		if strings.HasPrefix(trimmed, "- ") {
-			items = append(items, strings.TrimSpace(strings.TrimPrefix(trimmed, "- ")))
-		}
-	}
-	return items
+	return knowledgepkg.ExtractBullets(text, heading)
 }
 
 func filterKnowledgeOpenGaps(items []string) []string {
-	filtered := make([]string, 0, len(items))
-	for _, item := range items {
-		if strings.EqualFold(strings.TrimSpace(item), "No open gaps recorded.") {
-			continue
-		}
-		filtered = append(filtered, item)
-	}
-	return filtered
+	return knowledgepkg.FilterOpenGaps(items)
 }
 
 func latestKnowledgeBriefing(agentsRoot string) string {
@@ -711,17 +649,7 @@ func latestKnowledgeBriefing(agentsRoot string) string {
 }
 
 func dedupeKnowledgeStrings(items []string) []string {
-	seen := make(map[string]bool, len(items))
-	deduped := make([]string, 0, len(items))
-	for _, item := range items {
-		trimmed := strings.TrimSpace(item)
-		if trimmed == "" || seen[trimmed] {
-			continue
-		}
-		seen[trimmed] = true
-		deduped = append(deduped, trimmed)
-	}
-	return deduped
+	return knowledgepkg.DedupeStrings(items)
 }
 
 func knowledgeBuilderDisplayTarget(step knowledgeBuilderRun) string {
@@ -738,6 +666,5 @@ func knowledgeBuilderDisplayTarget(step knowledgeBuilderRun) string {
 }
 
 func knowledgePathExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	return knowledgepkg.PathExists(path)
 }

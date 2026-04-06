@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/quality"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/storage"
 	"github.com/boshu2/agentops/cli/internal/types"
@@ -175,19 +175,7 @@ func filterCitationsForPeriod(citations []types.CitationEvent, start, end time.T
 }
 
 func computeOperationalSigmaRho(totalArtifacts, uniqueCited, evidenceBacked int) (sigma, rho float64) {
-	if totalArtifacts > 0 {
-		sigma = float64(uniqueCited) / float64(totalArtifacts)
-		if sigma > 1.0 {
-			sigma = 1.0
-		}
-	}
-	if uniqueCited > 0 {
-		rho = float64(evidenceBacked) / float64(uniqueCited)
-		if rho > 1.0 {
-			rho = 1.0
-		}
-	}
-	return sigma, rho
+	return quality.ComputeOperationalSigmaRho(totalArtifacts, uniqueCited, evidenceBacked)
 }
 
 // computeSigmaRho keeps the historical signature used in tests and callers,
@@ -197,10 +185,7 @@ func computeSigmaRho(totalArtifacts, uniqueCited, evidenceBacked, _ int) (sigma,
 }
 
 func escapeVelocityThreshold(delta float64) float64 {
-	if delta <= 0 {
-		return 0
-	}
-	return delta / 100.0
+	return quality.EscapeVelocityThreshold(delta)
 }
 
 // countLoopMetrics counts learnings created vs found for loop closure
@@ -673,29 +658,13 @@ func collectUtilityValuesFromDir(dir string) []float64 {
 
 // computeUtilityStats calculates statistics from a slice of utility values.
 func computeUtilityStats(utilities []float64) utilityStats {
-	var stats utilityStats
-	if len(utilities) == 0 {
-		return stats
+	s := quality.ComputeUtilityStats(utilities)
+	return utilityStats{
+		mean:      s.Mean,
+		stdDev:    s.StdDev,
+		highCount: s.HighCount,
+		lowCount:  s.LowCount,
 	}
-	var sum float64
-	for _, u := range utilities {
-		sum += u
-	}
-	stats.mean = sum / float64(len(utilities))
-	var variance float64
-	for _, u := range utilities {
-		variance += (u - stats.mean) * (u - stats.mean)
-	}
-	stats.stdDev = math.Sqrt(variance / float64(len(utilities)))
-	for _, u := range utilities {
-		if u > 0.7 {
-			stats.highCount++
-		}
-		if u < 0.3 {
-			stats.lowCount++
-		}
-	}
-	return stats
 }
 
 // computeUtilityMetrics calculates MemRL utility statistics from learnings.
