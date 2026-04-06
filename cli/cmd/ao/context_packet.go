@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	aocontext "github.com/boshu2/agentops/cli/internal/context"
 )
 
 // contextPacketFlags holds the CLI flags for the context packet command.
@@ -150,29 +152,10 @@ func printPacketHuman(cmd *cobra.Command, packet StigmergicPacket) {
 
 // detectRepoName returns the base directory name as a repo identifier.
 func detectRepoName(cwd string) string {
-	// Walk up to find a .git directory and use that parent's name.
-	dir := cwd
-	for {
-		if info, err := os.Stat(dir + "/.git"); err == nil && info.IsDir() {
-			return fileBase(dir)
-		}
-		if info, err := os.Stat(dir + "/.git"); err == nil && !info.IsDir() {
-			// worktree: .git is a file
-			return fileBase(dir)
-		}
-		parent := dir[:max(strings.LastIndex(dir, "/"), 0)]
-		if parent == "" || parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return fileBase(cwd)
+	return aocontext.DetectRepoName(cwd)
 }
 
 // fileBase returns the last path component.
 func fileBase(path string) string {
-	if idx := strings.LastIndex(path, "/"); idx >= 0 {
-		return path[idx+1:]
-	}
-	return path
+	return aocontext.FileBase(path)
 }
