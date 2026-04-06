@@ -1,10 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -297,332 +293,73 @@ func computeMetricsForNamespace(baseDir string, days int, namespace string) (*ty
 
 // countArtifacts counts knowledge artifacts by tier.
 func countArtifacts(baseDir string) (int, map[string]int, error) {
-	tierCounts := map[string]int{
-		"observation": 0,
-		"learning":    0,
-		"pattern":     0,
-		"retro":       0,
-		"skill":       0,
-		"core":        0,
-	}
-	total := 0
-
-	// Tier locations
-	tierDirs := map[string]string{
-		"observation": filepath.Join(baseDir, ".agents", "candidates"),
-		"learning":    filepath.Join(baseDir, ".agents", "learnings"),
-		"pattern":     filepath.Join(baseDir, ".agents", "patterns"),
-	}
-
-	for tier, dir := range tierDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		}
-		files, err := filepath.Glob(filepath.Join(dir, "*.md"))
-		if err != nil {
-			continue
-		}
-		// Also count JSONL
-		jsonlFiles, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
-		files = append(files, jsonlFiles...)
-
-		tierCounts[tier] = len(files)
-		total += len(files)
-	}
-
-	// Count research artifacts
-	researchDir := filepath.Join(baseDir, ".agents", "research")
-	if _, err := os.Stat(researchDir); err == nil {
-		files, _ := filepath.Glob(filepath.Join(researchDir, "*.md"))
-		tierCounts["observation"] += len(files)
-		total += len(files)
-	}
-
-	// Count retros (separate tier from learnings for consistent counts)
-	retrosDir := filepath.Join(baseDir, ".agents", "retro")
-	if _, err := os.Stat(retrosDir); err == nil {
-		files, _ := filepath.Glob(filepath.Join(retrosDir, "*.md"))
-		tierCounts["retro"] = len(files)
-		total += len(files)
-	}
-
-	// Count sessions
 	sessionsDir := filepath.Join(baseDir, storage.DefaultBaseDir, storage.SessionsDir)
-	if _, err := os.Stat(sessionsDir); err == nil {
-		files, _ := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
-		total += len(files)
-	}
-
-	return total, tierCounts, nil
+	return quality.CountArtifactsByTier(baseDir, sessionsDir)
 }
 
 // countNewArtifacts counts artifacts created after a time.
 func countNewArtifacts(baseDir string, since time.Time) (int, error) {
-	count := 0
-
-	dirs := []string{
-		filepath.Join(baseDir, ".agents", "learnings"),
-		filepath.Join(baseDir, ".agents", "patterns"),
-		filepath.Join(baseDir, ".agents", "candidates"),
-		filepath.Join(baseDir, ".agents", "research"),
-		filepath.Join(baseDir, ".agents", "retro"),
-	}
-
-	for _, dir := range dirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		}
-		if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if info.ModTime().After(since) {
-				count++
-			}
-			return nil
-		}); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", dir, err)
-		}
-	}
-
-	return count, nil
+	return quality.CountNewArtifacts(baseDir, since)
 }
 
 // buildLastCitedMap builds a map of normalized artifact path → last citation time.
 func buildLastCitedMap(baseDir string, citations []types.CitationEvent) map[string]time.Time {
-	lastCited := make(map[string]time.Time)
-	for _, c := range citations {
-		norm := normalizeArtifactPath(baseDir, c.ArtifactPath)
-		if norm == "" {
-			continue
-		}
-		if t, ok := lastCited[norm]; !ok || c.CitedAt.After(t) {
-			lastCited[norm] = c.CitedAt
-		}
-	}
-	return lastCited
+	return quality.BuildLastCitedMap(citations, func(p string) string {
+		return normalizeArtifactPath(baseDir, p)
+	})
 }
 
 // isKnowledgeFile returns true if path ends with .md or .jsonl.
 func isKnowledgeFile(path string) bool {
-	return strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".jsonl")
+	return quality.IsKnowledgeFile(path)
 }
 
 // isStaleArtifact returns true if the artifact was modified before staleThreshold and
 // has no citation at or after staleThreshold.
 func isStaleArtifact(baseDir, path string, modTime time.Time, staleThreshold time.Time, lastCited map[string]time.Time) bool {
-	if modTime.After(staleThreshold) {
-		return false
-	}
-	norm := normalizeArtifactPath(baseDir, path)
-	last, ok := lastCited[norm]
-	return !ok || last.Before(staleThreshold)
+	return quality.IsStaleArtifact(path, modTime, staleThreshold, lastCited, func(p string) string {
+		return normalizeArtifactPath(baseDir, p)
+	})
 }
 
 // countStaleInDir counts stale artifacts in one directory.
 func countStaleInDir(baseDir, dir string, staleThreshold time.Time, lastCited map[string]time.Time) int {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return 0
-	}
-	staleCount := 0
-	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !isKnowledgeFile(path) {
-			return nil
-		}
-		if isStaleArtifact(baseDir, path, info.ModTime(), staleThreshold, lastCited) {
-			staleCount++
-		}
-		return nil
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", dir, err)
-	}
-	return staleCount
+	return quality.CountStaleInDir(dir, staleThreshold, lastCited, func(p string) string {
+		return normalizeArtifactPath(baseDir, p)
+	})
 }
 
 // countStaleArtifacts counts artifacts not cited in N days.
 func countStaleArtifacts(baseDir string, citations []types.CitationEvent, staleDays int) (int, error) {
-	staleThreshold := time.Now().AddDate(0, 0, -staleDays)
-	lastCited := buildLastCitedMap(baseDir, citations)
-
-	dirs := []string{
-		filepath.Join(baseDir, ".agents", "learnings"),
-		filepath.Join(baseDir, ".agents", "patterns"),
-	}
-	total := 0
-	for _, dir := range dirs {
-		total += countStaleInDir(baseDir, dir, staleThreshold, lastCited)
-	}
-	return total, nil
+	return quality.CountStaleArtifacts(baseDir, citations, staleDays, func(p string) string {
+		return normalizeArtifactPath(baseDir, p)
+	})
 }
 
-func printMetricsParameters(m *types.FlywheelMetrics) {
-	fmt.Println("PARAMETERS:")
-	fmt.Printf("  δ (avg age):        %.1f days active knowledge age\n", m.Delta)
-	fmt.Printf("  σ (retrieval):      %.2f (%d%% retrievable artifacts surfaced)\n",
-		m.Sigma, int(m.Sigma*100))
-	fmt.Printf("  ρ (influence):      %.2f (%d%% of surfaced artifacts evidenced)\n", m.Rho, int(m.Rho*100))
-	fmt.Println()
-}
-
-func printMetricsDerived(m *types.FlywheelMetrics) {
-	velocitySign := "+"
-	if m.Velocity < 0 {
-		velocitySign = ""
-	}
-	statusIndicator := "✗"
-	if m.AboveEscapeVelocity {
-		statusIndicator = "✓"
-	}
-	threshold := escapeVelocityThreshold(m.Delta)
-	fmt.Println("DERIVED:")
-	fmt.Printf("  σ × ρ = %.3f\n", m.SigmaRho)
-	fmt.Printf("  δ/100 = %.3f\n", threshold)
-	fmt.Println("  ────────────────")
-	fmt.Printf("  VELOCITY: %s%.3f (escape=%s %s)\n", velocitySign, m.Velocity, m.EscapeVelocityStatus(), statusIndicator)
-	fmt.Printf("  HEALTH:   %s\n", m.HealthStatus())
-	fmt.Println()
-}
-
-func printMetricsCounts(m *types.FlywheelMetrics) {
-	fmt.Println("COUNTS:")
-	fmt.Printf("  Knowledge items:    %d\n", m.TotalArtifacts)
-	fmt.Printf("  Citation events:    %d this period\n", m.CitationsThisPeriod)
-	fmt.Printf("  Unique cited:       %d\n", m.UniqueCitedArtifacts)
-	fmt.Printf("  New artifacts:      %d\n", m.NewArtifacts)
-	fmt.Printf("  Stale (90d+):       %d\n", m.StaleArtifacts)
-	fmt.Println()
-
-	if len(m.TierCounts) > 0 {
-		fmt.Println("TIER DISTRIBUTION:")
-		for _, tier := range []string{"observation", "learning", "retro", "pattern", "skill", "core"} {
-			if count, ok := m.TierCounts[tier]; ok && count > 0 {
-				fmt.Printf("  %-12s: %d\n", tier, count)
-			}
-		}
-		fmt.Println()
-	}
-}
-
+func printMetricsParameters(m *types.FlywheelMetrics) { quality.PrintMetricsParameters(m) }
+func printMetricsDerived(m *types.FlywheelMetrics)    { quality.PrintMetricsDerived(m) }
+func printMetricsCounts(m *types.FlywheelMetrics)     { quality.PrintMetricsCounts(m) }
 func printMetricsLoopClosure(m *types.FlywheelMetrics) {
-	if m.LearningsCreated == 0 && m.LearningsFound == 0 && m.TotalRetros == 0 {
-		return
-	}
-	loopStatus := "OPEN"
-	if m.LoopClosureRatio >= 1.0 {
-		loopStatus = "CLOSED ✓"
-	} else if m.LoopClosureRatio > 0 {
-		loopStatus = "PARTIAL"
-	}
-	fmt.Println()
-	fmt.Println("LOOP CLOSURE (R1):")
-	fmt.Printf("  Learnings created:  %d\n", m.LearningsCreated)
-	fmt.Printf("  Learnings found:    %d\n", m.LearningsFound)
-	fmt.Printf("  Closure ratio:      %.2f (%s)\n", m.LoopClosureRatio, loopStatus)
-	if m.TotalRetros > 0 {
-		fmt.Printf("  Retros:             %d (%d with learnings)\n", m.TotalRetros, m.RetrosWithLearnings)
-	}
-	if m.PriorArtBypasses > 0 {
-		fmt.Printf("  Prior art bypasses: %d (review recommended)\n", m.PriorArtBypasses)
-	}
+	quality.PrintMetricsLoopClosure(m)
 }
-
-func printMetricsUtility(m *types.FlywheelMetrics) {
-	if m.MeanUtility == 0 && m.HighUtilityCount == 0 && m.LowUtilityCount == 0 {
-		return
-	}
-	fmt.Println()
-	fmt.Println("UTILITY (MemRL):")
-	fmt.Printf("  Mean utility:        %.3f\n", m.MeanUtility)
-	fmt.Printf("  Std deviation:       %.3f\n", m.UtilityStdDev)
-	fmt.Printf("  High utility (>0.7): %d\n", m.HighUtilityCount)
-	fmt.Printf("  Low utility (<0.3):  %d\n", m.LowUtilityCount)
-	switch {
-	case m.MeanUtility >= 0.6:
-		fmt.Printf("  Status:              HEALTHY ✓ (learnings are effective)\n")
-	case m.MeanUtility >= 0.4:
-		fmt.Printf("  Status:              NEUTRAL (need more feedback data)\n")
-	default:
-		fmt.Printf("  Status:              REVIEW ✗ (learnings may need updating)\n")
-	}
-}
+func printMetricsUtility(m *types.FlywheelMetrics) { quality.PrintMetricsUtility(m) }
 
 // printMetricsTable prints a formatted metrics table.
-func printMetricsTable(m *types.FlywheelMetrics) {
-	fmt.Println()
-	fmt.Println("Knowledge Flywheel Metrics")
-	fmt.Println("==========================")
-	fmt.Printf("Period: %s to %s\n\n",
-		m.PeriodStart.Format("2006-01-02"),
-		m.PeriodEnd.Format("2006-01-02"))
-	printMetricsParameters(m)
-	printMetricsDerived(m)
-	printMetricsCounts(m)
-	fmt.Printf("STATUS: %s\n", m.HealthStatus())
-	if m.HealthStatus() != m.EscapeVelocityStatus() {
-		fmt.Printf("ESCAPE: %s\n", m.EscapeVelocityStatus())
-	}
-	printMetricsLoopClosure(m)
-	printMetricsUtility(m)
-}
+func printMetricsTable(m *types.FlywheelMetrics) { quality.PrintMetricsTable(m) }
 
 // countNewArtifactsInDir counts artifacts created after a time in a specific directory.
 func countNewArtifactsInDir(dir string, since time.Time) (int, error) {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return 0, nil
-	}
-
-	count := 0
-	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if info.ModTime().After(since) {
-			count++
-		}
-		return nil
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", dir, err)
-	}
-
-	return count, nil
+	return quality.CountNewArtifactsInDir(dir, since)
 }
 
 // retroHasLearnings checks whether a retro markdown file contains a learnings section.
 func retroHasLearnings(path string) bool {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	text := string(content)
-	return strings.Contains(text, "## Learnings") ||
-		strings.Contains(text, "## Key Learnings") ||
-		strings.Contains(text, "### Learnings")
+	return quality.RetroHasLearnings(path)
 }
 
 // countRetros counts retro artifacts and how many have associated learnings.
 func countRetros(baseDir string, since time.Time) (total int, withLearnings int, err error) {
-	retrosDir := filepath.Join(baseDir, ".agents", "retro")
-	if _, err := os.Stat(retrosDir); os.IsNotExist(err) {
-		return 0, 0, nil
-	}
-
-	if err := filepath.Walk(retrosDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(path, ".md") || !info.ModTime().After(since) {
-			return nil
-		}
-		total++
-		if retroHasLearnings(path) {
-			withLearnings++
-		}
-		return nil
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", retrosDir, err)
-	}
-
-	return total, withLearnings, nil
+	return quality.CountRetros(baseDir, since)
 }
 
 // utilityStats holds computed utility statistics.
@@ -631,29 +368,6 @@ type utilityStats struct {
 	stdDev    float64
 	highCount int // utility > 0.7
 	lowCount  int // utility < 0.3
-}
-
-// collectUtilityValuesFromDir walks a directory and collects utility values from files.
-func collectUtilityValuesFromDir(dir string) []float64 {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil
-	}
-	var values []float64
-	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(path, ".jsonl") && !strings.HasSuffix(path, ".md") {
-			return nil
-		}
-		if u := parseUtilityFromFile(path); u > 0 {
-			values = append(values, u)
-		}
-		return nil
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", dir, err)
-	}
-	return values
 }
 
 // computeUtilityStats calculates statistics from a slice of utility values.
@@ -669,66 +383,34 @@ func computeUtilityStats(utilities []float64) utilityStats {
 
 // computeUtilityMetrics calculates MemRL utility statistics from learnings.
 func computeUtilityMetrics(baseDir string) utilityStats {
-	var utilities []float64
-	for _, dir := range []string{
+	s := quality.ComputeUtilityMetrics([]string{
 		filepath.Join(baseDir, ".agents", "learnings"),
 		filepath.Join(baseDir, ".agents", "patterns"),
-	} {
-		utilities = append(utilities, collectUtilityValuesFromDir(dir)...)
+	})
+	return utilityStats{
+		mean:      s.Mean,
+		stdDev:    s.StdDev,
+		highCount: s.HighCount,
+		lowCount:  s.LowCount,
 	}
-	return computeUtilityStats(utilities)
-}
-
-// parseUtilityFromMarkdown extracts utility from markdown front matter.
-func parseUtilityFromMarkdown(path string) float64 {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return 0
-	}
-	lines := strings.Split(string(content), "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return 0
-	}
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "---" {
-			break
-		}
-		if strings.HasPrefix(line, "utility:") {
-			var utility float64
-			if _, parseErr := fmt.Sscanf(line, "utility: %f", &utility); parseErr == nil {
-				return utility
-			}
-		}
-	}
-	return 0
-}
-
-// parseUtilityFromJSONL extracts utility from the first line of a JSONL file.
-func parseUtilityFromJSONL(path string) float64 {
-	f, err := os.Open(path)
-	if err != nil {
-		return 0
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only utility parse, close error non-fatal
-	}()
-	scanner := bufio.NewScanner(f)
-	if scanner.Scan() {
-		var data map[string]any
-		if err := json.Unmarshal(scanner.Bytes(), &data); err == nil {
-			if utility, ok := data["utility"].(float64); ok {
-				return utility
-			}
-		}
-	}
-	return 0
 }
 
 // parseUtilityFromFile extracts utility value from JSONL or markdown front matter.
 func parseUtilityFromFile(path string) float64 {
-	if strings.HasSuffix(path, ".md") {
-		return parseUtilityFromMarkdown(path)
-	}
-	return parseUtilityFromJSONL(path)
+	return quality.ParseUtilityFromFile(path)
+}
+
+// collectUtilityValuesFromDir walks a directory and collects utility values from files.
+func collectUtilityValuesFromDir(dir string) []float64 {
+	return quality.CollectUtilityValuesFromDir(dir)
+}
+
+// parseUtilityFromMarkdown extracts utility from markdown front matter.
+func parseUtilityFromMarkdown(path string) float64 {
+	return quality.ParseUtilityFromMarkdown(path)
+}
+
+// parseUtilityFromJSONL extracts utility from the first line of a JSONL file.
+func parseUtilityFromJSONL(path string) float64 {
+	return quality.ParseUtilityFromJSONL(path)
 }
