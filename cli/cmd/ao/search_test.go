@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/boshu2/agentops/cli/internal/search"
 )
 
 func writeFakeCass(t *testing.T, output string, exitCode int) (binDir string, argsPath string) {
@@ -441,10 +443,10 @@ Fourth query should be excluded (max 3)
 		if ctx == "" {
 			t.Error("expected non-empty context")
 		}
-		// Should contain up to MaxContextLines matches
+		// Should contain up to search.MaxContextLines matches
 		lines := splitNonEmpty(ctx)
-		if len(lines) > MaxContextLines {
-			t.Errorf("got %d context lines, want at most %d", len(lines), MaxContextLines)
+		if len(lines) > search.MaxContextLines {
+			t.Errorf("got %d context lines, want at most %d", len(lines), search.MaxContextLines)
 		}
 	})
 
@@ -471,16 +473,16 @@ Fourth query should be excluded (max 3)
 
 	// Test line truncation
 	t.Run("long lines are truncated", func(t *testing.T) {
-		longLine := "query " + string(make([]byte, ContextLineMaxLength+50))
+		longLine := "query " + string(make([]byte, search.ContextLineMaxLength+50))
 		longPath := filepath.Join(tmpDir, "long.md")
 		if err := os.WriteFile(longPath, []byte(longLine), 0644); err != nil {
 			t.Fatal(err)
 		}
 		ctx := getFileContext(longPath, "query")
-		// Each line should be at most ContextLineMaxLength + "..."
+		// Each line should be at most search.ContextLineMaxLength + "..."
 		for _, line := range splitNonEmpty(ctx) {
-			if len(line) > ContextLineMaxLength+3 {
-				t.Errorf("line length %d exceeds max %d+3", len(line), ContextLineMaxLength)
+			if len(line) > search.ContextLineMaxLength+3 {
+				t.Errorf("line length %d exceeds max %d+3", len(line), search.ContextLineMaxLength)
 			}
 		}
 	})
@@ -1389,10 +1391,10 @@ func TestTruncateContext_Short(t *testing.T) {
 }
 
 func TestTruncateContext_Long(t *testing.T) {
-	long := strings.Repeat("x", ContextLineMaxLength+50)
+	long := strings.Repeat("x", search.ContextLineMaxLength+50)
 	got := truncateContext(long)
-	if len(got) != ContextLineMaxLength+3 { // +3 for "..."
-		t.Errorf("expected length %d, got %d", ContextLineMaxLength+3, len(got))
+	if len(got) != search.ContextLineMaxLength+3 { // +3 for "..."
+		t.Errorf("expected length %d, got %d", search.ContextLineMaxLength+3, len(got))
 	}
 	if !strings.HasSuffix(got, "...") {
 		t.Error("expected '...' suffix")
@@ -1499,14 +1501,14 @@ func TestParseJSONLMatch_WithSummary(t *testing.T) {
 }
 
 func TestParseJSONLMatch_LongSummary(t *testing.T) {
-	long := strings.Repeat("x", ContextLineMaxLength+50)
+	long := strings.Repeat("x", search.ContextLineMaxLength+50)
 	data := map[string]any{"summary": long}
 	line, _ := json.Marshal(data)
 	result, ok := parseJSONLMatch(string(line), "/path/file.jsonl")
 	if !ok {
 		t.Error("expected ok=true")
 	}
-	if len(result.Context) > ContextLineMaxLength+3 {
+	if len(result.Context) > search.ContextLineMaxLength+3 {
 		t.Errorf("expected truncated context, got length %d", len(result.Context))
 	}
 }

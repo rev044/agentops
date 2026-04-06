@@ -5,7 +5,6 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	aocontext "github.com/boshu2/agentops/cli/internal/context"
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
 )
@@ -139,12 +139,8 @@ func runContextAssemble(cmd *cobra.Command, args []string) error {
 
 // --- section assembly ---
 
-type assembledSection struct {
-	Name       string `json:"name"`
-	CharCount  int    `json:"char_count"`
-	Redactions int    `json:"redactions"`
-	Content    string `json:"-"`
-}
+// assembledSection is an alias for the canonical type in internal/context.
+type assembledSection = aocontext.AssembledSection
 
 func assembleSections(cwd, task string, maxChars int) []assembledSection {
 	return assembleSectionsForPhase(cwd, task, "task", maxChars)
@@ -308,64 +304,15 @@ func gatherHistory(cwd string, budget int) string {
 }
 
 func formatHistoryEntry(entry map[string]interface{}, index int) string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("### Entry %d\n", index))
-
-	type historyField struct {
-		label   string
-		primary string
-		aliases []string
-	}
-
-	fields := []historyField{
-		{label: "timestamp", primary: "timestamp"},
-		{label: "cycle", primary: "cycle"},
-		{label: "target", primary: "target", aliases: []string{"goal_id"}},
-		{label: "goal_ids", primary: "goal_ids"},
-		{label: "result", primary: "result", aliases: []string{"status"}},
-		{label: "sha", primary: "sha"},
-		{label: "canonical_sha", primary: "canonical_sha"},
-		{label: "log_sha", primary: "log_sha"},
-		{label: "goals_passing", primary: "goals_passing"},
-		{label: "goals_total", primary: "goals_total"},
-		{label: "summary", primary: "summary"},
-		{label: "error", primary: "error"},
-	}
-
-	for _, field := range fields {
-		if v, ok := lookupHistoryField(entry, field.primary, field.aliases...); ok && v != nil {
-			sb.WriteString(fmt.Sprintf("- **%s**: %v\n", field.label, formatHistoryValue(v)))
-		}
-	}
-	sb.WriteString("\n")
-	return sb.String()
+	return aocontext.FormatHistoryEntry(entry, index)
 }
 
 func lookupHistoryField(entry map[string]interface{}, primary string, aliases ...string) (interface{}, bool) {
-	if v, ok := entry[primary]; ok && v != nil {
-		return v, true
-	}
-	for _, alias := range aliases {
-		if v, ok := entry[alias]; ok && v != nil {
-			return v, true
-		}
-	}
-	return nil, false
+	return aocontext.LookupHistoryField(entry, primary, aliases...)
 }
 
 func formatHistoryValue(value interface{}) interface{} {
-	switch v := value.(type) {
-	case []interface{}:
-		parts := make([]string, 0, len(v))
-		for _, item := range v {
-			parts = append(parts, fmt.Sprintf("%v", item))
-		}
-		return strings.Join(parts, ", ")
-	case []string:
-		return strings.Join(v, ", ")
-	default:
-		return value
-	}
+	return aocontext.FormatHistoryValue(value)
 }
 
 func gatherIntel(cwd, task, phase string, budget int) string {
@@ -437,47 +384,17 @@ func readIntelDir(dir, kind string) []intelEntry {
 }
 
 func extractIntelJSONContent(data []byte) string {
-	var decoded map[string]any
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return strings.TrimSpace(string(data))
-	}
-
-	for _, key := range []string{"content", "pattern", "summary", "description", "title"} {
-		if v, ok := decoded[key]; ok && v != nil {
-			s := strings.TrimSpace(fmt.Sprintf("%v", v))
-			if s != "" {
-				return s
-			}
-		}
-	}
-	return strings.TrimSpace(string(data))
+	return aocontext.ExtractIntelJSONContent(data)
 }
 
 func formatTaskSection(task string, budget int) string {
-	var sb strings.Builder
-	sb.WriteString("## TASK\n\n")
-	sb.WriteString(task)
-	sb.WriteString("\n")
-	return truncateToCharBudget(sb.String(), budget)
+	return aocontext.FormatTaskSection(task, budget)
 }
 
 // --- char budget enforcement ---
 
 func truncateToCharBudget(content string, budget int) string {
-	if budget <= 0 {
-		return ""
-	}
-	runes := []rune(content)
-	if len(runes) <= budget {
-		return content
-	}
-	// Truncate at budget, try to break at a newline.
-	truncated := string(runes[:budget])
-	lastNL := strings.LastIndex(truncated, "\n")
-	if lastNL > budget/2 {
-		truncated = truncated[:lastNL+1]
-	}
-	return truncated + "\n... [truncated to fit budget]\n"
+	return aocontext.TruncateToCharBudget(content, budget)
 }
 
 // --- redaction ---
@@ -520,36 +437,11 @@ func redactContent(content, cwd string) (string, int) {
 }
 
 func redactHighEntropy(content string) (string, int) {
-	redactions := 0
-	// Find words/tokens > 30 chars that look like secrets.
-	wordRe := regexp.MustCompile(`\S{31,}`)
-	content = wordRe.ReplaceAllStringFunc(content, func(match string) string {
-		if shannonEntropy(match) > 4.5 {
-			redactions++
-			return "[REDACTED: high-entropy]"
-		}
-		return match
-	})
-	return content, redactions
+	return aocontext.RedactHighEntropy(content)
 }
 
 func shannonEntropy(s string) float64 {
-	if len(s) == 0 {
-		return 0
-	}
-	freq := make(map[rune]int)
-	for _, r := range s {
-		freq[r]++
-	}
-	length := float64(len([]rune(s)))
-	entropy := 0.0
-	for _, count := range freq {
-		p := float64(count) / length
-		if p > 0 {
-			entropy -= p * math.Log2(p)
-		}
-	}
-	return entropy
+	return aocontext.ShannonEntropy(s)
 }
 
 func logRedactions(cwd string, count int) {
@@ -571,16 +463,7 @@ func logRedactions(cwd string, count int) {
 // --- markdown composition ---
 
 func composeBriefingMarkdown(sections []assembledSection) string {
-	var sb strings.Builder
-	sb.WriteString("# Context Briefing\n\n")
-	sb.WriteString(fmt.Sprintf("_Generated: %s_\n\n", time.Now().UTC().Format(time.RFC3339)))
-
-	for _, s := range sections {
-		sb.WriteString(s.Content)
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
+	return aocontext.ComposeBriefingMarkdown(sections)
 }
 
 // --- provenance manifest ---

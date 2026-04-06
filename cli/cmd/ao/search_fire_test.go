@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/search"
 )
 
 // ===========================================================================
@@ -467,12 +469,12 @@ func TestSearchGetFileContext(t *testing.T) {
 			t.Fatal("expected non-empty context")
 		}
 		// Should be truncated with "..."
-		if len(got) > ContextLineMaxLength+10 { // some slack for "..."
+		if len(got) > search.ContextLineMaxLength+10 { // some slack for "..."
 			t.Errorf("context too long: %d chars", len(got))
 		}
 	})
 
-	t.Run("respects MaxContextLines", func(t *testing.T) {
+	t.Run("respects search.MaxContextLines", func(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "many.md")
 		content := ""
@@ -485,8 +487,8 @@ func TestSearchGetFileContext(t *testing.T) {
 
 		got := getFileContext(path, "keyword")
 		lines := testCountContextLines(got)
-		if lines > MaxContextLines {
-			t.Errorf("context has %d lines, should be at most %d", lines, MaxContextLines)
+		if lines > search.MaxContextLines {
+			t.Errorf("context has %d lines, should be at most %d", lines, search.MaxContextLines)
 		}
 	})
 }
