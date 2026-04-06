@@ -502,7 +502,7 @@ func TestDefragOutputDirFlag(t *testing.T) {
 		t.Fatal("expected --output-dir flag, not found")
 	}
 	// Also verify "output" is NOT a registered local flag on defrag
-	if old := cmd.Flags().Lookup("output"); old != nil {
+	if old := cmd.LocalFlags().Lookup("output"); old != nil {
 		t.Error("--output flag should be renamed to --output-dir")
 	}
 }
