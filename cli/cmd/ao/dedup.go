@@ -1,35 +1,21 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/spf13/cobra"
 )
 
 var dedupMerge bool
 
-// DedupGroup represents a set of duplicate learnings.
-type DedupGroup struct {
-	Hash  string   `json:"hash"`
-	Count int      `json:"count"`
-	Files []string `json:"files"`
-}
+// DedupGroup is an alias for the lifecycle type, kept for cmd/ao compatibility.
+type DedupGroup = lifecycle.DedupGroup
 
-// DedupResult is the output of the dedup scan.
-type DedupResult struct {
-	TotalFiles      int          `json:"total_files"`
-	UniqueContent   int          `json:"unique_content"`
-	DuplicateGroups int          `json:"duplicate_groups"`
-	DuplicateFiles  int          `json:"duplicate_files"`
-	Groups          []DedupGroup `json:"groups,omitempty"`
-}
+// DedupResult is an alias for the lifecycle type, kept for cmd/ao compatibility.
+type DedupResult = lifecycle.DedupResult
 
 var dedupCmd = &cobra.Command{
 	Use:   "dedup",
@@ -59,131 +45,32 @@ func init() {
 	rootCmd.AddCommand(dedupCmd)
 }
 
-// collectDedupFiles finds all .jsonl and .md files in learnings and patterns directories.
-// Returns the combined file list. Returns an empty list if neither directory exists.
-func collectDedupFiles(cwd string) ([]string, error) {
-	learningsDir := filepath.Join(cwd, ".agents", "learnings")
-	patternsDir := filepath.Join(cwd, ".agents", "patterns")
-
-	learningsExists := true
-	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
-		learningsExists = false
-	}
-	patternsExists := true
-	if _, err := os.Stat(patternsDir); os.IsNotExist(err) {
-		patternsExists = false
-	}
-
-	if !learningsExists && !patternsExists {
-		return nil, nil
-	}
-
-	files := make([]string, 0)
-	for _, dir := range []string{learningsDir, patternsDir} {
-		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
-			continue
-		}
-		jsonlFiles, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
-		mdFiles, _ := filepath.Glob(filepath.Join(dir, "*.md"))
-		files = append(files, jsonlFiles...)
-		files = append(files, mdFiles...)
-	}
-
-	return files, nil
-}
-
-// groupByContentHash groups files by their normalized content hash.
-// Files whose body is empty are skipped.
+// Thin wrappers preserved for tests.
+func collectDedupFiles(cwd string) ([]string, error) { return lifecycle.CollectDedupFiles(cwd) }
 func groupByContentHash(files []string) map[string][]string {
-	hashToFiles := make(map[string][]string)
-	for _, f := range files {
-		body := extractLearningBody(f)
-		if body == "" {
-			continue
-		}
-		hash := hashNormalizedContent(body)
-		hashToFiles[hash] = append(hashToFiles[hash], f)
-	}
-	return hashToFiles
+	return lifecycle.GroupByContentHash(files)
 }
-
-// mergeDedupGroups resolves duplicate groups by keeping the highest-utility file
-// and archiving the rest to .agents/archive/dedup/. In dry-run mode, it prints
-// what would happen without moving any files.
 func mergeDedupGroups(hashToFiles map[string][]string, cwd string, dryRun bool) error {
-	archiveDir := filepath.Join(cwd, ".agents", "archive", "dedup")
-
-	if dryRun {
-		fmt.Println("Merge (dry-run):")
-		for _, group := range hashToFiles {
-			if len(group) <= 1 {
-				continue
-			}
-			kept, archived := pickHighestUtility(group)
-			keptRel, _ := filepath.Rel(cwd, kept)
-			fmt.Printf("  Keep: %s (utility %.2f)\n", keptRel, readUtilityFromFile(kept))
-			for _, a := range archived {
-				aRel, _ := filepath.Rel(cwd, a)
-				fmt.Printf("  [dry-run] Would archive: %s -> .agents/archive/dedup/%s\n", aRel, filepath.Base(a))
-			}
-		}
-		return nil
-	}
-
-	if err := os.MkdirAll(archiveDir, 0o750); err != nil {
-		return fmt.Errorf("create archive directory: %w", err)
-	}
-
-	fmt.Println("Merge Results:")
-	for _, group := range hashToFiles {
-		if len(group) <= 1 {
-			continue
-		}
-		kept, archived := pickHighestUtility(group)
-		keptRel, _ := filepath.Rel(cwd, kept)
-		fmt.Printf("  Keep: %s (utility %.2f)\n", keptRel, readUtilityFromFile(kept))
-		for _, a := range archived {
-			aRel, _ := filepath.Rel(cwd, a)
-			dst := filepath.Join(archiveDir, filepath.Base(a))
-			if mvErr := os.Rename(a, dst); mvErr != nil {
-				fmt.Fprintf(os.Stderr, "Error archiving %s: %v\n", aRel, mvErr)
-				continue
-			}
-			fmt.Printf("  Archived: %s -> .agents/archive/dedup/%s\n", aRel, filepath.Base(a))
-		}
-	}
-	return nil
+	return lifecycle.MergeDedupGroups(hashToFiles, cwd, dryRun)
 }
-
-// buildDedupResult creates a DedupResult from the hash-to-files map,
-// using relative paths for cleaner output.
 func buildDedupResult(hashToFiles map[string][]string, totalFiles int, cwd string) DedupResult {
-	result := DedupResult{
-		TotalFiles:    totalFiles,
-		UniqueContent: len(hashToFiles),
-	}
-
-	for hash, group := range hashToFiles {
-		if len(group) > 1 {
-			result.DuplicateGroups++
-			result.DuplicateFiles += len(group)
-			relFiles := make([]string, len(group))
-			for i, f := range group {
-				rel, relErr := filepath.Rel(cwd, f)
-				if relErr != nil {
-					rel = f
-				}
-				relFiles[i] = rel
-			}
-			result.Groups = append(result.Groups, DedupGroup{
-				Hash:  hash[:12],
-				Count: len(group),
-				Files: relFiles,
-			})
-		}
-	}
-
-	return result
+	return lifecycle.BuildDedupResult(hashToFiles, totalFiles, cwd)
+}
+func pickHighestUtility(files []string) (string, []string) {
+	return lifecycle.PickHighestUtility(files)
+}
+func readUtilityFromFile(path string) float64 { return lifecycle.ReadUtilityFromFile(path) }
+func readUtilityFromFrontmatter(text string, defaultVal float64) float64 {
+	return lifecycle.ReadUtilityFromFrontmatter(text, defaultVal)
+}
+func readUtilityFromJSONL(text string, defaultVal float64) float64 {
+	return lifecycle.ReadUtilityFromJSONL(text, defaultVal)
+}
+func extractLearningBody(path string) string  { return lifecycle.ExtractLearningBody(path) }
+func extractMarkdownBody(text string) string  { return lifecycle.ExtractMarkdownBody(text) }
+func extractJSONLBody(text string) string     { return lifecycle.ExtractJSONLBody(text) }
+func hashNormalizedContent(body string) string {
+	return lifecycle.HashNormalizedContent(body)
 }
 
 func runDedup(cmd *cobra.Command, args []string) error {
@@ -192,7 +79,7 @@ func runDedup(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	files, err := collectDedupFiles(cwd)
+	files, err := lifecycle.CollectDedupFiles(cwd)
 	if err != nil {
 		return err
 	}
@@ -205,15 +92,13 @@ func runDedup(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	hashToFiles := groupByContentHash(files)
-	result := buildDedupResult(hashToFiles, len(files), cwd)
+	hashToFiles := lifecycle.GroupByContentHash(files)
+	result := lifecycle.BuildDedupResult(hashToFiles, len(files), cwd)
 
-	// --merge: resolve duplicate groups by keeping highest utility
 	if dedupMerge && result.DuplicateGroups > 0 {
-		return mergeDedupGroups(hashToFiles, cwd, GetDryRun())
+		return lifecycle.MergeDedupGroups(hashToFiles, cwd, GetDryRun())
 	}
 
-	// Output
 	if GetOutput() == "json" {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -240,148 +125,4 @@ func runDedup(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-// pickHighestUtility selects the file with the highest utility from a group.
-// Returns the keeper and the list of files to archive.
-func pickHighestUtility(files []string) (string, []string) {
-	bestIdx := 0
-	bestUtility := readUtilityFromFile(files[0])
-	for i := 1; i < len(files); i++ {
-		u := readUtilityFromFile(files[i])
-		if u > bestUtility {
-			bestUtility = u
-			bestIdx = i
-		}
-	}
-	kept := files[bestIdx]
-	var archived []string
-	for i, f := range files {
-		if i != bestIdx {
-			archived = append(archived, f)
-		}
-	}
-	return kept, archived
-}
-
-// readUtilityFromFile reads the utility value from a file's metadata.
-// For .md files, parses YAML frontmatter. For .jsonl files, parses the first JSON line.
-// Returns 0.5 as default if utility is not found or cannot be parsed.
-func readUtilityFromFile(path string) float64 {
-	const defaultUtility = 0.5
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return defaultUtility
-	}
-	text := string(content)
-
-	if strings.HasSuffix(path, ".jsonl") {
-		return readUtilityFromJSONL(text, defaultUtility)
-	}
-	return readUtilityFromFrontmatter(text, defaultUtility)
-}
-
-// readUtilityFromFrontmatter parses YAML frontmatter for the utility field.
-func readUtilityFromFrontmatter(text string, defaultVal float64) float64 {
-	lines := strings.Split(text, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return defaultVal
-	}
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "---" {
-			return defaultVal // reached end of frontmatter without finding utility
-		}
-		if strings.HasPrefix(line, "utility:") {
-			valStr := strings.TrimSpace(strings.TrimPrefix(line, "utility:"))
-			if u, parseErr := strconv.ParseFloat(valStr, 64); parseErr == nil {
-				return u
-			}
-		}
-	}
-	return defaultVal
-}
-
-// readUtilityFromJSONL parses the first JSON line for the utility field.
-func readUtilityFromJSONL(text string, defaultVal float64) float64 {
-	lines := strings.Split(text, "\n")
-	if len(lines) == 0 {
-		return defaultVal
-	}
-	var data map[string]any
-	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
-		return defaultVal
-	}
-	switch v := data["utility"].(type) {
-	case float64:
-		return v
-	case string:
-		if u, parseErr := strconv.ParseFloat(v, 64); parseErr == nil {
-			return u
-		}
-	}
-	return defaultVal
-}
-
-// extractLearningBody extracts the body content from a learning file.
-func extractLearningBody(path string) string {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	text := string(content)
-
-	if strings.HasSuffix(path, ".md") {
-		return extractMarkdownBody(text)
-	}
-	return extractJSONLBody(text)
-}
-
-// extractMarkdownBody returns content after YAML frontmatter.
-func extractMarkdownBody(text string) string {
-	lines := strings.Split(text, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return text // No frontmatter, entire content is body
-	}
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
-			return strings.Join(lines[i+1:], "\n")
-		}
-	}
-	return text // No closing ---, treat all as body
-}
-
-// extractJSONLBody extracts title or content from a JSONL first line.
-func extractJSONLBody(text string) string {
-	lines := strings.Split(text, "\n")
-	if len(lines) == 0 {
-		return ""
-	}
-	var data map[string]any
-	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
-		return ""
-	}
-	// Prefer content, fall back to title
-	if content, ok := data["content"].(string); ok && content != "" {
-		return content
-	}
-	if title, ok := data["title"].(string); ok {
-		return title
-	}
-	return ""
-}
-
-// hashNormalizedContent normalizes and hashes content for dedup comparison.
-func hashNormalizedContent(body string) string {
-	// Normalize: lowercase, strip markdown, collapse whitespace
-	s := strings.ToLower(strings.TrimSpace(body))
-	// Strip common markdown formatting
-	s = strings.ReplaceAll(s, "#", "")
-	s = strings.ReplaceAll(s, "*", "")
-	s = strings.ReplaceAll(s, "`", "")
-	s = strings.ReplaceAll(s, "---", "")
-	s = strings.Join(strings.Fields(s), " ")
-	h := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(h[:])
 }
