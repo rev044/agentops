@@ -1,0 +1,23 @@
+{
+  "internal/autodev": 81.6,
+  "internal/config": 95.3,
+  "internal/context": 24.6,
+  "internal/formatter": 100.0,
+  "internal/goals": 45.2,
+  "internal/harvest": 83.8,
+  "internal/parser": 100.0,
+  "internal/pool": 76.6,
+  "internal/provenance": 100.0,
+  "internal/quality": 18.8,
+  "internal/ratchet": 98.0,
+  "internal/resolver": 100.0,
+  "internal/rpi": 17.0,
+  "internal/safety": 100.0,
+  "internal/search": 8.7,
+  "internal/storage": 45.5,
+  "internal/taxonomy": 100.0,
+  "internal/types": 100.0,
+  "internal/vibecheck": 100.0,
+  "internal/worker": 100.0,
+  "pkg/vault": 100.0
+}
