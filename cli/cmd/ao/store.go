@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/boshu2/agentops/cli/internal/storage"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
@@ -25,58 +26,14 @@ var (
 )
 
 const (
-	// IndexFileName is the name of the search index file.
-	IndexFileName = "search-index.jsonl"
-
-	// IndexDir is the directory for index files.
-	IndexDir = ".agents/ao/index"
+	IndexFileName = storage.SearchIndexFileName
+	IndexDir      = storage.SearchIndexDir
 )
 
-// IndexEntry represents a single entry in the search index.
-type IndexEntry struct {
-	// Path is the absolute path to the artifact.
-	Path string `json:"path"`
-
-	// ID is the artifact identifier.
-	ID string `json:"id"`
-
-	// Type is the artifact type (learning, pattern, research, etc).
-	Type string `json:"type"`
-
-	// Title is the artifact title or first line.
-	Title string `json:"title"`
-
-	// Content is the full text content for search.
-	Content string `json:"content"`
-
-	// Keywords are extracted keywords for search.
-	Keywords []string `json:"keywords,omitempty"`
-
-	// Category is the artifact's category (best-effort), when --categorize is enabled.
-	Category string `json:"category,omitempty"`
-
-	// Tags are best-effort extracted tags, when --categorize is enabled.
-	Tags []string `json:"tags,omitempty"`
-
-	// Utility is the MemRL utility score.
-	Utility float64 `json:"utility,omitempty"`
-
-	// Maturity is the CASS maturity level.
-	Maturity string `json:"maturity,omitempty"`
-
-	// IndexedAt is when this entry was indexed.
-	IndexedAt time.Time `json:"indexed_at"`
-
-	// ModifiedAt is when the source file was last modified.
-	ModifiedAt time.Time `json:"modified_at"`
-}
-
-// SearchResult represents a search match.
-type SearchResult struct {
-	Entry   IndexEntry `json:"entry"`
-	Score   float64    `json:"score"`
-	Snippet string     `json:"snippet,omitempty"`
-}
+type (
+	IndexEntry   = storage.SearchIndexEntry
+	SearchResult = storage.SearchResult
+)
 
 var storeCmd = &cobra.Command{
 	Use:   "store",
@@ -281,8 +238,7 @@ func runStoreRebuild(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// artifactSubdirs lists the subdirectories under .agents/ that contain indexable artifacts.
-var artifactSubdirs = []string{"learnings", "patterns", "research", "retros", "candidates"}
+var artifactSubdirs = storage.ArtifactSubdirs
 
 // collectArtifactFiles walks all artifact subdirectories and returns indexable file paths.
 func collectArtifactFiles(cwd string) []string {
@@ -301,19 +257,8 @@ func collectArtifactFiles(cwd string) []string {
 	return files
 }
 
-// walkIndexableFiles returns all .md and .jsonl files under dir.
 func walkIndexableFiles(dir string) ([]string, error) {
-	var files []string
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".jsonl") {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return files, err
+	return storage.WalkIndexableFiles(dir)
 }
 
 // indexFiles creates index entries for each path and appends them to the index.

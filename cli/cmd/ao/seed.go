@@ -2,17 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/boshu2/agentops/cli/embedded"
 	"github.com/boshu2/agentops/cli/internal/goals"
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/spf13/cobra"
 )
 
@@ -64,13 +63,7 @@ func init() {
 }
 
 // validTemplates enumerates the allowed template names.
-var validTemplates = map[string]bool{
-	"go-cli":     true,
-	"python-lib": true,
-	"web-app":    true,
-	"rust-cli":   true,
-	"generic":    true,
-}
+var validTemplates = lifecycle.ValidTemplates
 
 // seedResult holds structured output for --json mode.
 type seedResult struct {
@@ -185,25 +178,7 @@ func outputSeedResult(result seedResult) error {
 }
 
 func validateTemplateMapEntries(templates map[string]bool, templatesFS fs.FS) error {
-	names := make([]string, 0, len(templates))
-	for name, enabled := range templates {
-		if enabled {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		path := filepath.Join("templates", name+".yaml")
-		if _, err := fs.Stat(templatesFS, path); err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return fmt.Errorf("template %q missing embedded file %s", name, path)
-			}
-			return fmt.Errorf("validate embedded template %q (%s): %w", name, path, err)
-		}
-	}
-
-	return nil
+	return lifecycle.ValidateTemplateMapEntries(templates, templatesFS)
 }
 
 // detectTemplate inspects project files to determine the best template.
@@ -268,81 +243,9 @@ func seedCreateGoals(root string, template string, result *seedResult) error {
 	return nil
 }
 
-// templateConfig holds the per-template data used by buildSeedGoalFile.
-// Adding a new template is a data-only change: add an entry to templateConfigs.
-type templateConfig struct {
-	// MissionSuffix is appended to "Fitness goals for <dir>" in the mission string.
-	// Example: " (Go CLI)" produces "Fitness goals for myproject (Go CLI)".
-	MissionSuffix string
-	NorthStars    []string
-	AntiStars     []string
-	Directives    []goals.Directive
-}
-
-// templateConfigs maps template names to their goal-file configuration.
-// The "generic" entry is used as fallback for unknown template names.
-var templateConfigs = map[string]templateConfig{
-	"go-cli": {
-		MissionSuffix: " (Go CLI)",
-		NorthStars:    []string{"All checks pass on every commit", "Clean go vet and golangci-lint"},
-		AntiStars:     []string{"Untested changes reaching main", "Cyclomatic complexity > 25"},
-		Directives: []goals.Directive{
-			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
-			{Number: 2, Title: "Test coverage", Description: "Maintain and increase test coverage across all packages.", Steer: "increase"},
-		},
-	},
-	"python-lib": {
-		MissionSuffix: " (Python library)",
-		NorthStars:    []string{"All tests pass on every commit", "Type hints on all public APIs"},
-		AntiStars:     []string{"Untested changes reaching main", "Undocumented public functions"},
-		Directives: []goals.Directive{
-			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
-			{Number: 2, Title: "Documentation", Description: "All public APIs are documented with docstrings.", Steer: "increase"},
-		},
-	},
-	"web-app": {
-		MissionSuffix: " (web application)",
-		NorthStars:    []string{"All checks pass on every commit", "No critical accessibility violations"},
-		AntiStars:     []string{"Untested changes reaching main", "Unhandled runtime errors in production"},
-		Directives: []goals.Directive{
-			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
-			{Number: 2, Title: "Test coverage", Description: "Component and integration tests for critical paths.", Steer: "increase"},
-		},
-	},
-	"rust-cli": {
-		MissionSuffix: " (Rust CLI)",
-		NorthStars:    []string{"All checks pass on every commit", "Clean clippy with no warnings"},
-		AntiStars:     []string{"Untested changes reaching main", "Unsafe code without justification"},
-		Directives: []goals.Directive{
-			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
-			{Number: 2, Title: "Test coverage", Description: "Maintain and increase test coverage.", Steer: "increase"},
-		},
-	},
-	"generic": {
-		MissionSuffix: "",
-		NorthStars:    []string{"All checks pass on every commit"},
-		AntiStars:     []string{"Untested changes reaching main"},
-		Directives: []goals.Directive{
-			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
-		},
-	},
-}
-
 // buildSeedGoalFile creates a GoalFile tailored to the template.
 func buildSeedGoalFile(root string, template string) *goals.GoalFile {
-	cfg, ok := templateConfigs[template]
-	if !ok {
-		cfg = templateConfigs["generic"]
-	}
-
-	return &goals.GoalFile{
-		Version:    4,
-		Format:     "md",
-		Mission:    fmt.Sprintf("Fitness goals for %s%s", filepath.Base(root), cfg.MissionSuffix),
-		NorthStars: cfg.NorthStars,
-		AntiStars:  cfg.AntiStars,
-		Directives: cfg.Directives,
-	}
+	return lifecycle.BuildSeedGoalFile(root, template)
 }
 
 // seedCreateBootstrapLearning creates the initial learning artifact.
@@ -405,42 +308,23 @@ Adopted AgentOps knowledge compounding workflow:
 }
 
 // claudeMDSeedSection is the section appended to CLAUDE.md by ao seed.
-const claudeMDSeedSection = `
-## AgentOps Knowledge Flywheel
+const claudeMDSeedSection = lifecycle.ClaudeMDSeedSection
+const claudeMDSeedMarker = lifecycle.ClaudeMDSeedMarker
+const claudeMDSeedMarkerLegacy = lifecycle.ClaudeMDSeedMarkerLegacy
 
-Knowledge compounds automatically across sessions:
+// templateConfig and templateConfigs aliases for backwards compatibility with tests.
+type templateConfig = lifecycle.TemplateConfig
 
-- **MEMORY.md** is auto-loaded by your AI coding tool every session
-- **Session hooks** extract learnings, update MEMORY.md, and prune stale knowledge
-- **Skills** invoke flywheel commands at the right moments (no manual ao commands needed)
-
-Verify the flywheel any time:
-
-` + "```bash" + `
-ao flywheel status    # escape velocity check
-ao status             # current knowledge inventory
-` + "```" + `
-`
-
-// claudeMDSeedMarker is used to detect if the seed section was already added.
-// Also checks legacy marker for backward compatibility with older seeds.
-const claudeMDSeedMarker = "## AgentOps Knowledge Flywheel"
-const claudeMDSeedMarkerLegacy = "## AgentOps Session Protocol"
+var templateConfigs = lifecycle.TemplateConfigs
 
 // hasSeedMarker returns true if content contains the current or legacy seed marker.
 func hasSeedMarker(content string) bool {
-	return strings.Contains(content, claudeMDSeedMarker) || strings.Contains(content, claudeMDSeedMarkerLegacy)
+	return lifecycle.HasSeedMarker(content)
 }
 
 // findSeedMarker returns the marker string found in content (current or legacy), or empty string.
 func findSeedMarker(content string) string {
-	if strings.Contains(content, claudeMDSeedMarker) {
-		return claudeMDSeedMarker
-	}
-	if strings.Contains(content, claudeMDSeedMarkerLegacy) {
-		return claudeMDSeedMarkerLegacy
-	}
-	return ""
+	return lifecycle.FindSeedMarker(content)
 }
 
 // seedAppendClaudeMD appends the seed section to CLAUDE.md (creating it if absent).

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -173,14 +173,7 @@ func runMaturityMigrateMd(learningsDir string) error {
 }
 
 func defaultLearningMetadataFields() map[string]string {
-	return map[string]string{
-		"utility":       fmt.Sprintf("%.4f", types.InitialUtility),
-		"maturity":      "provisional",
-		"confidence":    "0.0000",
-		"reward_count":  "0",
-		"helpful_count": "0",
-		"harmful_count": "0",
-	}
+	return lifecycle.DefaultLearningMetadataFields()
 }
 
 func normalizeLearningMetadata(file string, dryRun bool) (bool, error) {
@@ -485,48 +478,8 @@ type expiryCategory struct {
 }
 
 // parseFrontmatterFields extracts specific fields from YAML frontmatter in a markdown file.
-// Returns a map of field name to value for the requested fields.
 func parseFrontmatterFields(path string, fields ...string) (map[string]string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	result := make(map[string]string)
-	scanner := bufio.NewScanner(f)
-	inFrontmatter := false
-	dashCount := 0
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == "---" {
-			dashCount++
-			if dashCount == 1 {
-				inFrontmatter = true
-				continue
-			}
-			if dashCount == 2 {
-				break
-			}
-		}
-
-		if inFrontmatter {
-			for _, field := range fields {
-				prefix := field + ":"
-				if strings.HasPrefix(trimmed, prefix) {
-					val := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
-					// Strip surrounding quotes if present
-					val = strings.Trim(val, "\"'")
-					result[field] = val
-				}
-			}
-		}
-	}
-
-	return result, scanner.Err()
+	return lifecycle.ParseFrontmatterFields(path, fields...)
 }
 
 func runMaturityExpire(cmd *cobra.Command) error {
@@ -825,45 +778,11 @@ func shouldArchiveUncitedLearning(baseDir, file, maturity string, modTime time.T
 }
 
 func isLowSignalLearningBody(body string) bool {
-	trimmed := strings.TrimSpace(body)
-	if trimmed == "" {
-		return true
-	}
-	if len(trimmed) < 50 {
-		return true
-	}
-	if len(strings.Fields(trimmed)) < 12 {
-		return true
-	}
-	lower := strings.ToLower(trimmed)
-	for _, prefix := range []string{
-		"till ", "still ", "will ", "let me ",
-		"and ", "but ", "or ", "however ", "therefore ",
-		"additionally ", "furthermore ",
-		"- ", "* ",
-	} {
-		if strings.HasPrefix(lower, prefix) {
-			return true
-		}
-	}
-	sentenceEnders := 0
-	runes := []rune(trimmed)
-	for i, ch := range runes {
-		if ch == '.' || ch == '!' || ch == '?' {
-			if i == len(runes)-1 || runes[i+1] == ' ' || runes[i+1] == '\n' {
-				sentenceEnders++
-			}
-		}
-	}
-	return sentenceEnders == 0
+	return lifecycle.IsLowSignalLearningBody(body)
 }
 
 func stripLearningHeading(content string) string {
-	lines := strings.Split(content, "\n")
-	if len(lines) >= 3 && strings.HasPrefix(strings.TrimSpace(lines[0]), "# ") && strings.TrimSpace(lines[1]) == "" {
-		return strings.TrimSpace(strings.Join(lines[2:], "\n"))
-	}
-	return strings.TrimSpace(content)
+	return lifecycle.StripLearningHeading(content)
 }
 
 func reportCurationCandidates(files []string, normalized int, candidates []curationCandidate) (bool, error) {
@@ -1000,22 +919,7 @@ func buildEvictionCandidate(baseDir, file string, lastCited map[string]time.Time
 }
 
 func readLearningJSONLData(file string) (map[string]any, bool) {
-	content, err := os.ReadFile(file)
-	if err != nil {
-		return nil, false
-	}
-
-	lines := strings.Split(string(content), "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
-		return nil, false
-	}
-
-	var data map[string]any
-	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
-		return nil, false
-	}
-
-	return data, true
+	return lifecycle.ReadLearningJSONLData(file)
 }
 
 // readLearningData dispatches to the appropriate reader based on file extension.
@@ -1042,13 +946,7 @@ func readLearningData(file string) (map[string]any, bool) {
 }
 
 func isEvictionEligible(utility, confidence float64, maturity string) bool {
-	if maturity == "established" {
-		return false
-	}
-	if utility >= 0.3 {
-		return false
-	}
-	return confidence < 0.3
+	return lifecycle.IsEvictionEligible(utility, confidence, maturity)
 }
 
 func evictionCitationStatus(file string, lastCited map[string]time.Time, cutoff time.Time) (string, bool) {
@@ -1119,19 +1017,11 @@ func archiveEvictionCandidates(cwd string, candidates []evictionCandidate) error
 }
 
 func floatValueFromData(data map[string]any, key string, defaultValue float64) float64 {
-	value, ok := data[key].(float64)
-	if !ok {
-		return defaultValue
-	}
-	return value
+	return lifecycle.FloatValueFromData(data, key, defaultValue)
 }
 
 func nonEmptyStringFromData(data map[string]any, key, defaultValue string) string {
-	value, ok := data[key].(string)
-	if !ok || value == "" {
-		return defaultValue
-	}
-	return value
+	return lifecycle.NonEmptyStringFromData(data, key, defaultValue)
 }
 
 // antiPatternCmd lists and manages anti-patterns.

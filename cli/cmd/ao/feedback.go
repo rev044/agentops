@@ -1,16 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/resolver"
 	"github.com/boshu2/agentops/cli/internal/types"
@@ -24,8 +23,8 @@ var (
 )
 
 const (
-	impliedHelpfulRewardThreshold = 0.8
-	impliedHarmfulRewardThreshold = 0.2
+	impliedHelpfulRewardThreshold = lifecycle.ImpliedHelpfulRewardThreshold
+	impliedHarmfulRewardThreshold = lifecycle.ImpliedHarmfulRewardThreshold
 )
 
 var feedbackCmd = &cobra.Command{
@@ -71,37 +70,12 @@ func init() {
 	// Note: reward is no longer required since --helpful/--harmful can be used instead
 }
 
-// resolveReward applies --helpful/--harmful shortcuts and validates the reward and alpha values.
 func resolveReward(helpful, harmful bool, reward, alpha float64) (float64, error) {
-	if helpful && harmful {
-		return 0, fmt.Errorf("cannot use both --helpful and --harmful")
-	}
-	if helpful {
-		reward = 1.0
-	} else if harmful {
-		reward = 0.0
-	}
-	if reward < 0 {
-		return 0, fmt.Errorf("must provide --reward, --helpful, or --harmful")
-	}
-	if reward > 1 {
-		return 0, fmt.Errorf("reward must be between 0.0 and 1.0, got: %f", reward)
-	}
-	if alpha <= 0 || alpha > 1 {
-		return 0, fmt.Errorf("alpha must be between 0 and 1 (exclusive 0), got: %f", alpha)
-	}
-	return reward, nil
+	return lifecycle.ResolveReward(helpful, harmful, reward, alpha)
 }
 
-// classifyFeedbackType returns a human-readable label for the feedback.
 func classifyFeedbackType(helpful, harmful bool) string {
-	if helpful {
-		return "helpful"
-	}
-	if harmful {
-		return "harmful"
-	}
-	return "custom"
+	return lifecycle.ClassifyFeedbackType(helpful, harmful)
 }
 
 // printFeedbackJSON writes the result as indented JSON to stdout.
@@ -171,262 +145,52 @@ func findLearningFile(baseDir, learningID string) (string, error) {
 	return resolver.NewFileResolver(baseDir).Resolve(learningID)
 }
 
-// updateLearningUtility applies the EMA update rule and writes back.
 func updateLearningUtility(path string, reward, alpha float64) (oldUtility, newUtility float64, err error) {
-	if strings.HasSuffix(path, ".jsonl") {
-		return updateJSONLUtility(path, reward, alpha)
-	}
-	return updateMarkdownUtility(path, reward, alpha)
+	return lifecycle.UpdateLearningUtility(path, reward, alpha, feedbackHelpful, feedbackHarmful)
 }
 
-// parseJSONLFirstLine reads a file and parses the first line as a JSON object.
 func parseJSONLFirstLine(path string) ([]string, map[string]any, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return nil, nil, err
-	}
-	lines := strings.Split(string(content), "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
-		return nil, nil, fmt.Errorf("empty JSONL file")
-	}
-	var data map[string]any
-	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
-		return nil, nil, fmt.Errorf("parse JSONL: %w", err)
-	}
-	return lines, data, nil
+	return lifecycle.ParseJSONLFirstLine(path)
 }
 
-// applyJSONLRewardFields updates utility, reward, count, confidence, and CASS counters in data.
 func applyJSONLRewardFields(data map[string]any, oldUtility, newUtility, reward float64) {
-	data["utility"] = newUtility
-	data["last_reward"] = reward
-	rewardCount := 0
-	if rc, ok := data["reward_count"].(float64); ok {
-		rewardCount = int(rc)
-	}
-	data["reward_count"] = rewardCount + 1
-	data["last_reward_at"] = time.Now().Format(time.RFC3339)
-
-	// CASS: Track helpful_count and harmful_count.
-	incrementHelpful, incrementHarmful := counterDirectionFromFeedback(reward, feedbackHelpful, feedbackHarmful)
-	if incrementHelpful {
-		helpfulCount := 0
-		if hc, ok := data["helpful_count"].(float64); ok {
-			helpfulCount = int(hc)
-		}
-		data["helpful_count"] = helpfulCount + 1
-	} else if incrementHarmful {
-		harmfulCount := 0
-		if hc, ok := data["harmful_count"].(float64); ok {
-			harmfulCount = int(hc)
-		}
-		data["harmful_count"] = harmfulCount + 1
-	}
-
-	// Confidence increases with more feedback: 1 - e^(-rewardCount/5)
-	newRewardCount := rewardCount + 1
-	confidence := 1.0 - (1.0 / (1.0 + float64(newRewardCount)/5.0))
-	data["confidence"] = confidence
-	data["last_decay_at"] = time.Now().Format(time.RFC3339)
+	lifecycle.ApplyJSONLRewardFields(data, oldUtility, newUtility, reward, feedbackHelpful, feedbackHarmful)
 }
 
-// updateJSONLUtility updates utility in a JSONL file.
-// Also tracks helpful_count and harmful_count for CASS maturity transitions.
 func updateJSONLUtility(path string, reward, alpha float64) (oldUtility, newUtility float64, err error) {
-	lines, data, err := parseJSONLFirstLine(path)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	// Get current utility (default to InitialUtility)
-	oldUtility = types.InitialUtility
-	if u, ok := data["utility"].(float64); ok && u > 0 {
-		oldUtility = u
-	}
-
-	// Apply EMA update: u_{t+1} = (1 - alpha) * u_t + alpha * r
-	newUtility = (1-alpha)*oldUtility + alpha*reward
-
-	applyJSONLRewardFields(data, oldUtility, newUtility, reward)
-
-	// Write back
-	newJSON, err := json.Marshal(data)
-	if err != nil {
-		return 0, 0, err
-	}
-	lines[0] = string(newJSON)
-	return oldUtility, newUtility, os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
+	return lifecycle.UpdateJSONLUtility(path, reward, alpha, feedbackHelpful, feedbackHarmful)
 }
 
 func counterDirectionFromFeedback(reward float64, explicitHelpful, explicitHarmful bool) (helpful bool, harmful bool) {
-	if explicitHelpful {
-		return true, false
-	}
-	if explicitHarmful {
-		return false, true
-	}
-	if reward >= impliedHelpfulRewardThreshold {
-		return true, false
-	}
-	if reward <= impliedHarmfulRewardThreshold {
-		return false, true
-	}
-	return false, false
+	return lifecycle.CounterDirectionFromFeedback(reward, explicitHelpful, explicitHarmful)
 }
 
-// parseFrontMatterUtility scans front matter lines for the utility value.
 func parseFrontMatterUtility(lines []string) (endIdx int, utility float64, err error) {
-	utility = types.InitialUtility
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
-			return i, utility, nil
-		}
-		if strings.HasPrefix(lines[i], "utility:") {
-			_, _ = fmt.Sscanf(lines[i], "utility: %f", &utility) //nolint:errcheck // best effort parse
-		}
-	}
-	return -1, 0, fmt.Errorf("malformed front matter: no closing ---")
+	return lifecycle.ParseFrontMatterUtility(lines)
 }
 
-// rebuildWithFrontMatter reconstructs a file with updated front matter fields and body lines.
 func rebuildWithFrontMatter(updatedFM []string, bodyLines []string) string {
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	for _, line := range updatedFM {
-		sb.WriteString(line)
-		sb.WriteString("\n")
-	}
-	sb.WriteString("---\n")
-	for i, line := range bodyLines {
-		sb.WriteString(line)
-		if i < len(bodyLines)-1 {
-			sb.WriteString("\n")
-		}
-	}
-	return sb.String()
+	return lifecycle.RebuildWithFrontMatter(updatedFM, bodyLines)
 }
 
-// updateMarkdownUtility updates utility in a markdown file with front matter.
 func updateMarkdownUtility(path string, reward, alpha float64) (oldUtility, newUtility float64, err error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	text := string(content)
-	lines := strings.Split(text, "\n")
-
-	hasFrontMatter := len(lines) > 0 && strings.TrimSpace(lines[0]) == "---"
-
-	if hasFrontMatter {
-		endIdx, oldU, fmErr := parseFrontMatterUtility(lines)
-		if fmErr != nil {
-			return 0, 0, fmErr
-		}
-		oldUtility = oldU
-		newUtility = (1-alpha)*oldUtility + alpha*reward
-
-		fmLines := lines[1:endIdx]
-		newRewardCountStr := incrementRewardCount(fmLines)
-		newRewardCount := parseFrontMatterInt(fmLines, "reward_count") + 1
-		confidence := 1.0 - (1.0 / (1.0 + float64(newRewardCount)/5.0))
-
-		fields := map[string]string{
-			"utility":        fmt.Sprintf("%.4f", newUtility),
-			"last_reward":    fmt.Sprintf("%.2f", reward),
-			"reward_count":   newRewardCountStr,
-			"last_reward_at": time.Now().Format(time.RFC3339),
-			"confidence":     fmt.Sprintf("%.4f", confidence),
-			"last_decay_at":  time.Now().Format(time.RFC3339),
-		}
-
-		incrementHelpful, incrementHarmful := counterDirectionFromFeedback(reward, feedbackHelpful, feedbackHarmful)
-		if incrementHelpful {
-			fields["helpful_count"] = incrementFMCount(fmLines, "helpful_count")
-		} else if incrementHarmful {
-			fields["harmful_count"] = incrementFMCount(fmLines, "harmful_count")
-		}
-
-		updatedFM := updateFrontMatterFields(fmLines, fields)
-
-		rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
-		return oldUtility, newUtility, os.WriteFile(path, []byte(rebuilt), 0600)
-	}
-
-	// No front matter - add it
-	oldUtility = types.InitialUtility
-	newUtility = (1-alpha)*oldUtility + alpha*reward
-
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	sb.WriteString(fmt.Sprintf("utility: %.4f\n", newUtility))
-	sb.WriteString(fmt.Sprintf("last_reward: %.2f\n", reward))
-	sb.WriteString("reward_count: 1\n")
-	sb.WriteString(fmt.Sprintf("last_reward_at: %s\n", time.Now().Format(time.RFC3339)))
-	sb.WriteString("---\n")
-	sb.WriteString(text)
-
-	return oldUtility, newUtility, os.WriteFile(path, []byte(sb.String()), 0600)
+	return lifecycle.UpdateMarkdownUtility(path, reward, alpha, feedbackHelpful, feedbackHarmful)
 }
 
-// updateFrontMatterFields updates or adds fields in front matter lines.
 func updateFrontMatterFields(lines []string, fields map[string]string) []string {
-	result := make([]string, 0, len(lines)+len(fields))
-	seen := make(map[string]bool)
-
-	for _, line := range lines {
-		updated := false
-		for key, value := range fields {
-			if strings.HasPrefix(line, key+":") {
-				result = append(result, fmt.Sprintf("%s: %s", key, value))
-				seen[key] = true
-				updated = true
-				break
-			}
-		}
-		if !updated {
-			result = append(result, line)
-		}
-	}
-
-	// Add missing fields
-	for key, value := range fields {
-		if !seen[key] {
-			result = append(result, fmt.Sprintf("%s: %s", key, value))
-		}
-	}
-
-	return result
+	return lifecycle.UpdateFrontMatterFields(lines, fields)
 }
 
-// incrementRewardCount parses and increments reward_count from front matter.
 func incrementRewardCount(lines []string) string {
-	count := 0
-	for _, line := range lines {
-		if strings.HasPrefix(line, "reward_count:") {
-			_, _ = fmt.Sscanf(line, "reward_count: %d", &count) //nolint:errcheck // best effort parse
-			break
-		}
-	}
-	return fmt.Sprintf("%d", count+1)
+	return lifecycle.IncrementRewardCount(lines)
 }
 
-// parseFrontMatterInt scans front matter lines for a named integer field.
 func parseFrontMatterInt(lines []string, field string) int {
-	val := 0
-	prefix := field + ":"
-	for _, line := range lines {
-		if strings.HasPrefix(line, prefix) {
-			_, _ = fmt.Sscanf(line, field+": %d", &val) //nolint:errcheck // best effort parse
-			break
-		}
-	}
-	return val
+	return lifecycle.ParseFrontMatterInt(lines, field)
 }
 
-// incrementFMCount parses the current int value for a field and returns the incremented value as a string.
 func incrementFMCount(lines []string, field string) string {
-	return fmt.Sprintf("%d", parseFrontMatterInt(lines, field)+1)
+	return lifecycle.IncrementFMCount(lines, field)
 }
 
 // migrateCmd adds utility field to learnings without it.
@@ -504,53 +268,10 @@ func runMigrate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// needsUtilityMigration checks if a JSONL file needs utility field added.
 func needsUtilityMigration(path string) (bool, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return false, err
-	}
-	defer f.Close() //nolint:errcheck // read-only file
-
-	scanner := bufio.NewScanner(f)
-	if scanner.Scan() {
-		var data map[string]any
-		if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
-			return false, err
-		}
-		// If utility field exists and is non-zero, no migration needed
-		if u, ok := data["utility"].(float64); ok && u > 0 {
-			return false, nil
-		}
-		return true, nil
-	}
-	return false, nil
+	return lifecycle.NeedsUtilityMigration(path)
 }
 
-// addUtilityField adds utility: 0.5 to a JSONL file.
 func addUtilityField(path string) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(content), "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
-		return nil
-	}
-
-	var data map[string]any
-	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
-		return err
-	}
-
-	data["utility"] = types.InitialUtility
-
-	newJSON, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-
-	lines[0] = string(newJSON)
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
+	return lifecycle.AddUtilityField(path)
 }
