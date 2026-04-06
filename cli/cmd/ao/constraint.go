@@ -4,53 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/formatter"
+	"github.com/boshu2/agentops/cli/internal/search"
 	"github.com/spf13/cobra"
 )
 
-// constraintIndex represents the .agents/constraints/index.json schema.
-type constraintIndex struct {
-	SchemaVersion int               `json:"schema_version"`
-	Constraints   []constraintEntry `json:"constraints"`
-}
-
-type constraintAppliesTo struct {
-	Scope      string   `json:"scope,omitempty"`
-	IssueTypes []string `json:"issue_types,omitempty"`
-	PathGlobs  []string `json:"path_globs,omitempty"`
-	Languages  []string `json:"languages,omitempty"`
-}
-
-type constraintDetector struct {
-	Kind      string `json:"kind,omitempty"`
-	Mode      string `json:"mode,omitempty"`
-	Pattern   string `json:"pattern,omitempty"`
-	Exclude   string `json:"exclude,omitempty"`
-	Companion string `json:"companion,omitempty"`
-	Command   string `json:"command,omitempty"`
-	Message   string `json:"message,omitempty"`
-}
-
-// constraintEntry represents a single compiled constraint.
-type constraintEntry struct {
-	ID              string              `json:"id"`
-	FindingID       string              `json:"finding_id,omitempty"`
-	Title           string              `json:"title"`
-	Source          string              `json:"source"`
-	SourceArtifact  string              `json:"source_artifact,omitempty"`
-	SourceType      string              `json:"source_type,omitempty"`
-	CompilerTargets []string            `json:"compiler_targets,omitempty"`
-	Detectability   string              `json:"detectability,omitempty"`
-	Status          string              `json:"status"`
-	CompiledAt      string              `json:"compiled_at"`
-	ReviewFile      string              `json:"review_file,omitempty"`
-	AppliesTo       constraintAppliesTo `json:"applies_to,omitempty"`
-	Detector        constraintDetector  `json:"detector,omitempty"`
-	File            string              `json:"file"`
-}
+type (
+	constraintIndex     = search.ConstraintIndex
+	constraintEntry     = search.ConstraintEntry
+	constraintAppliesTo = search.ConstraintAppliesTo
+	constraintDetector  = search.ConstraintDetector
+)
 
 var constraintCmd = &cobra.Command{
 	Use:   "constraint",
@@ -76,112 +42,18 @@ func init() {
 	constraintCmd.AddCommand(constraintListCmd)
 }
 
-// constraintIndexPath returns the canonical path to the index file.
-func constraintIndexPath() string {
-	return filepath.Join(".agents", "constraints", "index.json")
-}
-
-func constraintLockPath() string {
-	return filepath.Join(".agents", "constraints", "compile.lock")
-}
-
-// loadConstraintIndex reads and parses the constraint index.
+func constraintIndexPath() string  { return search.ConstraintIndexPath() }
+func constraintLockPath() string   { return search.ConstraintLockPath() }
 func loadConstraintIndex() (*constraintIndex, error) {
-	path := constraintIndexPath()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("no constraints found — run constraint-compiler.sh first")
-		}
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-	var idx constraintIndex
-	if err := json.Unmarshal(data, &idx); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", path, err)
-	}
-	return &idx, nil
+	return search.LoadConstraintIndex()
 }
-
-func withConstraintLock(fn func() error) error {
-	lockPath := constraintLockPath()
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
-		return fmt.Errorf("create constraints dir: %w", err)
-	}
-
-	var lockFile *os.File
-	var err error
-	for attempt := 0; attempt < 20; attempt++ {
-		lockFile, err = os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-		if err == nil {
-			break
-		}
-		if !os.IsExist(err) {
-			return fmt.Errorf("acquire constraint lock: %w", err)
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	if err != nil {
-		return fmt.Errorf("acquire constraint lock: %w", err)
-	}
-	defer func() {
-		_ = lockFile.Close()
-		_ = os.Remove(lockPath)
-	}()
-
-	return fn()
-}
-
+func withConstraintLock(fn func() error) error { return search.WithConstraintLock(fn) }
 func saveConstraintIndexUnlocked(idx *constraintIndex) error {
-	path := constraintIndexPath()
-	data, err := json.MarshalIndent(idx, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling index: %w", err)
-	}
-	data = append(data, '\n')
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create constraints dir: %w", err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), "index.json.tmp.*")
-	if err != nil {
-		return fmt.Errorf("create temp constraint index: %w", err)
-	}
-	tmpPath := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("write temp constraint index: %w", err)
-	}
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("chmod temp constraint index: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("close temp constraint index: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("rename constraint index: %w", err)
-	}
-	return nil
+	return search.SaveConstraintIndexUnlocked(idx)
 }
-
-// saveConstraintIndex writes the constraint index back to disk.
-func saveConstraintIndex(idx *constraintIndex) error {
-	return withConstraintLock(func() error {
-		return saveConstraintIndexUnlocked(idx)
-	})
-}
-
-// findConstraint locates a constraint by ID and returns its pointer.
+func saveConstraintIndex(idx *constraintIndex) error { return search.SaveConstraintIndex(idx) }
 func findConstraint(idx *constraintIndex, id string) *constraintEntry {
-	for i := range idx.Constraints {
-		if idx.Constraints[i].ID == id {
-			return &idx.Constraints[i]
-		}
-	}
-	return nil
+	return search.FindConstraint(idx, id)
 }
 
 // printConstraintTable renders a slice of constraintEntry as a formatted table
@@ -285,24 +157,7 @@ var constraintReviewCmd = &cobra.Command{
 		}
 
 		cutoff := time.Now().AddDate(0, 0, -90)
-		stale := []constraintEntry{}
-
-		for _, c := range idx.Constraints {
-			if c.Status == "retired" {
-				continue
-			}
-			compiled, parseErr := time.Parse(time.RFC3339, c.CompiledAt)
-			if parseErr != nil {
-				// Try date-only format
-				compiled, parseErr = time.Parse("2006-01-02", c.CompiledAt)
-				if parseErr != nil {
-					continue
-				}
-			}
-			if compiled.Before(cutoff) {
-				stale = append(stale, c)
-			}
-		}
+		stale := search.FilterStaleConstraints(idx.Constraints, cutoff)
 
 		if GetOutput() == "json" {
 			enc := json.NewEncoder(os.Stdout)

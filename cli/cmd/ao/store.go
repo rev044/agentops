@@ -1,23 +1,16 @@
 package main
 
 import (
-	"bufio"
-	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"text/tabwriter"
-	"time"
-	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/boshu2/agentops/cli/internal/storage"
-	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 var (
@@ -308,493 +301,74 @@ func runStoreStats(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// artifactTypeFromPath determines the artifact type based on the file path.
+type IndexStats = storage.SearchIndexStats
+
 func artifactTypeFromPath(path string) string {
-	pathTypeMap := []struct {
-		segment    string
-		resultType string
-	}{
-		{"/learnings/", "learning"},
-		{"/patterns/", "pattern"},
-		{"/research/", "research"},
-		{"/retro/", "retro"},
-		{"/candidates/", "candidate"},
-	}
-	for _, m := range pathTypeMap {
-		if strings.Contains(path, m.segment) {
-			return m.resultType
-		}
-	}
-	return "unknown"
+	return storage.ArtifactTypeFromPath(path)
 }
 
-// appendCategoryKeywords appends category and tag values as lowercase keywords.
 func appendCategoryKeywords(keywords []string, category string, tags []string) []string {
-	if category != "" {
-		keywords = append(keywords, strings.ToLower(category))
-	}
-	for _, t := range tags {
-		tt := strings.TrimSpace(t)
-		if tt != "" {
-			keywords = append(keywords, strings.ToLower(tt))
-		}
-	}
-	return keywords
+	return storage.AppendCategoryKeywords(keywords, category, tags)
 }
 
-// createIndexEntry creates an index entry from a file.
 func createIndexEntry(path string, categorize bool) (*IndexEntry, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	text := string(content)
-	keywords := extractKeywords(text)
-
-	var category string
-	var tags []string
-	if categorize {
-		category, tags = extractCategoryAndTags(text)
-		keywords = appendCategoryKeywords(keywords, category, tags)
-	}
-
-	utility, maturity := parseMemRLMetadata(text)
-
-	return &IndexEntry{
-		Path:       path,
-		ID:         filepath.Base(path),
-		Type:       artifactTypeFromPath(path),
-		Title:      extractTitle(text),
-		Content:    text,
-		Keywords:   keywords,
-		Category:   category,
-		Tags:       tags,
-		Utility:    utility,
-		Maturity:   maturity,
-		IndexedAt:  time.Now(),
-		ModifiedAt: info.ModTime(),
-	}, nil
+	return storage.CreateSearchIndexEntry(path, categorize)
 }
 
-// appendToIndex adds an entry to the index file.
 func appendToIndex(baseDir string, entry *IndexEntry) error {
-	indexDir := filepath.Join(baseDir, IndexDir)
-	if err := os.MkdirAll(indexDir, 0750); err != nil {
-		return err
-	}
-
-	indexPath := filepath.Join(indexDir, IndexFileName)
-
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-
-	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // write complete, close best-effort
-	}()
-
-	_, err = f.Write(append(data, '\n'))
-	return err
+	return storage.AppendToSearchIndex(baseDir, entry)
 }
 
-// searchIndex searches the index for matching entries.
 func searchIndex(baseDir, query string, limit int) ([]SearchResult, error) {
-	indexPath := filepath.Join(baseDir, IndexDir, IndexFileName)
-
-	f, err := os.Open(indexPath)
-	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("index not found - run 'ao store rebuild' first")
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only index search, close error non-fatal
-	}()
-
-	queryTerms := strings.Fields(strings.ToLower(query))
-	var results []SearchResult
-
-	scanner := bufio.NewScanner(f)
-	// Increase buffer size for large entries
-	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
-
-	for scanner.Scan() {
-		var entry IndexEntry
-		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
-			continue
-		}
-
-		score := computeSearchScore(entry, queryTerms)
-		if score > 0 {
-			snippet := createSearchSnippet(entry.Content, query, 150)
-			results = append(results, SearchResult{
-				Entry:   entry,
-				Score:   score,
-				Snippet: snippet,
-			})
-		}
-	}
-
-	// Sort by score (descending) then by utility (descending)
-	slices.SortFunc(results, func(a, b SearchResult) int {
-		if c := cmp.Compare(b.Score, a.Score); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Entry.Utility, a.Entry.Utility)
-	})
-
-	// Apply limit
-	if limit > 0 && len(results) > limit {
-		results = results[:limit]
-	}
-
-	return results, scanner.Err()
+	return storage.SearchIndex(baseDir, query, limit)
 }
 
-// computeSearchScore calculates relevance score for a query.
 func computeSearchScore(entry IndexEntry, queryTerms []string) float64 {
-	var score float64
-
-	lowerContent := strings.ToLower(entry.Content)
-	lowerTitle := strings.ToLower(entry.Title)
-
-	for _, term := range queryTerms {
-		// Title matches are worth more
-		if strings.Contains(lowerTitle, term) {
-			score += 3.0
-		}
-
-		// Content matches
-		if strings.Contains(lowerContent, term) {
-			score += 1.0
-		}
-
-		// Keyword matches
-		for _, kw := range entry.Keywords {
-			if strings.Contains(strings.ToLower(kw), term) {
-				score += 2.0
-				break
-			}
-		}
-	}
-
-	// Boost by utility (MemRL integration)
-	// Lambda = 0.5 (balanced weighting)
-	lambda := types.DefaultLambda
-	if entry.Utility > 0 {
-		score = (1-lambda)*score + lambda*entry.Utility*score
-	}
-
-	return score
+	return storage.ComputeSearchScore(entry, queryTerms)
 }
 
-// extractTitle gets the title from markdown content.
 func extractTitle(content string) string {
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# ") {
-			return strings.TrimPrefix(line, "# ")
-		}
-	}
-	// Fall back to first non-empty line
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" && !strings.HasPrefix(line, "---") {
-			if len(line) > 80 {
-				return line[:77] + "..."
-			}
-			return line
-		}
-	}
-	return "Untitled"
+	return storage.ExtractTitle(content)
 }
 
-// extractKeywords extracts keywords from content.
 func extractKeywords(content string) []string {
-	keywords := make(map[string]bool)
-
-	// Look for common patterns
-	patterns := []string{
-		"pattern:", "solution:", "learning:", "decision:",
-		"fix:", "issue:", "error:", "warning:",
-		"config:", "setup:", "install:", "deploy:",
-	}
-
-	lowerContent := strings.ToLower(content)
-	for _, pattern := range patterns {
-		if strings.Contains(lowerContent, pattern) {
-			keywords[strings.TrimSuffix(pattern, ":")] = true
-		}
-	}
-
-	// Extract from metadata lines
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "**Tags**:") || strings.HasPrefix(line, "**Keywords**:") {
-			tags := strings.TrimPrefix(strings.TrimPrefix(line, "**Tags**:"), "**Keywords**:")
-			for _, tag := range strings.Split(tags, ",") {
-				tag = strings.TrimSpace(tag)
-				if tag != "" {
-					keywords[tag] = true
-				}
-			}
-		}
-	}
-
-	result := make([]string, 0, len(keywords))
-	for kw := range keywords {
-		result = append(result, kw)
-	}
-	return result
+	return storage.ExtractKeywords(content)
 }
 
-// extractCategoryAndTags tries to derive category/tags from either YAML frontmatter or common markdown metadata lines.
-// Best-effort: missing/malformed metadata should not fail indexing.
 func extractCategoryAndTags(content string) (category string, tags []string) {
-	lines := strings.Split(content, "\n")
-
-	// YAML frontmatter (only if it starts at top of file).
-	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "---" {
-		category, tags = extractFrontmatterMeta(lines[1:])
-	}
-
-	// Markdown metadata lines (learning format) — supplements frontmatter.
-	mdCategory, mdTags := extractMarkdownMeta(lines)
-	if category == "" {
-		category = mdCategory
-	}
-	tags = append(tags, mdTags...)
-
-	return category, tags
+	return storage.ExtractCategoryAndTags(content)
 }
 
-// extractFrontmatterMeta parses category/tags from YAML frontmatter lines
-// (everything between the opening and closing "---").
 func extractFrontmatterMeta(lines []string) (category string, tags []string) {
-	for _, raw := range lines {
-		line := strings.TrimSpace(raw)
-		if line == "---" {
-			break
-		}
-		if strings.HasPrefix(line, "category:") {
-			category = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "category:")), "\"'")
-		}
-		if strings.HasPrefix(line, "tags:") {
-			tags = parseBracketedList(strings.TrimSpace(strings.TrimPrefix(line, "tags:")))
-		}
-	}
-	return category, tags
+	return storage.ExtractFrontmatterMeta(lines)
 }
 
-// extractMarkdownMeta parses category/tags from bold-key markdown lines
-// (e.g. **Category**: foo, **Tags**: a, b, c).
 func extractMarkdownMeta(lines []string) (category string, tags []string) {
-	for _, raw := range lines {
-		line := strings.TrimSpace(raw)
-		if category == "" && strings.HasPrefix(line, "**Category**:") {
-			category = strings.TrimSpace(strings.TrimPrefix(line, "**Category**:"))
-		}
-		if strings.HasPrefix(line, "**Tags**:") {
-			tags = append(tags, splitCSV(strings.TrimSpace(strings.TrimPrefix(line, "**Tags**:")))...)
-		}
-	}
-	return category, tags
+	return storage.ExtractMarkdownMeta(lines)
 }
 
-// parseBracketedList parses "[a, b, c]" into a trimmed string slice.
-// Returns nil for non-bracketed input.
 func parseBracketedList(s string) []string {
-	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
-		return nil
-	}
-	inner := strings.TrimSuffix(strings.TrimPrefix(s, "["), "]")
-	var out []string
-	for _, t := range strings.Split(inner, ",") {
-		tt := strings.TrimSpace(strings.Trim(t, "\"'"))
-		if tt != "" {
-			out = append(out, tt)
-		}
-	}
-	return out
+	return storage.ParseBracketedList(s)
 }
 
-// splitCSV splits a comma-separated string and returns non-empty trimmed values.
 func splitCSV(s string) []string {
-	var out []string
-	for _, t := range strings.Split(s, ",") {
-		tt := strings.TrimSpace(t)
-		if tt != "" {
-			out = append(out, tt)
-		}
-	}
-	return out
+	return storage.SplitCSV(s)
 }
 
-// parseMemRLMetadata extracts utility and maturity from content.
 func parseMemRLMetadata(content string) (utility float64, maturity string) {
-	utility = types.InitialUtility
-	maturity = "provisional"
-
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if strings.HasPrefix(line, "**Utility**:") || strings.HasPrefix(line, "- **Utility**:") {
-			utilStr := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "**Utility**:"), "- **Utility**:"))
-			//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-			fmt.Sscanf(utilStr, "%f", &utility) // #nosec G104
-		}
-		if strings.HasPrefix(line, "**Maturity**:") || strings.HasPrefix(line, "- **Maturity**:") {
-			maturity = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "**Maturity**:"), "- **Maturity**:"))
-		}
-	}
-
-	return utility, maturity
+	return storage.ParseMemRLMetadata(content)
 }
 
-// createSearchSnippet creates a context snippet around query matches.
 func createSearchSnippet(content, query string, maxLen int) string {
-	lowerContent := strings.ToLower(content)
-	lowerQuery := strings.ToLower(query)
-
-	// Find first occurrence
-	idx := strings.Index(lowerContent, lowerQuery)
-	if idx == -1 {
-		// Try first query term
-		terms := strings.Fields(lowerQuery)
-		if len(terms) > 0 {
-			idx = strings.Index(lowerContent, terms[0])
-		}
-	}
-
-	if idx == -1 {
-		// Return start of content (use rune-safe truncation)
-		runes := []rune(content)
-		if len(runes) > maxLen {
-			if maxLen <= 3 {
-				return string(runes[:maxLen])
-			}
-			return string(runes[:maxLen-3]) + "..."
-		}
-		return content
-	}
-
-	// Extract window around match — snap byte offsets to valid UTF-8 boundaries.
-	start := idx - 50
-	if start < 0 {
-		start = 0
-	}
-	// Walk back to the start of a valid UTF-8 rune.
-	for start > 0 && !utf8.RuneStart(content[start]) {
-		start--
-	}
-	end := idx + maxLen
-	if end > len(content) {
-		end = len(content)
-	}
-	// Walk forward to include the full rune (end is a soft ceiling — may
-	// exceed maxLen by up to 3 bytes to avoid splitting a multi-byte char).
-	for end < len(content) && !utf8.RuneStart(content[end]) {
-		end++
-	}
-
-	snippet := content[start:end]
-
-	// Clean up
-	snippet = strings.ReplaceAll(snippet, "\n", " ")
-	snippet = strings.TrimSpace(snippet)
-
-	if start > 0 {
-		snippet = "..." + snippet
-	}
-	if end < len(content) {
-		snippet += "..."
-	}
-
-	return snippet
+	return storage.CreateSearchSnippet(content, query, maxLen)
 }
 
-// IndexStats holds index statistics.
-type IndexStats struct {
-	TotalEntries int            `json:"total_entries"`
-	ByType       map[string]int `json:"by_type"`
-	MeanUtility  float64        `json:"mean_utility"`
-	OldestEntry  time.Time      `json:"oldest_entry"`
-	NewestEntry  time.Time      `json:"newest_entry"`
-	IndexPath    string         `json:"index_path"`
-}
-
-// accumulateEntryStats updates running stats counters from a single index entry.
 func accumulateEntryStats(stats *IndexStats, entry IndexEntry, totalUtility *float64, utilityCount *int) {
-	stats.TotalEntries++
-	stats.ByType[entry.Type]++
-
-	if entry.Utility > 0 {
-		*totalUtility += entry.Utility
-		*utilityCount++
-	}
-
-	if stats.OldestEntry.IsZero() || entry.IndexedAt.Before(stats.OldestEntry) {
-		stats.OldestEntry = entry.IndexedAt
-	}
-	if entry.IndexedAt.After(stats.NewestEntry) {
-		stats.NewestEntry = entry.IndexedAt
-	}
+	storage.AccumulateEntryStats(stats, entry, totalUtility, utilityCount)
 }
 
-// computeIndexStats calculates index statistics.
 func computeIndexStats(baseDir string) (*IndexStats, error) {
-	indexPath := filepath.Join(baseDir, IndexDir, IndexFileName)
-
-	stats := &IndexStats{
-		ByType:    make(map[string]int),
-		IndexPath: indexPath,
-	}
-
-	f, err := os.Open(indexPath)
-	if os.IsNotExist(err) {
-		return stats, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only index stats, close error non-fatal
-	}()
-
-	var totalUtility float64
-	var utilityCount int
-
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
-
-	for scanner.Scan() {
-		var entry IndexEntry
-		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
-			continue
-		}
-		accumulateEntryStats(stats, entry, &totalUtility, &utilityCount)
-	}
-
-	if utilityCount > 0 {
-		stats.MeanUtility = totalUtility / float64(utilityCount)
-	}
-
-	return stats, scanner.Err()
+	return storage.ComputeSearchIndexStats(baseDir)
 }
 
 // printSearchResults prints search results in table format.
