@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -165,13 +162,7 @@ func resolvePlanName(explicit, planPath string) string {
 // upsertManifestEntry updates an existing entry or appends a new one.
 // Returns true if an existing entry was updated.
 func upsertManifestEntry(manifestPath string, existing []types.PlanManifestEntry, entry types.PlanManifestEntry) (bool, error) {
-	for i, e := range existing {
-		if e.Path == entry.Path {
-			existing[i] = entry
-			return true, saveManifest(manifestPath, existing)
-		}
-	}
-	return false, appendManifestEntry(manifestPath, entry)
+	return plansPkg.UpsertEntry(manifestPath, existing, entry)
 }
 
 // printRegistrationSummary prints details after a new plan registration.
@@ -317,7 +308,7 @@ func runPlansList(cmd *cobra.Command, args []string) error {
 }
 
 func runPlansSearch(cmd *cobra.Command, args []string) error {
-	query := strings.ToLower(args[0])
+	query := args[0]
 
 	manifestPath, err := getManifestPath()
 	if err != nil {
@@ -333,13 +324,7 @@ func runPlansSearch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load manifest: %w", err)
 	}
 
-	var matches []types.PlanManifestEntry
-	for _, e := range entries {
-		searchText := strings.ToLower(e.PlanName + " " + e.ProjectPath + " " + e.BeadsID)
-		if strings.Contains(searchText, query) {
-			matches = append(matches, e)
-		}
-	}
+	matches := plansPkg.SearchPlans(entries, query)
 
 	if len(matches) == 0 {
 		fmt.Printf("No plans matching '%s'\n", query)
@@ -445,12 +430,9 @@ func syncEpicStatus(entries []types.PlanManifestEntry, idx int, beadsStatus stri
 
 // countUnlinkedEntries counts entries without beads linkage
 func countUnlinkedEntries(entries []types.PlanManifestEntry) int {
-	count := 0
-	for _, e := range entries {
-		if e.BeadsID == "" {
-			count++
-			VerbosePrintf("Drift: %s has no beads linkage\n", e.PlanName)
-		}
+	count, names := plansPkg.CountUnlinkedEntries(entries)
+	for _, name := range names {
+		VerbosePrintf("Drift: %s has no beads linkage\n", name)
 	}
 	return count
 }
@@ -515,37 +497,16 @@ func runPlansSync(cmd *cobra.Command, args []string) error {
 }
 
 // beadsEpic represents a beads epic for sync.
-type beadsEpic struct {
-	ID     string
-	Status string
-}
+type beadsEpic = plansPkg.BeadsEpic
 
 // queryBeadsEpics queries beads for epic statuses.
 func queryBeadsEpics() ([]beadsEpic, error) {
-	// Run bd list --type epic to get epics
 	cmd := exec.Command("bd", "list", "--type", "epic", "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("bd list: %w", err)
 	}
-
-	// Parse JSONL output (one line per issue)
-	var epics []beadsEpic
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
-	for scanner.Scan() {
-		var data map[string]any
-		if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
-			continue
-		}
-
-		id, _ := data["id"].(string)
-		status, _ := data["status"].(string)
-		if id != "" {
-			epics = append(epics, beadsEpic{ID: id, Status: status})
-		}
-	}
-
-	return epics, nil
+	return plansPkg.ParseBeadsEpicJSONL(output), nil
 }
 
 // driftEntry represents a single drift detection
@@ -559,49 +520,28 @@ type driftEntry struct {
 
 // buildBeadsStatusIndex creates a map of epic ID -> status from beads
 func buildBeadsStatusIndex(epics []beadsEpic) map[string]string {
-	conv := make([]plansPkg.BeadsEpic, len(epics))
-	for i, e := range epics {
-		conv[i] = plansPkg.BeadsEpic{ID: e.ID, Status: e.Status}
-	}
-	return plansPkg.BuildBeadsStatusIndex(conv)
+	return plansPkg.BuildBeadsStatusIndex(epics)
 }
 
 // detectStatusDrifts finds status mismatches between manifest and beads
 func detectStatusDrifts(byBeadsID map[string]*types.PlanManifestEntry, beadsIndex map[string]string) []driftEntry {
-	var drifts []driftEntry
-	for beadsID, entry := range byBeadsID {
-		beadsStatus, exists := beadsIndex[beadsID]
-		if !exists {
-			drifts = append(drifts, driftEntry{
-				Type: "missing_beads", PlanName: entry.PlanName,
-				BeadsID: beadsID, Manifest: string(entry.Status), Beads: "(not found)",
-			})
-			continue
-		}
-		manifestClosed := entry.Status == types.PlanStatusCompleted
-		beadsClosed := beadsStatus == "closed"
-		if manifestClosed != beadsClosed {
-			drifts = append(drifts, driftEntry{
-				Type: "status_mismatch", PlanName: entry.PlanName,
-				BeadsID: beadsID, Manifest: string(entry.Status), Beads: beadsStatus,
-			})
-		}
-	}
-	return drifts
+	raw := plansPkg.DetectStatusDrifts(byBeadsID, beadsIndex)
+	return convertDriftEntries(raw)
 }
 
 // detectOrphanedEntries finds manifest entries without beads linkage
 func detectOrphanedEntries(entries []types.PlanManifestEntry) []driftEntry {
-	var drifts []driftEntry
-	for _, e := range entries {
-		if e.BeadsID == "" {
-			drifts = append(drifts, driftEntry{
-				Type: "orphaned", PlanName: e.PlanName,
-				BeadsID: "(none)", Manifest: string(e.Status), Beads: "n/a",
-			})
-		}
+	raw := plansPkg.DetectOrphanedEntries(entries)
+	return convertDriftEntries(raw)
+}
+
+// convertDriftEntries converts internal drift entries to the local type.
+func convertDriftEntries(raw []plansPkg.DriftEntry) []driftEntry {
+	out := make([]driftEntry, len(raw))
+	for i, r := range raw {
+		out[i] = driftEntry{Type: r.Type, PlanName: r.PlanName, BeadsID: r.BeadsID, Manifest: r.Manifest, Beads: r.Beads}
 	}
-	return drifts
+	return out
 }
 
 // printDrifts outputs drift entries in a formatted way

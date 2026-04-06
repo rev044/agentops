@@ -225,3 +225,21 @@ type BeadsEpic struct {
 	ID     string
 	Status string
 }
+
+// ParseBeadsEpicJSONL parses JSONL output from bd list into BeadsEpic slices.
+func ParseBeadsEpicJSONL(data []byte) []BeadsEpic {
+	var epics []BeadsEpic
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	for scanner.Scan() {
+		var obj map[string]any
+		if err := json.Unmarshal(scanner.Bytes(), &obj); err != nil {
+			continue
+		}
+		id, _ := obj["id"].(string)
+		status, _ := obj["status"].(string)
+		if id != "" {
+			epics = append(epics, BeadsEpic{ID: id, Status: status})
+		}
+	}
+	return epics
+}

@@ -79,6 +79,39 @@ func SplitSources(s string) ([]string, error) {
 	return sources, nil
 }
 
+// FindOrphanedResearch returns research file names not referenced in any learning content.
+func FindOrphanedResearch(researchFiles []string, learningsContent map[string]string) []string {
+	var orphaned []string
+	for _, rf := range researchFiles {
+		referenced := false
+		for _, content := range learningsContent {
+			if strings.Contains(content, rf) {
+				referenced = true
+				break
+			}
+		}
+		if !referenced {
+			orphaned = append(orphaned, rf)
+		}
+	}
+	return orphaned
+}
+
+// ListMarkdownFiles returns names of .md files in a directory.
+func ListMarkdownFiles(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+			files = append(files, e.Name())
+		}
+	}
+	return files, nil
+}
+
 // ReadDirContent reads all .md file contents from a directory.
 func ReadDirContent(dir string) (map[string]string, error) {
 	entries, err := os.ReadDir(dir)

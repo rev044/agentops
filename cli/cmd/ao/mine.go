@@ -2,8 +2,6 @@ package main
 
 import (
 	"bufio"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -313,47 +311,24 @@ func mineAgentsDir(cwd string) (*AgentsFindings, error) {
 
 	findings := &AgentsFindings{}
 
-	// Read research files
-	researchEntries, err := os.ReadDir(researchDir)
+	researchFiles, err := minePkg.ListMarkdownFiles(researchDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return findings, nil
 		}
 		return findings, fmt.Errorf("read research dir: %w", err)
 	}
-
-	var researchFiles []string
-	for _, e := range researchEntries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
-			researchFiles = append(researchFiles, e.Name())
-		}
-	}
 	findings.TotalResearch = len(researchFiles)
-
 	if len(researchFiles) == 0 {
 		return findings, nil
 	}
 
-	// Read all learnings content to check for references
 	learningsContent, err := readDirContent(learningsDir)
 	if err != nil && !os.IsNotExist(err) {
 		return findings, fmt.Errorf("read learnings dir: %w", err)
 	}
 
-	// Check each research file for references in learnings
-	for _, rf := range researchFiles {
-		referenced := false
-		for _, content := range learningsContent {
-			if strings.Contains(content, rf) {
-				referenced = true
-				break
-			}
-		}
-		if !referenced {
-			findings.OrphanedResearch = append(findings.OrphanedResearch, rf)
-		}
-	}
-
+	findings.OrphanedResearch = minePkg.FindOrphanedResearch(researchFiles, learningsContent)
 	return findings, nil
 }
 
@@ -429,33 +404,12 @@ func countRecentEdits(cwd, file string, window time.Duration) int {
 
 // writeMineReport writes the mine report as JSON to the output directory.
 func writeMineReport(dir string, r *MineReport) error {
-	if dir == "" {
-		return fmt.Errorf("output directory must not be empty")
-	}
-	dir = filepath.Clean(dir)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create mine output dir: %w", err)
-	}
-
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal mine report: %w", err)
 	}
-
-	// Write dated file
 	dateStr := r.Timestamp.Format("2006-01-02-15")
-	datedPath := filepath.Join(dir, dateStr+".json")
-	if err := os.WriteFile(datedPath, data, 0o644); err != nil {
-		return fmt.Errorf("write dated report: %w", err)
-	}
-
-	// Write latest.json
-	latestPath := filepath.Join(dir, "latest.json")
-	if err := os.WriteFile(latestPath, data, 0o644); err != nil {
-		return fmt.Errorf("write latest report: %w", err)
-	}
-
-	return nil
+	return minePkg.WriteMineReportJSON(dir, data, dateStr)
 }
 
 // printMineDryRun prints what would be extracted without actually doing it.
@@ -469,117 +423,29 @@ func printMineDryRun(w io.Writer, sources []string, window time.Duration) error 
 }
 
 // collectMineWorkItems builds work items from a mine report.
-// Code hotspots map to severity:high; orphaned research files map to severity:medium.
 func collectMineWorkItems(r *MineReport) []mineWorkItemEmit {
 	var items []mineWorkItemEmit
 	if r.Code != nil {
-		for _, h := range r.Code.Hotspots {
-			item := mineWorkItemEmit{
-				Title:       fmt.Sprintf("Reduce complexity: %s in %s (CC=%d)", h.Func, h.File, h.Complexity),
-				Type:        "refactor",
-				Severity:    "high",
-				Source:      "compile-mine",
-				Description: fmt.Sprintf("Function %s in %s has cyclomatic complexity %d with %d recent edits. Extract helpers to reduce CC below 15.", h.Func, h.File, h.Complexity, h.RecentEdits),
-				Evidence:    fmt.Sprintf("complexity=%d recent_edits=%d", h.Complexity, h.RecentEdits),
-				File:        h.File,
-				Func:        h.Func,
-			}
-			item.ID = mineWorkItemID(item)
-			items = append(items, item)
+		hotspots := make([]minePkg.ComplexityHotspot, len(r.Code.Hotspots))
+		for i, h := range r.Code.Hotspots {
+			hotspots[i] = minePkg.ComplexityHotspot{File: h.File, Func: h.Func, Complexity: h.Complexity, RecentEdits: h.RecentEdits}
 		}
+		items = append(items, minePkg.CollectWorkItemsFromHotspots(hotspots)...)
 	}
 	if r.Agents != nil {
-		for _, orphan := range r.Agents.OrphanedResearch {
-			item := mineWorkItemEmit{
-				Title:       fmt.Sprintf("Rescue orphan: %s", orphan),
-				Type:        "knowledge-gap",
-				Severity:    "medium",
-				Source:      "compile-mine",
-				Description: fmt.Sprintf("Research file %q exists in .agents/research/ but is not referenced in any learning. Extract its key insights into a learning file.", orphan),
-				Evidence:    "not referenced in .agents/learnings/",
-			}
-			item.ID = mineWorkItemID(item)
-			items = append(items, item)
-		}
+		items = append(items, minePkg.CollectWorkItemsFromOrphans(r.Agents.OrphanedResearch)...)
 	}
 	return items
 }
 
 // loadExistingMineIDs scans a JSONL file for unconsumed compile-mine item IDs.
-// Returns an empty map with nil error when the file does not exist.
-// Propagates other errors (permission denied, corrupt read, etc.).
 func loadExistingMineIDs(path string) (map[string]bool, error) {
-	ids := make(map[string]bool)
-	existing, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return ids, nil
-		}
-		return nil, err
-	}
-	if len(existing) == 0 {
-		return ids, nil
-	}
-	for _, line := range strings.Split(string(existing), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var entry struct {
-			SourceEpic string             `json:"source_epic"`
-			Consumed   bool               `json:"consumed"`
-			Items      []mineWorkItemEmit `json:"items"`
-		}
-		if json.Unmarshal([]byte(line), &entry) == nil &&
-			entry.SourceEpic == "compile-mine" && !entry.Consumed {
-			for _, it := range entry.Items {
-				if it.ID != "" {
-					ids[it.ID] = true
-				}
-			}
-		}
-	}
-	return ids, nil
+	return minePkg.LoadExistingMineIDs(path)
 }
 
 // writeMineWorkItems appends one JSONL line per work item to the given path.
 func writeMineWorkItems(path string, items []mineWorkItemEmit, ts string) error {
-	type emitEntry struct {
-		SourceEpic  string             `json:"source_epic"`
-		Timestamp   string             `json:"timestamp"`
-		Items       []mineWorkItemEmit `json:"items"`
-		Consumed    bool               `json:"consumed"`
-		ClaimStatus string             `json:"claim_status,omitempty"`
-		ClaimedBy   *string            `json:"claimed_by,omitempty"`
-		ClaimedAt   *string            `json:"claimed_at,omitempty"`
-		ConsumedBy  *string            `json:"consumed_by"`
-		ConsumedAt  *string            `json:"consumed_at"`
-	}
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
-	if err != nil {
-		return fmt.Errorf("open next-work.jsonl: %w", err)
-	}
-	defer f.Close()
-
-	for _, item := range items {
-		entry := emitEntry{
-			SourceEpic:  "compile-mine",
-			Timestamp:   ts,
-			Items:       []mineWorkItemEmit{item},
-			Consumed:    false,
-			ClaimStatus: "available",
-		}
-		data, err := json.Marshal(entry)
-		if err != nil {
-			return fmt.Errorf("marshal work item entry: %w", err)
-		}
-		data = append(data, '\n')
-		if _, writeErr := f.Write(data); writeErr != nil {
-			return writeErr
-		}
-	}
-	return nil
+	return minePkg.WriteWorkItems(path, items, ts)
 }
 
 // emitMineWorkItems translates mine findings into next-work.jsonl entries for evolve.
@@ -614,36 +480,10 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 }
 
 // mineWorkItemEmit is a single work item within a next-work.jsonl entry.
-type mineWorkItemEmit struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Type        string `json:"type"`
-	Severity    string `json:"severity"`
-	Source      string `json:"source"`
-	Description string `json:"description"`
-	Evidence    string `json:"evidence,omitempty"`
-	File        string `json:"file,omitempty"`
-	Func        string `json:"func,omitempty"`
-}
+type mineWorkItemEmit = minePkg.WorkItemEmit
 
 // mineWorkItemID generates a stable ID from the item's identifying fields.
-// For hotspot items (File+Func populated), the ID is based on File+Func so that
-// changes in cyclomatic complexity do not produce a different ID.
-// A null-byte separator prevents collisions when field boundaries shift
-// (e.g. Type="ab"+Title="cd" vs Type="a"+Title="bcd").
-func mineWorkItemID(item mineWorkItemEmit) string {
-	h := sha256.New()
-	h.Write([]byte(item.Type))
-	h.Write([]byte{0})
-	if item.File != "" && item.Func != "" {
-		h.Write([]byte(item.File))
-		h.Write([]byte{0})
-		h.Write([]byte(item.Func))
-	} else {
-		h.Write([]byte(item.Title))
-	}
-	return hex.EncodeToString(h.Sum(nil))[:16]
-}
+func mineWorkItemID(item mineWorkItemEmit) string { return minePkg.WorkItemID(item) }
 
 // printMineSummary prints a human-readable summary of the mine report.
 func printMineSummary(w io.Writer, r *MineReport) {

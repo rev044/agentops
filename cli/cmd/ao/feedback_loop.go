@@ -1,12 +1,10 @@
 package main
 
 import (
-	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,24 +17,11 @@ import (
 )
 
 // FeedbackEvent records a feedback loop closure event.
-type FeedbackEvent struct {
-	SessionID       string    `json:"session_id"`
-	ArtifactPath    string    `json:"artifact_path"`
-	WorkspacePath   string    `json:"workspace_path,omitempty"`
-	CitationType    string    `json:"citation_type,omitempty"`
-	MetricNamespace string    `json:"metric_namespace,omitempty"`
-	Reward          float64   `json:"reward"`
-	UtilityBefore   float64   `json:"utility_before"`
-	UtilityAfter    float64   `json:"utility_after"`
-	Alpha           float64   `json:"alpha"`
-	RecordedAt      time.Time `json:"recorded_at"`
-	TranscriptPath  string    `json:"transcript_path,omitempty"`
-	Decision        string    `json:"decision,omitempty"`
-	Reason          string    `json:"reason,omitempty"`
-}
+// Alias for lifecycle.FeedbackLoopEvent.
+type FeedbackEvent = lifecycle.FeedbackLoopEvent
 
 // FeedbackFilePath is the relative path to the feedback log.
-const FeedbackFilePath = ".agents/ao/feedback.jsonl"
+const FeedbackFilePath = lifecycle.FeedbackLoopFilePath
 
 var feedbackLoopCmd = &cobra.Command{
 	Use:   "feedback-loop",
@@ -69,11 +54,7 @@ var (
 	feedbackLoopCitationType string
 )
 
-var validFeedbackCitationTypes = map[string]bool{
-	"retrieved": true,
-	"applied":   true,
-	"all":       true,
-}
+var validFeedbackCitationTypes = lifecycle.ValidFeedbackLoopCitationTypes
 
 func init() {
 	feedbackLoopCmd.Hidden = false
@@ -254,18 +235,14 @@ func processUniqueCitations(cwd, sessionID, transcriptPath string, citations []t
 
 // resolveReward determines the reward value, either from the flag or from transcript analysis.
 func resolveFeedbackReward(flagReward float64, transcriptPath, sessionID string) (float64, error) {
-	if flagReward >= 0 && flagReward <= 1 {
-		return flagReward, nil
+	if reward, ok := lifecycle.ResolveFeedbackLoopReward(flagReward); ok {
+		return reward, nil
 	}
 	return computeRewardFromTranscript(transcriptPath, sessionID)
 }
 
 func validateFeedbackCitationType(citationType string) (string, error) {
-	candidate := strings.TrimSpace(citationType)
-	if validFeedbackCitationTypes[candidate] {
-		return candidate, nil
-	}
-	return "", fmt.Errorf("invalid --citation-type %q (valid: retrieved, applied, all)", candidate)
+	return lifecycle.ValidateFeedbackLoopCitationType(citationType)
 }
 
 func runFeedbackLoop(cmd *cobra.Command, args []string) error {
@@ -318,14 +295,11 @@ func runFeedbackLoop(cmd *cobra.Command, args []string) error {
 }
 
 func resolveFeedbackLoopSessionID(sessionFlag string) (string, error) {
-	candidate := strings.TrimSpace(sessionFlag)
-	if candidate == "" {
-		candidate = strings.TrimSpace(os.Getenv("CLAUDE_SESSION_ID"))
+	id, err := lifecycle.ResolveFeedbackLoopSessionID(sessionFlag)
+	if err != nil {
+		return "", err
 	}
-	if candidate == "" {
-		return "", fmt.Errorf("--session is required (or set CLAUDE_SESSION_ID)")
-	}
-	return canonicalSessionID(candidate), nil
+	return canonicalSessionID(id), nil
 }
 
 func markCitationFeedback(baseDir, sessionID string, reward float64, events []FeedbackEvent) error {
@@ -422,15 +396,14 @@ func outputFeedbackSummary(sessionID string, reward float64, totalCitations, uni
 		return enc.Encode(result)
 
 	default:
-		fmt.Printf("Feedback Loop Complete\n")
-		fmt.Printf("======================\n")
-		fmt.Printf("Session:     %s\n", sessionID)
-		fmt.Printf("Reward:      %.2f\n", reward)
-		fmt.Printf("Citations:   %d (%d unique)\n", totalCitations, uniqueCount)
-		fmt.Printf("Updated:     %d\n", updatedCount)
-		if failedCount > 0 {
-			fmt.Printf("Failed:      %d\n", failedCount)
-		}
+		fmt.Print(lifecycle.FormatFeedbackLoopSummaryText(lifecycle.FeedbackLoopSummary{
+			SessionID:      sessionID,
+			Reward:         reward,
+			TotalCitations: totalCitations,
+			UniqueCount:    uniqueCount,
+			UpdatedCount:   updatedCount,
+			FailedCount:    failedCount,
+		}))
 	}
 
 	return nil
@@ -438,36 +411,7 @@ func outputFeedbackSummary(sessionID string, reward float64, totalCitations, uni
 
 // writeFeedbackEvents appends feedback events to the feedback log.
 func writeFeedbackEvents(baseDir string, events []FeedbackEvent) error {
-	if len(events) == 0 {
-		return nil
-	}
-
-	feedbackPath := filepath.Join(baseDir, FeedbackFilePath)
-
-	// Create parent directory
-	if err := os.MkdirAll(filepath.Dir(feedbackPath), 0750); err != nil {
-		return fmt.Errorf("create feedback directory: %w", err)
-	}
-
-	// Open for append
-	f, err := os.OpenFile(feedbackPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return fmt.Errorf("open feedback file: %w", err)
-	}
-	defer f.Close() //nolint:errcheck // write-only file, Close error non-actionable
-
-	// Write each event as JSONL
-	for _, event := range events {
-		data, err := json.Marshal(event)
-		if err != nil {
-			continue
-		}
-		if _, err := f.Write(append(data, '\n')); err != nil {
-			return fmt.Errorf("write feedback event: %w", err)
-		}
-	}
-
-	return nil
+	return lifecycle.WriteFeedbackLoopEvents(baseDir, events)
 }
 
 // batchFeedbackCmd processes feedback for multiple sessions.
@@ -535,16 +479,7 @@ func runBatchFeedback(cmd *cobra.Command, args []string) error {
 
 // validateBatchFeedbackFlags checks the batch-feedback command flags.
 func validateBatchFeedbackFlags() error {
-	if batchFeedbackMaxSessions < 0 {
-		return fmt.Errorf("--max-sessions must be >= 0")
-	}
-	if batchFeedbackReward != -1 && (batchFeedbackReward < 0 || batchFeedbackReward > 1) {
-		return fmt.Errorf("--reward must be between 0.0 and 1.0, or -1 to auto-compute")
-	}
-	if batchFeedbackMaxRuntime < 0 {
-		return fmt.Errorf("--max-runtime must be >= 0")
-	}
-	return nil
+	return lifecycle.ValidateBatchFeedbackFlags(batchFeedbackMaxSessions, batchFeedbackReward, batchFeedbackMaxRuntime)
 }
 
 // discoverUnprocessedSessions finds sessions with citations but no feedback.
@@ -595,22 +530,7 @@ func buildProcessedSessionSet(cwd string) map[string]bool {
 // sortAndCapSessions sorts session IDs by latest citation (newest first) and
 // caps the list by batchFeedbackMaxSessions.
 func sortAndCapSessions(sessionCitations map[string][]types.CitationEvent, sessionLatestCitation map[string]time.Time) []string {
-	sessionIDs := make([]string, 0, len(sessionCitations))
-	for sessionID := range sessionCitations {
-		sessionIDs = append(sessionIDs, sessionID)
-	}
-	slices.SortFunc(sessionIDs, func(a, b string) int {
-		ta := sessionLatestCitation[a]
-		tb := sessionLatestCitation[b]
-		if c := tb.Compare(ta); c != 0 {
-			return c
-		}
-		return cmp.Compare(a, b)
-	})
-	if batchFeedbackMaxSessions > 0 && len(sessionIDs) > batchFeedbackMaxSessions {
-		sessionIDs = sessionIDs[:batchFeedbackMaxSessions]
-	}
-	return sessionIDs
+	return lifecycle.SortAndCapSessions(sessionCitations, sessionLatestCitation, batchFeedbackMaxSessions)
 }
 
 // reportBatchFeedbackDryRun prints what would be processed without making changes.
@@ -649,23 +569,5 @@ func executeBatchFeedbackSessions(cmd *cobra.Command, sessionIDs []string) int {
 
 // loadFeedbackEvents reads all feedback events from the log.
 func loadFeedbackEvents(baseDir string) ([]FeedbackEvent, error) {
-	feedbackPath := filepath.Join(baseDir, FeedbackFilePath)
-
-	f, err := os.Open(feedbackPath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close() //nolint:errcheck // read-only file, Close error non-actionable
-
-	var events []FeedbackEvent
-	decoder := json.NewDecoder(f)
-	for decoder.More() {
-		var event FeedbackEvent
-		if err := decoder.Decode(&event); err != nil {
-			continue // Skip malformed lines
-		}
-		events = append(events, event)
-	}
-
-	return events, nil
+	return lifecycle.LoadFeedbackLoopEvents(baseDir)
 }
