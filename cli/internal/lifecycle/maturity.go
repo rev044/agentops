@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -145,6 +147,192 @@ func NonEmptyStringFromData(data map[string]any, key, defaultValue string) strin
 		return defaultValue
 	}
 	return value
+}
+
+// ExpiryCategory tracks how learning files are classified by expiry status.
+type ExpiryCategory struct {
+	Active          []string
+	NeverExpiring   []string
+	NewlyExpired    []string
+	AlreadyArchived []string
+}
+
+// ExpiryClassification is the result for a single learning file.
+type ExpiryClassification int
+
+const (
+	ExpiryNeverExpiring ExpiryClassification = iota
+	ExpiryAlreadyArchived
+	ExpiryActive
+	ExpiryNewlyExpired
+)
+
+// ClassifyExpiryFields classifies a single learning by its frontmatter fields.
+// now is injected for testability.
+func ClassifyExpiryFields(fields map[string]string, now time.Time) ExpiryClassification {
+	if fields["expiry_status"] == "archived" {
+		return ExpiryAlreadyArchived
+	}
+	validUntil, hasExpiry := fields["valid_until"]
+	if !hasExpiry || validUntil == "" {
+		return ExpiryNeverExpiring
+	}
+	expiry, err := time.Parse("2006-01-02", validUntil)
+	if err != nil {
+		expiry, err = time.Parse(time.RFC3339, validUntil)
+	}
+	if err != nil {
+		return ExpiryNeverExpiring
+	}
+	if now.After(expiry) {
+		return ExpiryNewlyExpired
+	}
+	return ExpiryActive
+}
+
+// EvictionCitationStatus returns the formatted last-cited string for an
+// eviction candidate, or false if the file was cited too recently to evict.
+func EvictionCitationStatus(file string, lastCited map[string]time.Time, cutoff time.Time) (string, bool) {
+	citedAt, ok := lastCited[file]
+	if !ok {
+		return "never", true
+	}
+	if citedAt.After(cutoff) {
+		return "", false
+	}
+	return citedAt.Format("2006-01-02"), true
+}
+
+// ShouldArchiveUncitedLearning reports whether a learning is a curation
+// candidate due to being uncited past the cutoff.
+func ShouldArchiveUncitedLearning(maturity string, modTime time.Time, cited bool, cutoff time.Time) bool {
+	switch maturity {
+	case "established", "anti-pattern":
+		return false
+	}
+	if modTime.After(cutoff) {
+		return false
+	}
+	return !cited
+}
+
+// FormatLastCited returns the last-cited date string for display, or "never".
+func FormatLastCited(citedAt time.Time, ok bool) string {
+	if !ok {
+		return "never"
+	}
+	return citedAt.Format("2006-01-02")
+}
+
+// ParseFrontmatterFloats parses frontmatter fields into a map[string]any
+// where numeric values are converted to float64.
+func ParseFrontmatterFloats(fields map[string]string) map[string]any {
+	data := make(map[string]any, len(fields))
+	for k, v := range fields {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			data[k] = f
+		} else {
+			data[k] = v
+		}
+	}
+	return data
+}
+
+// DefaultLearningJSONLDefaults returns the default values applied to JSONL
+// learning files when normalizing metadata.
+func DefaultLearningJSONLDefaults() map[string]any {
+	return map[string]any{
+		"utility":       types.InitialUtility,
+		"maturity":      "provisional",
+		"confidence":    0.0,
+		"reward_count":  0,
+		"helpful_count": 0,
+		"harmful_count": 0,
+	}
+}
+
+// ApplyJSONLDefaults merges default fields into data, returning whether any
+// changes were made.
+func ApplyJSONLDefaults(data map[string]any) bool {
+	changed := false
+	for key, value := range DefaultLearningJSONLDefaults() {
+		if existing, ok := data[key]; !ok || existing == nil || existing == "" {
+			data[key] = value
+			changed = true
+		}
+	}
+	return changed
+}
+
+// LearningMetadataFieldOrder returns the canonical ordering of metadata fields
+// when emitting frontmatter.
+func LearningMetadataFieldOrder() []string {
+	return []string{"utility", "maturity", "confidence", "reward_count", "helpful_count", "harmful_count"}
+}
+
+// MissingMetadataFields returns the subset of default fields that are absent
+// (empty value) from existing.
+func MissingMetadataFields(existing map[string]string) map[string]string {
+	defaults := DefaultLearningMetadataFields()
+	missing := make(map[string]string)
+	for key, value := range defaults {
+		if existing[key] == "" {
+			missing[key] = value
+		}
+	}
+	return missing
+}
+
+// BuildMarkdownFrontmatterPrefix builds a YAML frontmatter block populated
+// with default learning metadata, suitable for prepending to a markdown file
+// that has none.
+func BuildMarkdownFrontmatterPrefix() string {
+	defaults := DefaultLearningMetadataFields()
+	var sb strings.Builder
+	sb.WriteString("---\n")
+	for _, key := range LearningMetadataFieldOrder() {
+		sb.WriteString(fmt.Sprintf("%s: %s\n", key, defaults[key]))
+	}
+	sb.WriteString("---\n")
+	return sb.String()
+}
+
+// FindFrontmatterEnd finds the index of the closing "---" of a YAML
+// frontmatter block, given lines split on \n. Returns -1 if not found.
+// The opening "---" is assumed at index 0.
+func FindFrontmatterEnd(lines []string) int {
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			return i
+		}
+	}
+	return -1
+}
+
+// HasYAMLFrontmatter reports whether text begins with a YAML frontmatter block.
+func HasYAMLFrontmatter(text string) bool {
+	return strings.HasPrefix(strings.TrimSpace(text), "---")
+}
+
+// NormalizeJSONLLine takes the first line of a JSONL learning file and
+// returns the normalized line plus whether changes were made. Returns
+// ("", false, nil) if no changes are needed.
+func NormalizeJSONLLine(line string) (string, bool, error) {
+	if strings.TrimSpace(line) == "" {
+		return "", false, nil
+	}
+	var data map[string]any
+	if err := json.Unmarshal([]byte(line), &data); err != nil {
+		return "", false, err
+	}
+	if !ApplyJSONLDefaults(data) {
+		return "", false, nil
+	}
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		return "", false, err
+	}
+	return string(encoded), true, nil
 }
 
 // ReadLearningJSONLData reads the first JSON line from a .jsonl learning file.

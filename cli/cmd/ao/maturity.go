@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -184,58 +183,33 @@ func normalizeLearningMetadata(file string, dryRun bool) (bool, error) {
 }
 
 func normalizeLearningMarkdownMetadata(file string, dryRun bool) (bool, error) {
-	fields, err := parseFrontmatterFields(file, "utility", "maturity", "confidence", "reward_count", "helpful_count", "harmful_count")
+	fields, err := parseFrontmatterFields(file, lifecycle.LearningMetadataFieldOrder()...)
 	if err != nil {
 		return false, err
 	}
-
-	defaults := defaultLearningMetadataFields()
-	missing := make(map[string]string)
-	for key, value := range defaults {
-		if fields[key] == "" {
-			missing[key] = value
-		}
-	}
+	missing := lifecycle.MissingMetadataFields(fields)
 	if len(missing) == 0 {
 		return false, nil
 	}
 	if dryRun {
 		return true, nil
 	}
-
 	content, err := os.ReadFile(file)
 	if err != nil {
 		return false, err
 	}
 	text := string(content)
-	hasFrontMatter := strings.HasPrefix(strings.TrimSpace(text), "---")
-
-	if hasFrontMatter {
+	if lifecycle.HasYAMLFrontmatter(text) {
 		lines := strings.Split(text, "\n")
-		endIdx := -1
-		for i := 1; i < len(lines); i++ {
-			if strings.TrimSpace(lines[i]) == "---" {
-				endIdx = i
-				break
-			}
-		}
+		endIdx := lifecycle.FindFrontmatterEnd(lines)
 		if endIdx == -1 {
 			return false, fmt.Errorf("malformed frontmatter")
 		}
-		fmLines := lines[1:endIdx]
-		updatedFM := updateFrontMatterFields(fmLines, missing)
+		updatedFM := updateFrontMatterFields(lines[1:endIdx], missing)
 		rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
 		return true, atomicWriteFile(file, []byte(rebuilt), 0o600)
 	}
-
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	for _, key := range []string{"utility", "maturity", "confidence", "reward_count", "helpful_count", "harmful_count"} {
-		sb.WriteString(fmt.Sprintf("%s: %s\n", key, defaults[key]))
-	}
-	sb.WriteString("---\n")
-	sb.WriteString(text)
-	return true, atomicWriteFile(file, []byte(sb.String()), 0o600)
+	return true, atomicWriteFile(file, []byte(lifecycle.BuildMarkdownFrontmatterPrefix()+text), 0o600)
 }
 
 func normalizeLearningJSONLMetadata(file string, dryRun bool) (bool, error) {
@@ -244,41 +218,17 @@ func normalizeLearningJSONLMetadata(file string, dryRun bool) (bool, error) {
 		return false, err
 	}
 	lines := strings.Split(string(content), "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
+	if len(lines) == 0 {
 		return false, nil
 	}
-
-	var data map[string]any
-	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
+	newLine, changed, err := lifecycle.NormalizeJSONLLine(lines[0])
+	if err != nil || !changed {
 		return false, err
-	}
-
-	changed := false
-	for key, value := range map[string]any{
-		"utility":       types.InitialUtility,
-		"maturity":      "provisional",
-		"confidence":    0.0,
-		"reward_count":  0,
-		"helpful_count": 0,
-		"harmful_count": 0,
-	} {
-		if existing, ok := data[key]; !ok || existing == nil || existing == "" {
-			data[key] = value
-			changed = true
-		}
-	}
-	if !changed {
-		return false, nil
 	}
 	if dryRun {
 		return true, nil
 	}
-
-	encoded, err := json.Marshal(data)
-	if err != nil {
-		return false, err
-	}
-	lines[0] = string(encoded)
+	lines[0] = newLine
 	return true, atomicWriteFile(file, []byte(strings.Join(lines, "\n")), 0o600)
 }
 
@@ -533,32 +483,15 @@ func classifyExpiryEntry(entry os.DirEntry, learningsDir string, cats *expiryCat
 		cats.neverExpiring = append(cats.neverExpiring, entry.Name())
 		return
 	}
-
-	if fields["expiry_status"] == "archived" {
+	switch lifecycle.ClassifyExpiryFields(fields, time.Now()) {
+	case lifecycle.ExpiryAlreadyArchived:
 		cats.alreadyArchived = append(cats.alreadyArchived, entry.Name())
-		return
-	}
-
-	validUntil, hasExpiry := fields["valid_until"]
-	if !hasExpiry || validUntil == "" {
-		cats.neverExpiring = append(cats.neverExpiring, entry.Name())
-		return
-	}
-
-	expiry, parseErr := time.Parse("2006-01-02", validUntil)
-	if parseErr != nil {
-		expiry, parseErr = time.Parse(time.RFC3339, validUntil)
-	}
-	if parseErr != nil {
-		VerbosePrintf("Warning: malformed valid_until in %s: %s\n", entry.Name(), validUntil)
-		cats.neverExpiring = append(cats.neverExpiring, entry.Name())
-		return
-	}
-
-	if time.Now().After(expiry) {
+	case lifecycle.ExpiryNewlyExpired:
 		cats.newlyExpired = append(cats.newlyExpired, entry.Name())
-	} else {
+	case lifecycle.ExpiryActive:
 		cats.active = append(cats.active, entry.Name())
+	default:
+		cats.neverExpiring = append(cats.neverExpiring, entry.Name())
 	}
 }
 
@@ -766,15 +699,8 @@ func buildCurationCandidate(baseDir, file string, lastCited map[string]time.Time
 }
 
 func shouldArchiveUncitedLearning(baseDir, file, maturity string, modTime time.Time, lastCited map[string]time.Time, cutoff time.Time) bool {
-	switch maturity {
-	case "established", "anti-pattern":
-		return false
-	}
-	if modTime.After(cutoff) {
-		return false
-	}
 	_, cited := lastCited[canonicalArtifactPath(baseDir, file)]
-	return !cited
+	return lifecycle.ShouldArchiveUncitedLearning(maturity, modTime, cited, cutoff)
 }
 
 func isLowSignalLearningBody(body string) bool {
@@ -934,14 +860,7 @@ func readLearningData(file string) (map[string]any, bool) {
 	if err != nil {
 		return nil, false
 	}
-	data := make(map[string]any)
-	for k, v := range fields {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			data[k] = f
-		} else {
-			data[k] = v
-		}
-	}
+	data := lifecycle.ParseFrontmatterFloats(fields)
 	return data, len(data) > 0
 }
 
@@ -950,14 +869,7 @@ func isEvictionEligible(utility, confidence float64, maturity string) bool {
 }
 
 func evictionCitationStatus(file string, lastCited map[string]time.Time, cutoff time.Time) (string, bool) {
-	citedAt, ok := lastCited[file]
-	if !ok {
-		return "never", true
-	}
-	if citedAt.After(cutoff) {
-		return "", false
-	}
-	return citedAt.Format("2006-01-02"), true
+	return lifecycle.EvictionCitationStatus(file, lastCited, cutoff)
 }
 
 func reportEvictionCandidates(files []string, candidates []evictionCandidate) (bool, error) {
