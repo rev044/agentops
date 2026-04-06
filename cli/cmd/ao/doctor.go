@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/quality"
 	"github.com/boshu2/agentops/cli/internal/storage"
 )
 
@@ -41,18 +40,9 @@ func init() {
 	rootCmd.AddCommand(doctorCmd)
 }
 
-type doctorCheck struct {
-	Name     string `json:"name"`
-	Status   string `json:"status"` // "pass", "warn", "fail"
-	Detail   string `json:"detail"`
-	Required bool   `json:"required"`
-}
-
-type doctorOutput struct {
-	Checks  []doctorCheck `json:"checks"`
-	Result  string        `json:"result"` // "HEALTHY", "DEGRADED", "UNHEALTHY"
-	Summary string        `json:"summary"`
-}
+// Type aliases — canonical types live in internal/quality.
+type doctorCheck = quality.Check
+type doctorOutput = quality.DoctorOutput
 
 // gatherDoctorChecks runs all doctor checks and returns the results.
 func gatherDoctorChecks() []doctorCheck {
@@ -72,109 +62,23 @@ func gatherDoctorChecks() []doctorCheck {
 	}
 }
 
-// doctorStatusIcon returns the display icon for a check status.
-func doctorStatusIcon(status string) string {
-	switch status {
-	case "pass":
-		return "\u2713"
-	case "warn":
-		return "!"
-	case "fail":
-		return "\u2717"
-	}
-	return "?"
-}
-
-// renderDoctorTable writes the formatted doctor output table.
-func renderDoctorTable(w io.Writer, output doctorOutput) {
-	_, _ = fmt.Fprintln(w, "ao doctor")
-	_, _ = fmt.Fprintln(w, "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
-
-	maxName := 0
-	for _, c := range output.Checks {
-		if len(c.Name) > maxName {
-			maxName = len(c.Name)
-		}
-	}
-
-	for _, c := range output.Checks {
-		padding := strings.Repeat(" ", maxName-len(c.Name))
-		_, _ = fmt.Fprintf(w, "%s %s%s  %s\n", doctorStatusIcon(c.Status), c.Name, padding, c.Detail)
-	}
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintf(w, "%s\n", output.Summary)
-}
-
-// hasRequiredFailure returns true if any required check has failed.
-func hasRequiredFailure(checks []doctorCheck) bool {
-	for _, c := range checks {
-		if c.Required && c.Status == "fail" {
-			return true
-		}
-	}
-	return false
-}
+// Thin wrappers — delegate to quality package, kept for test compatibility.
+func doctorStatusIcon(status string) string        { return quality.StatusIcon(status) }
+func hasRequiredFailure(checks []doctorCheck) bool { return quality.HasRequiredFailure(checks) }
+func renderDoctorTable(w io.Writer, output doctorOutput) { quality.RenderTable(w, output) }
+func newestFileModTime(entries []os.DirEntry) time.Time  { return quality.NewestFileModTime(entries) }
+func countEstablished(dir string) int                    { return quality.CountEstablished(dir) }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
-	output := computeResult(gatherDoctorChecks())
-	w := cmd.OutOrStdout()
-
-	if doctorJSON {
-		data, err := json.MarshalIndent(output, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal doctor output: %w", err)
-		}
-		fmt.Fprintln(w, string(data))
-		return nil
-	}
-
-	renderDoctorTable(w, output)
-
-	if hasRequiredFailure(output.Checks) {
-		return fmt.Errorf("doctor failed: one or more required checks did not pass")
-	}
-
-	return nil
+	return quality.RunDoctor(quality.DoctorOptions{
+		JSON:   doctorJSON,
+		Checks: gatherDoctorChecks(),
+		Stdout: cmd.OutOrStdout(),
+	})
 }
 
-// checkCLIDependencies verifies gt and bd are available in PATH.
 func checkCLIDependencies() doctorCheck {
-	gtOk := false
-	bdOk := false
-
-	if _, err := exec.LookPath("gt"); err == nil {
-		gtOk = true
-	}
-	if _, err := exec.LookPath("bd"); err == nil {
-		bdOk = true
-	}
-
-	if gtOk && bdOk {
-		return doctorCheck{
-			Name:     "CLI Dependencies",
-			Status:   "pass",
-			Detail:   "gt and bd available",
-			Required: false,
-		}
-	}
-
-	var missing []string
-	var hints []string
-	if !gtOk {
-		missing = append(missing, "gt")
-		hints = append(hints, "install with 'brew install gastown'")
-	}
-	if !bdOk {
-		missing = append(missing, "bd")
-		hints = append(hints, "install with 'brew install beads'")
-	}
-
-	return doctorCheck{
-		Name:     "CLI Dependencies",
-		Status:   "warn",
-		Detail:   fmt.Sprintf("%s not found \u2014 %s", strings.Join(missing, ", "), strings.Join(hints, "; ")),
-		Required: false,
-	}
+	return quality.CheckCLIDependencies(exec.LookPath)
 }
 
 // checkHookCoverage checks if Claude hooks are installed with event coverage.
@@ -314,185 +218,36 @@ func countInstalledEvents(hooksMap map[string]any) int {
 	return installed
 }
 
-// checkKnowledgeBase checks that the .agents/ao directory exists.
 func checkKnowledgeBase() doctorCheck {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return doctorCheck{Name: "Knowledge Base", Status: "fail", Detail: "cannot determine working directory", Required: true}
 	}
-
-	baseDir := filepath.Join(cwd, storage.DefaultBaseDir)
-	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-		return doctorCheck{Name: "Knowledge Base", Status: "fail", Detail: ".agents/ao not initialized", Required: true}
-	}
-
-	return doctorCheck{Name: "Knowledge Base", Status: "pass", Detail: ".agents/ao initialized", Required: true}
+	return quality.CheckKnowledgeBase(filepath.Join(cwd, storage.DefaultBaseDir))
 }
 
-// newestFileModTime returns the most recent modification time among regular files in entries.
-// Returns zero time if no regular files are found.
-func newestFileModTime(entries []os.DirEntry) time.Time {
-	var newest time.Time
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-		if info.ModTime().After(newest) {
-			newest = info.ModTime()
-		}
-	}
-	return newest
-}
-
-// checkKnowledgeFreshness checks the most recent file in .agents/ao/sessions/.
 func checkKnowledgeFreshness() doctorCheck {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return doctorCheck{Name: "Knowledge Freshness", Status: "warn", Detail: "cannot determine working directory", Required: false}
 	}
-
-	noSessionsCheck := doctorCheck{
-		Name:     "Knowledge Freshness",
-		Status:   "warn",
-		Detail:   "No sessions found \u2014 run 'ao forge transcript' after your next session",
-		Required: false,
-	}
-
-	sessionsDir := filepath.Join(cwd, storage.DefaultBaseDir, "sessions")
-	entries, err := os.ReadDir(sessionsDir)
-	if err != nil || len(entries) == 0 {
-		return noSessionsCheck
-	}
-
-	newest := newestFileModTime(entries)
-	if newest.IsZero() {
-		return noSessionsCheck
-	}
-
-	age := time.Since(newest)
-	ageStr := formatDuration(age)
-
-	if age > 14*24*time.Hour {
-		return doctorCheck{
-			Name:     "Knowledge Freshness",
-			Status:   "warn",
-			Detail:   fmt.Sprintf("Last session: %s ago \u2014 knowledge may be stale", ageStr),
-			Required: false,
-		}
-	}
-
-	return doctorCheck{
-		Name:     "Knowledge Freshness",
-		Status:   "pass",
-		Detail:   fmt.Sprintf("Last session: %s ago", ageStr),
-		Required: false,
-	}
+	return quality.CheckKnowledgeFreshness(filepath.Join(cwd, storage.DefaultBaseDir, "sessions"))
 }
 
-// formatVersion ensures the version string has exactly one "v" prefix.
-func formatVersion(v string) string {
-	if strings.HasPrefix(v, "v") {
-		return v
-	}
-	return "v" + v
-}
+// Thin wrappers for pure functions — delegate to quality package.
+func formatVersion(v string) string              { return quality.FormatVersion(v) }
+func formatDuration(d time.Duration) string       { return quality.FormatDuration(d) }
+func formatNumber(n int) string                   { return quality.FormatNumber(n) }
+func countFileLines(path string) int              { return quality.CountFileLines(path) }
 
-// formatDuration produces a human-readable duration string like "2h", "5d", "3m".
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh", int(d.Hours()))
-	}
-	days := int(d.Hours() / 24)
-	return fmt.Sprintf("%dd", days)
-}
-
-// checkSearchIndex checks if the search index exists and counts terms.
 func checkSearchIndex() doctorCheck {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return doctorCheck{Name: "Search Index", Status: "warn", Detail: "cannot determine working directory", Required: false}
 	}
-
-	indexPath := filepath.Join(cwd, IndexDir, IndexFileName)
-	info, err := os.Stat(indexPath)
-	if err != nil {
-		return doctorCheck{
-			Name:     "Search Index",
-			Status:   "warn",
-			Detail:   "No search index \u2014 run 'ao store rebuild' for faster searches",
-			Required: false,
-		}
-	}
-
-	if info.Size() == 0 {
-		return doctorCheck{
-			Name:     "Search Index",
-			Status:   "warn",
-			Detail:   "Search index is empty \u2014 run 'ao store rebuild'",
-			Required: false,
-		}
-	}
-
-	// Count lines (each line is a term/entry)
-	lines := countFileLines(indexPath)
-
-	return doctorCheck{
-		Name:     "Search Index",
-		Status:   "pass",
-		Detail:   fmt.Sprintf("Index exists (%s terms)", formatNumber(lines)),
-		Required: false,
-	}
+	return quality.CheckSearchIndex(filepath.Join(cwd, IndexDir, IndexFileName))
 }
 
-// countFileLines counts non-empty lines in a file.
-func countFileLines(path string) int {
-	f, err := os.Open(path)
-	if err != nil {
-		return 0
-	}
-	defer f.Close() //nolint:errcheck // best-effort close
-
-	count := 0
-	scanner := bufio.NewScanner(f)
-	// Increase buffer for potentially long JSONL lines
-	scanner.Buffer(make([]byte, 256*1024), 1024*1024)
-	for scanner.Scan() {
-		if len(strings.TrimSpace(scanner.Text())) > 0 {
-			count++
-		}
-	}
-	return count
-}
-
-// formatNumber adds comma separators to an integer (e.g., 1247 -> "1,247").
-func formatNumber(n int) string {
-	s := fmt.Sprintf("%d", n)
-	if len(s) <= 3 {
-		return s
-	}
-
-	var result []byte
-	for i, c := range s {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			result = append(result, ',')
-		}
-		result = append(result, byte(c))
-	}
-	return string(result)
-}
-
-// checkFlywheelHealth checks if .agents/ao/learnings/ has files.
-// Counts .md and .jsonl files only, matching the metrics/badge counting method.
 func checkFlywheelHealth(baseDir ...string) doctorCheck {
 	dir := ""
 	if len(baseDir) > 0 && baseDir[0] != "" {
@@ -504,62 +259,7 @@ func checkFlywheelHealth(baseDir ...string) doctorCheck {
 			return doctorCheck{Name: "Flywheel Health", Status: "warn", Detail: "cannot determine working directory", Required: false}
 		}
 	}
-
-	learningsDir := filepath.Join(dir, storage.DefaultBaseDir, "learnings")
-	total := countLearningFiles(learningsDir)
-
-	if total == 0 {
-		// Also check the older path
-		altDir := filepath.Join(dir, ".agents", "learnings")
-		total = countLearningFiles(altDir)
-	}
-
-	if total == 0 {
-		return doctorCheck{
-			Name:     "Flywheel Health",
-			Status:   "warn",
-			Detail:   "No learnings found \u2014 the flywheel hasn't started",
-			Required: false,
-		}
-	}
-
-	// Count established learnings (those with "established" or "promoted" in filename or content)
-	established := countEstablished(filepath.Join(dir, storage.DefaultBaseDir, "learnings"))
-	if established == 0 {
-		// Check alt path too
-		established = countEstablished(filepath.Join(dir, ".agents", "learnings"))
-	}
-
-	detail := fmt.Sprintf("%d learnings in flywheel", total)
-	if established > 0 {
-		detail = fmt.Sprintf("%d learnings (%d established)", total, established)
-	}
-
-	return doctorCheck{
-		Name:     "Flywheel Health",
-		Status:   "pass",
-		Detail:   detail,
-		Required: false,
-	}
-}
-
-// countEstablished counts files in a directory whose name contains "established" or "promoted".
-func countEstablished(dir string) int {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return 0
-	}
-	count := 0
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		lower := strings.ToLower(e.Name())
-		if strings.Contains(lower, "established") || strings.Contains(lower, "promoted") {
-			count++
-		}
-	}
-	return count
+	return quality.CheckFlywheelHealth(filepath.Join(dir, storage.DefaultBaseDir))
 }
 
 const (
@@ -903,14 +603,7 @@ func findAgentOpsRepoRoot(start string) string {
 	}
 }
 
-func sha256File(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(data)
-	return fmt.Sprintf("%x", sum[:]), nil
-}
+func sha256File(path string) (string, error) { return quality.SHA256File(path) }
 
 func currentRepoVersion(repoRoot string) string {
 	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--short", "HEAD").Output()
@@ -1333,85 +1026,8 @@ func checkOptionalCLI(name string, reason string) doctorCheck {
 	}
 }
 
-func countFiles(dir string) int {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return 0
-	}
-	count := 0
-	for _, e := range entries {
-		if !e.IsDir() {
-			count++
-		}
-	}
-	return count
-}
-
-// countLearningFiles counts .md and .jsonl files in a directory,
-// matching the counting method used by countArtifacts in metrics.go.
-func countLearningFiles(dir string) int {
-	mdFiles, _ := filepath.Glob(filepath.Join(dir, "*.md"))
-	jsonlFiles, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
-	return len(mdFiles) + len(jsonlFiles)
-}
-
-// countCheckStatuses tallies pass, fail, and warn counts from checks.
-func countCheckStatuses(checks []doctorCheck) (passes, fails, warns int) {
-	for _, c := range checks {
-		switch c.Status {
-		case "pass":
-			passes++
-		case "fail":
-			fails++
-		case "warn":
-			warns++
-		}
-	}
-	return passes, fails, warns
-}
-
-// buildDoctorSummary constructs a human-readable summary from check tallies.
-func buildDoctorSummary(passes, fails, warns, total int) string {
-	switch {
-	case fails == 0 && warns == 0:
-		return fmt.Sprintf("%d/%d checks passed", passes, total)
-	case fails == 0:
-		summary := fmt.Sprintf("%d/%d checks passed, %d warning", passes, total, warns)
-		if warns > 1 {
-			summary += "s"
-		}
-		return summary
-	default:
-		parts := []string{fmt.Sprintf("%d/%d checks passed", passes, total)}
-		if warns > 0 {
-			w := fmt.Sprintf("%d warning", warns)
-			if warns > 1 {
-				w += "s"
-			}
-			parts = append(parts, w)
-		}
-		if fails > 0 {
-			f := fmt.Sprintf("%d failed", fails)
-			parts = append(parts, f)
-		}
-		return strings.Join(parts, ", ")
-	}
-}
-
-func computeResult(checks []doctorCheck) doctorOutput {
-	passes, fails, warns := countCheckStatuses(checks)
-	total := len(checks)
-
-	result := "HEALTHY"
-	if fails > 0 {
-		result = "UNHEALTHY"
-	} else if warns > 0 {
-		result = "DEGRADED"
-	}
-
-	return doctorOutput{
-		Checks:  checks,
-		Result:  result,
-		Summary: buildDoctorSummary(passes, fails, warns, total),
-	}
-}
+func countFiles(dir string) int                                          { return quality.CountFiles(dir) }
+func countLearningFiles(dir string) int                                   { return quality.CountLearningFiles(dir) }
+func countCheckStatuses(checks []doctorCheck) (int, int, int)             { return quality.CountCheckStatuses(checks) }
+func buildDoctorSummary(passes, fails, warns, total int) string           { return quality.BuildSummary(passes, fails, warns, total) }
+func computeResult(checks []doctorCheck) doctorOutput                     { return quality.ComputeResult(checks) }
