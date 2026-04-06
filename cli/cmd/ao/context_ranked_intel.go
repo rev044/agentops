@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	aocontext "github.com/boshu2/agentops/cli/internal/context"
 )
 
 type rankedContextBundle struct {
@@ -27,33 +29,11 @@ type intelSectionSpec struct {
 }
 
 func normalizeAssemblePhase(phase string) string {
-	switch strings.ToLower(strings.TrimSpace(phase)) {
-	case "", "task":
-		return "task"
-	case "startup", "start":
-		return "startup"
-	case "planning", "plan":
-		return "planning"
-	case "pre-mortem", "premortem", "pre_mortem":
-		return "pre-mortem"
-	case "validation", "validate":
-		return "validation"
-	default:
-		return "task"
-	}
+	return aocontext.NormalizeAssemblePhase(phase)
 }
 
 func contextBundleLimit(budget int) int {
-	switch {
-	case budget >= 18000:
-		return 6
-	case budget >= 12000:
-		return 5
-	case budget >= 7000:
-		return 4
-	default:
-		return 3
-	}
+	return aocontext.ContextBundleLimit(budget)
 }
 
 func collectRankedContextBundle(cwd, query string, limit int) rankedContextBundle {
@@ -236,33 +216,7 @@ func playbookBullets(cwd string, playbooks []knowledgeContextPlaybook) []string 
 }
 
 func prioritizeFindings(findings []knowledgeFinding, preferredIDs []string, limit int) []knowledgeFinding {
-	if len(findings) == 0 {
-		return nil
-	}
-
-	ordered := make([]knowledgeFinding, 0, len(findings))
-	seen := make(map[string]bool, len(findings))
-	for _, id := range preferredIDs {
-		for _, finding := range findings {
-			if finding.ID != id || seen[finding.ID] {
-				continue
-			}
-			ordered = append(ordered, finding)
-			seen[finding.ID] = true
-			break
-		}
-	}
-	for _, finding := range findings {
-		if seen[finding.ID] {
-			continue
-		}
-		ordered = append(ordered, finding)
-		seen[finding.ID] = true
-	}
-	if limit > 0 && len(ordered) > limit {
-		ordered = ordered[:limit]
-	}
-	return ordered
+	return aocontext.PrioritizeFindings(findings, preferredIDs, limit)
 }
 
 func chooseRankedNextWork(packet StigmergicPacket, nextWork []nextWorkItem, limit int) []nextWorkItem {
@@ -318,49 +272,19 @@ func intelEntryMatchesQuery(entry intelEntry, queryLower string, queryWords []st
 }
 
 func stringBullets(items []string) []string {
-	bullets := make([]string, 0, len(items))
-	for _, item := range items {
-		item = compactText(item)
-		if item == "" {
-			continue
-		}
-		bullets = append(bullets, truncateText(item, 220))
-	}
-	return bullets
+	return aocontext.StringBullets(items)
 }
 
 func learningBullets(items []learning) []string {
-	bullets := make([]string, 0, len(items))
-	for _, item := range items {
-		title := firstNonEmpty(item.Title, item.ID)
-		summary := compactText(firstNonEmpty(item.Summary, item.BodyText))
-		bullets = append(bullets, joinBullet(title, summary))
-	}
-	return bullets
+	return aocontext.LearningBullets(items)
 }
 
 func patternBullets(items []pattern) []string {
-	bullets := make([]string, 0, len(items))
-	for _, item := range items {
-		name := firstNonEmpty(item.Name, filepath.Base(item.FilePath))
-		description := compactText(item.Description)
-		bullets = append(bullets, joinBullet(name, description))
-	}
-	return bullets
+	return aocontext.PatternBullets(items)
 }
 
 func findingBullets(items []knowledgeFinding) []string {
-	bullets := make([]string, 0, len(items))
-	for _, item := range items {
-		title := firstNonEmpty(item.Title, item.ID)
-		summary := compactText(item.Summary)
-		bullet := joinBullet(title, summary)
-		if sev := strings.TrimSpace(item.Severity); sev != "" {
-			bullet = fmt.Sprintf("[%s] %s", strings.ToUpper(sev), bullet)
-		}
-		bullets = append(bullets, bullet)
-	}
-	return bullets
+	return aocontext.FindingBullets(items)
 }
 
 func nextWorkBullets(items []nextWorkItem) []string {
@@ -377,13 +301,7 @@ func nextWorkBullets(items []nextWorkItem) []string {
 }
 
 func sessionBullets(items []session) []string {
-	bullets := make([]string, 0, len(items))
-	for _, item := range items {
-		title := strings.TrimSpace(item.Date)
-		summary := compactText(item.Summary)
-		bullets = append(bullets, joinBullet(title, summary))
-	}
-	return bullets
+	return aocontext.SessionBullets(items)
 }
 
 func researchBullets(items []codexArtifactRef) []string {
@@ -407,52 +325,27 @@ func legacyIntelBullets(items []intelEntry) []string {
 }
 
 func joinBullet(title, details string) string {
-	title = compactText(title)
-	details = compactText(details)
-	switch {
-	case title == "" && details == "":
-		return ""
-	case details == "":
-		return truncateText(title, 220)
-	case title == "":
-		return truncateText(details, 220)
-	default:
-		return truncateText(title+" - "+details, 220)
-	}
+	return aocontext.JoinBullet(title, details)
 }
 
 func compactText(input string) string {
-	return strings.Join(strings.Fields(strings.TrimSpace(input)), " ")
+	return aocontext.CompactText(input)
 }
 
 func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
+	return aocontext.FirstNonEmpty(values...)
 }
 
 func limitLearnings(items []learning, limit int) []learning {
-	if limit > 0 && len(items) > limit {
-		items = items[:limit]
-	}
-	return append([]learning(nil), items...)
+	return aocontext.LimitLearnings(items, limit)
 }
 
 func limitPatterns(items []pattern, limit int) []pattern {
-	if limit > 0 && len(items) > limit {
-		items = items[:limit]
-	}
-	return append([]pattern(nil), items...)
+	return aocontext.LimitPatterns(items, limit)
 }
 
 func limitSessions(items []session, limit int) []session {
-	if limit > 0 && len(items) > limit {
-		items = items[:limit]
-	}
-	return append([]session(nil), items...)
+	return aocontext.LimitSessions(items, limit)
 }
 
 func limitResearchRefs(items []codexArtifactRef, limit int) []codexArtifactRef {
