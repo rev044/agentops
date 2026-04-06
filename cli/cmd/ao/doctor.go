@@ -1,15 +1,12 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -63,11 +60,11 @@ func gatherDoctorChecks() []doctorCheck {
 }
 
 // Thin wrappers — delegate to quality package, kept for test compatibility.
-func doctorStatusIcon(status string) string        { return quality.StatusIcon(status) }
-func hasRequiredFailure(checks []doctorCheck) bool { return quality.HasRequiredFailure(checks) }
-func renderDoctorTable(w io.Writer, output doctorOutput) { quality.RenderTable(w, output) }
-func newestFileModTime(entries []os.DirEntry) time.Time  { return quality.NewestFileModTime(entries) }
-func countEstablished(dir string) int                    { return quality.CountEstablished(dir) }
+func doctorStatusIcon(status string) string               { return quality.StatusIcon(status) }
+func hasRequiredFailure(checks []doctorCheck) bool        { return quality.HasRequiredFailure(checks) }
+func renderDoctorTable(w io.Writer, output doctorOutput)  { quality.RenderTable(w, output) }
+func newestFileModTime(entries []os.DirEntry) time.Time   { return quality.NewestFileModTime(entries) }
+func countEstablished(dir string) int                     { return quality.CountEstablished(dir) }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
 	return quality.RunDoctor(quality.DoctorOptions{
@@ -82,6 +79,7 @@ func checkCLIDependencies() doctorCheck {
 }
 
 // checkHookCoverage checks if Claude hooks are installed with event coverage.
+// Stays in cmd/ao because it depends on local AllEventNames / hookCoverageContract / hookGroupContainsAo.
 func checkHookCoverage() doctorCheck {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -198,7 +196,6 @@ func countHooksInMap(raw any) int {
 			if arr, ok := val.([]any); ok {
 				count += len(arr)
 			} else {
-				// Recurse into nested maps
 				count += countHooksInMap(val)
 			}
 		}
@@ -235,10 +232,10 @@ func checkKnowledgeFreshness() doctorCheck {
 }
 
 // Thin wrappers for pure functions — delegate to quality package.
-func formatVersion(v string) string              { return quality.FormatVersion(v) }
-func formatDuration(d time.Duration) string       { return quality.FormatDuration(d) }
-func formatNumber(n int) string                   { return quality.FormatNumber(n) }
-func countFileLines(path string) int              { return quality.CountFileLines(path) }
+func formatVersion(v string) string         { return quality.FormatVersion(v) }
+func formatDuration(d time.Duration) string { return quality.FormatDuration(d) }
+func formatNumber(n int) string             { return quality.FormatNumber(n) }
+func countFileLines(path string) int        { return quality.CountFileLines(path) }
 
 func checkSearchIndex() doctorCheck {
 	cwd, err := os.Getwd()
@@ -262,534 +259,31 @@ func checkFlywheelHealth(baseDir ...string) doctorCheck {
 	return quality.CheckFlywheelHealth(filepath.Join(dir, storage.DefaultBaseDir))
 }
 
-const (
-	codexAgentOpsPluginName      = "agentops"
-	codexAgentOpsMarketplaceName = "agentops-marketplace"
-)
-
-type codexInstallMeta struct {
-	InstallMode  string `json:"install_mode"`
-	PluginRoot   string `json:"plugin_root"`
-	Version      string `json:"version"`
-	ManifestHash string `json:"manifest_hash"`
-	SkillCount   int    `json:"skill_count"`
+// Thin wrappers — delegate Codex/skill checks to internal/quality.
+func checkSkills() doctorCheck         { return quality.CheckSkills() }
+func checkCodexSync() doctorCheck      { return quality.CheckCodexSync() }
+func checkSkillIntegrity() doctorCheck { return quality.CheckSkillIntegrity() }
+func checkOptionalCLI(name, reason string) doctorCheck {
+	return quality.CheckOptionalCLI(name, reason)
 }
-
-func codexNativePluginSkillsPath(home string) string {
-	return filepath.Join(
-		home,
-		".codex",
-		"plugins",
-		"cache",
-		codexAgentOpsMarketplaceName,
-		codexAgentOpsPluginName,
-		"local",
-		"skills-codex",
-	)
-}
-
-func codexNativePluginHealPath(home string) string {
-	return filepath.Join(codexNativePluginSkillsPath(home), "heal-skill", "scripts", "heal.sh")
-}
-
-func codexNativePluginManifestPath(home string) string {
-	return filepath.Join(codexNativePluginSkillsPath(home), ".agentops-manifest.json")
-}
-
-func codexInstallMetaPath(home string) string {
-	return filepath.Join(home, ".codex", ".agentops-codex-install.json")
-}
-
-func readCodexInstallMeta(home string) (*codexInstallMeta, error) {
-	data, err := os.ReadFile(codexInstallMetaPath(home))
-	if err != nil {
-		return nil, err
-	}
-	var meta codexInstallMeta
-	if err := json.Unmarshal(data, &meta); err != nil {
-		return nil, err
-	}
-	return &meta, nil
-}
-
-func readCodexManifestSkillCount(path string) (int, error) {
-	var manifest struct {
-		Skills []struct {
-			Name string `json:"name"`
-		} `json:"skills"`
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0, err
-	}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return 0, err
-	}
-	return len(manifest.Skills), nil
-}
-
-func checkCodexNativePluginManifest(home, primary string, primaryCount int) *doctorCheck {
-	manifestPath := codexNativePluginManifestPath(home)
-	manifestHash, err := sha256File(manifestPath)
-	if err != nil {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; native plugin is missing .agentops-manifest.json — run 'bash scripts/refresh-codex-local.sh' from the repo checkout.",
-				primaryCount, primary),
-		}
-	}
-
-	manifestSkillCount, err := readCodexManifestSkillCount(manifestPath)
-	if err != nil {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; native plugin manifest is unreadable — run 'bash scripts/refresh-codex-local.sh'.",
-				primaryCount, primary),
-		}
-	}
-
-	meta, err := readCodexInstallMeta(home)
-	if err != nil {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; native plugin install metadata is missing — run 'bash scripts/refresh-codex-local.sh' from the repo checkout.",
-				primaryCount, primary),
-		}
-	}
-
-	expectedRoot := filepath.Join(home, ".codex", "plugins", "cache", codexAgentOpsMarketplaceName, codexAgentOpsPluginName, "local")
-	if meta.InstallMode != "native-plugin" {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; install metadata says install_mode=%q instead of native-plugin — run 'bash scripts/refresh-codex-local.sh'.",
-				primaryCount, primary, meta.InstallMode),
-		}
-	}
-	if meta.PluginRoot != "" && filepath.Clean(meta.PluginRoot) != expectedRoot {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; install metadata points at %s instead of %s — run 'bash scripts/refresh-codex-local.sh'.",
-				primaryCount, primary, meta.PluginRoot, expectedRoot),
-		}
-	}
-	if meta.ManifestHash != "" && meta.ManifestHash != manifestHash {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; install metadata manifest hash does not match the active native plugin manifest — run 'bash scripts/refresh-codex-local.sh'.",
-				primaryCount, primary),
-		}
-	}
-	if meta.SkillCount > 0 && manifestSkillCount > 0 && meta.SkillCount != manifestSkillCount {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; install metadata says %d skills but manifest says %d — run 'bash scripts/refresh-codex-local.sh'.",
-				primaryCount, primary, meta.SkillCount, manifestSkillCount),
-		}
-	}
-	if manifestSkillCount > 0 && manifestSkillCount != primaryCount {
-		return &doctorCheck{
-			Name:   "Plugin",
-			Status: "warn",
-			Detail: fmt.Sprintf("%d skills found in %s; active native plugin manifest lists %d skills — run 'bash scripts/refresh-codex-local.sh'.",
-				primaryCount, primary, manifestSkillCount),
-		}
-	}
-
-	return &doctorCheck{
-		Name:     "Plugin",
-		Status:   "pass",
-		Detail:   fmt.Sprintf("%d skills found in %s (native manifest OK)", primaryCount, primary),
-		Required: false,
-	}
-}
-
-// skillInstall describes a candidate skill installation directory.
-type skillInstall struct {
-	path        string
-	label       string
-	displayPath string
-	legacy      bool
-}
-
-// skillInstallDirs returns the ordered list of candidate skill install locations.
-func skillInstallDirs(home string) []skillInstall {
-	return []skillInstall{
-		{
-			path:        codexNativePluginSkillsPath(home),
-			label:       "Codex Native Plugin",
-			displayPath: "~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex",
-		},
-		{
-			path:        filepath.Join(home, ".codex", "skills"),
-			label:       "Codex",
-			displayPath: "~/.codex/skills",
-		},
-		{
-			path:        filepath.Join(home, ".claude", "skills"),
-			label:       "Claude",
-			displayPath: "~/.claude/skills",
-		},
-		{
-			path:        filepath.Join(home, ".agents", "skills"),
-			label:       "User Skills",
-			displayPath: "~/.agents/skills",
-			legacy:      true,
-		},
-	}
-}
-
-// scanSkillDir returns the set of skill names found in a directory, or nil if none.
-func scanSkillDir(dir string) map[string]struct{} {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-	names := make(map[string]struct{})
-	for _, e := range entries {
-		// Use os.Stat to follow symlinks (e.IsDir() doesn't follow symlinks)
-		info, err := os.Stat(filepath.Join(dir, e.Name()))
-		if err != nil || !info.IsDir() {
-			continue
-		}
-		skillFile := filepath.Join(dir, e.Name(), "SKILL.md")
-		if _, err := os.Stat(skillFile); err == nil {
-			names[e.Name()] = struct{}{}
-		}
-	}
-	if len(names) == 0 {
-		return nil
-	}
-	return names
-}
-
-// skillOverlapWarning returns a doctorCheck warning if base overlaps with any of others,
-// or nil if there is no overlap. msgFmt must contain four %d/%s placeholders:
-// primaryCount (%d), primary (%s), overlap count (%d), sample names (%s).
-func skillOverlapWarning(base map[string]struct{}, primaryCount int, primary, msgFmt string, others ...map[string]struct{}) *doctorCheck {
-	overlaps := overlappingSkillNames(base, others...)
-	if len(overlaps) == 0 {
-		return nil
-	}
-	sample := overlaps
-	if len(sample) > 3 {
-		sample = sample[:3]
-	}
-	return &doctorCheck{
-		Name:   "Plugin",
-		Status: "warn",
-		Detail: fmt.Sprintf(msgFmt, primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
-	}
-}
-
-func checkSkills() doctorCheck {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "cannot determine home directory", Required: false}
-	}
-
-	installs := skillInstallDirs(home)
-	installedNames := make(map[string]map[string]struct{}, len(installs))
-	primary := ""
-	primaryCount := 0
-	legacyNames := map[string]struct{}{}
-
-	for _, install := range installs {
-		names := scanSkillDir(install.path)
-		if names == nil {
-			continue
-		}
-		installedNames[install.displayPath] = names
-		if primary == "" {
-			primary = install.displayPath
-			primaryCount = len(names)
-		}
-		if install.legacy {
-			legacyNames = names
-		}
-	}
-
-	if primaryCount == 0 {
-		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "no skills found — run 'bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)'", Required: false}
-	}
-
-	nativeNames := installedNames["~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex"]
-	rawCodexNames := installedNames["~/.codex/skills"]
-
-	if len(nativeNames) > 0 && len(rawCodexNames) > 0 {
-		if w := skillOverlapWarning(rawCodexNames, primaryCount, primary,
-			"%d skills found in %s; duplicate raw Codex install also present in ~/.codex/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps skill folders in ~/.codex/skills.",
-			nativeNames); w != nil {
-			return *w
-		}
-	}
-
-	if len(legacyNames) > 0 && len(nativeNames) > 0 {
-		if w := skillOverlapWarning(legacyNames, primaryCount, primary,
-			"%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
-			nativeNames); w != nil {
-			return *w
-		}
-	}
-
-	if len(legacyNames) > 0 {
-		if w := skillOverlapWarning(legacyNames, primaryCount, primary,
-			"%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
-			rawCodexNames, installedNames["~/.claude/skills"]); w != nil {
-			return *w
-		}
-	}
-
-	if primary == "~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex" {
-		return *checkCodexNativePluginManifest(home, primary, primaryCount)
-	}
-
-	return doctorCheck{
-		Name:     "Plugin",
-		Status:   "pass",
-		Detail:   fmt.Sprintf("%d skills found in %s", primaryCount, primary),
-		Required: false,
-	}
-}
-
-func overlappingSkillNames(base map[string]struct{}, others ...map[string]struct{}) []string {
-	if len(base) == 0 {
-		return nil
-	}
-
-	overlaps := make(map[string]struct{})
-	for name := range base {
-		for _, other := range others {
-			if len(other) == 0 {
-				continue
-			}
-			if _, ok := other[name]; ok {
-				overlaps[name] = struct{}{}
-				break
-			}
-		}
-	}
-
-	if len(overlaps) == 0 {
-		return nil
-	}
-
-	names := make([]string, 0, len(overlaps))
-	for name := range overlaps {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func findAgentOpsRepoRoot(start string) string {
-	dir := start
-	for {
-		if fileExists(filepath.Join(dir, ".git")) && fileExists(filepath.Join(dir, "skills-codex", ".agentops-manifest.json")) {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return ""
-		}
-		dir = parent
-	}
-}
-
+func findHealScript() string      { return quality.FindHealScript() }
 func sha256File(path string) (string, error) { return quality.SHA256File(path) }
 
-func currentRepoVersion(repoRoot string) string {
-	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--short", "HEAD").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+// fileExists is used by other cmd/ao files (codex.go, codex_runtime.go).
+func fileExists(path string) bool { return quality.FileExists(path) }
+
+// Test-compatibility wrappers for skill/codex helpers.
+func skillOverlapWarning(base map[string]struct{}, primaryCount int, primary, msgFmt string, others ...map[string]struct{}) *doctorCheck {
+	return quality.SkillOverlapWarning(base, primaryCount, primary, msgFmt, others...)
 }
-
-func checkCodexSync() doctorCheck {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return doctorCheck{Name: "Codex Sync", Status: "warn", Detail: "cannot determine home directory", Required: false}
-	}
-
-	meta, err := readCodexInstallMeta(home)
-	if err != nil {
-		return doctorCheck{Name: "Codex Sync", Status: "pass", Detail: "no Codex install metadata found", Required: false}
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return doctorCheck{Name: "Codex Sync", Status: "warn", Detail: "cannot determine current directory", Required: false}
-	}
-
-	repoRoot := findAgentOpsRepoRoot(cwd)
-	if repoRoot == "" {
-		return doctorCheck{Name: "Codex Sync", Status: "pass", Detail: "no local AgentOps repo context detected", Required: false}
-	}
-
-	repoManifest := filepath.Join(repoRoot, "skills-codex", ".agentops-manifest.json")
-	repoManifestHash, err := sha256File(repoManifest)
-	if err != nil {
-		return doctorCheck{Name: "Codex Sync", Status: "warn", Detail: "cannot read local skills-codex manifest", Required: false}
-	}
-
-	repoVersion := currentRepoVersion(repoRoot)
-	if meta.ManifestHash == "" {
-		return doctorCheck{
-			Name:   "Codex Sync",
-			Status: "warn",
-			Detail: fmt.Sprintf("Codex install metadata is missing manifest hash — run 'cd %s && bash scripts/refresh-codex-local.sh'", repoRoot),
-		}
-	}
-
-	if meta.ManifestHash != repoManifestHash {
-		if repoVersion != "" && meta.Version != "" && meta.Version == repoVersion {
-			return doctorCheck{
-				Name:   "Codex Sync",
-				Status: "warn",
-				Detail: fmt.Sprintf("installed Codex %s manifest differs from repo %s — run 'cd %s && bash scripts/refresh-codex-local.sh'",
-					modeOrDefault(meta.InstallMode), valueOrUnknown(repoVersion), repoRoot),
-			}
-		}
-		return doctorCheck{
-			Name:   "Codex Sync",
-			Status: "warn",
-			Detail: fmt.Sprintf("installed Codex %s is stale relative to repo (%s -> %s) — run 'cd %s && bash scripts/refresh-codex-local.sh'",
-				modeOrDefault(meta.InstallMode), valueOrUnknown(meta.Version), valueOrUnknown(repoVersion), repoRoot),
-		}
-	}
-
-	if repoVersion != "" && meta.Version != "" && meta.Version != repoVersion {
-		return doctorCheck{
-			Name:   "Codex Sync",
-			Status: "warn",
-			Detail: fmt.Sprintf("installed Codex %s is stale relative to repo (%s -> %s) — run 'cd %s && bash scripts/refresh-codex-local.sh'",
-				modeOrDefault(meta.InstallMode), valueOrUnknown(meta.Version), valueOrUnknown(repoVersion), repoRoot),
-		}
-	}
-
-	return doctorCheck{
-		Name:     "Codex Sync",
-		Status:   "pass",
-		Detail:   fmt.Sprintf("installed Codex %s matches repo %s", modeOrDefault(meta.InstallMode), valueOrUnknown(repoVersion)),
-		Required: false,
-	}
+func scanSkillDir(dir string) map[string]struct{} { return quality.ScanSkillDir(dir) }
+func overlappingSkillNames(base map[string]struct{}, others ...map[string]struct{}) []string {
+	return quality.OverlappingSkillNames(base, others...)
 }
-
-func modeOrDefault(mode string) string {
-	if mode == "" {
-		return "install"
-	}
-	return mode
-}
-
-func valueOrUnknown(value string) string {
-	if value == "" {
-		return "unknown"
-	}
-	return value
-}
-
-// findHealScript searches for heal.sh in known locations and returns the path if found.
-func findHealScript() string {
-	// 1. In-repo (when running from agentops checkout)
-	if p := "skills/heal-skill/scripts/heal.sh"; fileExists(p) {
-		abs, err := filepath.Abs(p)
-		if err == nil {
-			return abs
-		}
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-
-	// 2. Installed via native Codex plugin cache
-	if p := codexNativePluginHealPath(home); fileExists(p) {
-		return p
-	}
-
-	// 3. Installed via raw Codex skills directory
-	if p := filepath.Join(home, ".codex", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
-		return p
-	}
-
-	// 4. Installed via install.sh (Claude location)
-	if p := filepath.Join(home, ".claude", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
-		return p
-	}
-
-	// 5. Alt install location
-	if p := filepath.Join(home, ".agents", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
-		return p
-	}
-
-	return ""
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-// checkSkillIntegrity runs heal.sh --strict to validate skill hygiene.
-func checkSkillIntegrity() doctorCheck {
-	healPath := findHealScript()
-	if healPath == "" {
-		return doctorCheck{
-			Name:     "Skill Integrity",
-			Status:   "warn",
-			Detail:   "heal-skill not installed, skipping integrity check",
-			Required: false,
-		}
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "bash", healPath, "--strict")
-	output, err := cmd.CombinedOutput()
-
-	if ctx.Err() == context.DeadlineExceeded {
-		return doctorCheck{
-			Name:     "Skill Integrity",
-			Status:   "warn",
-			Detail:   "heal.sh timed out after 30s",
-			Required: false,
-		}
-	}
-
-	if err == nil {
-		return doctorCheck{
-			Name:     "Skill Integrity",
-			Status:   "pass",
-			Detail:   "All skill integrity checks passed",
-			Required: false,
-		}
-	}
-
-	// --strict exits 1 when findings exist — count them
-	findings := countHealFindings(string(output))
-	return doctorCheck{
-		Name:     "Skill Integrity",
-		Status:   "warn",
-		Detail:   fmt.Sprintf("%d skill hygiene finding(s) \u2014 run 'heal.sh --check' for details", findings),
-		Required: false,
-	}
-}
-
-func countHealFindings(output string) int { return quality.CountHealFindings(output) }
 
 // Type aliases for stale reference types.
 var deprecatedCommands = quality.DeprecatedCommands
+
 type staleReference = quality.StaleReference
 
 func checkStaleReferences() doctorCheck {
@@ -811,27 +305,14 @@ func scanFileForDeprecatedCommands(path string) []staleReference {
 }
 func countUniqueFiles(refs []staleReference) int { return quality.CountUniqueFiles(refs) }
 
-func checkOptionalCLI(name string, reason string) doctorCheck {
-	_, err := exec.LookPath(name)
-	if err != nil {
-		return doctorCheck{
-			Name:     strings.Title(name) + " CLI", //nolint:staticcheck
-			Status:   "warn",
-			Detail:   fmt.Sprintf("not found (optional \u2014 %s)", reason),
-			Required: false,
-		}
-	}
+func countHealFindings(output string) int { return quality.CountHealFindings(output) }
 
-	return doctorCheck{
-		Name:     strings.Title(name) + " CLI", //nolint:staticcheck
-		Status:   "pass",
-		Detail:   "available",
-		Required: false,
-	}
+func countFiles(dir string) int                              { return quality.CountFiles(dir) }
+func countLearningFiles(dir string) int                      { return quality.CountLearningFiles(dir) }
+func countCheckStatuses(checks []doctorCheck) (int, int, int) {
+	return quality.CountCheckStatuses(checks)
 }
-
-func countFiles(dir string) int                                          { return quality.CountFiles(dir) }
-func countLearningFiles(dir string) int                                   { return quality.CountLearningFiles(dir) }
-func countCheckStatuses(checks []doctorCheck) (int, int, int)             { return quality.CountCheckStatuses(checks) }
-func buildDoctorSummary(passes, fails, warns, total int) string           { return quality.BuildSummary(passes, fails, warns, total) }
-func computeResult(checks []doctorCheck) doctorOutput                     { return quality.ComputeResult(checks) }
+func buildDoctorSummary(passes, fails, warns, total int) string {
+	return quality.BuildSummary(passes, fails, warns, total)
+}
+func computeResult(checks []doctorCheck) doctorOutput { return quality.ComputeResult(checks) }

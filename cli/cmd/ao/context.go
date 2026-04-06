@@ -115,17 +115,7 @@ type contextGuardResult struct {
 	HookMessage   string               `json:"hook_message,omitempty"`
 }
 
-type handoffMarker struct {
-	SchemaVersion int     `json:"schema_version"`
-	ID            string  `json:"id"`
-	CreatedAt     string  `json:"created_at"`
-	SessionID     string  `json:"session_id"`
-	Status        string  `json:"status"`
-	UsagePercent  float64 `json:"usage_percent"`
-	HandoffFile   string  `json:"handoff_file"`
-	Consumed      bool    `json:"consumed"`
-	ConsumedAt    string  `json:"consumed_at,omitempty"`
-}
+type handoffMarker = contextbudget.HandoffMarker
 
 const (
 	contextReadinessGreen    = "GREEN"
@@ -546,40 +536,12 @@ func renderHandoffMarkdown(now time.Time, status contextSessionStatus, usage tra
 	})
 }
 
-func findPendingHandoffForSession(cwd, sessionID string) (handoffPath string, markerPath string, found bool, err error) {
-	pendingDir := filepath.Join(cwd, ".agents", "handoff", "pending")
-	entries, err := os.ReadDir(pendingDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", "", false, nil
-		}
-		return "", "", false, err
-	}
-
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-		if hp, mp, ok := matchPendingHandoff(filepath.Join(pendingDir, e.Name()), cwd, sessionID); ok {
-			return hp, mp, true, nil
-		}
-	}
-	return "", "", false, nil
+func findPendingHandoffForSession(cwd, sessionID string) (string, string, bool, error) {
+	return contextbudget.FindPendingHandoffForSession(cwd, sessionID)
 }
 
 func matchPendingHandoff(path, cwd, sessionID string) (string, string, bool) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", "", false
-	}
-	var marker handoffMarker
-	if err := json.Unmarshal(data, &marker); err != nil {
-		return "", "", false
-	}
-	if marker.SessionID != sessionID || marker.Consumed {
-		return "", "", false
-	}
-	return marker.HandoffFile, toRepoRelative(cwd, path), true
+	return contextbudget.MatchPendingHandoff(path, cwd, sessionID)
 }
 
 type tailLineEnvelope = contextbudget.TailLineEnvelope
@@ -658,30 +620,14 @@ func resolveContextAssignment(cwd, task, agentName string) contextAssignment {
 }
 
 func applyContextAssignment(status *contextSessionStatus, assignment contextAssignment) {
-	if status == nil {
-		return
-	}
-	if strings.TrimSpace(assignment.AgentName) != "" {
-		status.AgentName = strings.TrimSpace(assignment.AgentName)
-	}
-	if strings.TrimSpace(assignment.AgentRole) != "" {
-		status.AgentRole = strings.TrimSpace(assignment.AgentRole)
-	}
-	if strings.TrimSpace(assignment.TeamName) != "" {
-		status.TeamName = strings.TrimSpace(assignment.TeamName)
-	}
-	if strings.TrimSpace(assignment.IssueID) != "" {
-		status.IssueID = strings.TrimSpace(assignment.IssueID)
-	}
-	if strings.TrimSpace(assignment.TmuxPaneID) != "" {
-		status.TmuxPaneID = strings.TrimSpace(assignment.TmuxPaneID)
-	}
-	if strings.TrimSpace(assignment.TmuxTarget) != "" {
-		status.TmuxTarget = strings.TrimSpace(assignment.TmuxTarget)
-	}
-	if strings.TrimSpace(assignment.TmuxSession) != "" {
-		status.TmuxSession = strings.TrimSpace(assignment.TmuxSession)
-	}
+	if status == nil { return }
+	if v := strings.TrimSpace(assignment.AgentName); v != "" { status.AgentName = v }
+	if v := strings.TrimSpace(assignment.AgentRole); v != "" { status.AgentRole = v }
+	if v := strings.TrimSpace(assignment.TeamName); v != "" { status.TeamName = v }
+	if v := strings.TrimSpace(assignment.IssueID); v != "" { status.IssueID = v }
+	if v := strings.TrimSpace(assignment.TmuxPaneID); v != "" { status.TmuxPaneID = v }
+	if v := strings.TrimSpace(assignment.TmuxTarget); v != "" { status.TmuxTarget = v }
+	if v := strings.TrimSpace(assignment.TmuxSession); v != "" { status.TmuxSession = v }
 }
 
 func assignmentFromStatus(status contextSessionStatus) contextAssignment {
@@ -697,12 +643,9 @@ func assignmentFromStatus(status contextSessionStatus) contextAssignment {
 }
 
 func (a contextAssignment) isEmpty() bool {
-	return strings.TrimSpace(a.AgentName) == "" &&
-		strings.TrimSpace(a.AgentRole) == "" &&
-		strings.TrimSpace(a.TeamName) == "" &&
-		strings.TrimSpace(a.IssueID) == "" &&
-		strings.TrimSpace(a.TmuxPaneID) == "" &&
-		strings.TrimSpace(a.TmuxTarget) == "" &&
+	return strings.TrimSpace(a.AgentName) == "" && strings.TrimSpace(a.AgentRole) == "" &&
+		strings.TrimSpace(a.TeamName) == "" && strings.TrimSpace(a.IssueID) == "" &&
+		strings.TrimSpace(a.TmuxPaneID) == "" && strings.TrimSpace(a.TmuxTarget) == "" &&
 		strings.TrimSpace(a.TmuxSession) == ""
 }
 
@@ -747,27 +690,13 @@ func mergePersistedAssignment(cwd string, status *contextSessionStatus) {
 }
 
 func mergeAssignmentFields(current, persisted *contextAssignment, status *contextSessionStatus) {
-	if current.AgentName == "" {
-		status.AgentName = persisted.AgentName
-	}
-	if current.AgentRole == "" {
-		status.AgentRole = persisted.AgentRole
-	}
-	if current.TeamName == "" {
-		status.TeamName = persisted.TeamName
-	}
-	if current.IssueID == "" {
-		status.IssueID = persisted.IssueID
-	}
-	if current.TmuxPaneID == "" {
-		status.TmuxPaneID = persisted.TmuxPaneID
-	}
-	if current.TmuxTarget == "" {
-		status.TmuxTarget = persisted.TmuxTarget
-	}
-	if current.TmuxSession == "" {
-		status.TmuxSession = persisted.TmuxSession
-	}
+	if current.AgentName == "" { status.AgentName = persisted.AgentName }
+	if current.AgentRole == "" { status.AgentRole = persisted.AgentRole }
+	if current.TeamName == "" { status.TeamName = persisted.TeamName }
+	if current.IssueID == "" { status.IssueID = persisted.IssueID }
+	if current.TmuxPaneID == "" { status.TmuxPaneID = persisted.TmuxPaneID }
+	if current.TmuxTarget == "" { status.TmuxTarget = persisted.TmuxTarget }
+	if current.TmuxSession == "" { status.TmuxSession = persisted.TmuxSession }
 }
 
 func readPersistedAssignment(cwd, sessionID string) (contextAssignment, bool) {
@@ -800,18 +729,9 @@ func maybeAutoRestartStaleSession(status contextSessionStatus) contextSessionSta
 		return status
 	}
 	target := strings.TrimSpace(status.TmuxTarget)
-	if target == "" {
-		status.RestartMessage = "missing tmux target mapping"
-		return status
-	}
-	if _, err := exec.LookPath("tmux"); err != nil {
-		status.RestartMessage = "tmux unavailable"
-		return status
-	}
-	if tmuxTargetAlive(target) {
-		status.RestartMessage = "tmux target already alive"
-		return status
-	}
+	if target == "" { status.RestartMessage = "missing tmux target mapping"; return status }
+	if _, err := exec.LookPath("tmux"); err != nil { status.RestartMessage = "tmux unavailable"; return status }
+	if tmuxTargetAlive(target) { status.RestartMessage = "tmux target already alive"; return status }
 	status.RestartAttempt = true
 	sessionName := strings.TrimSpace(status.TmuxSession)
 	if sessionName == "" {
