@@ -67,18 +67,18 @@ func TestKnowledgeFindingScorableInterface(t *testing.T) {
 		FreshnessScore: 0.75,
 		Utility:        0.6,
 	}
-	if got := f.getFreshness(); got != 0.75 {
-		t.Errorf("getFreshness() = %v, want 0.75", got)
+	if got := f.GetFreshness(); got != 0.75 {
+		t.Errorf("GetFreshness() = %v, want 0.75", got)
 	}
-	if got := f.getUtility(); got != 0.6 {
-		t.Errorf("getUtility() = %v, want 0.6", got)
+	if got := f.GetUtility(); got != 0.6 {
+		t.Errorf("GetUtility() = %v, want 0.6", got)
 	}
-	if got := f.getMaturity(); got != "" {
-		t.Errorf("getMaturity() = %q, want empty", got)
+	if got := f.GetMaturity(); got != "" {
+		t.Errorf("GetMaturity() = %q, want empty", got)
 	}
-	f.setComposite(1.5)
+	f.SetComposite(1.5)
 	if f.CompositeScore != 1.5 {
-		t.Errorf("setComposite(1.5) -> CompositeScore = %v, want 1.5", f.CompositeScore)
+		t.Errorf("SetComposite(1.5) -> CompositeScore = %v, want 1.5", f.CompositeScore)
 	}
 }
 
