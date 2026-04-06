@@ -1069,6 +1069,165 @@ func SplitCommaSeparated(s string) []string {
 	return result
 }
 
+// RunPrune removes goals referencing nonexistent files.
+func RunPrune(opts PruneOptions) error {
+	if opts.Stdout == nil {
+		opts.Stdout = os.Stdout
+	}
+
+	resolved := opts.GoalsFile
+	resolvedPath := ResolveGoalsPath(resolved)
+
+	gf, err := LoadGoals(resolved)
+	if err != nil {
+		return fmt.Errorf("loading goals: %w", err)
+	}
+
+	var stale []StaleGoal
+	staleIDs := make(map[string]bool)
+
+	for _, g := range gf.Goals {
+		missingPath := FindMissingPath(g.Check)
+		if missingPath != "" {
+			stale = append(stale, StaleGoal{ID: g.ID, Check: g.Check, Path: missingPath})
+			staleIDs[g.ID] = true
+		}
+	}
+
+	result := PruneResult{StaleGoals: stale, DryRun: opts.DryRun}
+
+	if opts.DryRun || len(stale) == 0 {
+		if opts.JSON {
+			enc := json.NewEncoder(opts.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(result)
+		}
+		if len(stale) == 0 {
+			fmt.Fprintln(opts.Stdout, "No stale goals found.")
+			return nil
+		}
+		fmt.Fprintf(opts.Stdout, "Found %d stale goal(s):\n", len(stale))
+		for _, s := range stale {
+			fmt.Fprintf(opts.Stdout, "  %s: %s (missing: %s)\n", s.ID, s.Check, s.Path)
+		}
+		fmt.Fprintln(opts.Stdout, "\nRun without --dry-run to remove them.")
+		return nil
+	}
+
+	var kept []Goal
+	for _, g := range gf.Goals {
+		if !staleIDs[g.ID] {
+			kept = append(kept, g)
+		}
+	}
+	gf.Goals = kept
+	result.Removed = len(stale)
+
+	if gf.Format == "md" {
+		if err := WriteMDGoals(gf, resolvedPath); err != nil {
+			return err
+		}
+	} else {
+		data, err := yaml.Marshal(gf)
+		if err != nil {
+			return fmt.Errorf("marshaling goals: %w", err)
+		}
+		if err := os.WriteFile(resolvedPath, data, 0o600); err != nil {
+			return fmt.Errorf("writing goals file: %w", err)
+		}
+	}
+
+	if opts.JSON {
+		enc := json.NewEncoder(opts.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	}
+
+	fmt.Fprintf(opts.Stdout, "Pruned %d stale goal(s) from %s\n", result.Removed, resolvedPath)
+	for _, s := range stale {
+		fmt.Fprintf(opts.Stdout, "  removed: %s (missing: %s)\n", s.ID, s.Path)
+	}
+	return nil
+}
+
+// RunInit bootstraps a new GOALS.md file.
+func RunInit(opts InitOptions) error {
+	if opts.Stdout == nil {
+		opts.Stdout = os.Stdout
+	}
+	if opts.Stdin == nil {
+		opts.Stdin = os.Stdin
+	}
+
+	resolvedPath := ResolveGoalsPath(opts.GoalsFile)
+
+	if _, err := os.Stat(resolvedPath); err == nil {
+		return fmt.Errorf("goals file already exists: %s", resolvedPath)
+	}
+	if resolvedPath != opts.GoalsFile {
+		if _, err := os.Stat(opts.GoalsFile); err == nil {
+			return fmt.Errorf("goals file already exists: %s", opts.GoalsFile)
+		}
+	}
+
+	projectRoot := filepath.Dir(resolvedPath)
+	tmplName := opts.Template
+	if tmplName == "" {
+		tmplName = AutoDetectTemplate(projectRoot)
+	}
+
+	var tmpl *GoalTemplate
+	if tmplName != "" && opts.TemplatesFS != nil {
+		var err error
+		tmpl, err = LoadTemplate(opts.TemplatesFS, tmplName)
+		if err != nil {
+			return fmt.Errorf("loading template %q: %w", tmplName, err)
+		}
+	}
+
+	var gf *GoalFile
+	if opts.NonInteractive {
+		gf = BuildDefaultGoalFile()
+	} else {
+		var err error
+		gf, err = BuildInteractiveGoalFile(opts.Stdin)
+		if err != nil {
+			return fmt.Errorf("reading input: %w", err)
+		}
+	}
+
+	if tmpl != nil {
+		gf.Goals = append(gf.Goals, TemplateGatesToGoals(tmpl)...)
+	} else {
+		gf.Goals = append(gf.Goals, DetectGates(projectRoot)...)
+	}
+
+	if opts.JSON {
+		enc := json.NewEncoder(opts.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(gf)
+	}
+
+	content := RenderGoalsMD(gf)
+
+	outPath := resolvedPath
+	if strings.ToLower(filepath.Ext(outPath)) != ".md" {
+		outPath = filepath.Join(filepath.Dir(outPath), "GOALS.md")
+	}
+
+	if opts.DryRun {
+		fmt.Fprintf(opts.Stdout, "Would write %s:\n\n%s", outPath, content)
+		return nil
+	}
+
+	if err := os.WriteFile(outPath, []byte(content), 0o600); err != nil {
+		return fmt.Errorf("writing goals file: %w", err)
+	}
+
+	fmt.Fprintf(opts.Stdout, "Created %s with %d gates\n", outPath, len(gf.Goals))
+	return nil
+}
+
 func promptLine(scanner *bufio.Scanner, msg string) (string, error) {
 	fmt.Print(msg)
 	if scanner.Scan() {

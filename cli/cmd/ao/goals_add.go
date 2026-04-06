@@ -1,16 +1,11 @@
 package main
 
 import (
-	"cmp"
 	"context"
-	"fmt"
-	"os"
-	"os/exec"
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -26,78 +21,16 @@ var goalsAddCmd = &cobra.Command{
 	GroupID: "management",
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		check := args[1]
-
-		// Validate kebab-case ID (reuse pattern from internal/goals).
-		if !goals.KebabRe.MatchString(id) {
-			return fmt.Errorf("goal ID must be kebab-case: %q", id)
-		}
-
-		// Load existing goals to check for duplicates.
-		gf, err := goals.LoadGoals(resolveGoalsFile())
-		if err != nil {
-			return fmt.Errorf("loading goals: %w", err)
-		}
-
-		for _, g := range gf.Goals {
-			if g.ID == id {
-				return fmt.Errorf("goal %q already exists", id)
-			}
-		}
-
-		// Validate check command runs successfully (unless --dry-run).
-		if !dryRun {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(goalsTimeout)*time.Second)
-			defer cancel()
-			testCmd := exec.CommandContext(ctx, "bash", "-c", check)
-			if out, err := testCmd.CombinedOutput(); err != nil {
-				return fmt.Errorf("check command failed (exit non-zero):\n%s", string(out))
-			}
-		}
-
-		// Validate type.
-		goalType := goals.GoalType(goalsAddType)
-		if goalsAddType != "" && !goals.ValidTypes[goalType] {
-			return fmt.Errorf("invalid type %q (valid: health, architecture, quality, meta)", goalsAddType)
-		}
-		if goalsAddType == "" {
-			goalType = goals.GoalTypeHealth
-		}
-
-		desc := cmp.Or(goalsAddDescription, id) // Fallback to ID.
-
-		// Build new goal.
-		newGoal := goals.Goal{
-			ID:          id,
-			Description: desc,
-			Check:       check,
+		return goals.RunAdd(context.Background(), goals.AddOptions{
+			ID:          args[0],
+			Check:       args[1],
 			Weight:      goalsAddWeight,
-			Type:        goalType,
-		}
-
-		// Append to GoalFile and write back.
-		gf.Goals = append(gf.Goals, newGoal)
-
-		// Format-aware writeback
-		if gf.Format == "md" {
-			content := goals.RenderGoalsMD(gf)
-			actualPath := goals.ResolveGoalsPath(resolveGoalsFile())
-			if err := os.WriteFile(actualPath, []byte(content), 0o600); err != nil {
-				return fmt.Errorf("writing goals: %w", err)
-			}
-		} else {
-			data, err := yaml.Marshal(gf)
-			if err != nil {
-				return fmt.Errorf("marshaling goals: %w", err)
-			}
-			if err := os.WriteFile(resolveGoalsFile(), data, 0o600); err != nil {
-				return fmt.Errorf("writing goals: %w", err)
-			}
-		}
-
-		fmt.Printf("Added goal %q (type: %s, weight: %d)\n", id, goalType, goalsAddWeight)
-		return nil
+			Type:        goalsAddType,
+			Description: goalsAddDescription,
+			GoalsFile:   resolveGoalsFile(),
+			Timeout:     time.Duration(goalsTimeout) * time.Second,
+			DryRun:      dryRun,
+		})
 	},
 }
 

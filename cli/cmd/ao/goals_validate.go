@@ -1,25 +1,14 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
 )
 
-type validateResult struct {
-	Valid      bool     `json:"valid"`
-	Errors     []string `json:"errors,omitempty"`
-	Warnings   []string `json:"warnings,omitempty"`
-	GoalCount  int      `json:"goal_count"`
-	Version    int      `json:"version"`
-	Format     string   `json:"format"`
-	Directives int      `json:"directives"`
-}
+// validateResult is a type alias for goals.ValidateResult (used by tests).
+type validateResult = goals.ValidateResult
 
 var goalsValidateCmd = &cobra.Command{
 	Use:     "validate",
@@ -27,100 +16,16 @@ var goalsValidateCmd = &cobra.Command{
 	Short:   "Validate GOALS.yaml structure and wiring",
 	GroupID: "measurement",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		result := validateResult{}
-
-		gf, err := goals.LoadGoals(resolveGoalsFile())
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("load: %v", err))
-			return outputValidateResult(result)
-		}
-
-		result.Version = gf.Version
-		result.GoalCount = len(gf.Goals)
-		result.Format = gf.Format
-		result.Directives = len(gf.Directives)
-
-		// Markdown-specific warnings
-		if gf.Format == "md" && gf.Mission == "" {
-			result.Warnings = append(result.Warnings, "empty mission")
-		}
-		if gf.Format == "md" && len(gf.Directives) == 0 {
-			result.Warnings = append(result.Warnings, "no directives defined")
-		}
-		for _, d := range gf.Directives {
-			if d.Steer == "" {
-				result.Warnings = append(result.Warnings, fmt.Sprintf("directive %d %q: missing steer", d.Number, d.Title))
-			}
-		}
-
-		// Structural validation
-		if errs := goals.ValidateGoals(gf); len(errs) > 0 {
-			for _, e := range errs {
-				result.Errors = append(result.Errors, e.Error())
-			}
-		}
-
-		// Wiring check: every check-*.sh script in scripts/ should be referenced by a goal
-		scriptFiles, _ := filepath.Glob("scripts/check-*.sh")
-		for _, sf := range scriptFiles {
-			base := filepath.Base(sf)
-			found := false
-			for _, g := range gf.Goals {
-				if strings.Contains(g.Check, base) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				result.Warnings = append(result.Warnings, fmt.Sprintf("script %s not wired to any goal", base))
-			}
-		}
-
-		// Wiring check: every goal's check script file should exist (if it references scripts/)
-		for _, g := range gf.Goals {
-			if strings.HasPrefix(g.Check, "scripts/") {
-				// Extract script path (first word)
-				parts := strings.Fields(g.Check)
-				if len(parts) > 0 {
-					if _, err := os.Stat(parts[0]); os.IsNotExist(err) {
-						result.Errors = append(result.Errors, fmt.Sprintf("goal %s: script %s does not exist", g.ID, parts[0]))
-					}
-				}
-			}
-		}
-
-		result.Valid = len(result.Errors) == 0
-		return outputValidateResult(result)
+		return goals.RunValidate(goals.ValidateOptions{
+			GoalsFile: resolveGoalsFile(),
+			JSON:      goalsJSON,
+		})
 	},
 }
 
+// outputValidateResult delegates to goals.OutputValidateResult (used by tests).
 func outputValidateResult(result validateResult) error {
-	if goalsJSON {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
-	}
-
-	if result.Valid {
-		fmt.Printf("VALID: %d goals, version %d, format %s\n", result.GoalCount, result.Version, result.Format)
-		if result.Directives > 0 {
-			fmt.Printf("  Directives: %d\n", result.Directives)
-		}
-	} else {
-		fmt.Printf("INVALID: %d errors\n", len(result.Errors))
-	}
-
-	for _, e := range result.Errors {
-		fmt.Printf("  ERROR: %s\n", e)
-	}
-	for _, w := range result.Warnings {
-		fmt.Printf("  WARN: %s\n", w)
-	}
-
-	if !result.Valid {
-		return fmt.Errorf("validation failed")
-	}
-	return nil
+	return goals.OutputValidateResult(os.Stdout, goalsJSON, result)
 }
 
 func init() {
