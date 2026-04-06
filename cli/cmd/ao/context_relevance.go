@@ -9,7 +9,16 @@ import (
 	"time"
 )
 
-var runtimeSessionSearchFn = searchUpstreamCASS
+// sessionSearchFn is the type for pluggable session search functions.
+type sessionSearchFn func(query string, limit int) ([]searchResult, error)
+
+// defaultSessionSearchFn returns searchUpstreamCASS if fn is nil.
+func defaultSessionSearchFn(fn sessionSearchFn) sessionSearchFn {
+	if fn != nil {
+		return fn
+	}
+	return searchUpstreamCASS
+}
 
 type runtimeRelevanceContext struct {
 	cwd           string
@@ -28,7 +37,7 @@ func rerankContextBundleForPhase(cwd, query, phase string, bundle rankedContextB
 		phase:         normalizeAssemblePhase(phase),
 		needles:       tokenizeStigmergicText(query),
 		citations:     loadCitationAggregate(cwd),
-		cassHitByPath: runtimeCassHitScores(cwd, query, 8),
+		cassHitByPath: runtimeCassHitScores(cwd, query, 8, nil),
 		scorecard:     bundle.Packet.Scorecard,
 	}
 
@@ -43,12 +52,12 @@ func rerankContextBundleForPhase(cwd, query, phase string, bundle rankedContextB
 	return ranked
 }
 
-func runtimeCassHitScores(cwd, query string, limit int) map[string]float64 {
+func runtimeCassHitScores(cwd, query string, limit int, searchFn sessionSearchFn) map[string]float64 {
 	query = strings.TrimSpace(query)
 	if query == "" || limit <= 0 {
 		return nil
 	}
-	results, err := runtimeSessionSearchFn(query, limit)
+	results, err := defaultSessionSearchFn(searchFn)(query, limit)
 	if err != nil {
 		return nil
 	}

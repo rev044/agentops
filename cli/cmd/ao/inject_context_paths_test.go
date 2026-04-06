@@ -16,7 +16,7 @@ func (errReader) Read(_ []byte) (int, error) {
 }
 
 func TestContextArtifactDir_WithRunID(t *testing.T) {
-	got := contextArtifactDir("run-abc123")
+	got := contextArtifactDir("run-abc123", nil)
 	want := filepath.Join(".agents", "context", "run-abc123")
 	if got != want {
 		t.Errorf("contextArtifactDir(\"run-abc123\") = %q, want %q", got, want)
@@ -24,7 +24,7 @@ func TestContextArtifactDir_WithRunID(t *testing.T) {
 }
 
 func TestContextArtifactDir_Empty(t *testing.T) {
-	got := contextArtifactDir("")
+	got := contextArtifactDir("", nil)
 	prefix := filepath.Join(".agents", "context", "adhoc-")
 	if !strings.HasPrefix(got, prefix) {
 		t.Errorf("contextArtifactDir(\"\") = %q, want prefix %q", got, prefix)
@@ -68,7 +68,7 @@ func TestNewAdhocContextRunID_FallsBackToTimeBits(t *testing.T) {
 
 func TestEnsureContextDir_CreatesDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	got, err := ensureContextDir(tmpDir, "test-run")
+	got, err := ensureContextDir(tmpDir, "test-run", nil)
 	if err != nil {
 		t.Fatalf("ensureContextDir(%q, \"test-run\") error: %v", tmpDir, err)
 	}

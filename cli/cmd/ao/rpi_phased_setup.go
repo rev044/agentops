@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func preflightRuntimeAvailability(runtimeCommand string) error {
+func preflightRuntimeAvailability(runtimeCommand string, lookPathFn gcLookFn) error {
 	if GetDryRun() {
 		return nil
 	}
@@ -22,7 +22,7 @@ func preflightRuntimeAvailability(runtimeCommand string) error {
 	if executable == "" {
 		return fmt.Errorf("runtime command %q is empty", command)
 	}
-	if _, err := lookPath(executable); err != nil {
+	if _, err := defaultLookPath(lookPathFn)(executable); err != nil {
 		return fmt.Errorf("runtime executable %q (from %q) not found on PATH (required for spawning phase sessions)", executable, command)
 	}
 	return nil
@@ -53,7 +53,7 @@ func resolveGoalAndStartPhase(opts phasedEngineOptions, args []string, cwd strin
 }
 
 func newPhasedState(opts phasedEngineOptions, startPhase int, goal string) *phasedState {
-	tracker := detectTrackerHealth(opts.BDCommand)
+	tracker := detectTrackerHealth(opts.BDCommand, opts.LookPath)
 	s := &phasedState{
 		SchemaVersion: 1,
 		Goal:          goal,

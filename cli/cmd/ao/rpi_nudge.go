@@ -73,7 +73,7 @@ func runRPINudge(cmd *cobra.Command, args []string) error {
 	if tcErr == nil && strings.TrimSpace(toolchain.TmuxCommand) != "" {
 		tmuxCommand = strings.TrimSpace(toolchain.TmuxCommand)
 	}
-	tmuxBin, err := lookPath(tmuxCommand)
+	tmuxBin, err := defaultLookPath(nil)(tmuxCommand)
 	if err != nil {
 		return fmt.Errorf("tmux binary %q not found: %w", tmuxCommand, err)
 	}

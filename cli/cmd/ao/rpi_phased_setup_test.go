@@ -667,7 +667,7 @@ func TestPreflightRuntimeAvailability_DryRunSkips(t *testing.T) {
 	defer func() { dryRun = origDryRun }()
 
 	// Even with a nonexistent command, dry-run should pass.
-	err := preflightRuntimeAvailability("nonexistent-binary-xyz")
+	err := preflightRuntimeAvailability("nonexistent-binary-xyz", nil)
 	if err != nil {
 		t.Errorf("dry-run should skip preflight check, got: %v", err)
 	}
@@ -680,7 +680,7 @@ func TestPreflightRuntimeAvailability_WhitespaceDefaultsToClaude(t *testing.T) {
 
 	// When input is whitespace, cmp.Or defaults to "claude".
 	// If claude is on PATH, no error; if not, error mentions "claude".
-	err := preflightRuntimeAvailability("  ")
+	err := preflightRuntimeAvailability("  ", nil)
 	if err != nil {
 		// Verify the error references the default "claude" command.
 		if !strings.Contains(err.Error(), "claude") {
@@ -695,7 +695,7 @@ func TestPreflightRuntimeAvailability_NonexistentBinary(t *testing.T) {
 	dryRun = false
 	defer func() { dryRun = origDryRun }()
 
-	err := preflightRuntimeAvailability("nonexistent-binary-xyz-99999")
+	err := preflightRuntimeAvailability("nonexistent-binary-xyz-99999", nil)
 	if err == nil {
 		t.Error("expected error for nonexistent binary")
 	}

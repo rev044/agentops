@@ -33,7 +33,7 @@ case "${1:-}" in
 esac
 `)
 
-	health := detectTrackerHealth(command)
+	health := detectTrackerHealth(command, nil)
 	if !health.Healthy {
 		t.Fatalf("healthy = false, want true: %+v", health)
 	}
@@ -52,7 +52,7 @@ printf 'column "crystallizes" could not be found in any table in scope\n' >&2
 exit 1
 `)
 
-	health := detectTrackerHealth(command)
+	health := detectTrackerHealth(command, nil)
 	if health.Healthy {
 		t.Fatalf("healthy = true, want false: %+v", health)
 	}

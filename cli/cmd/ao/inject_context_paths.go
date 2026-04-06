@@ -10,14 +10,15 @@ import (
 	"time"
 )
 
-var contextRandReader io.Reader = rand.Reader
-
 // contextArtifactDir returns the path for context-scoped artifacts.
 // If runID is empty, generates an adhoc identifier from the current timestamp.
 // Called automatically when --for is used; uses RPI_RUN_ID if set.
-func contextArtifactDir(runID string) string {
+func contextArtifactDir(runID string, randReader io.Reader) string {
+	if randReader == nil {
+		randReader = rand.Reader
+	}
 	if runID == "" {
-		runID = newAdhocContextRunID(time.Now(), contextRandReader)
+		runID = newAdhocContextRunID(time.Now(), randReader)
 	}
 	return filepath.Join(".agents", "context", runID)
 }
@@ -31,8 +32,8 @@ func newAdhocContextRunID(now time.Time, r io.Reader) string {
 }
 
 // ensureContextDir creates the context artifact directory on disk.
-func ensureContextDir(cwd, runID string) (string, error) {
-	dir := filepath.Join(cwd, contextArtifactDir(runID))
+func ensureContextDir(cwd, runID string, randReader io.Reader) (string, error) {
+	dir := filepath.Join(cwd, contextArtifactDir(runID, randReader))
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("create context dir: %w", err)
 	}

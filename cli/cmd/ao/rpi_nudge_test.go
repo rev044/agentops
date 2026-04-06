@@ -115,7 +115,7 @@ func TestAppendRPINudgeAudit(t *testing.T) {
 }
 
 func TestRPINudgeCommand_E2EAllWorkers(t *testing.T) {
-	tmuxBin, err := lookPath("tmux")
+	tmuxBin, err := defaultLookPath(nil)("tmux")
 	if err != nil {
 		t.Skipf("tmux not available: %v", err)
 	}

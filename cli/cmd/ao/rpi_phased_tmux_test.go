@@ -109,7 +109,7 @@ func TestTmuxHelpers_FilterWorkers(t *testing.T) {
 }
 
 func TestTmuxExecutorE2ENudgeTwoWorkers(t *testing.T) {
-	tmuxBin, err := lookPath("tmux")
+	tmuxBin, err := defaultLookPath(nil)("tmux")
 	if err != nil {
 		t.Skipf("tmux not available: %v", err)
 	}

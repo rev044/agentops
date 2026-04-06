@@ -119,7 +119,7 @@ func TestGCEmitEvent_NoBinary_SilentNoop(t *testing.T) {
 	mock.binaryAvailable = false
 	mock.install(t)
 
-	err := gcEmitEvent("", "ao:test", map[string]any{"test": true})
+	err := gcEmitEvent("", "ao:test", map[string]any{"test": true}, mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Errorf("gcEmitEvent should return nil when gc not available, got: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestGCEmitEvent_Mocked_Success(t *testing.T) {
 	err := gcEmitEvent("", GCEventAOPhase, map[string]any{
 		"phase":  1,
 		"status": "started",
-	})
+	}, mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Errorf("gcEmitEvent should succeed, got: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestGCEmitEvent_Mocked_WithCityPath(t *testing.T) {
 	err := gcEmitEvent("/my/city", GCEventAOGate, map[string]any{
 		"gate":    "vibe",
 		"verdict": "PASS",
-	})
+	}, mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Errorf("gcEmitEvent with city path error: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestGCEmitEvent_Mocked_CommandFails(t *testing.T) {
 	mock.on("event emit ao:failure", gcMockHandler{ExitCode: 1, Stderr: "event bus error"})
 	mock.install(t)
 
-	err := gcEmitEvent("", GCEventAOFailure, map[string]any{"error": "test"})
+	err := gcEmitEvent("", GCEventAOFailure, map[string]any{"error": "test"}, mock.execCommand, mock.lookPathFn)
 	if err == nil {
 		t.Fatal("gcEmitEvent should return error when command fails")
 	}
@@ -182,7 +182,7 @@ func TestGCEventsAvailable_NoBinary(t *testing.T) {
 	mock.binaryAvailable = false
 	mock.install(t)
 
-	if gcEventsAvailable("") {
+	if gcEventsAvailable("", mock.execCommand, mock.lookPathFn) {
 		t.Error("gcEventsAvailable should return false when gc not available")
 	}
 }
@@ -192,7 +192,7 @@ func TestGCEventsAvailable_Mocked_Success(t *testing.T) {
 	mock.on("events --help", gcMockHandler{ExitCode: 0})
 	mock.install(t)
 
-	if !gcEventsAvailable("") {
+	if !gcEventsAvailable("", mock.execCommand, mock.lookPathFn) {
 		t.Error("gcEventsAvailable should return true when events --help succeeds")
 	}
 }
@@ -202,7 +202,7 @@ func TestGCEventsAvailable_Mocked_WithCityPath(t *testing.T) {
 	mock.on("events --help", gcMockHandler{ExitCode: 0})
 	mock.install(t)
 
-	if !gcEventsAvailable("/my/city") {
+	if !gcEventsAvailable("/my/city", mock.execCommand, mock.lookPathFn) {
 		t.Error("gcEventsAvailable with city path should return true")
 	}
 	calls := mock.callsMatching("--city")
@@ -216,7 +216,7 @@ func TestGCEventsAvailable_Mocked_CommandFails(t *testing.T) {
 	mock.on("events --help", gcMockHandler{ExitCode: 1})
 	mock.install(t)
 
-	if gcEventsAvailable("") {
+	if gcEventsAvailable("", mock.execCommand, mock.lookPathFn) {
 		t.Error("gcEventsAvailable should return false when events --help fails")
 	}
 }
@@ -229,7 +229,7 @@ func TestGCEmitPhaseEvent_Mocked_FullChain(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	err := gcEmitPhaseEvent("/city", 3, "complete", "run-abc")
+	err := gcEmitPhaseEvent("/city", 3, "complete", "run-abc", mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Errorf("gcEmitPhaseEvent error: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestGCEmitGateEvent_Mocked_FullChain(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	err := gcEmitGateEvent("/city", "pre-mortem", "PASS", "run-def")
+	err := gcEmitGateEvent("/city", "pre-mortem", "PASS", "run-def", mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Errorf("gcEmitGateEvent error: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestGCEmitFailureEvent_Mocked_FullChain(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	err := gcEmitFailureEvent("/city", "timeout", "run-ghi", 2)
+	err := gcEmitFailureEvent("/city", "timeout", "run-ghi", 2, mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Errorf("gcEmitFailureEvent error: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestGCEmitMetricEvent_Mocked_FullChain(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	err := gcEmitMetricEvent("/city", "duration_s", 123.45, "run-jkl")
+	err := gcEmitMetricEvent("/city", "duration_s", 123.45, "run-jkl", mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Errorf("gcEmitMetricEvent error: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestGCEmitEvent_Mocked_PayloadContainsTimestamp(t *testing.T) {
 
 	// gcEmitPhaseEvent adds a timestamp — verify the JSON payload
 	// is correctly structured through the chain
-	err := gcEmitPhaseEvent("", 1, "started", "ts-test")
+	err := gcEmitPhaseEvent("", 1, "started", "ts-test", mock.execCommand, mock.lookPathFn)
 	if err != nil {
 		t.Fatalf("gcEmitPhaseEvent error: %v", err)
 	}
@@ -313,7 +313,7 @@ func TestGCEmitEvent_Mocked_PayloadContainsTimestamp(t *testing.T) {
 func TestGCEmitEvent_Live_SilentDegradation(t *testing.T) {
 	if _, err := exec.LookPath("gc"); err != nil {
 		// gc not installed: emitEvent should silently no-op
-		err := gcEmitEvent("", "ao:test", map[string]any{"test": true})
+		err := gcEmitEvent("", "ao:test", map[string]any{"test": true}, nil, nil)
 		if err != nil {
 			t.Errorf("gcEmitEvent should silently no-op when gc unavailable, got: %v", err)
 		}
@@ -326,13 +326,13 @@ func TestGCEmitEvent_Live_SilentDegradation(t *testing.T) {
 		t.Skip("no city.toml found")
 	}
 
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, nil, nil)
 	if !ready {
 		t.Skipf("gc controller not running: %s", reason)
 	}
 
 	// Controller running — emit a real event
-	err := gcEmitPhaseEvent(cityPath, 0, "test", "live-test-run")
+	err := gcEmitPhaseEvent(cityPath, 0, "test", "live-test-run", nil, nil)
 	if err != nil {
 		t.Errorf("gcEmitPhaseEvent with live controller: %v", err)
 	}
@@ -347,23 +347,23 @@ func TestGCEmitAllEventTypes_Live(t *testing.T) {
 	if cityPath == "" {
 		t.Skip("no city.toml found")
 	}
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, nil, nil)
 	if !ready {
 		t.Skipf("gc controller not running: %s", reason)
 	}
 
 	runID := "live-all-events"
 
-	if err := gcEmitPhaseEvent(cityPath, 1, "test-started", runID); err != nil {
+	if err := gcEmitPhaseEvent(cityPath, 1, "test-started", runID, nil, nil); err != nil {
 		t.Errorf("phase event: %v", err)
 	}
-	if err := gcEmitGateEvent(cityPath, "test-gate", "PASS", runID); err != nil {
+	if err := gcEmitGateEvent(cityPath, "test-gate", "PASS", runID, nil, nil); err != nil {
 		t.Errorf("gate event: %v", err)
 	}
-	if err := gcEmitFailureEvent(cityPath, "test-error", runID, 1); err != nil {
+	if err := gcEmitFailureEvent(cityPath, "test-error", runID, 1, nil, nil); err != nil {
 		t.Errorf("failure event: %v", err)
 	}
-	if err := gcEmitMetricEvent(cityPath, "test_metric", 99.9, runID); err != nil {
+	if err := gcEmitMetricEvent(cityPath, "test_metric", 99.9, runID, nil, nil); err != nil {
 		t.Errorf("metric event: %v", err)
 	}
 }

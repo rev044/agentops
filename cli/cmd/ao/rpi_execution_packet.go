@@ -40,7 +40,7 @@ type executionPacket struct {
 }
 
 func writeExecutionPacketSeed(cwd string, state *phasedState) error {
-	tracker := detectTrackerHealth(state.Opts.BDCommand)
+	tracker := detectTrackerHealth(state.Opts.BDCommand, state.Opts.LookPath)
 	packet := executionPacket{
 		SchemaVersion:    1,
 		Objective:        state.Goal,

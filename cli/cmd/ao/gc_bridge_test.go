@@ -335,9 +335,8 @@ func TestGCBridgeCityPath_DeepNesting(t *testing.T) {
 func TestGCBridgeAvailable_Mocked_Found(t *testing.T) {
 	mock := newGCMock()
 	mock.binaryAvailable = true
-	mock.install(t)
 
-	if !gcBridgeAvailable() {
+	if !gcBridgeAvailable(mock.lookPathFn) {
 		t.Error("gcBridgeAvailable() should return true when binary found")
 	}
 }
@@ -345,9 +344,8 @@ func TestGCBridgeAvailable_Mocked_Found(t *testing.T) {
 func TestGCBridgeAvailable_Mocked_NotFound(t *testing.T) {
 	mock := newGCMock()
 	mock.binaryAvailable = false
-	mock.install(t)
 
-	if gcBridgeAvailable() {
+	if gcBridgeAvailable(mock.lookPathFn) {
 		t.Error("gcBridgeAvailable() should return false when binary not found")
 	}
 }
@@ -355,9 +353,8 @@ func TestGCBridgeAvailable_Mocked_NotFound(t *testing.T) {
 func TestGCBridgeVersion_Mocked(t *testing.T) {
 	mock := newGCMock()
 	mock.on("version", gcMockHandler{Stdout: "0.13.5\n"})
-	mock.install(t)
 
-	v, err := gcBridgeVersion()
+	v, err := gcBridgeVersion(mock.execCommand)
 	if err != nil {
 		t.Fatalf("gcBridgeVersion error: %v", err)
 	}
@@ -369,9 +366,8 @@ func TestGCBridgeVersion_Mocked(t *testing.T) {
 func TestGCBridgeVersion_Mocked_Error(t *testing.T) {
 	mock := newGCMock()
 	mock.on("version", gcMockHandler{ExitCode: 1, Stderr: "not found"})
-	mock.install(t)
 
-	_, err := gcBridgeVersion()
+	_, err := gcBridgeVersion(mock.execCommand)
 	if err == nil {
 		t.Error("gcBridgeVersion should return error on exit code 1")
 	}
@@ -382,9 +378,8 @@ func TestGCBridgeReady_Mocked_AllGood(t *testing.T) {
 	mock.on("version", gcMockHandler{Stdout: "0.14.0"})
 	statusJSON := `{"city":"test","controller":{"running":true,"pid":999},"agents":[],"summary":{"running":0,"stopped":0,"total":0}}`
 	mock.on("status --json", gcMockHandler{Stdout: statusJSON})
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("")
+	ready, reason := gcBridgeReady("", mock.execCommand, mock.lookPathFn)
 	if !ready {
 		t.Errorf("gcBridgeReady should be true, reason: %s", reason)
 	}
@@ -396,9 +391,8 @@ func TestGCBridgeReady_Mocked_AllGood(t *testing.T) {
 func TestGCBridgeReady_Mocked_NoBinary(t *testing.T) {
 	mock := newGCMock()
 	mock.binaryAvailable = false
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("")
+	ready, reason := gcBridgeReady("", mock.execCommand, mock.lookPathFn)
 	if ready {
 		t.Error("gcBridgeReady should be false when binary not found")
 	}
@@ -410,9 +404,8 @@ func TestGCBridgeReady_Mocked_NoBinary(t *testing.T) {
 func TestGCBridgeReady_Mocked_VersionTooLow(t *testing.T) {
 	mock := newGCMock()
 	mock.on("version", gcMockHandler{Stdout: "0.12.0"})
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("")
+	ready, reason := gcBridgeReady("", mock.execCommand, mock.lookPathFn)
 	if ready {
 		t.Error("gcBridgeReady should be false when version too low")
 	}
@@ -426,9 +419,8 @@ func TestGCBridgeReady_Mocked_ControllerStopped(t *testing.T) {
 	mock.on("version", gcMockHandler{Stdout: "0.13.0"})
 	statusJSON := `{"city":"test","controller":{"running":false,"pid":0},"agents":[],"summary":{"running":0,"stopped":0,"total":0}}`
 	mock.on("status --json", gcMockHandler{Stdout: statusJSON})
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("")
+	ready, reason := gcBridgeReady("", mock.execCommand, mock.lookPathFn)
 	if ready {
 		t.Error("gcBridgeReady should be false when controller stopped")
 	}
@@ -441,9 +433,8 @@ func TestGCBridgeReady_Mocked_StatusCommandFails(t *testing.T) {
 	mock := newGCMock()
 	mock.on("version", gcMockHandler{Stdout: "0.13.0"})
 	mock.on("status --json", gcMockHandler{ExitCode: 1})
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("")
+	ready, reason := gcBridgeReady("", mock.execCommand, mock.lookPathFn)
 	if ready {
 		t.Error("gcBridgeReady should be false when status command fails")
 	}
@@ -456,9 +447,8 @@ func TestGCBridgeReady_Mocked_StatusInvalidJSON(t *testing.T) {
 	mock := newGCMock()
 	mock.on("version", gcMockHandler{Stdout: "0.13.0"})
 	mock.on("status --json", gcMockHandler{Stdout: "not json at all"})
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("")
+	ready, reason := gcBridgeReady("", mock.execCommand, mock.lookPathFn)
 	if ready {
 		t.Error("gcBridgeReady should be false on invalid JSON")
 	}
@@ -472,9 +462,8 @@ func TestGCBridgeReady_Mocked_WithCityPath(t *testing.T) {
 	mock.on("version", gcMockHandler{Stdout: "0.13.5"})
 	statusJSON := `{"city":"my-city","controller":{"running":true,"pid":42},"agents":[],"summary":{"running":0,"stopped":0,"total":0}}`
 	mock.on("status --json", gcMockHandler{Stdout: statusJSON})
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("/some/city/path")
+	ready, reason := gcBridgeReady("/some/city/path", mock.execCommand, mock.lookPathFn)
 	if !ready {
 		t.Errorf("gcBridgeReady with city path should be true, reason: %s", reason)
 	}
@@ -489,9 +478,8 @@ func TestGCBridgeReady_Mocked_WithCityPath(t *testing.T) {
 func TestGCBridgeReady_Mocked_VersionCheckFails(t *testing.T) {
 	mock := newGCMock()
 	mock.on("version", gcMockHandler{ExitCode: 1})
-	mock.install(t)
 
-	ready, reason := gcBridgeReady("")
+	ready, reason := gcBridgeReady("", mock.execCommand, mock.lookPathFn)
 	if ready {
 		t.Error("gcBridgeReady should be false when version check fails")
 	}
@@ -694,7 +682,6 @@ func TestGCBridge_ReadyToExecutorFullChain_Mocked(t *testing.T) {
 	mock.on("version", gcMockHandler{Stdout: "0.14.0"})
 	statusJSON := `{"city":"full-chain-test","controller":{"running":true,"pid":42},"agents":[],"summary":{"running":0,"stopped":0,"total":0}}`
 	mock.on("status --json", gcMockHandler{Stdout: statusJSON})
-	mock.install(t)
 
 	// Step 1: City path discovery
 	cityPath := gcBridgeCityPath(cityDir)
@@ -703,7 +690,7 @@ func TestGCBridge_ReadyToExecutorFullChain_Mocked(t *testing.T) {
 	}
 
 	// Step 2: Bridge ready check
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, mock.execCommand, mock.lookPathFn)
 	if !ready {
 		t.Fatalf("bridge ready check failed: %s", reason)
 	}
@@ -731,7 +718,7 @@ func TestGCBridgeAvailable_Live(t *testing.T) {
 	if _, err := exec.LookPath("gc"); err != nil {
 		t.Skip("gc not on PATH — skipping live test")
 	}
-	if !gcBridgeAvailable() {
+	if !gcBridgeAvailable(nil) {
 		t.Error("gcBridgeAvailable() should return true when gc is on PATH")
 	}
 }
@@ -740,7 +727,7 @@ func TestGCBridgeVersion_Live(t *testing.T) {
 	if _, err := exec.LookPath("gc"); err != nil {
 		t.Skip("gc not on PATH")
 	}
-	v, err := gcBridgeVersion()
+	v, err := gcBridgeVersion(nil)
 	if err != nil {
 		t.Fatalf("gcBridgeVersion() error: %v", err)
 	}
@@ -767,7 +754,7 @@ func TestGCBridgeReady_Live(t *testing.T) {
 		t.Skip("no city.toml found — skipping live ready test")
 	}
 
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, nil, nil)
 	// Don't fail if controller isn't running — just log it
 	t.Logf("gcBridgeReady(cityPath=%q) = %v, reason=%q", cityPath, ready, reason)
 	if !ready {
@@ -801,7 +788,7 @@ func TestGCBridgeReady_Live_FullControllerCheck(t *testing.T) {
 		t.Skip("no city.toml found")
 	}
 
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, nil, nil)
 	if !ready {
 		t.Skipf("gc controller not running: %s", reason)
 	}
@@ -835,7 +822,7 @@ func TestGCEventsAvailable_Live(t *testing.T) {
 		t.Skip("no city.toml found")
 	}
 
-	avail := gcEventsAvailable(cityPath)
+	avail := gcEventsAvailable(cityPath, nil, nil)
 	t.Logf("gcEventsAvailable(cityPath=%q) = %v", cityPath, avail)
 	// gc is on PATH and city.toml exists — events subcommand should be available
 	if !avail {
@@ -853,7 +840,7 @@ func TestGCBridge_ExecutorAvailable_Live(t *testing.T) {
 		t.Skip("no city.toml found")
 	}
 
-	avail := gcExecutorAvailable(cwd)
+	avail := gcExecutorAvailable(cwd, nil, nil)
 	t.Logf("gcExecutorAvailable(cwd=%q) = %v", cwd, avail)
 	// gc is on PATH and city.toml exists — executor should be available
 	if !avail {

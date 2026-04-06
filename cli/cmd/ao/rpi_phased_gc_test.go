@@ -92,7 +92,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_Closed(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{Stdout: sessionsJSON})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	done, err := e.checkSessionDone("/city", "rpi-run1-p1")
 	if err != nil {
 		t.Fatalf("checkSessionDone error: %v", err)
@@ -108,7 +108,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_Completed(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{Stdout: sessionsJSON})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	done, err := e.checkSessionDone("/city", "rpi-run1-p1")
 	if err != nil {
 		t.Fatalf("checkSessionDone error: %v", err)
@@ -124,7 +124,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_Active(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{Stdout: sessionsJSON})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	done, err := e.checkSessionDone("/city", "rpi-run1-p1")
 	if err != nil {
 		t.Fatalf("checkSessionDone error: %v", err)
@@ -140,7 +140,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_NotFound(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{Stdout: sessionsJSON})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	done, err := e.checkSessionDone("/city", "rpi-missing-p1")
 	if err != nil {
 		t.Fatalf("checkSessionDone error: %v", err)
@@ -155,7 +155,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_EmptyList(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{Stdout: "[]"})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	done, err := e.checkSessionDone("/city", "rpi-any-p1")
 	if err != nil {
 		t.Fatalf("checkSessionDone error: %v", err)
@@ -170,7 +170,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_CommandFails(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{ExitCode: 1})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	_, err := e.checkSessionDone("/city", "rpi-run1-p1")
 	if err == nil {
 		t.Error("checkSessionDone should return error when command fails")
@@ -182,7 +182,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_InvalidJSON(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{Stdout: "not json"})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	_, err := e.checkSessionDone("/city", "rpi-run1-p1")
 	if err == nil {
 		t.Error("checkSessionDone should return error on invalid JSON")
@@ -199,7 +199,7 @@ func TestGCExecutor_CheckSessionDone_Mocked_MultipleSessions(t *testing.T) {
 	mock.on("session list --json", gcMockHandler{Stdout: sessionsJSON})
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 
 	// p1 is active
 	done, err := e.checkSessionDone("/city", "rpi-run1-p1")
@@ -233,7 +233,7 @@ func TestGCRunCommand_Mocked_WithCityPath(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	err := gcRunCommand("/my/city", "session", "new", "--alias", "test-worker")
+	err := gcRunCommand(mock.execCommand, "/my/city", "session", "new", "--alias", "test-worker")
 	if err != nil {
 		t.Errorf("gcRunCommand error: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestGCRunCommand_Mocked_EmptyCityPath(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	err := gcRunCommand("", "session", "list")
+	err := gcRunCommand(mock.execCommand, "", "session", "list")
 	if err != nil {
 		t.Errorf("gcRunCommand error: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestGCRunCommand_Mocked_NoDuplicateCity(t *testing.T) {
 	mock.install(t)
 
 	// If args already contain --city, don't add it again
-	err := gcRunCommand("/my/city", "--city", "/other/city", "session", "list")
+	err := gcRunCommand(mock.execCommand, "/my/city", "--city", "/other/city", "session", "list")
 	if err != nil {
 		t.Errorf("gcRunCommand error: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestGCRunCommand_Mocked_Failure(t *testing.T) {
 	mock.on("session new --alias bad", gcMockHandler{ExitCode: 1, Stderr: "session error"})
 	mock.install(t)
 
-	err := gcRunCommand("", "session", "new", "--alias", "bad")
+	err := gcRunCommand(mock.execCommand, "", "session", "new", "--alias", "bad")
 	if err == nil {
 		t.Error("gcRunCommand should return error on exit code 1")
 	}
@@ -303,7 +303,7 @@ func TestGCExecutorAvailable_Mocked_AllGood(t *testing.T) {
 	mock.on("version", gcMockHandler{Stdout: "0.14.0"})
 	mock.install(t)
 
-	if !gcExecutorAvailable(cityDir) {
+	if !gcExecutorAvailable(cityDir, mock.execCommand, mock.lookPathFn) {
 		t.Error("gcExecutorAvailable should be true when binary compatible and city.toml exists")
 	}
 }
@@ -313,7 +313,7 @@ func TestGCExecutorAvailable_Mocked_NoBinary(t *testing.T) {
 	mock.binaryAvailable = false
 	mock.install(t)
 
-	if gcExecutorAvailable(t.TempDir()) {
+	if gcExecutorAvailable(t.TempDir(), mock.execCommand, mock.lookPathFn) {
 		t.Error("gcExecutorAvailable should be false when binary not found")
 	}
 }
@@ -322,7 +322,7 @@ func TestGCExecutorAvailable_Mocked_NoCityToml(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	if gcExecutorAvailable(t.TempDir()) {
+	if gcExecutorAvailable(t.TempDir(), mock.execCommand, mock.lookPathFn) {
 		t.Error("gcExecutorAvailable should be false when no city.toml")
 	}
 }
@@ -333,7 +333,7 @@ func TestGCExecutorAvailable_Mocked_VersionTooLow(t *testing.T) {
 	mock.on("version", gcMockHandler{Stdout: "0.12.0"})
 	mock.install(t)
 
-	if gcExecutorAvailable(cityDir) {
+	if gcExecutorAvailable(cityDir, mock.execCommand, mock.lookPathFn) {
 		t.Error("gcExecutorAvailable should be false when version too low")
 	}
 }
@@ -344,7 +344,7 @@ func TestGCExecutorAvailable_Mocked_VersionCheckFails(t *testing.T) {
 	mock.on("version", gcMockHandler{ExitCode: 1})
 	mock.install(t)
 
-	if gcExecutorAvailable(cityDir) {
+	if gcExecutorAvailable(cityDir, mock.execCommand, mock.lookPathFn) {
 		t.Error("gcExecutorAvailable should be false when version check fails")
 	}
 }
@@ -440,7 +440,7 @@ func TestGCExecutor_Execute_Mocked_NoCityToml(t *testing.T) {
 	mock := newGCMock()
 	mock.install(t)
 
-	e := &gcExecutor{}
+	e := &gcExecutor{execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	err := e.Execute(context.Background(), "test prompt", t.TempDir(), "run-1", 1)
 	if err == nil {
 		t.Error("Execute should fail when no city.toml found")
@@ -456,7 +456,7 @@ func TestGCExecutor_Execute_Mocked_BridgeNotReady(t *testing.T) {
 	mock.on("version", gcMockHandler{Stdout: "0.12.0"}) // too low
 	mock.install(t)
 
-	e := &gcExecutor{cityPath: cityDir}
+	e := &gcExecutor{cityPath: cityDir, execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	err := e.Execute(context.Background(), "test prompt", cityDir, "run-2", 1)
 	if err == nil {
 		t.Error("Execute should fail when bridge not ready")
@@ -475,7 +475,7 @@ func TestGCExecutor_Execute_Mocked_SessionCreateFails(t *testing.T) {
 	mock.on("session new --alias rpi-run-3-p1 --template worker", gcMockHandler{ExitCode: 1, Stderr: "cannot create"})
 	mock.install(t)
 
-	e := &gcExecutor{cityPath: cityDir}
+	e := &gcExecutor{cityPath: cityDir, execCommand: mock.execCommand, lookPath: mock.lookPathFn}
 	err := e.Execute(context.Background(), "test prompt", cityDir, "run-3", 1)
 	if err == nil {
 		t.Error("Execute should fail when session creation fails")
@@ -496,6 +496,8 @@ func TestGCExecutor_PollSessionCompletion_Mocked_ImmediateComplete(t *testing.T)
 		cityPath:     cityDir,
 		pollInterval: 10 * time.Millisecond,
 		phaseTimeout: 5 * time.Second,
+		execCommand:  mock.execCommand,
+		lookPath:     mock.lookPathFn,
 	}
 
 	err := e.pollSessionCompletion(context.Background(), cityDir, "rpi-poll-p1", "run-poll", 1)
@@ -519,6 +521,8 @@ func TestGCExecutor_PollSessionCompletion_Mocked_ContextCancelled(t *testing.T) 
 		cityPath:     cityDir,
 		pollInterval: 10 * time.Millisecond,
 		phaseTimeout: 5 * time.Second,
+		execCommand:  mock.execCommand,
+		lookPath:     mock.lookPathFn,
 	}
 
 	err := e.pollSessionCompletion(ctx, cityDir, "rpi-cancel-p1", "run-cancel", 1)
@@ -542,6 +546,8 @@ func TestGCExecutor_PollSessionCompletion_Mocked_Timeout(t *testing.T) {
 		cityPath:     cityDir,
 		pollInterval: 10 * time.Millisecond,
 		phaseTimeout: 50 * time.Millisecond, // very short timeout
+		execCommand:  mock.execCommand,
+		lookPath:     mock.lookPathFn,
 	}
 
 	err := e.pollSessionCompletion(context.Background(), cityDir, "rpi-timeout-p1", "run-timeout", 1)
@@ -569,6 +575,8 @@ func TestGCExecutor_PollSessionCompletion_Mocked_TransientError(t *testing.T) {
 		cityPath:     cityDir,
 		pollInterval: 10 * time.Millisecond,
 		phaseTimeout: 200 * time.Millisecond,
+		execCommand:  mock.execCommand,
+		lookPath:     mock.lookPathFn,
 	}
 
 	// Should timeout (not crash) because transient errors are retried
@@ -592,7 +600,7 @@ func TestGCExecutorAvailable_Live(t *testing.T) {
 		t.Skip("no city.toml found")
 	}
 
-	if !gcExecutorAvailable(cwd) {
+	if !gcExecutorAvailable(cwd, nil, nil) {
 		t.Errorf("gcExecutorAvailable should be true when gc binary is compatible and city.toml exists")
 	}
 }
@@ -620,7 +628,7 @@ func TestGCExecutor_CheckSessionDone_Live(t *testing.T) {
 	if cityPath == "" {
 		t.Skip("no city.toml found")
 	}
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, nil, nil)
 	if !ready {
 		t.Skipf("gc controller not running: %s", reason)
 	}
@@ -645,13 +653,13 @@ func TestGCRunCommand_Live(t *testing.T) {
 	if cityPath == "" {
 		t.Skip("no city.toml found")
 	}
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, nil, nil)
 	if !ready {
 		t.Skipf("gc controller not running: %s", reason)
 	}
 
 	// Run a read-only gc command (session list) to verify gcRunCommand works
-	err := gcRunCommand(cityPath, "session", "list", "--json")
+	err := gcRunCommand(nil, cityPath, "session", "list", "--json")
 	if err != nil {
 		t.Errorf("gcRunCommand(session list) error: %v", err)
 	}

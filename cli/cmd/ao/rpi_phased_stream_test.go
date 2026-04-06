@@ -689,12 +689,9 @@ func TestCleanEnvNoClaude(t *testing.T) {
 // and delegation chain used by spawnClaudeDirectGlobal. Since calling the real
 // binary would start an interactive session, we test via:
 // 1. Verifying runtimeDirectCommandArgs produces correct args for "claude"
-// 2. Verifying spawnClaudePhase delegates through spawnDirectFn (package-level mock point)
-// 3. Verifying the global phasedPhaseTimeout is wired into the call chain
+// 2. Verifying the global phasedPhaseTimeout is wired into the call chain
 func TestSpawnClaudeDirectGlobal_CommandBuilt(t *testing.T) {
-	tmpDir := t.TempDir()
 	prompt := "test prompt for phase"
-	phaseNum := 2
 
 	// 1. Verify the argument construction that spawnClaudeDirectGlobal would use.
 	// Chain: spawnClaudeDirectGlobal -> spawnClaudeDirectImpl("claude", ...) ->
@@ -710,48 +707,10 @@ func TestSpawnClaudeDirectGlobal_CommandBuilt(t *testing.T) {
 		t.Errorf("args[1] = %q, want %q", args[1], prompt)
 	}
 
-	// 2. Verify spawnClaudePhase delegates through spawnDirectFn with correct args.
-	// spawnClaudePhase calls spawnDirectFn(prompt, cwd, phaseNum), ignoring runID.
-	origFn := spawnDirectFn
-	defer func() { spawnDirectFn = origFn }()
-
-	var capturedPrompt, capturedCwd string
-	var capturedPhaseNum int
-	spawnDirectFn = func(p, c string, n int) error {
-		capturedPrompt = p
-		capturedCwd = c
-		capturedPhaseNum = n
-		return nil
-	}
-
-	err := spawnClaudePhase(prompt, tmpDir, "run-123", phaseNum)
-	if err != nil {
-		t.Fatalf("spawnClaudePhase returned unexpected error: %v", err)
-	}
-	if capturedPrompt != prompt {
-		t.Errorf("spawnDirectFn prompt = %q, want %q", capturedPrompt, prompt)
-	}
-	if capturedCwd != tmpDir {
-		t.Errorf("spawnDirectFn cwd = %q, want %q", capturedCwd, tmpDir)
-	}
-	if capturedPhaseNum != phaseNum {
-		t.Errorf("spawnDirectFn phaseNum = %d, want %d", capturedPhaseNum, phaseNum)
-	}
-
-	// 3. Verify phasedPhaseTimeout is used by spawnClaudeDirectGlobal.
-	// We set a very short timeout and use a nonexistent binary to ensure
-	// the timeout value is threaded through without actually running claude.
+	// 2. Verify phasedPhaseTimeout is used by spawnClaudeDirectGlobal.
 	origTimeout := phasedPhaseTimeout
 	defer func() { phasedPhaseTimeout = origTimeout }()
 	phasedPhaseTimeout = 50 * time.Millisecond
-
-	origLookPath := lookPath
-	defer func() { lookPath = origLookPath }()
-	// Override lookPath to return a nonexistent binary, causing exec to fail
-	// with a predictable error that proves the call chain executed.
-	lookPath = func(file string) (string, error) {
-		return origLookPath(file)
-	}
 
 	// Verify the runtime binary name is "claude" as expected.
 	binName := runtimeBinaryName("claude")

@@ -75,16 +75,11 @@ func TestGateFailError_WithFindings(t *testing.T) {
 // a non-nil executor regardless of environment state.
 func TestSelectExecutor_ReturnsNonNil(t *testing.T) {
 	origLiveStatus := phasedLiveStatus
-	origLookPath := lookPath
 	defer func() {
 		phasedLiveStatus = origLiveStatus
-		lookPath = origLookPath
 	}()
 
 	phasedLiveStatus = false
-	lookPath = func(name string) (string, error) {
-		return "", fmt.Errorf("not found")
-	}
 
 	exec := selectExecutor("", nil)
 	if exec == nil {

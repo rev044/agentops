@@ -93,11 +93,8 @@ func TestFormatRuntimePromptInvocationComposite(t *testing.T) {
 }
 
 func TestPreflightRuntimeAvailabilityCompositeCommand(t *testing.T) {
-	origLookPath := lookPath
-	t.Cleanup(func() { lookPath = origLookPath })
-
 	var lookedUp []string
-	lookPath = func(name string) (string, error) {
+	mockLookPath := func(name string) (string, error) {
 		lookedUp = append(lookedUp, name)
 		if name == "codex" {
 			return "/usr/bin/codex", nil
@@ -105,7 +102,7 @@ func TestPreflightRuntimeAvailabilityCompositeCommand(t *testing.T) {
 		return "", fmt.Errorf("missing %s", name)
 	}
 
-	if err := preflightRuntimeAvailability("codex --profile ci"); err != nil {
+	if err := preflightRuntimeAvailability("codex --profile ci", mockLookPath); err != nil {
 		t.Fatalf("preflightRuntimeAvailability() error = %v, want nil", err)
 	}
 	if len(lookedUp) != 1 || lookedUp[0] != "codex" {
@@ -114,14 +111,11 @@ func TestPreflightRuntimeAvailabilityCompositeCommand(t *testing.T) {
 }
 
 func TestPreflightRuntimeAvailabilityErrorIncludesExecutable(t *testing.T) {
-	origLookPath := lookPath
-	t.Cleanup(func() { lookPath = origLookPath })
-
-	lookPath = func(name string) (string, error) {
+	mockLookPath := func(name string) (string, error) {
 		return "", fmt.Errorf("missing %s", name)
 	}
 
-	err := preflightRuntimeAvailability("codex --profile ci")
+	err := preflightRuntimeAvailability("codex --profile ci", mockLookPath)
 	if err == nil {
 		t.Fatal("expected error")
 	}

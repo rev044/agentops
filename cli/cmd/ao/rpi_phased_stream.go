@@ -212,13 +212,17 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 			cityPath:     gcCityPathFromOpts(opts),
 			phaseTimeout: opts.PhaseTimeout,
 			pollInterval: 10 * time.Second,
+			execCommand:  opts.ExecCommand,
+			lookPath:     opts.LookPath,
 		}, "runtime=gc"
 	default: // auto — prefer gc when available, fall back to stream
-		if gcExecutorAvailable(opts.WorkingDir) {
+		if gcExecutorAvailable(opts.WorkingDir, opts.ExecCommand, opts.LookPath) {
 			return &gcExecutor{
 				cityPath:     gcCityPathFromOpts(opts),
 				phaseTimeout: opts.PhaseTimeout,
 				pollInterval: 10 * time.Second,
+				execCommand:  opts.ExecCommand,
+				lookPath:     opts.LookPath,
 			}, "runtime=auto (gc)"
 		}
 		return &streamExecutor{
@@ -268,7 +272,7 @@ const (
 // spawnClaudePhase exists for compatibility with legacy direct-spawn tests.
 // Production code should use a PhaseExecutor (selectExecutorFromCaps) instead.
 func spawnClaudePhase(prompt, cwd, _ string, phaseNum int) error {
-	return spawnDirectFn(prompt, cwd, phaseNum)
+	return spawnClaudeDirectGlobal(prompt, cwd, phaseNum)
 }
 
 // spawnRuntimeDirectWithWriter runs <runtimeCommand> -p directly, routing stdout to stdoutWriter.
@@ -576,17 +580,19 @@ func cleanEnvNoClaude() []string {
 
 // --- Runtime process helpers ---
 
-// lookPath is the function used to resolve binary paths. Package-level for testability.
-var lookPath = exec.LookPath
+// defaultLookPath returns exec.LookPath if fn is nil.
+func defaultLookPath(fn gcLookFn) gcLookFn {
+	if fn != nil {
+		return fn
+	}
+	return exec.LookPath
+}
 
 // spawnClaudeDirectGlobal is the package-level wrapper for spawnClaudeDirectImpl that
-// reads phasedPhaseTimeout from the global (for spawnClaudePhase / spawnDirectFn fallback paths).
+// reads phasedPhaseTimeout from the global (for spawnClaudePhase fallback paths).
 func spawnClaudeDirectGlobal(prompt, cwd string, phaseNum int) error {
 	return spawnClaudeDirectImpl(prompt, cwd, phaseNum, phasedPhaseTimeout)
 }
-
-// spawnDirectFn is the function used to spawn claude directly. Package-level for testability.
-var spawnDirectFn = spawnClaudeDirectGlobal
 
 // stallCheckInterval controls how frequently the stall watchdog goroutine fires in
 // spawnClaudePhaseWithStream. Overridable in tests to exercise stall detection quickly.

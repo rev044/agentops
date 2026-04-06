@@ -388,39 +388,31 @@ func TestRepoPathWeight(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRuntimeCassHitScores_EmptyQuery(t *testing.T) {
-	got := runtimeCassHitScores("/tmp", "", 8)
+	got := runtimeCassHitScores("/tmp", "", 8, nil)
 	if got != nil {
 		t.Errorf("runtimeCassHitScores with empty query = %v, want nil", got)
 	}
 }
 
 func TestRuntimeCassHitScores_ZeroLimit(t *testing.T) {
-	got := runtimeCassHitScores("/tmp", "query", 0)
+	got := runtimeCassHitScores("/tmp", "query", 0, nil)
 	if got != nil {
 		t.Errorf("runtimeCassHitScores with zero limit = %v, want nil", got)
 	}
 }
 
-func TestRerankContextBundleForPhase_UsesCassHitsForSessions(t *testing.T) {
-	orig := runtimeSessionSearchFn
-	runtimeSessionSearchFn = func(query string, limit int) ([]searchResult, error) {
+func TestRuntimeCassHitScores_WithMockSearch(t *testing.T) {
+	mockSearch := func(query string, limit int) ([]searchResult, error) {
 		return []searchResult{
 			{Path: "/tmp/repo/.agents/ao/sessions/matched.jsonl", Score: 9},
 		}, nil
 	}
-	defer func() { runtimeSessionSearchFn = orig }()
-
-	bundle := rankedContextBundle{
-		CWD:   "/tmp/repo",
-		Query: "startup context",
-		RecentSessions: []session{
-			{Path: "/tmp/repo/.agents/ao/sessions/older.jsonl", Summary: "Older summary"},
-			{Path: "/tmp/repo/.agents/ao/sessions/matched.jsonl", Summary: "Matched lexical session"},
-		},
+	got := runtimeCassHitScores("/tmp/repo", "startup context", 8, mockSearch)
+	if got == nil {
+		t.Fatal("runtimeCassHitScores returned nil, want scores map")
 	}
-
-	ranked := rerankContextBundleForPhase("/tmp/repo", "startup context", "startup", bundle)
-	if got, want := ranked.RecentSessions[0].Path, "/tmp/repo/.agents/ao/sessions/matched.jsonl"; got != want {
-		t.Fatalf("first session = %q, want %q", got, want)
+	key := canonicalArtifactKey("/tmp/repo", "/tmp/repo/.agents/ao/sessions/matched.jsonl")
+	if score, ok := got[key]; !ok || score != 9 {
+		t.Errorf("expected score 9 for key %q, got %v (ok=%v)", key, score, ok)
 	}
 }

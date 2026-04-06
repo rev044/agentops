@@ -15,6 +15,8 @@ type gcExecutor struct {
 	cityPath     string        // path to city.toml directory; empty = auto-discover
 	phaseTimeout time.Duration // max time per phase
 	pollInterval time.Duration // how often to check session status
+	execCommand  gcExecFn      // nil = exec.Command
+	lookPath     gcLookFn      // nil = exec.LookPath
 }
 
 func (g *gcExecutor) Name() string { return "gc" }
@@ -25,18 +27,18 @@ func (g *gcExecutor) Execute(ctx context.Context, prompt, cwd, runID string, pha
 		return fmt.Errorf("gc executor: no city.toml found (walk up from %s)", cwd)
 	}
 
-	ready, reason := gcBridgeReady(cityPath)
+	ready, reason := gcBridgeReady(cityPath, g.execCommand, g.lookPath)
 	if !ready {
 		return fmt.Errorf("gc executor: not ready: %s", reason)
 	}
 
-	gcEmitPhaseEvent(cityPath, phaseNum, "started", runID)
+	gcEmitPhaseEvent(cityPath, phaseNum, "started", runID, g.execCommand, g.lookPath)
 
 	sessionAlias := fmt.Sprintf("rpi-%s-p%d", runID, phaseNum)
-	if err := gcRunCommand(cityPath, "session", "new", "--alias", sessionAlias, "--template", "worker"); err != nil {
+	if err := gcRunCommand(g.execCommand, cityPath, "session", "new", "--alias", sessionAlias, "--template", "worker"); err != nil {
 		return fmt.Errorf("gc executor: create session %q: %w", sessionAlias, err)
 	}
-	if err := gcRunCommand(cityPath, gcNudgeArgs(sessionAlias, prompt)...); err != nil {
+	if err := gcRunCommand(g.execCommand, cityPath, gcNudgeArgs(sessionAlias, prompt)...); err != nil {
 		return fmt.Errorf("gc executor: nudge session %q: %w", sessionAlias, err)
 	}
 
@@ -69,7 +71,7 @@ func (g *gcExecutor) pollSessionCompletion(ctx context.Context, cityPath, sessio
 	for {
 		select {
 		case <-ctx.Done():
-			gcEmitPhaseEvent(cityPath, phaseNum, "cancelled", runID)
+			gcEmitPhaseEvent(cityPath, phaseNum, "cancelled", runID, g.execCommand, g.lookPath)
 			return ctx.Err()
 		case <-deadline:
 			return fmt.Errorf("gc executor: phase %d timed out after %v", phaseNum, timeout)
@@ -79,7 +81,7 @@ func (g *gcExecutor) pollSessionCompletion(ctx context.Context, cityPath, sessio
 				continue // transient error, retry on next tick
 			}
 			if done {
-				gcEmitPhaseEvent(cityPath, phaseNum, "complete", runID)
+				gcEmitPhaseEvent(cityPath, phaseNum, "complete", runID, g.execCommand, g.lookPath)
 				return nil
 			}
 		}
@@ -88,7 +90,7 @@ func (g *gcExecutor) pollSessionCompletion(ctx context.Context, cityPath, sessio
 
 // checkSessionDone returns true if the session is closed/completed or has disappeared.
 func (g *gcExecutor) checkSessionDone(cityPath, sessionAlias string) (bool, error) {
-	out, err := gcExecCommand("gc", "--city", cityPath, "session", "list", "--json").Output()
+	out, err := gcDefaultExec(g.execCommand)("gc", "--city", cityPath, "session", "list", "--json").Output()
 	if err != nil {
 		return false, fmt.Errorf("gc session list: %w", err)
 	}
@@ -107,7 +109,7 @@ func (g *gcExecutor) checkSessionDone(cityPath, sessionAlias string) (bool, erro
 }
 
 // gcRunCommand runs a gc CLI command with optional city path prefix.
-func gcRunCommand(cityPath string, args ...string) error {
+func gcRunCommand(execCommand gcExecFn, cityPath string, args ...string) error {
 	if cityPath != "" {
 		// Check if --city is already in args
 		hasCity := false
@@ -121,7 +123,7 @@ func gcRunCommand(cityPath string, args ...string) error {
 			args = append([]string{"--city", cityPath}, args...)
 		}
 	}
-	cmd := gcExecCommand("gc", args...)
+	cmd := gcDefaultExec(execCommand)("gc", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -129,15 +131,15 @@ func gcRunCommand(cityPath string, args ...string) error {
 
 // gcExecutorAvailable returns true if gc bridge is ready for use as a phase executor.
 // This is used by selectExecutorFromCaps to determine if the gc backend should be offered.
-func gcExecutorAvailable(cwd string) bool {
-	if !gcBridgeAvailable() {
+func gcExecutorAvailable(cwd string, execCommand gcExecFn, lookPath gcLookFn) bool {
+	if !gcBridgeAvailable(lookPath) {
 		return false
 	}
 	cityPath := gcBridgeCityPath(cwd)
 	if cityPath == "" {
 		return false
 	}
-	v, err := gcBridgeVersion()
+	v, err := gcBridgeVersion(execCommand)
 	if err != nil {
 		return false
 	}

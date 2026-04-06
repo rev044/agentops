@@ -231,11 +231,11 @@ func preflightOpts(opts *phasedEngineOptions) error {
 		return err
 	}
 	if opts.RuntimeMode == "tmux" {
-		if _, err := lookPath(opts.TmuxCommand); err != nil {
+		if _, err := defaultLookPath(opts.LookPath)(opts.TmuxCommand); err != nil {
 			return fmt.Errorf("tmux executable %q not found on PATH (required for runtime=tmux)", opts.TmuxCommand)
 		}
 	}
-	return preflightRuntimeAvailability(opts.RuntimeCommand)
+	return preflightRuntimeAvailability(opts.RuntimeCommand, opts.LookPath)
 }
 
 func minPositiveDuration(a, b time.Duration) time.Duration {

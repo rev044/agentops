@@ -10,13 +10,27 @@ import (
 	"github.com/boshu2/agentops/cli/internal/bridge"
 )
 
-// gcExecCommand is the function used to create exec.Cmd instances.
-// Tests can replace this to intercept shell-outs.
-var gcExecCommand = exec.Command
+// gcExecFn is the type for exec.Command-compatible functions.
+type gcExecFn func(name string, arg ...string) *exec.Cmd
 
-// gcLookPath is the function used to find binaries on PATH.
-// Tests can replace this to simulate gc presence/absence.
-var gcLookPath = exec.LookPath
+// gcLookFn is the type for exec.LookPath-compatible functions.
+type gcLookFn func(file string) (string, error)
+
+// gcDefaultExec returns exec.Command if fn is nil.
+func gcDefaultExec(fn gcExecFn) gcExecFn {
+	if fn != nil {
+		return fn
+	}
+	return exec.Command
+}
+
+// gcDefaultLook returns exec.LookPath if fn is nil.
+func gcDefaultLook(fn gcLookFn) gcLookFn {
+	if fn != nil {
+		return fn
+	}
+	return exec.LookPath
+}
 
 // gcMinVersion is the minimum gc version required for bridge compatibility.
 const gcMinVersion = bridge.GCMinVersion
@@ -37,14 +51,14 @@ type GCStatusSummary = bridge.GCStatusSummary
 type GCSession = bridge.GCSession
 
 // gcBridgeAvailable returns true if the gc binary is on PATH.
-func gcBridgeAvailable() bool {
-	_, err := gcLookPath("gc")
+func gcBridgeAvailable(lookPath gcLookFn) bool {
+	_, err := gcDefaultLook(lookPath)("gc")
 	return err == nil
 }
 
 // gcBridgeVersion returns the gc version string.
-func gcBridgeVersion() (string, error) {
-	out, err := gcExecCommand("gc", "version").Output()
+func gcBridgeVersion(execCommand gcExecFn) (string, error) {
+	out, err := gcDefaultExec(execCommand)("gc", "version").Output()
 	if err != nil {
 		return "", fmt.Errorf("gc version: %w", err)
 	}
@@ -68,19 +82,20 @@ func parseSemverParts(v string) [3]int {
 
 // gcBridgeReady checks both binary availability AND controller running.
 // Returns (ready, reason).
-func gcBridgeReady(cityPath string) (bool, string) {
-	if !gcBridgeAvailable() {
+func gcBridgeReady(cityPath string, execCommand gcExecFn, lookPath gcLookFn) (bool, string) {
+	if !gcBridgeAvailable(lookPath) {
 		return false, "gc binary not found on PATH"
 	}
-	v, err := gcBridgeVersion()
+	v, err := gcBridgeVersion(execCommand)
 	if err != nil {
 		return false, fmt.Sprintf("gc version check failed: %v", err)
 	}
 	if !gcBridgeCompatible(v) {
 		return false, fmt.Sprintf("gc version %s below minimum %s", v, gcMinVersion)
 	}
+	execFn := gcDefaultExec(execCommand)
 	args := bridge.GCStatusArgs(cityPath)
-	out, err := gcExecCommand("gc", args...).Output()
+	out, err := execFn("gc", args...).Output()
 	if err != nil {
 		return false, fmt.Sprintf("gc controller not running: %v", err)
 	}

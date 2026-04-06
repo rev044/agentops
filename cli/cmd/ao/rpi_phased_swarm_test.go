@@ -137,15 +137,6 @@ func TestSwarmFirstStateRoundTrip_False(t *testing.T) {
 // records the backend selection in the orchestration log with the run ID.
 // This exercises the same code path as runRPIPhased's executor setup block.
 func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
-	origLookPath := lookPath
-	defer func() {
-		lookPath = origLookPath
-	}()
-
-	// Auto mode always selects stream regardless of live-status flag.
-	lookPath = func(name string) (string, error) {
-		return "", fmt.Errorf("not found: %s", name)
-	}
 	_ = os.Unsetenv("CLAUDECODE")
 	_ = os.Unsetenv("CLAUDE_CODE_ENTRYPOINT")
 
@@ -155,9 +146,13 @@ func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Auto mode always selects stream regardless of live-status flag.
 	opts := defaultPhasedEngineOptions()
 	opts.LiveStatus = false
 	opts.SwarmFirst = true
+	opts.LookPath = func(name string) (string, error) {
+		return "", fmt.Errorf("not found: %s", name)
+	}
 	executor := selectExecutorWithLog("", nil, logPath, "dryrun-run-id", false, opts)
 	if executor.Name() != "stream" {
 		t.Errorf("expected stream executor (runtime=auto), got %q", executor.Name())
@@ -179,14 +174,6 @@ func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 // TestRunRPIPhased_SwarmFirstBackendLogged verifies that the run ID appears
 // in the backend selection log entry, making each run's executor choice traceable.
 func TestRunRPIPhased_SwarmFirstBackendLogged(t *testing.T) {
-	origLookPath := lookPath
-	defer func() {
-		lookPath = origLookPath
-	}()
-
-	lookPath = func(name string) (string, error) {
-		return "", fmt.Errorf("not found: %s", name)
-	}
 	_ = os.Unsetenv("CLAUDECODE")
 	_ = os.Unsetenv("CLAUDE_CODE_ENTRYPOINT")
 
@@ -199,6 +186,9 @@ func TestRunRPIPhased_SwarmFirstBackendLogged(t *testing.T) {
 	runID := "swarm-test-run-id"
 	opts := defaultPhasedEngineOptions()
 	opts.LiveStatus = false
+	opts.LookPath = func(name string) (string, error) {
+		return "", fmt.Errorf("not found: %s", name)
+	}
 	executor := selectExecutorWithLog("", nil, logPath, runID, false, opts)
 
 	if executor.Name() == "" {
@@ -225,19 +215,14 @@ func TestRunRPIPhased_SwarmFirstBackendLogged(t *testing.T) {
 // state.Backend is set to the executor's name. This mirrors what runRPIPhased
 // does: executor := selectExecutorWithLog(...); state.Backend = executor.Name()
 func TestRunRPIPhased_BackendStoredInState(t *testing.T) {
-	origLookPath := lookPath
-	defer func() {
-		lookPath = origLookPath
-	}()
-
-	lookPath = func(name string) (string, error) {
-		return "", fmt.Errorf("not found: %s", name)
-	}
 	os.Unsetenv("CLAUDECODE")
 	os.Unsetenv("CLAUDE_CODE_ENTRYPOINT")
 
 	opts := defaultPhasedEngineOptions()
 	opts.LiveStatus = false
+	opts.LookPath = func(name string) (string, error) {
+		return "", fmt.Errorf("not found: %s", name)
+	}
 	state := newTestPhasedState().WithGoal("add feature").WithSwarmFirst(true).WithOpts(opts)
 
 	// Simulate what runRPIPhasedWithOpts does.
@@ -427,19 +412,14 @@ func TestSwarmFirstPhaseResultBackend(t *testing.T) {
 // from the executor name after selectExecutorWithLog is called, mirroring the
 // runRPIPhasedWithOpts assignment: state.Backend = executor.Name()
 func TestSwarmFirstBackendInState(t *testing.T) {
-	origLookPath := lookPath
-	defer func() {
-		lookPath = origLookPath
-	}()
-
-	lookPath = func(name string) (string, error) {
-		return "", fmt.Errorf("not found: %s", name)
-	}
 	os.Unsetenv("CLAUDECODE")
 	os.Unsetenv("CLAUDE_CODE_ENTRYPOINT")
 
 	stateOpts := defaultPhasedEngineOptions()
 	stateOpts.LiveStatus = false
+	stateOpts.LookPath = func(name string) (string, error) {
+		return "", fmt.Errorf("not found: %s", name)
+	}
 	state := newTestPhasedState().WithGoal("add feature").WithSwarmFirst(true).WithOpts(stateOpts)
 
 	executor := selectExecutorWithLog("", nil, "", "", false, stateOpts)

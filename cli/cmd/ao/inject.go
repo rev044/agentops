@@ -236,7 +236,7 @@ func applyInjectModifiers(cwd string, opts *search.InjectOptions, knowledge *inj
 	}
 
 	runID := os.Getenv("RPI_RUN_ID")
-	ctxDir, ctxErr := ensureContextDir(cwd, runID)
+	ctxDir, ctxErr := ensureContextDir(cwd, runID, nil)
 	if ctxErr != nil {
 		fmt.Fprintf(os.Stderr, "WARN: context dir: %v\n", ctxErr)
 		return nil

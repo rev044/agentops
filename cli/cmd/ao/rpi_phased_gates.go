@@ -46,7 +46,7 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 // processDiscoveryPhase handles post-processing for the discovery phase.
 // It extracts the epic ID, detects fast path, and checks the pre-mortem verdict.
 func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error {
-	tracker := detectTrackerHealth(state.Opts.BDCommand)
+	tracker := detectTrackerHealth(state.Opts.BDCommand, state.Opts.LookPath)
 	state.TrackerMode = tracker.Mode
 	state.TrackerReason = tracker.Reason
 

@@ -10,17 +10,17 @@ import (
 	"testing"
 )
 
-// gcMock replaces gcExecCommand and gcLookPath for deterministic testing.
+// gcMock provides injectable exec/lookPath functions for deterministic testing.
 // It records all command invocations and returns preconfigured outputs.
 type gcMock struct {
 	mu       sync.Mutex
 	calls    []gcMockCall
 	handlers map[string]gcMockHandler
-	// If true, gcLookPath returns success (binary "found")
+	// If true, lookPath returns success (binary "found")
 	binaryAvailable bool
 }
 
-// gcMockCall records a single invocation of gcExecCommand.
+// gcMockCall records a single invocation of execCommand.
 type gcMockCall struct {
 	Args []string
 }
@@ -40,42 +40,36 @@ func newGCMock() *gcMock {
 	}
 }
 
-// install replaces the global gcExecCommand and gcLookPath with the mock.
-// Returns a cleanup function that restores originals.
+// install is a no-op kept for backward compat; tests should use m.execCommand and m.lookPathFn.
 func (m *gcMock) install(t *testing.T) {
 	t.Helper()
-	origExec := gcExecCommand
-	origLookPath := gcLookPath
-	t.Cleanup(func() {
-		gcExecCommand = origExec
-		gcLookPath = origLookPath
-	})
+	// No globals to swap — tests pass m.execCommand / m.lookPathFn directly.
+}
 
-	gcLookPath = func(file string) (string, error) {
-		if m.binaryAvailable && file == "gc" {
-			return "/usr/local/bin/gc", nil
-		}
-		return "", &exec.Error{Name: file, Err: exec.ErrNotFound}
+// execCommand returns an exec.Command-compatible function that records calls and returns mock output.
+func (m *gcMock) execCommand(name string, args ...string) *exec.Cmd {
+	m.mu.Lock()
+	m.calls = append(m.calls, gcMockCall{Args: append([]string{name}, args...)})
+	m.mu.Unlock()
+
+	key := m.commandKey(args)
+	handler, ok := m.handlers[key]
+	if !ok {
+		handler = gcMockHandler{ExitCode: 0}
 	}
 
-	gcExecCommand = func(name string, args ...string) *exec.Cmd {
-		m.mu.Lock()
-		m.calls = append(m.calls, gcMockCall{Args: append([]string{name}, args...)})
-		m.mu.Unlock()
+	cs := []string{"-test.run=TestGCHelperProcess", "--", fmt.Sprintf("exit=%d", handler.ExitCode), fmt.Sprintf("stdout=%s", handler.Stdout), fmt.Sprintf("stderr=%s", handler.Stderr)}
+	cmd := exec.Command(os.Args[0], cs...)
+	cmd.Env = append(os.Environ(), "GO_TEST_HELPER_PROCESS=1")
+	return cmd
+}
 
-		key := m.commandKey(args)
-		handler, ok := m.handlers[key]
-		if !ok {
-			// Default: return empty success
-			handler = gcMockHandler{ExitCode: 0}
-		}
-
-		// Use the TestHelperProcess pattern for mocking exec.Command
-		cs := []string{"-test.run=TestGCHelperProcess", "--", fmt.Sprintf("exit=%d", handler.ExitCode), fmt.Sprintf("stdout=%s", handler.Stdout), fmt.Sprintf("stderr=%s", handler.Stderr)}
-		cmd := exec.Command(os.Args[0], cs...)
-		cmd.Env = append(os.Environ(), "GO_TEST_HELPER_PROCESS=1")
-		return cmd
+// lookPathFn returns a LookPath-compatible function based on binaryAvailable.
+func (m *gcMock) lookPathFn(file string) (string, error) {
+	if m.binaryAvailable && file == "gc" {
+		return "/usr/local/bin/gc", nil
 	}
+	return "", &exec.Error{Name: file, Err: exec.ErrNotFound}
 }
 
 // commandKey produces a lookup key from command args (skipping "gc" binary name).
