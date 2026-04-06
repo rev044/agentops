@@ -786,226 +786,30 @@ func checkSkillIntegrity() doctorCheck {
 	}
 }
 
-// countHealFindings counts lines matching the heal.sh report format: [CODE] path: message
-func countHealFindings(output string) int {
-	count := 0
-	for _, line := range strings.Split(output, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if len(trimmed) > 0 && strings.HasPrefix(trimmed, "[") && strings.Contains(trimmed, "]") {
-			count++
-		}
-	}
-	if count == 0 {
-		// Fallback: count from the summary line "N finding(s) detected."
-		for _, line := range strings.Split(output, "\n") {
-			if strings.Contains(line, "finding(s) detected") {
-				_, _ = fmt.Sscanf(strings.TrimSpace(line), "%d", &count)
-				break
-			}
-		}
-	}
-	return count
-}
+func countHealFindings(output string) int { return quality.CountHealFindings(output) }
 
-// deprecatedCommands maps old namespace-qualified command references to their
-// new flat replacements. Used by checkStaleReferences to detect lingering
-// namespace references in hooks and skill files.
-var deprecatedCommands = map[string]string{
-	"ao know forge":            "ao forge",
-	"ao know inject":           "ao inject",
-	"ao know search":           "ao search",
-	"ao know lookup":           "ao lookup",
-	"ao know trace":            "ao trace",
-	"ao know store":            "ao store",
-	"ao know index":            "ao index",
-	"ao know temper":           "ao temper",
-	"ao know feedback":         "ao feedback",
-	"ao know migrate":          "ao migrate",
-	"ao know batch-feedback":   "ao batch-feedback",
-	"ao know session-outcome":  "ao session-outcome",
-	"ao work rpi":              "ao rpi",
-	"ao work ratchet":          "ao ratchet",
-	"ao work goals":            "ao goals",
-	"ao work session":          "ao session",
-	"ao work feedback-loop":    "ao feedback-loop",
-	"ao work context":          "ao context",
-	"ao work task-sync":        "ao task-sync",
-	"ao work task-feedback":    "ao task-feedback",
-	"ao work task-status":      "ao task-status",
-	"ao quality flywheel":      "ao flywheel",
-	"ao quality pool":          "ao pool",
-	"ao quality metrics":       "ao metrics",
-	"ao quality gate":          "ao gate",
-	"ao quality maturity":      "ao maturity",
-	"ao quality constraint":    "ao constraint",
-	"ao quality vibe-check":    "ao vibe-check",
-	"ao quality badge":         "ao badge",
-	"ao quality contradict":    "ao contradict",
-	"ao quality dedup":         "ao dedup",
-	"ao quality anti-patterns": "ao anti-patterns",
-	"ao quality curate":        "ao curate",
-	"ao settings config":       "ao config",
-	"ao settings plans":        "ao plans",
-	"ao settings hooks":        "ao hooks",
-	"ao settings memory":       "ao memory",
-	"ao settings notebook":     "ao notebook",
-	"ao settings worktree":     "ao worktree",
-	"ao start demo":            "ao demo",
-	"ao start init":            "ao init",
-	"ao start seed":            "ao seed",
-	"ao start quick-start":     "ao quick-start",
-}
+// Type aliases for stale reference types.
+var deprecatedCommands = quality.DeprecatedCommands
+type staleReference = quality.StaleReference
 
-// staleReference records a single deprecated command reference found in a file.
-type staleReference struct {
-	File       string `json:"file"`
-	OldCommand string `json:"old_command"`
-	NewCommand string `json:"new_command"`
-}
-
-// checkStaleReferences scans hooks/*.sh, hooks/examples/*.sh,
-// cli/embedded/hooks/*.sh, skills/*/SKILL.md, docs/*.md, docs/contracts/*.md,
-// docs/plans/*.md, and scripts/*.sh for deprecated command references and
-// reports them as warnings.
 func checkStaleReferences() doctorCheck {
-	var refs []staleReference
-
-	// Scan hooks/*.sh
-	hookFiles, _ := filepath.Glob("hooks/*.sh")
-	for _, f := range hookFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	// Scan skills/*/SKILL.md
-	skillFiles, _ := filepath.Glob("skills/*/SKILL.md")
-	for _, f := range skillFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	// Scan docs/*.md
-	docFiles, _ := filepath.Glob("docs/*.md")
-	for _, f := range docFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	// Scan scripts/*.sh
-	scriptFiles, _ := filepath.Glob("scripts/*.sh")
-	for _, f := range scriptFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	// Scan hooks/examples/*.sh
-	exampleHookFiles, _ := filepath.Glob("hooks/examples/*.sh")
-	for _, f := range exampleHookFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	// Scan cli/embedded/hooks/*.sh
-	embeddedHookFiles, _ := filepath.Glob("cli/embedded/hooks/*.sh")
-	for _, f := range embeddedHookFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	// Scan docs/contracts/*.md
-	contractDocFiles, _ := filepath.Glob("docs/contracts/*.md")
-	for _, f := range contractDocFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	// Scan docs/plans/*.md
-	planDocFiles, _ := filepath.Glob("docs/plans/*.md")
-	for _, f := range planDocFiles {
-		found := scanFileForDeprecatedCommands(f)
-		refs = append(refs, found...)
-	}
-
-	if len(refs) == 0 {
-		return doctorCheck{
-			Name:     "Stale References",
-			Status:   "pass",
-			Detail:   "No deprecated command references found",
-			Required: false,
-		}
-	}
-
-	// Build a summary of unique old commands found
-	seen := make(map[string]bool)
-	for _, r := range refs {
-		seen[r.OldCommand] = true
-	}
-	cmds := make([]string, 0, len(seen))
-	for cmd := range seen {
-		cmds = append(cmds, cmd)
-	}
-
-	detail := fmt.Sprintf("%d stale reference(s) in %d file(s)", len(refs), countUniqueFiles(refs))
-	if len(cmds) <= 3 {
-		detail += fmt.Sprintf(" — update: %s", strings.Join(cmds, ", "))
-	}
-
-	return doctorCheck{
-		Name:     "Stale References",
-		Status:   "warn",
-		Detail:   detail,
-		Required: false,
-	}
+	return quality.CheckStaleReferences([]string{
+		"hooks/*.sh",
+		"skills/*/SKILL.md",
+		"docs/*.md",
+		"scripts/*.sh",
+		"hooks/examples/*.sh",
+		"cli/embedded/hooks/*.sh",
+		"docs/contracts/*.md",
+		"docs/plans/*.md",
+	})
 }
 
-// scanFileForDeprecatedCommands reads a file and checks each line for
-// deprecated command patterns (old namespace-qualified commands like
-// "ao work rpi" that should be replaced with flat "ao rpi").
+// Thin wrappers for test compatibility.
 func scanFileForDeprecatedCommands(path string) []staleReference {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-
-	var refs []staleReference
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		for oldCmd, newCmd := range deprecatedCommands {
-			idx := strings.Index(line, oldCmd)
-			if idx < 0 {
-				continue
-			}
-			// Check the character after the match to avoid false positives.
-			// e.g., "ao work rpi" should not match "ao work rpi-something"
-			afterIdx := idx + len(oldCmd)
-			if afterIdx < len(line) {
-				ch := line[afterIdx]
-				if ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch == '-' {
-					continue
-				}
-			}
-
-			refs = append(refs, staleReference{
-				File:       path,
-				OldCommand: oldCmd,
-				NewCommand: newCmd,
-			})
-			// Only report each deprecated command once per file
-			break
-		}
-	}
-
-	return refs
+	return quality.ScanFileForDeprecatedCommands(path)
 }
-
-// countUniqueFiles counts the number of distinct files in a slice of staleReferences.
-func countUniqueFiles(refs []staleReference) int {
-	seen := make(map[string]bool)
-	for _, r := range refs {
-		seen[r.File] = true
-	}
-	return len(seen)
-}
+func countUniqueFiles(refs []staleReference) int { return quality.CountUniqueFiles(refs) }
 
 func checkOptionalCLI(name string, reason string) doctorCheck {
 	_, err := exec.LookPath(name)
