@@ -596,7 +596,7 @@ func TestHelper2_ShouldContinueAfterFailure(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// rpi_cancel.go: parseCancelSignal
+// rpi_cancel.go: rpi.ParseCancelSignal
 // ---------------------------------------------------------------------------
 
 func TestHelper2_parseCancelSignal(t *testing.T) {

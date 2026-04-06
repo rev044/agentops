@@ -39,11 +39,11 @@ func TestCleanupStaleRun(t *testing.T) {
 	if len(staleRuns) != 1 {
 		t.Fatalf("expected 1 stale run, got %d", len(staleRuns))
 	}
-	if staleRuns[0].runID != "stale-run" {
-		t.Errorf("expected stale-run, got %s", staleRuns[0].runID)
+	if staleRuns[0].RunID != "stale-run" {
+		t.Errorf("expected stale-run, got %s", staleRuns[0].RunID)
 	}
-	if staleRuns[0].reason != "worktree missing" {
-		t.Errorf("expected reason 'worktree missing', got %q", staleRuns[0].reason)
+	if staleRuns[0].Reason != "worktree missing" {
+		t.Errorf("expected reason 'worktree missing', got %q", staleRuns[0].Reason)
 	}
 
 	// Mark it stale.
@@ -85,7 +85,7 @@ func TestCleanupActiveRunUntouched(t *testing.T) {
 
 	staleRuns := findStaleRuns(tmpDir)
 	for _, sr := range staleRuns {
-		if sr.runID == "active-run" {
+		if sr.RunID == "active-run" {
 			t.Fatal("active run should not be detected as stale")
 		}
 	}
@@ -163,15 +163,15 @@ func TestCleanupByRunID(t *testing.T) {
 	// Filter for specific run ID (simulating --run-id).
 	var filtered []staleRunEntry
 	for _, sr := range allStale {
-		if sr.runID == "target-run" {
+		if sr.RunID == "target-run" {
 			filtered = append(filtered, sr)
 		}
 	}
 	if len(filtered) != 1 {
 		t.Fatalf("expected 1 filtered run, got %d", len(filtered))
 	}
-	if filtered[0].runID != "target-run" {
-		t.Errorf("expected target-run, got %s", filtered[0].runID)
+	if filtered[0].RunID != "target-run" {
+		t.Errorf("expected target-run, got %s", filtered[0].RunID)
 	}
 }
 
@@ -203,7 +203,7 @@ func TestCleanupSkipsTerminalRuns(t *testing.T) {
 
 	staleRuns := findStaleRuns(tmpDir)
 	for _, sr := range staleRuns {
-		if sr.runID == "already-stale" {
+		if sr.RunID == "already-stale" {
 			t.Fatal("run with existing terminal_status should be skipped")
 		}
 	}
@@ -243,11 +243,11 @@ func TestCleanupIncludesTerminalRunsWithExistingWorktree(t *testing.T) {
 	if len(staleRuns) != 1 {
 		t.Fatalf("expected 1 terminal cleanup candidate, got %d", len(staleRuns))
 	}
-	if staleRuns[0].runID != "failed-run" {
-		t.Fatalf("expected failed-run, got %s", staleRuns[0].runID)
+	if staleRuns[0].RunID != "failed-run" {
+		t.Fatalf("expected failed-run, got %s", staleRuns[0].RunID)
 	}
-	if staleRuns[0].terminal != "failed" {
-		t.Fatalf("expected terminal=failed, got %q", staleRuns[0].terminal)
+	if staleRuns[0].Terminal != "failed" {
+		t.Fatalf("expected terminal=failed, got %q", staleRuns[0].Terminal)
 	}
 }
 
@@ -297,7 +297,7 @@ func TestCleanupSkipsCompletedRuns(t *testing.T) {
 
 	staleRuns := findStaleRuns(tmpDir)
 	for _, sr := range staleRuns {
-		if sr.runID == "done-run" {
+		if sr.RunID == "done-run" {
 			t.Fatal("completed run should not be detected as stale")
 		}
 	}

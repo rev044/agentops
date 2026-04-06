@@ -1,8 +1,6 @@
 package main
 
 import (
-	"cmp"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/rpi"
 	"github.com/spf13/cobra"
 )
 
@@ -85,11 +84,11 @@ func collectStaleRuns(cwd, runID string, staleAfter time.Duration) []staleRunEnt
 	for _, root := range roots {
 		entries := findStaleRunsWithMinAge(root, staleAfter, now)
 		for _, e := range entries {
-			if _, ok := seen[e.runID]; ok {
+			if _, ok := seen[e.RunID]; ok {
 				continue
 			}
-			seen[e.runID] = struct{}{}
-			if runID != "" && e.runID != runID {
+			seen[e.RunID] = struct{}{}
+			if runID != "" && e.RunID != runID {
 				continue
 			}
 			staleRuns = append(staleRuns, e)
@@ -111,28 +110,28 @@ func processStaleRuns(cwd string, staleRuns []staleRunEntry, dryRun bool) {
 
 // reportDryRunCleanup prints what would happen for a stale run without making changes.
 func reportDryRunCleanup(sr staleRunEntry) {
-	if sr.terminal == "" {
-		fmt.Printf("[dry-run] Would mark run %s as stale (reason: %s)\n", sr.runID, sr.reason)
+	if sr.Terminal == "" {
+		fmt.Printf("[dry-run] Would mark run %s as stale (reason: %s)\n", sr.RunID, sr.Reason)
 	} else {
-		fmt.Printf("[dry-run] Would clean terminal run %s (%s)\n", sr.runID, sr.reason)
+		fmt.Printf("[dry-run] Would clean terminal run %s (%s)\n", sr.RunID, sr.Reason)
 	}
-	if sr.worktreePath != "" {
-		if _, err := os.Stat(sr.worktreePath); err == nil {
-			fmt.Printf("[dry-run] Would remove worktree: %s\n", sr.worktreePath)
+	if sr.WorktreePath != "" {
+		if _, err := os.Stat(sr.WorktreePath); err == nil {
+			fmt.Printf("[dry-run] Would remove worktree: %s\n", sr.WorktreePath)
 		}
 	}
 }
 
 // cleanStaleRun marks a non-terminal run as stale and removes orphaned worktrees.
 func cleanStaleRun(cwd string, sr staleRunEntry) {
-	if sr.terminal == "" {
+	if sr.Terminal == "" {
 		if err := markRunStale(sr); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to mark run %s as stale: %v\n", sr.runID, err)
+			fmt.Fprintf(os.Stderr, "Warning: failed to mark run %s as stale: %v\n", sr.RunID, err)
 			return
 		}
-		fmt.Printf("Marked run %s as stale (reason: %s)\n", sr.runID, sr.reason)
+		fmt.Printf("Marked run %s as stale (reason: %s)\n", sr.RunID, sr.Reason)
 	} else {
-		fmt.Printf("Cleaning terminal run %s (%s)\n", sr.runID, sr.reason)
+		fmt.Printf("Cleaning terminal run %s (%s)\n", sr.RunID, sr.Reason)
 	}
 
 	removeStaleWorktreeIfExists(cwd, sr)
@@ -141,17 +140,17 @@ func cleanStaleRun(cwd string, sr staleRunEntry) {
 // removeStaleWorktreeIfExists removes the worktree directory associated with
 // a stale run if it still exists on disk.
 func removeStaleWorktreeIfExists(cwd string, sr staleRunEntry) {
-	if sr.worktreePath == "" {
+	if sr.WorktreePath == "" {
 		return
 	}
-	if _, statErr := os.Stat(sr.worktreePath); statErr != nil {
+	if _, statErr := os.Stat(sr.WorktreePath); statErr != nil {
 		return
 	}
-	repoRoot := resolveCleanupRepoRoot(cwd, sr.worktreePath)
-	if rmErr := removeOrphanedWorktree(repoRoot, sr.worktreePath, sr.runID); rmErr != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not remove worktree %s: %v\n", sr.worktreePath, rmErr)
+	repoRoot := resolveCleanupRepoRoot(cwd, sr.WorktreePath)
+	if rmErr := removeOrphanedWorktree(repoRoot, sr.WorktreePath, sr.RunID); rmErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not remove worktree %s: %v\n", sr.WorktreePath, rmErr)
 	} else {
-		fmt.Printf("Removed worktree: %s\n", sr.worktreePath)
+		fmt.Printf("Removed worktree: %s\n", sr.WorktreePath)
 	}
 }
 
@@ -285,30 +284,11 @@ func checkedOutBranchSet(cwd string) (map[string]bool, error) {
 // parent directory as targetWorktree, avoiding attempts to remove a worktree
 // from within itself.
 func resolveCleanupRepoRoot(cwd, targetWorktree string) string {
-	target := filepath.Clean(targetWorktree)
-	targetParent := filepath.Dir(target)
-
-	roots := collectSearchRoots(cwd)
-	for _, root := range roots {
-		cleanRoot := filepath.Clean(root)
-		if cleanRoot == target {
-			continue
-		}
-		if filepath.Dir(cleanRoot) == targetParent {
-			return cleanRoot
-		}
-	}
-	return cwd
+	return rpi.ResolveCleanupRepoRoot(cwd, targetWorktree, collectSearchRoots(cwd))
 }
 
-type staleRunEntry struct {
-	runID        string
-	root         string
-	statePath    string
-	reason       string
-	worktreePath string
-	terminal     string
-}
+// staleRunEntry is a thin alias for rpi.StaleRunEntry.
+type staleRunEntry = rpi.StaleRunEntry
 
 // findStaleRuns scans the registry for runs that are not active and not completed.
 func findStaleRuns(root string) []staleRunEntry {
@@ -356,33 +336,13 @@ func findStaleRunsWithMinAge(root string, minAge time.Duration, now time.Time) [
 	return stale
 }
 
-// checkTerminalRunStale returns a staleRunEntry for a terminal run if it qualifies for cleanup.
+// checkTerminalRunStale delegates to rpi.CheckTerminalRunStale.
 func checkTerminalRunStale(runID, root, statePath string, state *phasedState, minAge time.Duration, now time.Time) (staleRunEntry, bool) {
-	if state.TerminalStatus == "completed" {
-		return staleRunEntry{}, false
-	}
-	if state.WorktreePath == "" {
-		return staleRunEntry{}, false
-	}
-	if _, statErr := os.Stat(state.WorktreePath); statErr != nil {
-		return staleRunEntry{}, false
-	}
-	if minAge > 0 {
-		candidateAt := cmp.Or(state.TerminatedAt, state.StartedAt)
-		parsedAt, parseErr := time.Parse(time.RFC3339, candidateAt)
-		if parseErr != nil || now.Sub(parsedAt) < minAge {
-			return staleRunEntry{}, false
-		}
-	}
-	reason := cmp.Or(state.TerminalReason, "terminal status: "+state.TerminalStatus)
-	return staleRunEntry{
-		runID:        runID,
-		root:         root,
-		statePath:    statePath,
-		reason:       reason,
-		worktreePath: state.WorktreePath,
-		terminal:     state.TerminalStatus,
-	}, true
+	return rpi.CheckTerminalRunStale(
+		runID, root, statePath,
+		state.TerminalStatus, state.TerminalReason, state.TerminatedAt, state.StartedAt, state.WorktreePath,
+		minAge, now,
+	)
 }
 
 // checkNonTerminalRunStale returns a staleRunEntry for an inactive, non-completed run if it qualifies.
@@ -407,83 +367,29 @@ func checkNonTerminalRunStale(runID, root, statePath string, state *phasedState,
 		}
 	}
 	return staleRunEntry{
-		runID:        runID,
-		root:         root,
-		statePath:    statePath,
-		reason:       reason,
-		worktreePath: state.WorktreePath,
+		RunID:        runID,
+		Root:         root,
+		StatePath:    statePath,
+		Reason:       reason,
+		WorktreePath: state.WorktreePath,
 	}, true
 }
 
-// updateFlatStateIfMatches updates the flat (root-level) state file with stale
-// metadata when its run_id matches the given runID.
-func updateFlatStateIfMatches(flatPath, runID, reason, terminatedAt string) {
-	flatData, fErr := os.ReadFile(flatPath)
-	if fErr != nil {
-		return
-	}
-	var flatRaw map[string]any
-	if json.Unmarshal(flatData, &flatRaw) != nil {
-		return
-	}
-	if flatRunID, ok := flatRaw["run_id"].(string); !ok || flatRunID != runID {
-		return
-	}
-	flatRaw["terminal_status"] = "stale"
-	flatRaw["terminal_reason"] = reason
-	flatRaw["terminated_at"] = terminatedAt
-	if flatUpdated, mErr := json.MarshalIndent(flatRaw, "", "  "); mErr == nil {
-		flatUpdated = append(flatUpdated, '\n')
-		_ = writePhasedStateAtomic(flatPath, flatUpdated)
-	}
+// markRunStale delegates to rpi.MarkRunStaleInState.
+func markRunStale(sr staleRunEntry) error {
+	return rpi.MarkRunStaleInState(sr, sr.Root)
 }
 
-// markRunStale writes terminal metadata to the state file.
-func markRunStale(sr staleRunEntry) error {
-	data, err := os.ReadFile(sr.statePath)
-	if err != nil {
-		return fmt.Errorf("read state: %w", err)
-	}
-
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshal state: %w", err)
-	}
-
-	raw["terminal_status"] = "stale"
-	raw["terminal_reason"] = sr.reason
-	raw["terminated_at"] = time.Now().Format(time.RFC3339)
-
-	updated, err := json.MarshalIndent(raw, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal state: %w", err)
-	}
-	updated = append(updated, '\n')
-
-	if err := writePhasedStateAtomic(sr.statePath, updated); err != nil {
-		return fmt.Errorf("write state: %w", err)
-	}
-
-	flatPath := filepath.Join(sr.root, ".agents", "rpi", phasedStateFile)
-	updateFlatStateIfMatches(flatPath, sr.runID, sr.reason, raw["terminated_at"].(string))
-
-	return nil
+// updateFlatStateIfMatches delegates to rpi.UpdateFlatStateIfMatches.
+func updateFlatStateIfMatches(flatPath, runID, reason, terminatedAt string) {
+	rpi.UpdateFlatStateIfMatches(flatPath, runID, reason, terminatedAt)
 }
 
 // removeOrphanedWorktree removes a worktree directory and any legacy branch marker.
 func removeOrphanedWorktree(repoRoot, worktreePath, runID string) error {
-	// Safety: validate that worktreePath is a sibling of the repo root (same parent dir).
-	// Worktrees are created as ../repo-rpi-<id>/ — siblings of the repo, not children.
-	// This prevents corrupted state files from directing os.RemoveAll at unrelated paths.
-	repoParent := filepath.Dir(filepath.Clean(repoRoot))
-	wtParent := filepath.Dir(filepath.Clean(worktreePath))
-	if wtParent != repoParent {
-		return fmt.Errorf("worktree path %q is not a sibling of repo %q; refusing removal", worktreePath, repoRoot)
-	}
-	// Additional safety: never remove the repo root itself.
-	cleanWT := filepath.Clean(worktreePath)
-	if cleanWT == filepath.Clean(repoRoot) {
-		return fmt.Errorf("worktree path %q is the repo root; refusing removal", worktreePath)
+	// Safety validation is delegated to internal/rpi.
+	if err := rpi.ValidateWorktreeSibling(repoRoot, worktreePath); err != nil {
+		return err
 	}
 
 	// Force remove the worktree.

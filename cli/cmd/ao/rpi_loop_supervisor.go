@@ -865,15 +865,8 @@ type supervisorLease struct {
 	meta   supervisorLeaseMetadata
 }
 
-type supervisorLeaseMetadata struct {
-	RunID      string `json:"run_id"`
-	PID        int    `json:"pid"`
-	Host       string `json:"host"`
-	CWD        string `json:"cwd"`
-	AcquiredAt string `json:"acquired_at"`
-	RenewedAt  string `json:"renewed_at"`
-	ExpiresAt  string `json:"expires_at"`
-}
+// supervisorLeaseMetadata is a thin alias for rpi.SupervisorLeaseMetadata.
+type supervisorLeaseMetadata = cliRPI.SupervisorLeaseMetadata
 
 func acquireSupervisorLease(cwd, leasePath string, ttl time.Duration, runID string) (*supervisorLease, error) {
 	if runID == "" {

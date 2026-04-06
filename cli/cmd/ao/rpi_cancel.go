@@ -1,23 +1,40 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/rpi"
 	"github.com/spf13/cobra"
 )
+
+// parseCancelSignal wraps rpi.ParseCancelSignal.
+func parseCancelSignal(raw string) (syscall.Signal, error) { return rpi.ParseCancelSignal(raw) }
+
+// filterKillablePIDs wraps rpi.FilterKillablePIDs.
+func filterKillablePIDs(pids []int, selfPID int) []int {
+	return rpi.FilterKillablePIDs(pids, selfPID)
+}
+
+// dedupeInts wraps rpi.DedupeInts.
+func dedupeInts(in []int) []int { return rpi.DedupeInts(in) }
+
+// descendantPIDs wraps rpi.DescendantPIDs.
+func descendantPIDs(parentPID int, procs []rpi.ProcessInfo) []int {
+	return rpi.DescendantPIDs(parentPID, procs)
+}
+
+// processExists wraps rpi.ProcessExists.
+func processExists(pid int, procs []rpi.ProcessInfo) bool {
+	return rpi.ProcessExists(pid, procs)
+}
 
 var (
 	rpiCancelRunID  string
@@ -49,21 +66,11 @@ Examples:
 	rpiCmd.AddCommand(cancelCmd)
 }
 
-type processInfo struct {
-	PID     int
-	PPID    int
-	Command string
-}
+// processInfo is a thin alias for rpi.ProcessInfo used by cancel internals.
+type processInfo = rpi.ProcessInfo
 
-type cancelTarget struct {
-	Kind         string
-	RunID        string
-	Root         string
-	StatePath    string
-	LeasePath    string
-	WorktreePath string
-	PIDs         []int
-}
+// cancelTarget is a thin alias for rpi.CancelTarget used by cancel internals.
+type cancelTarget = rpi.CancelTarget
 
 func runRPICancel(cmd *cobra.Command, args []string) error {
 	runID := strings.TrimSpace(rpiCancelRunID)
@@ -97,7 +104,7 @@ func resolveCancelTargets() ([]cancelTarget, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get working directory: %w", err)
 	}
-	procs, err := listProcesses()
+	procs, err := rpi.ListProcesses()
 	if err != nil {
 		return nil, err
 	}
@@ -215,8 +222,7 @@ func discoverSupervisorLeaseTargets(root, runID string, procs []processInfo, see
 	if _, ok := seen[key]; ok {
 		return nil
 	}
-	pids := append([]int{meta.PID}, descendantPIDs(meta.PID, procs)...)
-	sort.Ints(pids)
+	pids := append([]int{meta.PID}, rpi.DescendantPIDs(meta.PID, procs)...)
 	seen[key] = struct{}{}
 
 	return []cancelTarget{{
@@ -224,7 +230,7 @@ func discoverSupervisorLeaseTargets(root, runID string, procs []processInfo, see
 		RunID:     meta.RunID,
 		Root:      root,
 		LeasePath: leasePath,
-		PIDs:      dedupeInts(pids),
+		PIDs:      rpi.DedupeInts(pids),
 	}}
 }
 
@@ -243,172 +249,22 @@ func loadActiveSupervisorLease(leasePath, runID string, procs []processInfo) (su
 	if runID != "" && meta.RunID != runID {
 		return supervisorLeaseMetadata{}, false
 	}
-	if supervisorLeaseMetadataExpired(meta, time.Now().UTC()) {
+	if rpi.SupervisorLeaseExpired(meta, time.Now().UTC()) {
 		return supervisorLeaseMetadata{}, false
 	}
-	if !processExists(meta.PID, procs) {
+	if !rpi.ProcessExists(meta.PID, procs) {
 		return supervisorLeaseMetadata{}, false
 	}
 	return meta, true
 }
 
-func supervisorLeaseMetadataExpired(meta supervisorLeaseMetadata, now time.Time) bool {
-	expiryRaw := strings.TrimSpace(meta.ExpiresAt)
-	if expiryRaw == "" {
-		// Backward compatibility for lock files without expiry metadata.
-		return false
-	}
-	expiry, err := time.Parse(time.RFC3339, expiryRaw)
-	if err != nil {
-		// Corrupted lease metadata is treated as stale.
-		return true
-	}
-	return now.After(expiry)
-}
-
 func collectRunProcessPIDs(state *phasedState, procs []processInfo) []int {
-	set := make(map[int]struct{})
-
-	addWithDescendants := func(pid int) {
-		if pid <= 1 || !processExists(pid, procs) {
-			return
-		}
-		set[pid] = struct{}{}
-		for _, child := range descendantPIDs(pid, procs) {
-			set[child] = struct{}{}
-		}
-	}
-
-	addWithDescendants(state.OrchestratorPID)
-
-	sessionNeedle := fmt.Sprintf("ao-rpi-%s-p", state.RunID)
-	for _, proc := range procs {
-		cmd := proc.Command
-		if strings.Contains(cmd, sessionNeedle) {
-			addWithDescendants(proc.PID)
-		}
-		if state.WorktreePath != "" && strings.Contains(cmd, state.WorktreePath) {
-			addWithDescendants(proc.PID)
-		}
-	}
-
-	var pids []int
-	for pid := range set {
-		pids = append(pids, pid)
-	}
-	sort.Ints(pids)
-	return pids
+	return rpi.CollectRunProcessPIDs(state.OrchestratorPID, state.RunID, state.WorktreePath, procs)
 }
 
-func filterKillablePIDs(pids []int, selfPID int) []int {
-	var out []int
-	for _, pid := range dedupeInts(pids) {
-		if pid <= 1 || pid == selfPID {
-			continue
-		}
-		out = append(out, pid)
-	}
-	sort.Ints(out)
-	return out
-}
-
-func parseCancelSignal(raw string) (syscall.Signal, error) {
-	switch strings.ToUpper(strings.TrimSpace(raw)) {
-	case "", "TERM", "SIGTERM":
-		return syscall.SIGTERM, nil
-	case "KILL", "SIGKILL":
-		return syscall.SIGKILL, nil
-	case "INT", "SIGINT":
-		return syscall.SIGINT, nil
-	default:
-		return 0, fmt.Errorf("unsupported signal %q (valid: TERM|KILL|INT)", raw)
-	}
-}
-
-func listProcesses() ([]processInfo, error) {
-	cmd := exec.Command("ps", "-axo", "pid=,ppid=,command=")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("list processes: %w", err)
-	}
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	var procs []processInfo
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		pid, err := strconv.Atoi(fields[0])
-		if err != nil {
-			continue
-		}
-		ppid, err := strconv.Atoi(fields[1])
-		if err != nil {
-			continue
-		}
-		procs = append(procs, processInfo{
-			PID:     pid,
-			PPID:    ppid,
-			Command: strings.Join(fields[2:], " "),
-		})
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("parse process list: %w", err)
-	}
-	return procs, nil
-}
-
-func processExists(pid int, procs []processInfo) bool {
-	for _, proc := range procs {
-		if proc.PID == pid {
-			return true
-		}
-	}
-	return false
-}
-
-func descendantPIDs(parentPID int, procs []processInfo) []int {
-	children := make(map[int][]int)
-	for _, proc := range procs {
-		children[proc.PPID] = append(children[proc.PPID], proc.PID)
-	}
-
-	var out []int
-	queue := []int{parentPID}
-	seen := map[int]struct{}{parentPID: {}}
-
-	for len(queue) > 0 {
-		pid := queue[0]
-		queue = queue[1:]
-		for _, child := range children[pid] {
-			if _, ok := seen[child]; ok {
-				continue
-			}
-			seen[child] = struct{}{}
-			out = append(out, child)
-			queue = append(queue, child)
-		}
-	}
-	sort.Ints(out)
-	return out
-}
-
-func dedupeInts(in []int) []int {
-	set := make(map[int]struct{}, len(in))
-	var out []int
-	for _, n := range in {
-		if _, ok := set[n]; ok {
-			continue
-		}
-		set[n] = struct{}{}
-		out = append(out, n)
-	}
-	sort.Ints(out)
-	return out
+// supervisorLeaseMetadataExpired delegates to rpi.SupervisorLeaseExpired.
+func supervisorLeaseMetadataExpired(meta supervisorLeaseMetadata, now time.Time) bool {
+	return rpi.SupervisorLeaseExpired(meta, now)
 }
 
 func markRunInterruptedByCancel(target cancelTarget) error {
@@ -418,38 +274,14 @@ func markRunInterruptedByCancel(target cancelTarget) error {
 	now := time.Now().Format(time.RFC3339)
 	reason := "cancelled by ao rpi cancel"
 
-	update := func(path string) error {
-		return patchStateWithCancelFields(path, reason, now)
-	}
-
-	if err := update(target.StatePath); err != nil {
+	if err := rpi.PatchStateWithCancelFields(target.StatePath, reason, now); err != nil {
 		return fmt.Errorf("update run state: %w", err)
 	}
 
-	return maybeCancelFlatState(target, update)
+	return maybeCancelFlatState(target, reason, now)
 }
 
-func patchStateWithCancelFields(path, reason, now string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	raw["terminal_status"] = "interrupted"
-	raw["terminal_reason"] = reason
-	raw["terminated_at"] = now
-	updated, err := json.MarshalIndent(raw, "", "  ")
-	if err != nil {
-		return err
-	}
-	updated = append(updated, '\n')
-	return writePhasedStateAtomic(path, updated)
-}
-
-func maybeCancelFlatState(target cancelTarget, update func(string) error) error {
+func maybeCancelFlatState(target cancelTarget, reason, now string) error {
 	flatPath := filepath.Join(target.Root, ".agents", "rpi", phasedStateFile)
 	flatData, err := os.ReadFile(flatPath)
 	if err != nil {
@@ -462,5 +294,5 @@ func maybeCancelFlatState(target cancelTarget, update func(string) error) error 
 	if runVal, _ := flatRaw["run_id"].(string); runVal != target.RunID {
 		return nil
 	}
-	return update(flatPath)
+	return rpi.PatchStateWithCancelFields(flatPath, reason, now)
 }
