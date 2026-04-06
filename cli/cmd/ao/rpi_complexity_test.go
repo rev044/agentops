@@ -163,13 +163,13 @@ func TestScoreGoal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := scoreGoal(tt.goal)
-			gotComplex := s.complexKeywords > 0
-			gotScope := s.scopeKeywords > 0
+			gotComplex := s.ComplexKeywords > 0
+			gotScope := s.ScopeKeywords > 0
 			if gotComplex != tt.wantComplex {
-				t.Errorf("scoreGoal(%q).complexKeywords > 0 = %v, want %v", tt.goal, gotComplex, tt.wantComplex)
+				t.Errorf("scoreGoal(%q).ComplexKeywords > 0 = %v, want %v", tt.goal, gotComplex, tt.wantComplex)
 			}
 			if gotScope != tt.wantScopeGlobal {
-				t.Errorf("scoreGoal(%q).scopeKeywords > 0 = %v, want %v", tt.goal, gotScope, tt.wantScopeGlobal)
+				t.Errorf("scoreGoal(%q).ScopeKeywords > 0 = %v, want %v", tt.goal, gotScope, tt.wantScopeGlobal)
 			}
 		})
 	}

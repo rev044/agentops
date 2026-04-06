@@ -8,41 +8,35 @@ import (
 	"strings"
 
 	"github.com/boshu2/agentops/cli/internal/autodev"
+	"github.com/boshu2/agentops/cli/internal/rpi"
 )
 
-const executionPacketFile = "execution-packet.json"
+const executionPacketFile = rpi.ExecutionPacketFile
+
+// executionPacketProgram is a thin alias for the internal type.
+type executionPacketProgram = rpi.ExecutionPacketProgram
 
 type executionPacket struct {
-	SchemaVersion      int                     `json:"schema_version"`
-	Objective          string                  `json:"objective"`
-	RunID              string                  `json:"run_id,omitempty"`
-	EpicID             string                  `json:"epic_id,omitempty"`
-	PlanPath           string                  `json:"plan_path,omitempty"`
-	ContractSurfaces   []string                `json:"contract_surfaces"`
-	ValidationCommands []string                `json:"validation_commands,omitempty"`
-	TrackerMode        string                  `json:"tracker_mode"`
-	TrackerHealth      *trackerHealth          `json:"tracker_health,omitempty"`
-	DoneCriteria       []string                `json:"done_criteria,omitempty"`
-	Complexity         string                  `json:"complexity,omitempty"`
-	ProofArtifacts     []string                `json:"proof_artifacts,omitempty"`
-	EvaluatorArtifacts map[string]string       `json:"evaluator_artifacts,omitempty"`
-	ProofUpdatedAt         string                  `json:"proof_updated_at,omitempty"`
-	AutodevProgram         *executionPacketProgram `json:"autodev_program,omitempty"`
-	MixedModeRequested     bool                    `json:"mixed_mode_requested,omitempty"`
-	MixedModeEffective     bool                    `json:"mixed_mode_effective,omitempty"`
-	PlannerVendor          string                  `json:"planner_vendor,omitempty"`
-	ReviewerVendor         string                  `json:"reviewer_vendor,omitempty"`
-	MixedModeDegradedReason string                 `json:"mixed_mode_degraded_reason,omitempty"`
-}
-
-type executionPacketProgram struct {
-	Path               string   `json:"path"`
-	MutableScope       []string `json:"mutable_scope,omitempty"`
-	ImmutableScope     []string `json:"immutable_scope,omitempty"`
-	ExperimentUnit     string   `json:"experiment_unit,omitempty"`
-	ValidationCommands []string `json:"validation_commands,omitempty"`
-	DecisionPolicy     []string `json:"decision_policy,omitempty"`
-	StopConditions     []string `json:"stop_conditions,omitempty"`
+	SchemaVersion           int                     `json:"schema_version"`
+	Objective               string                  `json:"objective"`
+	RunID                   string                  `json:"run_id,omitempty"`
+	EpicID                  string                  `json:"epic_id,omitempty"`
+	PlanPath                string                  `json:"plan_path,omitempty"`
+	ContractSurfaces        []string                `json:"contract_surfaces"`
+	ValidationCommands      []string                `json:"validation_commands,omitempty"`
+	TrackerMode             string                  `json:"tracker_mode"`
+	TrackerHealth           *trackerHealth          `json:"tracker_health,omitempty"`
+	DoneCriteria            []string                `json:"done_criteria,omitempty"`
+	Complexity              string                  `json:"complexity,omitempty"`
+	ProofArtifacts          []string                `json:"proof_artifacts,omitempty"`
+	EvaluatorArtifacts      map[string]string       `json:"evaluator_artifacts,omitempty"`
+	ProofUpdatedAt          string                  `json:"proof_updated_at,omitempty"`
+	AutodevProgram          *executionPacketProgram  `json:"autodev_program,omitempty"`
+	MixedModeRequested      bool                    `json:"mixed_mode_requested,omitempty"`
+	MixedModeEffective      bool                    `json:"mixed_mode_effective,omitempty"`
+	PlannerVendor           string                  `json:"planner_vendor,omitempty"`
+	ReviewerVendor          string                  `json:"reviewer_vendor,omitempty"`
+	MixedModeDegradedReason string                  `json:"mixed_mode_degraded_reason,omitempty"`
 }
 
 func writeExecutionPacketSeed(cwd string, state *phasedState) error {
