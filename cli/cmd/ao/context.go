@@ -1,18 +1,14 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -27,6 +23,16 @@ const (
 	defaultWatchdogMinutes = 20
 )
 
+// contextOptions snapshots package-level flag vars into a ContextOptions
+// struct so internal/context can be exercised through an explicit options
+// value rather than mutating globals.
+func contextOptions() contextbudget.ContextOptions {
+	return contextbudget.ContextOptions{
+		SessionID: contextSessionID, Prompt: contextPrompt, AgentName: contextAgentName,
+		MaxTokens: contextMaxTokens, WriteHandoff: contextWriteHandoff, AutoRestart: contextAutoRestart,
+	}
+}
+
 var (
 	contextSessionID      string
 	contextPrompt         string
@@ -35,18 +41,9 @@ var (
 	contextWriteHandoff   bool
 	contextAutoRestart    bool
 	contextWatchdogMinute int
-
-	filenameSanitizer   = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
-	contextIssuePattern = regexp.MustCompile(`(?i)\bag-[a-z0-9]+\b`)
 )
 
-type transcriptUsage struct {
-	InputTokens             int
-	CacheCreationInputToken int
-	CacheReadInputToken     int
-	Model                   string
-	Timestamp               time.Time
-}
+type transcriptUsage = contextbudget.TranscriptUsage
 
 type contextAssignment struct {
 	AgentName   string
@@ -302,7 +299,8 @@ func resolveGuardSessionID() (string, error) {
 
 // resolveGuardOptions returns maxTokens, watchdog, and agentName from flags/env.
 func resolveGuardOptions() (maxTokens int, watchdog time.Duration, agentName string) {
-	maxTokens = contextMaxTokens
+	opts := contextOptions()
+	maxTokens = opts.MaxTokens
 	if maxTokens <= 0 {
 		maxTokens = contextbudget.DefaultMaxTokens
 	}
@@ -310,7 +308,7 @@ func resolveGuardOptions() (maxTokens int, watchdog time.Duration, agentName str
 	if watchdog <= 0 {
 		watchdog = defaultWatchdogMinutes * time.Minute
 	}
-	agentName = strings.TrimSpace(contextAgentName)
+	agentName = strings.TrimSpace(opts.AgentName)
 	if agentName == "" {
 		agentName = strings.TrimSpace(os.Getenv("CLAUDE_AGENT_NAME"))
 	}
@@ -532,65 +530,20 @@ func ensureCriticalHandoff(cwd string, status contextSessionStatus, usage transc
 }
 
 func renderHandoffMarkdown(now time.Time, status contextSessionStatus, usage transcriptUsage, activeBead string, changedFiles []string) string {
-	hull := cmp.Or(strings.TrimSpace(status.Readiness), readinessForUsage(status.UsagePercent))
-	remaining := status.RemainingPercent
-	if remaining <= 0 && status.UsagePercent > 0 {
-		remaining = remainingPercent(status.UsagePercent)
-	}
-
-	var b strings.Builder
-	b.WriteString("# Auto-Handoff (Context Guard)\n\n")
-	fmt.Fprintf(&b, "**Timestamp:** %s\n", now.Format(time.RFC3339))
-	fmt.Fprintf(&b, "**Session:** %s\n", status.SessionID)
-	fmt.Fprintf(&b, "**Status:** %s (%.1f%%)\n", status.Status, status.UsagePercent*100)
-	fmt.Fprintf(&b, "**Hull:** %s (%.1f%% remaining)\n", hull, remaining*100)
-	fmt.Fprintf(&b, "**Action:** %s\n\n", status.Action)
-
-	b.WriteString("## Last Task\n")
-	b.WriteString(status.LastTask)
-	b.WriteString("\n\n")
-
-	b.WriteString("## Active Work\n")
-	b.WriteString(activeBead)
-	b.WriteString("\n\n")
-
-	b.WriteString("## Assignment\n")
-	fmt.Fprintf(&b, "- agent: %s\n", displayOrDash(status.AgentName))
-	fmt.Fprintf(&b, "- role: %s\n", displayOrDash(status.AgentRole))
-	fmt.Fprintf(&b, "- team: %s\n", displayOrDash(status.TeamName))
-	b.WriteString(fmt.Sprintf("- issue: %s\n", displayOrDash(status.IssueID)))
-	b.WriteString(fmt.Sprintf("- tmux target: %s\n\n", displayOrDash(status.TmuxTarget)))
-
-	b.WriteString("## Next Action\n")
-	b.WriteString("Start a fresh session, consume this handoff at startup, and continue from the listed task.\n\n")
-
-	b.WriteString("## Modified Files\n")
-	if len(changedFiles) == 0 {
-		b.WriteString("none\n\n")
-	} else {
-		for _, f := range changedFiles {
-			b.WriteString("- ")
-			b.WriteString(f)
-			b.WriteString("\n")
-		}
-		b.WriteString("\n")
-	}
-
-	b.WriteString("## Blockers\n")
-	if status.IsStale {
-		b.WriteString("- Session appears stale; watchdog recovery recommended.\n\n")
-	} else {
-		b.WriteString("none detected\n\n")
-	}
-
-	b.WriteString("## Telemetry\n")
-	b.WriteString(fmt.Sprintf("- model: %s\n", status.Model))
-	b.WriteString(fmt.Sprintf("- input_tokens: %d\n", usage.InputTokens))
-	b.WriteString(fmt.Sprintf("- cache_creation_input_tokens: %d\n", usage.CacheCreationInputToken))
-	b.WriteString(fmt.Sprintf("- cache_read_input_tokens: %d\n", usage.CacheReadInputToken))
-	b.WriteString(fmt.Sprintf("- estimated_usage: %d/%d\n", status.EstimatedUsage, status.MaxTokens))
-	b.WriteString(fmt.Sprintf("- recommendation: %s\n", status.Recommendation))
-	return b.String()
+	return contextbudget.RenderHandoffMarkdown(contextbudget.HandoffInputs{
+		Now: now, SessionID: status.SessionID, Status: status.Status,
+		UsagePercent: status.UsagePercent, Readiness: status.Readiness,
+		RemainingPercent: status.RemainingPercent, Action: status.Action,
+		LastTask: status.LastTask, ActiveBead: activeBead,
+		AgentName: status.AgentName, AgentRole: status.AgentRole,
+		TeamName: status.TeamName, IssueID: status.IssueID,
+		TmuxTarget: status.TmuxTarget, ChangedFiles: changedFiles,
+		IsStale: status.IsStale, Model: status.Model,
+		InputTokens: usage.InputTokens, CacheCreationInputToken: usage.CacheCreationInputToken,
+		CacheReadInputToken: usage.CacheReadInputToken,
+		EstimatedUsage: status.EstimatedUsage, MaxTokens: status.MaxTokens,
+		Recommendation: status.Recommendation,
+	})
 }
 
 func findPendingHandoffForSession(cwd, sessionID string) (handoffPath string, markerPath string, found bool, err error) {
@@ -629,235 +582,33 @@ func matchPendingHandoff(path, cwd, sessionID string) (string, string, bool) {
 	return marker.HandoffFile, toRepoRelative(cwd, path), true
 }
 
-// tailLineEnvelope is the JSON structure of a transcript line.
-type tailLineEnvelope struct {
-	Type      string `json:"type"`
-	Timestamp string `json:"timestamp"`
-	Message   struct {
-		Role    string          `json:"role"`
-		Model   string          `json:"model"`
-		Usage   json.RawMessage `json:"usage"`
-		Content json.RawMessage `json:"content"`
-	} `json:"message"`
-}
+type tailLineEnvelope = contextbudget.TailLineEnvelope
 
-// tailUsageEnvelope holds token counts from a transcript message.
-type tailUsageEnvelope struct {
-	InputTokens             int `json:"input_tokens"`
-	CacheCreationInputToken int `json:"cache_creation_input_tokens"`
-	CacheReadInputToken     int `json:"cache_read_input_tokens"`
-}
+func readSessionTail(path string) (transcriptUsage, string, time.Time, error) { return contextbudget.ReadSessionTail(path) }
 
-func readSessionTail(path string) (transcriptUsage, string, time.Time, error) {
-	tail, err := readFileTail(path, transcriptTailMaxBytes)
-	if err != nil {
-		return transcriptUsage{}, "", time.Time{}, err
-	}
+func extractTailUsageAndTask(lines []string) (transcriptUsage, string, time.Time) { return contextbudget.ExtractTailUsageAndTask(lines) }
 
-	lines, err := scanTailLines(tail)
-	if err != nil {
-		return transcriptUsage{}, "", time.Time{}, err
-	}
+func fixupTailTimestamps(path string, usage *transcriptUsage, newestTS *time.Time) { contextbudget.FixupTailTimestamps(path, usage, newestTS) }
 
-	usage, lastTask, newestTS := extractTailUsageAndTask(lines)
-	fixupTailTimestamps(path, &usage, &newestTS)
-	return usage, lastTask, newestTS, nil
-}
+func scanTailLines(data []byte) ([]string, error) { return contextbudget.ScanTailLines(data) }
 
-func extractTailUsageAndTask(lines []string) (transcriptUsage, string, time.Time) {
-	var usage transcriptUsage
-	var lastTask string
-	var newestTS time.Time
+func extractUsageFromTailEntry(entry tailLineEnvelope, ts time.Time) transcriptUsage { return contextbudget.ExtractUsageFromTailEntry(entry, ts) }
 
-	for i := len(lines) - 1; i >= 0; i-- {
-		raw := strings.TrimSpace(lines[i])
-		if raw == "" {
-			continue
-		}
-		var entry tailLineEnvelope
-		if err := json.Unmarshal([]byte(raw), &entry); err != nil {
-			continue
-		}
-		ts := parseTimestamp(entry.Timestamp)
-		if updateTailState(entry, ts, &usage, &lastTask, &newestTS) {
-			break
-		}
-	}
-	return usage, lastTask, newestTS
-}
+func extractTaskFromTailEntry(entry tailLineEnvelope) string { return contextbudget.ExtractTaskFromTailEntry(entry) }
 
-func fixupTailTimestamps(path string, usage *transcriptUsage, newestTS *time.Time) {
-	if newestTS.IsZero() {
-		if fi, err := os.Stat(path); err == nil {
-			*newestTS = fi.ModTime().UTC()
-		}
-	}
-	if usage.Timestamp.IsZero() {
-		usage.Timestamp = *newestTS
-	}
-}
+func updateTailState(entry tailLineEnvelope, ts time.Time, usage *transcriptUsage, lastTask *string, newestTS *time.Time) bool { return contextbudget.UpdateTailState(entry, ts, usage, lastTask, newestTS) }
 
-// scanTailLines reads all non-empty lines from a byte slice.
-func scanTailLines(data []byte) ([]string, error) {
-	lines := make([]string, 0, 2048)
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, scanner.Err()
-}
+func readFileTail(path string, maxBytes int64) ([]byte, error) { return contextbudget.ReadFileTail(path, maxBytes) }
 
-// extractUsageFromTailEntry parses token usage from a transcript entry, returning zero value if absent.
-func extractUsageFromTailEntry(entry tailLineEnvelope, ts time.Time) transcriptUsage {
-	if len(entry.Message.Usage) == 0 {
-		return transcriptUsage{}
-	}
-	var u tailUsageEnvelope
-	if err := json.Unmarshal(entry.Message.Usage, &u); err != nil {
-		return transcriptUsage{}
-	}
-	total := u.InputTokens + u.CacheCreationInputToken + u.CacheReadInputToken
-	if total == 0 {
-		return transcriptUsage{}
-	}
-	return transcriptUsage{
-		InputTokens:             u.InputTokens,
-		CacheCreationInputToken: u.CacheCreationInputToken,
-		CacheReadInputToken:     u.CacheReadInputToken,
-		Model:                   entry.Message.Model,
-		Timestamp:               ts,
-	}
-}
+func seekAndReadTail(f *os.File, size, maxBytes int64) ([]byte, error) { return contextbudget.SeekAndReadTail(f, size, maxBytes) }
 
-// extractTaskFromTailEntry returns the user message text, or empty string if not a user message.
-func extractTaskFromTailEntry(entry tailLineEnvelope) string {
-	if entry.Type != "user" || len(entry.Message.Content) == 0 {
-		return ""
-	}
-	return extractTextContent(entry.Message.Content)
-}
+func parseTimestamp(raw string) time.Time { return contextbudget.ParseTimestamp(raw) }
 
-// updateTailState updates usage, lastTask, and newestTS from one parsed tail entry.
-// Returns true when both usage and lastTask have been found (early-exit signal).
-func updateTailState(entry tailLineEnvelope, ts time.Time, usage *transcriptUsage, lastTask *string, newestTS *time.Time) bool {
-	if newestTS.IsZero() && !ts.IsZero() {
-		*newestTS = ts
-	}
-	if usage.Timestamp.IsZero() {
-		*usage = extractUsageFromTailEntry(entry, ts)
-	}
-	if *lastTask == "" {
-		*lastTask = extractTaskFromTailEntry(entry)
-	}
-	return !usage.Timestamp.IsZero() && *lastTask != ""
-}
+func extractTextContent(raw json.RawMessage) string { return contextbudget.ExtractTextContent(raw) }
 
-func readFileTail(path string, maxBytes int64) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = f.Close() }()
+func estimateTokens(text string) int { return contextbudget.EstimateTokensFromChars(text, InjectCharsPerToken) }
 
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	size := fi.Size()
-	if size == 0 {
-		return []byte{}, nil
-	}
-
-	return seekAndReadTail(f, size, maxBytes)
-}
-
-func seekAndReadTail(f *os.File, size, maxBytes int64) ([]byte, error) {
-	start := int64(0)
-	if size > maxBytes {
-		start = size - maxBytes
-	}
-	if _, err := f.Seek(start, io.SeekStart); err != nil {
-		return nil, err
-	}
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	if start > 0 {
-		if idx := bytes.IndexByte(data, '\n'); idx >= 0 && idx+1 < len(data) {
-			data = data[idx+1:]
-		}
-	}
-	return data, nil
-}
-
-func parseTimestamp(raw string) time.Time {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return time.Time{}
-	}
-	if ts, err := time.Parse(time.RFC3339Nano, raw); err == nil {
-		return ts.UTC()
-	}
-	if ts, err := time.Parse(time.RFC3339, raw); err == nil {
-		return ts.UTC()
-	}
-	return time.Time{}
-}
-
-func extractTextContent(raw json.RawMessage) string {
-	raw = bytes.TrimSpace(raw)
-	if len(raw) == 0 {
-		return ""
-	}
-
-	var plain string
-	if err := json.Unmarshal(raw, &plain); err == nil {
-		return normalizeLine(plain)
-	}
-
-	var arr []map[string]any
-	if err := json.Unmarshal(raw, &arr); err != nil {
-		return ""
-	}
-	for _, item := range arr {
-		txt, ok := item["text"].(string)
-		if ok && strings.TrimSpace(txt) != "" {
-			return normalizeLine(txt)
-		}
-	}
-	return ""
-}
-
-func estimateTokens(text string) int {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return 0
-	}
-	// Conservative coarse estimate: 1 token ~= InjectCharsPerToken chars.
-	n := len(text) / InjectCharsPerToken
-	if n < 1 {
-		return 1
-	}
-	return n
-}
-
-func actionForStatus(status string, stale bool) string {
-	if stale && status != string(contextbudget.StatusOptimal) {
-		return "recover_dead_session"
-	}
-	switch status {
-	case string(contextbudget.StatusCritical):
-		return "handoff_now"
-	case string(contextbudget.StatusWarning):
-		return "checkpoint_and_prepare_handoff"
-	default:
-		if stale {
-			return "investigate_stale_session"
-		}
-		return "continue"
-	}
-}
+func actionForStatus(status string, stale bool) string { return contextbudget.ActionForStatus(status, stale, string(contextbudget.StatusOptimal), string(contextbudget.StatusCritical), string(contextbudget.StatusWarning)) }
 
 func hookMessageForStatus(status contextSessionStatus) string {
 	switch status.Action {
@@ -1080,269 +831,52 @@ func maybeAutoRestartStaleSession(status contextSessionStatus) contextSessionSta
 	return status
 }
 
-func tmuxTargetAlive(target string) bool {
-	target = strings.TrimSpace(target)
-	if target == "" {
-		return false
-	}
-	ctx, cancel := contextWithTimeout(1200 * time.Millisecond)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "tmux", "has-session", "-t", target)
-	return cmd.Run() == nil
-}
+func tmuxTargetAlive(target string) bool { return contextbudget.TmuxTargetAlive(target) }
 
-func tmuxStartDetachedSession(sessionName string) error {
-	sessionName = strings.TrimSpace(sessionName)
-	if sessionName == "" {
-		return errors.New("missing tmux session name")
-	}
-	ctx, cancel := contextWithTimeout(1200 * time.Millisecond)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "tmux", "new-session", "-d", "-s", sessionName)
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return nil
-	}
-	if strings.TrimSpace(string(out)) != "" {
-		return errors.New(normalizeLine(string(out)))
-	}
-	return err
+func tmuxStartDetachedSession(sessionName string) error { return contextbudget.TmuxStartDetachedSession(sessionName) }
+
+func searchTeamConfig(cfgPath, agentName string) (teamConfigMember, bool) {
+	m, ok := contextbudget.SearchTeamConfigFile(cfgPath, agentName)
+	if !ok { return teamConfigMember{}, false }
+	return teamConfigMember{Name: m.Name, AgentType: m.AgentType, TmuxPane: m.TmuxPane}, true
 }
 
 func findTeamMemberByName(agentName string) (string, teamConfigMember, bool) {
-	agentName = strings.TrimSpace(agentName)
-	if agentName == "" {
-		return "", teamConfigMember{}, false
-	}
-	homeDir := strings.TrimSpace(os.Getenv("HOME"))
-	if homeDir == "" {
-		return "", teamConfigMember{}, false
-	}
-	teamsDir := filepath.Join(homeDir, ".claude", "teams")
-	entries, err := os.ReadDir(teamsDir)
-	if err != nil {
-		return "", teamConfigMember{}, false
-	}
-	slices.SortFunc(entries, func(a, b os.DirEntry) int { return cmp.Compare(a.Name(), b.Name()) })
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		if member, ok := searchTeamConfig(filepath.Join(teamsDir, entry.Name(), "config.json"), agentName); ok {
-			return entry.Name(), member, true
-		}
-	}
-	return "", teamConfigMember{}, false
+	team, m, ok := contextbudget.FindTeamMemberByName(agentName)
+	if !ok { return "", teamConfigMember{}, false }
+	return team, teamConfigMember{Name: m.Name, AgentType: m.AgentType, TmuxPane: m.TmuxPane}, true
 }
 
-func searchTeamConfig(cfgPath, agentName string) (teamConfigMember, bool) {
-	data, err := os.ReadFile(cfgPath)
-	if err != nil {
-		return teamConfigMember{}, false
-	}
-	var config teamConfigFile
-	if err := json.Unmarshal(data, &config); err != nil {
-		return teamConfigMember{}, false
-	}
-	for _, member := range config.Members {
-		if strings.EqualFold(strings.TrimSpace(member.Name), agentName) {
-			return member, true
-		}
-	}
-	return teamConfigMember{}, false
-}
+func inferAgentRole(agentName, explicitRole string) string { return contextbudget.InferAgentRole(agentName, explicitRole) }
 
-func inferAgentRole(agentName, explicitRole string) string {
-	if strings.TrimSpace(explicitRole) != "" {
-		return strings.TrimSpace(explicitRole)
-	}
-	agentName = strings.ToLower(strings.TrimSpace(agentName))
-	switch {
-	case agentName == "":
-		return ""
-	case strings.Contains(agentName, "admiral"),
-		strings.Contains(agentName, "captain"),
-		strings.Contains(agentName, "coordinator"),
-		strings.Contains(agentName, "orchestrator"),
-		strings.Contains(agentName, "quarterback"),
-		strings.Contains(agentName, "mayor"),
-		strings.Contains(agentName, "leader"),
-		strings.Contains(agentName, "lead"):
-		return "team-lead"
-	case strings.Contains(agentName, "red-cell"),
-		strings.Contains(agentName, "navigator"),
-		strings.Contains(agentName, "judge"),
-		strings.Contains(agentName, "reviewer"):
-		return "review"
-	case strings.Contains(agentName, "worker"),
-		strings.Contains(agentName, "crew"),
-		strings.Contains(agentName, "mate"):
-		return "worker"
-	default:
-		return "agent"
-	}
-}
+func remainingPercent(usagePercent float64) float64 { return contextbudget.RemainingPercent(usagePercent) }
 
-func remainingPercent(usagePercent float64) float64 {
-	remaining := 1 - usagePercent
-	switch {
-	case remaining < 0:
-		return 0
-	case remaining > 1:
-		return 1
-	default:
-		return remaining
-	}
-}
+func readinessForUsage(usagePercent float64) string { return contextbudget.ReadinessForUsage(usagePercent) }
 
-func readinessForUsage(usagePercent float64) string {
-	remaining := remainingPercent(usagePercent)
-	switch {
-	case remaining >= 0.75:
-		return contextReadinessGreen
-	case remaining >= 0.60:
-		return contextReadinessAmber
-	case remaining >= 0.40:
-		return contextReadinessRed
-	default:
-		return contextReadinessCritical
-	}
-}
+func readinessAction(readiness string) string { return contextbudget.ReadinessAction(readiness) }
 
-func readinessAction(readiness string) string {
-	switch readiness {
-	case contextReadinessGreen:
-		return "carry_on"
-	case contextReadinessAmber:
-		return "finish_current_scope"
-	case contextReadinessRed:
-		return "relief_on_station"
-	default:
-		return "immediate_relief"
-	}
-}
+func readinessRank(readiness string) int { return contextbudget.ReadinessRank(readiness) }
 
-func readinessRank(readiness string) int {
-	switch strings.TrimSpace(readiness) {
-	case contextReadinessCritical:
-		return 0
-	case contextReadinessRed:
-		return 1
-	case contextReadinessAmber:
-		return 2
-	case contextReadinessGreen:
-		return 3
-	default:
-		return 4
-	}
-}
+func extractIssueID(text string) string { return contextbudget.ExtractIssueID(text) }
 
-func extractIssueID(text string) string {
-	m := contextIssuePattern.FindString(strings.TrimSpace(text))
-	if m == "" {
-		return ""
-	}
-	return strings.ToLower(m)
-}
+func tmuxTargetFromPaneID(paneID string) string { return contextbudget.TmuxTargetFromPaneID(paneID) }
 
-func tmuxTargetFromPaneID(paneID string) string {
-	paneID = strings.TrimSpace(paneID)
-	if paneID == "" || paneID == "in-process" {
-		return ""
-	}
-	if idx := strings.LastIndex(paneID, "."); idx > 0 {
-		return paneID[:idx]
-	}
-	return paneID
-}
+func tmuxSessionFromTarget(target string) string { return contextbudget.TmuxSessionFromTarget(target) }
 
-func tmuxSessionFromTarget(target string) string {
-	target = strings.TrimSpace(target)
-	if target == "" {
-		return ""
-	}
-	if idx := strings.Index(target, ":"); idx > 0 {
-		return strings.TrimSpace(target[:idx])
-	}
-	return target
-}
+func displayOrDash(value string) string { return contextbudget.DisplayOrDash(value) }
 
-func displayOrDash(value string) string {
-	return cmp.Or(strings.TrimSpace(value), "-")
-}
+func gitChangedFiles(cwd string, limit int) []string { return contextbudget.GitChangedFiles(cwd, limit) }
 
-func gitChangedFiles(cwd string, limit int) []string {
-	out := runCommand(cwd, 1200*time.Millisecond, "git", "diff", "--name-only", "HEAD")
-	if strings.TrimSpace(out) == "" {
-		return nil
-	}
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	if len(lines) > limit {
-		lines = lines[:limit]
-	}
-	trimmed := make([]string, 0, len(lines))
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		if l != "" {
-			trimmed = append(trimmed, l)
-		}
-	}
-	return trimmed
-}
+func runCommand(cwd string, timeout time.Duration, name string, args ...string) string { return contextbudget.RunCommand(cwd, timeout, name, args...) }
 
-func runCommand(cwd string, timeout time.Duration, name string, args ...string) string {
-	ctx, cancel := contextWithTimeout(timeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = cwd
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
+func contextWithTimeout(timeout time.Duration) (context.Context, context.CancelFunc) { return contextbudget.WithTimeout(timeout) }
 
-func contextWithTimeout(timeout time.Duration) (context.Context, context.CancelFunc) {
-	if timeout <= 0 {
-		return context.WithCancel(context.Background())
-	}
-	return context.WithTimeout(context.Background(), timeout)
-}
+func sanitizeForFilename(input string) string { return contextbudget.SanitizeForFilename(input) }
 
-func sanitizeForFilename(input string) string {
-	return cmp.Or(strings.Trim(filenameSanitizer.ReplaceAllString(strings.TrimSpace(input), "-"), "-"), "session")
-}
+func toRepoRelative(cwd, fullPath string) string { return contextbudget.ToRepoRelative(cwd, fullPath) }
 
-func toRepoRelative(cwd, fullPath string) string {
-	if fullPath == "" {
-		return ""
-	}
-	rel, err := filepath.Rel(cwd, fullPath)
-	if err != nil {
-		return fullPath
-	}
-	return filepath.ToSlash(rel)
-}
+func normalizeLine(s string) string { return contextbudget.NormalizeLine(s) }
 
-func normalizeLine(s string) string {
-	s = strings.ReplaceAll(s, "\n", " ")
-	s = strings.ReplaceAll(s, "\r", " ")
-	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
-}
+func nonZeroOrDefault(value, fallback int) int { return contextbudget.NonZeroOrDefault(value, fallback) }
 
-func nonZeroOrDefault(value, fallback int) int {
-	if value > 0 {
-		return value
-	}
-	return fallback
-}
-
-func truncateDisplay(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	if max <= 3 {
-		return s[:max]
-	}
-	return s[:max-3] + "..."
-}
+func truncateDisplay(s string, max int) string { return contextbudget.TruncateDisplay(s, max) }
