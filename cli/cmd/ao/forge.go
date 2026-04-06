@@ -358,10 +358,7 @@ func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extr
 
 	msgCh, errCh := p.ParseChannel(f)
 	session = initSession(filePath)
-	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
-	}
+	state := forge.NewTranscriptState()
 
 	consumeTranscriptMessages(msgCh, session, extractor, state, quiet, w, totalLines)
 
@@ -373,7 +370,7 @@ func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extr
 		session.Date = info.ModTime().UTC()
 	}
 	finalizeTranscriptSession(session, state, fileSize)
-	if state.chatMessages == 0 {
+	if state.ChatMessages == 0 {
 		return nil, errTranscriptHasNoChatMessages
 	}
 
@@ -388,8 +385,8 @@ func consumeTranscriptMessages(msgCh <-chan types.TranscriptMessage, session *st
 		lineCount++
 		reportProgress(quiet, w, lineCount, totalLines, &lastProgress)
 		updateSessionMeta(session, msg)
-		if isConversationMessage(msg) {
-			state.chatMessages++
+		if forge.IsConversationMessage(msg.Type, msg.Role) {
+			state.ChatMessages++
 		}
 		extractMessageKnowledge(msg, extractor, state)
 		extractMessageRefs(msg, session, state)
@@ -422,16 +419,19 @@ func drainParseErrors(errCh <-chan error) error {
 }
 
 func finalizeTranscriptSession(session *storage.Session, state *transcriptState, fileSize int64) {
-	session.Summary = generateSummary(state.decisions, state.knowledge, session.Date)
-	session.Decisions = dedup(state.decisions)
-	session.Knowledge = dedup(state.knowledge)
-	session.FilesChanged = state.filesChanged
-	session.Issues = state.issues
-	session.Tokens = storage.TokenUsage{
-		Total:     int(fileSize / CharsPerToken),
-		Estimated: true,
-	}
-	session.SessionType = detectSessionTypeFromContent(session.Summary, state.knowledge, state.decisions)
+	forge.FinalizeTranscriptSession(
+		&session.Summary,
+		&session.Decisions,
+		&session.Knowledge,
+		&session.FilesChanged,
+		&session.Issues,
+		&session.Tokens.Total,
+		&session.Tokens.Estimated,
+		&session.SessionType,
+		state,
+		session.Date,
+		fileSize,
+	)
 }
 
 // detectSessionTypeFromContent infers session type from forged content.
@@ -439,16 +439,8 @@ func detectSessionTypeFromContent(summary string, knowledge, decisions []string)
 	return forge.DetectSessionTypeFromContent(summary, knowledge, decisions)
 }
 
-// transcriptState holds accumulated state during transcript processing.
-type transcriptState struct {
-	decisions    []string
-	knowledge    []string
-	filesChanged []string
-	issues       []string
-	seenFiles    map[string]bool
-	seenIssues   map[string]bool
-	chatMessages int
-}
+// transcriptState is a local alias for the extracted forge.TranscriptState.
+type transcriptState = forge.TranscriptState
 
 // initSession creates a new session with default values.
 func initSession(filePath string) *storage.Session {
@@ -479,66 +471,48 @@ func extractMessageKnowledge(msg types.TranscriptMessage, extractor *parser.Extr
 		text := extractSnippet(msg.Content, result.StartIndex, SnippetMaxLength)
 		switch result.Type {
 		case types.KnowledgeTypeDecision:
-			state.decisions = append(state.decisions, text)
+			state.Decisions = append(state.Decisions, text)
 		case types.KnowledgeTypeSolution, types.KnowledgeTypeLearning,
 			types.KnowledgeTypeFailure, types.KnowledgeTypeReference:
-			state.knowledge = append(state.knowledge, text)
+			state.Knowledge = append(state.Knowledge, text)
 		}
 	}
 }
 
 // extractMessageRefs extracts file paths and issue IDs from a message.
 func extractMessageRefs(msg types.TranscriptMessage, session *storage.Session, state *transcriptState) {
-	extractToolRefs(msg.Tools, session, state)
-	extractIssueRefs(msg.Content, state)
+	for _, tool := range msg.Tools {
+		if tool.Name != "" && tool.Name != "tool_result" {
+			session.ToolCalls[tool.Name]++
+		}
+		forge.ExtractFilePathsFromTool(tool.Input, state)
+	}
+	forge.ExtractIssueRefs(msg.Content, state)
 }
 
-// extractToolRefs extracts tool calls and file paths from tool invocations.
 func extractToolRefs(tools []types.ToolCall, session *storage.Session, state *transcriptState) {
 	for _, tool := range tools {
 		if tool.Name != "" && tool.Name != "tool_result" {
 			session.ToolCalls[tool.Name]++
 		}
-		extractFilePathsFromTool(tool, state)
+		forge.ExtractFilePathsFromTool(tool.Input, state)
 	}
 }
 
-// extractFilePathsFromTool extracts file paths from a tool's input parameters.
 func extractFilePathsFromTool(tool types.ToolCall, state *transcriptState) {
-	if tool.Input == nil {
-		return
-	}
-	if fp, ok := tool.Input["file_path"].(string); ok && !state.seenFiles[fp] {
-		state.filesChanged = append(state.filesChanged, fp)
-		state.seenFiles[fp] = true
-	}
-	if fp, ok := tool.Input["path"].(string); ok && !state.seenFiles[fp] {
-		state.filesChanged = append(state.filesChanged, fp)
-		state.seenFiles[fp] = true
-	}
-	if fp, ok := tool.Input["filePath"].(string); ok && !state.seenFiles[fp] {
-		state.filesChanged = append(state.filesChanged, fp)
-		state.seenFiles[fp] = true
-	}
+	forge.ExtractFilePathsFromTool(tool.Input, state)
 }
 
 func isConversationMessage(msg types.TranscriptMessage) bool {
-	return msg.Type == "user" || msg.Type == "assistant" || msg.Role == "user" || msg.Role == "assistant"
+	return forge.IsConversationMessage(msg.Type, msg.Role)
 }
 
 func inferSessionIDFromPath(filePath string) string {
 	return forge.InferSessionIDFromPath(filePath)
 }
 
-// extractIssueRefs extracts issue IDs from message content.
 func extractIssueRefs(content string, state *transcriptState) {
-	ids := extractIssueIDs(content)
-	for _, id := range ids {
-		if !state.seenIssues[id] {
-			state.issues = append(state.issues, id)
-			state.seenIssues[id] = true
-		}
-	}
+	forge.ExtractIssueRefs(content, state)
 }
 
 // generateSummary creates a session summary from extracted content.
@@ -730,10 +704,7 @@ func processMarkdown(filePath string, extractor *parser.Extractor, quiet bool) (
 	// Split by headings (## or #) into sections
 	sections := splitMarkdownSections(content)
 
-	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
-	}
+	state := forge.NewTranscriptState()
 
 	for i, section := range sections {
 		if len(section) == 0 {
@@ -753,10 +724,10 @@ func processMarkdown(filePath string, extractor *parser.Extractor, quiet bool) (
 		extractIssueRefs(section, state)
 	}
 
-	session.Summary = generateSummary(state.decisions, state.knowledge, session.Date)
-	session.Decisions = dedup(state.decisions)
-	session.Knowledge = dedup(state.knowledge)
-	session.Issues = state.issues
+	session.Summary = generateSummary(state.Decisions, state.Knowledge, session.Date)
+	session.Decisions = dedup(state.Decisions)
+	session.Knowledge = dedup(state.Knowledge)
+	session.Issues = state.Issues
 
 	return session, nil
 }

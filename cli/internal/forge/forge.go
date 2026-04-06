@@ -253,3 +253,77 @@ func CollectTranscriptCandidates(projectsDir string) ([]FileWithTime, error) {
 	})
 	return candidates, err
 }
+
+// TranscriptState holds accumulated state during transcript processing.
+type TranscriptState struct {
+	Decisions    []string
+	Knowledge    []string
+	FilesChanged []string
+	Issues       []string
+	SeenFiles    map[string]bool
+	SeenIssues   map[string]bool
+	ChatMessages int
+}
+
+// NewTranscriptState creates a zero-value TranscriptState with initialized maps.
+func NewTranscriptState() *TranscriptState {
+	return &TranscriptState{
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
+	}
+}
+
+// IsConversationMessage reports whether a transcript message is user or assistant chat.
+func IsConversationMessage(msgType, msgRole string) bool {
+	return msgType == "user" || msgType == "assistant" || msgRole == "user" || msgRole == "assistant"
+}
+
+// ExtractFilePathsFromTool extracts file paths from a tool call's input parameters
+// and appends any new paths to state.
+func ExtractFilePathsFromTool(toolInput map[string]any, state *TranscriptState) {
+	if toolInput == nil {
+		return
+	}
+	for _, key := range []string{"file_path", "path", "filePath"} {
+		if fp, ok := toolInput[key].(string); ok && !state.SeenFiles[fp] {
+			state.FilesChanged = append(state.FilesChanged, fp)
+			state.SeenFiles[fp] = true
+		}
+	}
+}
+
+// ExtractIssueRefs extracts issue IDs from content and appends new ones to state.
+func ExtractIssueRefs(content string, state *TranscriptState) {
+	ids := ExtractIssueIDs(content)
+	for _, id := range ids {
+		if !state.SeenIssues[id] {
+			state.Issues = append(state.Issues, id)
+			state.SeenIssues[id] = true
+		}
+	}
+}
+
+// FinalizeTranscriptSession populates session summary, decisions, knowledge,
+// files, issues, tokens, and session type from the accumulated state.
+func FinalizeTranscriptSession(
+	summary *string,
+	decisions *[]string,
+	knowledge *[]string,
+	filesChanged *[]string,
+	issues *[]string,
+	tokenTotal *int,
+	tokenEstimated *bool,
+	sessionType *string,
+	state *TranscriptState,
+	date time.Time,
+	fileSize int64,
+) {
+	*summary = GenerateSummary(state.Decisions, state.Knowledge, date)
+	*decisions = Dedup(state.Decisions)
+	*knowledge = Dedup(state.Knowledge)
+	*filesChanged = state.FilesChanged
+	*issues = state.Issues
+	*tokenTotal = int(fileSize / CharsPerToken)
+	*tokenEstimated = true
+	*sessionType = DetectSessionTypeFromContent(*summary, state.Knowledge, state.Decisions)
+}

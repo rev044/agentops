@@ -317,38 +317,17 @@ func validateArtifact(path, minMaturity string, minUtility float64, minFeedback 
 	result.FeedbackCount = meta.FeedbackCount
 	result.Tempered = meta.Tempered
 
-	// Validate required fields
-	if meta.ID == "" {
+	// Delegate pure validation to lifecycle package
+	lm := lifecycle.ArtifactMeta{
+		ID: meta.ID, Maturity: string(meta.Maturity), Utility: meta.Utility,
+		Confidence: meta.Confidence, FeedbackCount: meta.FeedbackCount,
+		SchemaVersion: meta.SchemaVersion, Tempered: meta.Tempered,
+	}
+	issues, warnings := lifecycle.ValidateArtifactMeta(lm, minMaturity, minUtility, minFeedback)
+	result.Issues = append(result.Issues, issues...)
+	result.Warnings = append(result.Warnings, warnings...)
+	if len(issues) > 0 {
 		result.Valid = false
-		result.Issues = append(result.Issues, "missing ID")
-	}
-	if meta.SchemaVersion == 0 {
-		result.Warnings = append(result.Warnings, "missing schema_version (add 'Schema Version: 1')")
-	}
-
-	// Validate maturity threshold
-	maturityOrder := map[types.Maturity]int{
-		types.MaturityProvisional: 1,
-		types.MaturityCandidate:   2,
-		types.MaturityEstablished: 3,
-	}
-	minMaturityLevel := maturityOrder[types.Maturity(minMaturity)]
-	currentMaturityLevel := maturityOrder[meta.Maturity]
-	if currentMaturityLevel < minMaturityLevel {
-		result.Valid = false
-		result.Issues = append(result.Issues, fmt.Sprintf("maturity %s below minimum %s", meta.Maturity, minMaturity))
-	}
-
-	// Validate utility threshold
-	if meta.Utility < minUtility {
-		result.Valid = false
-		result.Issues = append(result.Issues, fmt.Sprintf("utility %.2f below minimum %.2f", meta.Utility, minUtility))
-	}
-
-	// Validate feedback count
-	if meta.FeedbackCount < minFeedback {
-		result.Valid = false
-		result.Issues = append(result.Issues, fmt.Sprintf("feedback count %d below minimum %d", meta.FeedbackCount, minFeedback))
 	}
 
 	return result
@@ -439,35 +418,39 @@ func parseMarkdownField(line, field string) (string, bool) {
 
 // applyMarkdownLine applies a single parsed markdown line to the metadata.
 func applyMarkdownLine(line string, meta *artifactMetadata) {
-	if val, ok := parseMarkdownField(line, "ID"); ok {
-		meta.ID = val
+	lm := lifecycle.ArtifactMeta{
+		ID: meta.ID, Maturity: string(meta.Maturity), Utility: meta.Utility,
+		Confidence: meta.Confidence, SchemaVersion: meta.SchemaVersion, Tempered: meta.Tempered,
 	}
-	if val, ok := parseMarkdownField(line, "Maturity"); ok {
-		meta.Maturity = types.Maturity(strings.ToLower(val))
-	}
-	if val, ok := parseMarkdownField(line, "Utility"); ok {
-		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-		fmt.Sscanf(val, "%f", &meta.Utility) // #nosec G104
-	}
-	if val, ok := parseMarkdownField(line, "Confidence"); ok {
-		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-		fmt.Sscanf(val, "%f", &meta.Confidence) // #nosec G104
-	}
-	if val, ok := parseMarkdownField(line, "Schema Version"); ok {
-		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-		fmt.Sscanf(val, "%d", &meta.SchemaVersion) // #nosec G104
-	}
-	if val, ok := parseMarkdownField(line, "Status"); ok {
-		if strings.ToLower(val) == "tempered" || strings.ToLower(val) == "locked" {
-			meta.Tempered = true
-		}
-	}
+	lifecycle.ApplyMarkdownLine(line, &lm)
+	meta.ID = lm.ID
+	meta.Maturity = types.Maturity(lm.Maturity)
+	meta.Utility = lm.Utility
+	meta.Confidence = lm.Confidence
+	meta.SchemaVersion = lm.SchemaVersion
+	meta.Tempered = lm.Tempered
 }
 
 // parseMarkdownMetadata extracts metadata from markdown content.
 func parseMarkdownMetadata(content string, meta *artifactMetadata) {
-	for _, line := range strings.Split(content, "\n") {
-		applyMarkdownLine(strings.TrimSpace(line), meta)
+	lm := lifecycle.ParseMarkdownMeta(content)
+	if lm.ID != "" {
+		meta.ID = lm.ID
+	}
+	if lm.Maturity != "" {
+		meta.Maturity = types.Maturity(lm.Maturity)
+	}
+	if lm.Utility != 0 {
+		meta.Utility = lm.Utility
+	}
+	if lm.Confidence != 0 {
+		meta.Confidence = lm.Confidence
+	}
+	if lm.SchemaVersion != 0 {
+		meta.SchemaVersion = lm.SchemaVersion
+	}
+	if lm.Tempered {
+		meta.Tempered = true
 	}
 }
 
@@ -612,52 +595,16 @@ func isArtifactFile(name string) bool {
 	return lifecycle.IsArtifactFile(name)
 }
 
-// expandDirectoryRecursive walks a directory recursively collecting artifact files.
 func expandDirectoryRecursive(baseDir, dir string) ([]string, error) {
-	var files []string
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !isContainedPath(baseDir, path) {
-			return nil
-		}
-		if isArtifactFile(info.Name()) {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return files, err
+	return lifecycle.ExpandDirectoryRecursive(baseDir, dir)
 }
 
-// expandDirectoryFlat collects artifact files from a directory (non-recursive).
-func expandDirectoryFlat(dir string) []string {
-	var files []string
-	entries, _ := os.ReadDir(dir)
-	for _, e := range entries {
-		if !e.IsDir() && isArtifactFile(e.Name()) {
-			files = append(files, filepath.Join(dir, e.Name()))
-		}
-	}
-	return files
-}
+func expandDirectoryFlat(dir string) []string { return lifecycle.ExpandDirectoryFlat(dir) }
 
-// expandGlobPattern expands a glob pattern, filtering results to baseDir.
 func expandGlobPattern(baseDir, pattern string) ([]string, error) {
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pattern %q: %w", pattern, err)
-	}
-	var files []string
-	for _, match := range matches {
-		if isContainedPath(baseDir, match) {
-			files = append(files, match)
-		}
-	}
-	return files, nil
+	return lifecycle.ExpandGlobPattern(baseDir, pattern)
 }
 
-// expandDirectory expands a directory pattern based on recursive flag.
 func expandDirectory(baseDir, dir string) ([]string, error) {
 	if temperRecursive {
 		return expandDirectoryRecursive(baseDir, dir)
@@ -665,46 +612,13 @@ func expandDirectory(baseDir, dir string) ([]string, error) {
 	return expandDirectoryFlat(dir), nil
 }
 
-// expandSinglePattern expands a single file pattern.
 func expandSinglePattern(baseDir, pattern string) ([]string, error) {
-	if !filepath.IsAbs(pattern) {
-		pattern = filepath.Join(baseDir, pattern)
-	}
-
-	if !isContainedPath(baseDir, pattern) {
-		return nil, fmt.Errorf("path %q is outside allowed directory", pattern)
-	}
-
-	info, err := os.Stat(pattern)
-	if err == nil && info.IsDir() {
-		return expandDirectory(baseDir, pattern)
-	}
-
-	matches, err := expandGlobPattern(baseDir, pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(matches) == 0 {
-		if _, err := os.Stat(pattern); err == nil {
-			return []string{pattern}, nil
-		}
-	}
-
-	return matches, nil
+	return lifecycle.ExpandSinglePattern(baseDir, pattern, temperRecursive)
 }
 
 // expandFilePatterns expands glob patterns and handles recursive flag.
 func expandFilePatterns(baseDir string, patterns []string) ([]string, error) {
-	var files []string
-	for _, pattern := range patterns {
-		expanded, err := expandSinglePattern(baseDir, pattern)
-		if err != nil {
-			return nil, err
-		}
-		files = append(files, expanded...)
-	}
-	return files, nil
+	return lifecycle.ExpandFilePatterns(baseDir, patterns, temperRecursive)
 }
 
 // printValidationResults prints validation results in table format.

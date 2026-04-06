@@ -511,10 +511,10 @@ func TestExtractFilePathsFromTool(t *testing.T) {
 				"file_path": "/some/path/file.go",
 			},
 		}
-		state := &transcriptState{seenFiles: make(map[string]bool)}
+		state := &transcriptState{SeenFiles: make(map[string]bool)}
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 1 || state.filesChanged[0] != "/some/path/file.go" {
-			t.Errorf("expected filesChanged=[/some/path/file.go], got %v", state.filesChanged)
+		if len(state.FilesChanged) != 1 || state.FilesChanged[0] != "/some/path/file.go" {
+			t.Errorf("expected filesChanged=[/some/path/file.go], got %v", state.FilesChanged)
 		}
 	})
 
@@ -525,32 +525,32 @@ func TestExtractFilePathsFromTool(t *testing.T) {
 				"path": "/another/path.sh",
 			},
 		}
-		state := &transcriptState{seenFiles: make(map[string]bool)}
+		state := &transcriptState{SeenFiles: make(map[string]bool)}
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 1 || state.filesChanged[0] != "/another/path.sh" {
-			t.Errorf("expected filesChanged=[/another/path.sh], got %v", state.filesChanged)
+		if len(state.FilesChanged) != 1 || state.FilesChanged[0] != "/another/path.sh" {
+			t.Errorf("expected filesChanged=[/another/path.sh], got %v", state.FilesChanged)
 		}
 	})
 
 	t.Run("deduplicates seen files", func(t *testing.T) {
-		state := &transcriptState{seenFiles: make(map[string]bool)}
+		state := &transcriptState{SeenFiles: make(map[string]bool)}
 		tool := types.ToolCall{
 			Name:  "Read",
 			Input: map[string]any{"file_path": "/dup.go"},
 		}
 		extractFilePathsFromTool(tool, state)
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 1 {
-			t.Errorf("expected 1 file after dedup, got %d", len(state.filesChanged))
+		if len(state.FilesChanged) != 1 {
+			t.Errorf("expected 1 file after dedup, got %d", len(state.FilesChanged))
 		}
 	})
 
 	t.Run("nil input is skipped", func(t *testing.T) {
 		tool := types.ToolCall{Name: "Bash", Input: nil}
-		state := &transcriptState{seenFiles: make(map[string]bool)}
+		state := &transcriptState{SeenFiles: make(map[string]bool)}
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 0 {
-			t.Errorf("expected no files for nil input, got %v", state.filesChanged)
+		if len(state.FilesChanged) != 0 {
+			t.Errorf("expected no files for nil input, got %v", state.FilesChanged)
 		}
 	})
 }
@@ -561,26 +561,26 @@ func TestExtractFilePathsFromTool(t *testing.T) {
 
 func TestExtractIssueRefs(t *testing.T) {
 	t.Run("extracts issue IDs from content", func(t *testing.T) {
-		state := &transcriptState{seenIssues: make(map[string]bool)}
+		state := &transcriptState{SeenIssues: make(map[string]bool)}
 		extractIssueRefs("Fixed ol-0001 and ag-m0r in this session", state)
-		if len(state.issues) != 2 {
-			t.Errorf("expected 2 issues, got %v", state.issues)
+		if len(state.Issues) != 2 {
+			t.Errorf("expected 2 issues, got %v", state.Issues)
 		}
 	})
 
 	t.Run("deduplicates repeated issue IDs", func(t *testing.T) {
-		state := &transcriptState{seenIssues: make(map[string]bool)}
+		state := &transcriptState{SeenIssues: make(map[string]bool)}
 		extractIssueRefs("ol-0001 and ol-0001 again", state)
-		if len(state.issues) != 1 {
-			t.Errorf("expected 1 issue after dedup, got %v", state.issues)
+		if len(state.Issues) != 1 {
+			t.Errorf("expected 1 issue after dedup, got %v", state.Issues)
 		}
 	})
 
 	t.Run("no issues in content leaves state empty", func(t *testing.T) {
-		state := &transcriptState{seenIssues: make(map[string]bool)}
+		state := &transcriptState{SeenIssues: make(map[string]bool)}
 		extractIssueRefs("no issue refs here", state)
-		if len(state.issues) != 0 {
-			t.Errorf("expected 0 issues, got %v", state.issues)
+		if len(state.Issues) != 0 {
+			t.Errorf("expected 0 issues, got %v", state.Issues)
 		}
 	})
 }
@@ -592,7 +592,7 @@ func TestExtractIssueRefs(t *testing.T) {
 func TestExtractToolRefs(t *testing.T) {
 	t.Run("counts tool calls in session", func(t *testing.T) {
 		session := &storage.Session{ToolCalls: make(map[string]int)}
-		state := &transcriptState{seenFiles: make(map[string]bool)}
+		state := &transcriptState{SeenFiles: make(map[string]bool)}
 		tools := []types.ToolCall{
 			{Name: "Read", Input: map[string]any{"file_path": "/a.go"}},
 			{Name: "Bash", Input: nil},
@@ -605,14 +605,14 @@ func TestExtractToolRefs(t *testing.T) {
 		if session.ToolCalls["Bash"] != 1 {
 			t.Errorf("expected Bash count=1, got %d", session.ToolCalls["Bash"])
 		}
-		if len(state.filesChanged) != 2 {
-			t.Errorf("expected 2 files, got %v", state.filesChanged)
+		if len(state.FilesChanged) != 2 {
+			t.Errorf("expected 2 files, got %v", state.FilesChanged)
 		}
 	})
 
 	t.Run("tool_result name is not counted", func(t *testing.T) {
 		session := &storage.Session{ToolCalls: make(map[string]int)}
-		state := &transcriptState{seenFiles: make(map[string]bool)}
+		state := &transcriptState{SeenFiles: make(map[string]bool)}
 		tools := []types.ToolCall{{Name: "tool_result"}}
 		extractToolRefs(tools, session, state)
 		if _, ok := session.ToolCalls["tool_result"]; ok {
@@ -1005,10 +1005,10 @@ func TestForge_FinalizeTranscriptSession(t *testing.T) {
 			Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
 		}
 		state := &transcriptState{
-			decisions:    []string{"dec-a", "dec-b", "dec-a"}, // has duplicate
-			knowledge:    []string{"know-x", "know-y", "know-x"},
-			filesChanged: []string{"/a.go", "/b.go"},
-			issues:       []string{"ol-001"},
+			Decisions:    []string{"dec-a", "dec-b", "dec-a"}, // has duplicate
+			Knowledge:    []string{"know-x", "know-y", "know-x"},
+			FilesChanged: []string{"/a.go", "/b.go"},
+			Issues:       []string{"ol-001"},
 		}
 
 		finalizeTranscriptSession(session, state, 4000)
@@ -1288,8 +1288,8 @@ func TestForge_ConsumeTranscriptMessages(t *testing.T) {
 		session := initSession("test.jsonl")
 		extractor := parser.NewExtractor()
 		state := &transcriptState{
-			seenFiles:  make(map[string]bool),
-			seenIssues: make(map[string]bool),
+			SeenFiles:  make(map[string]bool),
+			SeenIssues: make(map[string]bool),
 		}
 
 		var buf bytes.Buffer
@@ -1304,12 +1304,12 @@ func TestForge_ConsumeTranscriptMessages(t *testing.T) {
 			t.Errorf("session.Date = %v, want %v", session.Date, ts)
 		}
 		// Issue should be extracted
-		if len(state.issues) != 1 || state.issues[0] != "ol-0001" {
-			t.Errorf("issues = %v, want [ol-0001]", state.issues)
+		if len(state.Issues) != 1 || state.Issues[0] != "ol-0001" {
+			t.Errorf("issues = %v, want [ol-0001]", state.Issues)
 		}
 		// File from tool should be extracted
-		if len(state.filesChanged) != 1 {
-			t.Errorf("filesChanged = %v, want 1 file", state.filesChanged)
+		if len(state.FilesChanged) != 1 {
+			t.Errorf("filesChanged = %v, want 1 file", state.FilesChanged)
 		}
 		// Quiet mode — no output
 		if buf.Len() != 0 {
@@ -1324,8 +1324,8 @@ func TestForge_ConsumeTranscriptMessages(t *testing.T) {
 		session := initSession("empty.jsonl")
 		extractor := parser.NewExtractor()
 		state := &transcriptState{
-			seenFiles:  make(map[string]bool),
-			seenIssues: make(map[string]bool),
+			SeenFiles:  make(map[string]bool),
+			SeenIssues: make(map[string]bool),
 		}
 
 		var buf bytes.Buffer
@@ -1348,7 +1348,7 @@ func TestForge_ExtractMessageKnowledge(t *testing.T) {
 		msg := types.TranscriptMessage{Content: ""}
 		state := &transcriptState{}
 		extractMessageKnowledge(msg, extractor, state)
-		if len(state.decisions) != 0 || len(state.knowledge) != 0 {
+		if len(state.Decisions) != 0 || len(state.Knowledge) != 0 {
 			t.Error("expected no extractions for empty content")
 		}
 	})
@@ -1361,7 +1361,7 @@ func TestForge_ExtractMessageKnowledge(t *testing.T) {
 		state := &transcriptState{}
 		extractMessageKnowledge(msg, extractor, state)
 		// The extractor should find at least one result for "decided to"
-		if len(state.decisions) == 0 && len(state.knowledge) == 0 {
+		if len(state.Decisions) == 0 && len(state.Knowledge) == 0 {
 			t.Log("No extraction from 'decided to' — may depend on exact extractor patterns; skipping strict check")
 		}
 	})
@@ -1375,8 +1375,8 @@ func TestForge_ExtractMessageRefs(t *testing.T) {
 	t.Run("extracts both tools and issues", func(t *testing.T) {
 		session := &storage.Session{ToolCalls: make(map[string]int)}
 		state := &transcriptState{
-			seenFiles:  make(map[string]bool),
-			seenIssues: make(map[string]bool),
+			SeenFiles:  make(map[string]bool),
+			SeenIssues: make(map[string]bool),
 		}
 
 		msg := types.TranscriptMessage{
@@ -1391,19 +1391,19 @@ func TestForge_ExtractMessageRefs(t *testing.T) {
 		if session.ToolCalls["Edit"] != 1 {
 			t.Errorf("ToolCalls[Edit] = %d, want 1", session.ToolCalls["Edit"])
 		}
-		if len(state.filesChanged) != 1 {
-			t.Errorf("filesChanged = %v, want 1 file", state.filesChanged)
+		if len(state.FilesChanged) != 1 {
+			t.Errorf("filesChanged = %v, want 1 file", state.FilesChanged)
 		}
-		if len(state.issues) != 1 || state.issues[0] != "ag-m0r" {
-			t.Errorf("issues = %v, want [ag-m0r]", state.issues)
+		if len(state.Issues) != 1 || state.Issues[0] != "ag-m0r" {
+			t.Errorf("issues = %v, want [ag-m0r]", state.Issues)
 		}
 	})
 
 	t.Run("no tools and no issues leaves state empty", func(t *testing.T) {
 		session := &storage.Session{ToolCalls: make(map[string]int)}
 		state := &transcriptState{
-			seenFiles:  make(map[string]bool),
-			seenIssues: make(map[string]bool),
+			SeenFiles:  make(map[string]bool),
+			SeenIssues: make(map[string]bool),
 		}
 
 		msg := types.TranscriptMessage{Content: "Just some text with no refs"}
@@ -1412,8 +1412,8 @@ func TestForge_ExtractMessageRefs(t *testing.T) {
 		if len(session.ToolCalls) != 0 {
 			t.Errorf("expected no tool calls, got %v", session.ToolCalls)
 		}
-		if len(state.issues) != 0 {
-			t.Errorf("expected no issues, got %v", state.issues)
+		if len(state.Issues) != 0 {
+			t.Errorf("expected no issues, got %v", state.Issues)
 		}
 	})
 }

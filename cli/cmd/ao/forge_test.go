@@ -581,49 +581,49 @@ func TestForge_updateSessionMeta(t *testing.T) {
 func TestForge_extractFilePathsFromTool(t *testing.T) {
 	t.Run("file_path input", func(t *testing.T) {
 		state := &transcriptState{
-			seenFiles: make(map[string]bool),
+			SeenFiles: make(map[string]bool),
 		}
 		tool := types.ToolCall{
 			Name:  "Read",
 			Input: map[string]any{"file_path": "/src/main.go"},
 		}
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 1 || state.filesChanged[0] != "/src/main.go" {
-			t.Errorf("expected [/src/main.go], got %v", state.filesChanged)
+		if len(state.FilesChanged) != 1 || state.FilesChanged[0] != "/src/main.go" {
+			t.Errorf("expected [/src/main.go], got %v", state.FilesChanged)
 		}
 	})
 
 	t.Run("path input", func(t *testing.T) {
 		state := &transcriptState{
-			seenFiles: make(map[string]bool),
+			SeenFiles: make(map[string]bool),
 		}
 		tool := types.ToolCall{
 			Name:  "Glob",
 			Input: map[string]any{"path": "/src/"},
 		}
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 1 {
-			t.Errorf("expected 1 file, got %d", len(state.filesChanged))
+		if len(state.FilesChanged) != 1 {
+			t.Errorf("expected 1 file, got %d", len(state.FilesChanged))
 		}
 	})
 
 	t.Run("filePath input", func(t *testing.T) {
 		state := &transcriptState{
-			seenFiles: make(map[string]bool),
+			SeenFiles: make(map[string]bool),
 		}
 		tool := types.ToolCall{
 			Name:  "Edit",
 			Input: map[string]any{"filePath": "/src/camel.go"},
 		}
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 1 || state.filesChanged[0] != "/src/camel.go" {
-			t.Errorf("expected [/src/camel.go], got %v", state.filesChanged)
+		if len(state.FilesChanged) != 1 || state.FilesChanged[0] != "/src/camel.go" {
+			t.Errorf("expected [/src/camel.go], got %v", state.FilesChanged)
 		}
 	})
 
 	t.Run("deduplicates paths", func(t *testing.T) {
 		state := &transcriptState{
-			seenFiles: make(map[string]bool),
+			SeenFiles: make(map[string]bool),
 		}
 		tool := types.ToolCall{
 			Name:  "Read",
@@ -631,13 +631,13 @@ func TestForge_extractFilePathsFromTool(t *testing.T) {
 		}
 		extractFilePathsFromTool(tool, state)
 		extractFilePathsFromTool(tool, state)
-		if len(state.filesChanged) != 1 {
-			t.Errorf("expected 1 file after dedup, got %d", len(state.filesChanged))
+		if len(state.FilesChanged) != 1 {
+			t.Errorf("expected 1 file after dedup, got %d", len(state.FilesChanged))
 		}
 	})
 
 	t.Run("nil input is safe", func(t *testing.T) {
-		state := &transcriptState{seenFiles: make(map[string]bool)}
+		state := &transcriptState{SeenFiles: make(map[string]bool)}
 		tool := types.ToolCall{Name: "test", Input: nil}
 		extractFilePathsFromTool(tool, state) // should not panic
 	})
@@ -648,17 +648,17 @@ func TestForge_extractFilePathsFromTool(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestForge_extractIssueRefs(t *testing.T) {
-	state := &transcriptState{seenIssues: make(map[string]bool)}
+	state := &transcriptState{SeenIssues: make(map[string]bool)}
 
 	extractIssueRefs("Working on ol-0001 and ag-abc", state)
-	if len(state.issues) != 2 {
-		t.Errorf("expected 2 issues, got %d: %v", len(state.issues), state.issues)
+	if len(state.Issues) != 2 {
+		t.Errorf("expected 2 issues, got %d: %v", len(state.Issues), state.Issues)
 	}
 
 	// Calling again with same IDs should not duplicate
 	extractIssueRefs("ol-0001 again", state)
-	if len(state.issues) != 2 {
-		t.Errorf("expected 2 issues after dedup, got %d", len(state.issues))
+	if len(state.Issues) != 2 {
+		t.Errorf("expected 2 issues after dedup, got %d", len(state.Issues))
 	}
 }
 
@@ -900,10 +900,10 @@ func TestForge_queueForExtraction(t *testing.T) {
 func TestForge_finalizeTranscriptSession(t *testing.T) {
 	session := &storage.Session{}
 	state := &transcriptState{
-		decisions:    []string{"d1", "d2", "d1"}, // contains duplicate
-		knowledge:    []string{"k1"},
-		filesChanged: []string{"/a.go", "/b.go"},
-		issues:       []string{"ol-001"},
+		Decisions:    []string{"d1", "d2", "d1"}, // contains duplicate
+		Knowledge:    []string{"k1"},
+		FilesChanged: []string{"/a.go", "/b.go"},
+		Issues:       []string{"ol-001"},
 	}
 
 	finalizeTranscriptSession(session, state, 4000)
@@ -1076,7 +1076,7 @@ func TestForge_extractToolRefs(t *testing.T) {
 		ToolCalls: make(map[string]int),
 	}
 	state := &transcriptState{
-		seenFiles: make(map[string]bool),
+		SeenFiles: make(map[string]bool),
 	}
 
 	tools := []types.ToolCall{
@@ -1097,8 +1097,8 @@ func TestForge_extractToolRefs(t *testing.T) {
 	if _, exists := session.ToolCalls["tool_result"]; exists {
 		t.Error("tool_result should not be counted")
 	}
-	if len(state.filesChanged) != 2 {
-		t.Errorf("expected 2 unique files, got %d", len(state.filesChanged))
+	if len(state.FilesChanged) != 2 {
+		t.Errorf("expected 2 unique files, got %d", len(state.FilesChanged))
 	}
 }
 
@@ -1460,13 +1460,13 @@ func TestForgeCoverage_updateSessionMeta_EmptySessionID(t *testing.T) {
 func TestForgeCoverage_extractMessageKnowledge_EmptyContent(t *testing.T) {
 	extractor := parser.NewExtractor()
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
 	msg := types.TranscriptMessage{Content: ""}
 	extractMessageKnowledge(msg, extractor, state)
 	// Should be a no-op
-	if len(state.decisions) != 0 || len(state.knowledge) != 0 {
+	if len(state.Decisions) != 0 || len(state.Knowledge) != 0 {
 		t.Error("expected no extractions from empty content")
 	}
 }
@@ -1474,19 +1474,19 @@ func TestForgeCoverage_extractMessageKnowledge_EmptyContent(t *testing.T) {
 func TestForgeCoverage_extractMessageKnowledge_WithContent(t *testing.T) {
 	extractor := parser.NewExtractor()
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
 	msg := types.TranscriptMessage{
 		Content: "We decided to use PostgreSQL because it supports JSON indexing. The solution was to add a retry loop around the API calls.",
 	}
 	extractMessageKnowledge(msg, extractor, state)
 	// Verify state maps remain valid (not nil or corrupted) after extraction
-	if state.seenFiles == nil || state.seenIssues == nil {
+	if state.SeenFiles == nil || state.SeenIssues == nil {
 		t.Error("extractMessageKnowledge corrupted state maps")
 	}
 	// With "decided to" pattern, extractor should find at least one decision
-	if len(state.decisions) == 0 && len(state.knowledge) == 0 {
+	if len(state.Decisions) == 0 && len(state.Knowledge) == 0 {
 		t.Log("extractor found no patterns — verify extractor recognizes 'decided to' pattern")
 	}
 }
@@ -1498,8 +1498,8 @@ func TestForgeCoverage_extractMessageKnowledge_WithContent(t *testing.T) {
 func TestForgeCoverage_extractMessageRefs(t *testing.T) {
 	session := &storage.Session{ToolCalls: make(map[string]int)}
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
 	msg := types.TranscriptMessage{
 		Content: "working on ag-abc and ol-def",
@@ -1511,11 +1511,11 @@ func TestForgeCoverage_extractMessageRefs(t *testing.T) {
 		},
 	}
 	extractMessageRefs(msg, session, state)
-	if len(state.issues) != 2 {
-		t.Errorf("expected 2 issues, got %d", len(state.issues))
+	if len(state.Issues) != 2 {
+		t.Errorf("expected 2 issues, got %d", len(state.Issues))
 	}
-	if len(state.filesChanged) != 1 {
-		t.Errorf("expected 1 file changed, got %d", len(state.filesChanged))
+	if len(state.FilesChanged) != 1 {
+		t.Errorf("expected 1 file changed, got %d", len(state.FilesChanged))
 	}
 }
 
@@ -1526,8 +1526,8 @@ func TestForgeCoverage_extractMessageRefs(t *testing.T) {
 func TestForgeCoverage_extractToolRefs(t *testing.T) {
 	session := &storage.Session{ToolCalls: make(map[string]int)}
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
 	tools := []types.ToolCall{
 		{Name: "Write", Input: map[string]any{"file_path": "/a.go"}},
@@ -1546,8 +1546,8 @@ func TestForgeCoverage_extractToolRefs(t *testing.T) {
 	if _, ok := session.ToolCalls["tool_result"]; ok {
 		t.Error("tool_result should not be counted")
 	}
-	if len(state.filesChanged) != 3 {
-		t.Errorf("expected 3 files changed, got %d", len(state.filesChanged))
+	if len(state.FilesChanged) != 3 {
+		t.Errorf("expected 3 files changed, got %d", len(state.FilesChanged))
 	}
 }
 
@@ -1592,7 +1592,7 @@ func TestForgeCoverage_extractFilePathsFromTool(t *testing.T) {
 			tool: types.ToolCall{
 				Input: map[string]any{"file_path": "/same.go", "path": "/same.go"},
 			},
-			wantFiles: 1, // deduped by seenFiles
+			wantFiles: 1, // deduped by SeenFiles
 		},
 		{
 			name: "both keys different files",
@@ -1613,12 +1613,12 @@ func TestForgeCoverage_extractFilePathsFromTool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			state := &transcriptState{
-				seenFiles:  make(map[string]bool),
-				seenIssues: make(map[string]bool),
+				SeenFiles:  make(map[string]bool),
+				SeenIssues: make(map[string]bool),
 			}
 			extractFilePathsFromTool(tt.tool, state)
-			if len(state.filesChanged) != tt.wantFiles {
-				t.Errorf("expected %d files, got %d", tt.wantFiles, len(state.filesChanged))
+			if len(state.FilesChanged) != tt.wantFiles {
+				t.Errorf("expected %d files, got %d", tt.wantFiles, len(state.FilesChanged))
 			}
 		})
 	}
@@ -1626,16 +1626,16 @@ func TestForgeCoverage_extractFilePathsFromTool(t *testing.T) {
 
 func TestForgeCoverage_extractFilePathsFromTool_Dedup(t *testing.T) {
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
 	tool := types.ToolCall{
 		Input: map[string]any{"file_path": "/same.go"},
 	}
 	extractFilePathsFromTool(tool, state)
 	extractFilePathsFromTool(tool, state)
-	if len(state.filesChanged) != 1 {
-		t.Errorf("expected 1 file (deduped), got %d", len(state.filesChanged))
+	if len(state.FilesChanged) != 1 {
+		t.Errorf("expected 1 file (deduped), got %d", len(state.FilesChanged))
 	}
 }
 
@@ -1645,17 +1645,17 @@ func TestForgeCoverage_extractFilePathsFromTool_Dedup(t *testing.T) {
 
 func TestForgeCoverage_extractIssueRefs(t *testing.T) {
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
 	extractIssueRefs("working on ag-abc and ol-def", state)
-	if len(state.issues) != 2 {
-		t.Errorf("expected 2 issues, got %d", len(state.issues))
+	if len(state.Issues) != 2 {
+		t.Errorf("expected 2 issues, got %d", len(state.Issues))
 	}
 	// Calling again should dedup
 	extractIssueRefs("also see ag-abc", state)
-	if len(state.issues) != 2 {
-		t.Errorf("expected 2 issues after dedup, got %d", len(state.issues))
+	if len(state.Issues) != 2 {
+		t.Errorf("expected 2 issues after dedup, got %d", len(state.Issues))
 	}
 }
 
@@ -1964,10 +1964,10 @@ func TestForgeCoverage_drainParseErrors(t *testing.T) {
 func TestForgeCoverage_finalizeTranscriptSession(t *testing.T) {
 	session := &storage.Session{}
 	state := &transcriptState{
-		decisions:    []string{"d1", "d1", "d2"}, // has duplicates
-		knowledge:    []string{"k1", "k2", "k1"}, // has duplicates
-		filesChanged: []string{"/a.go", "/b.go"},
-		issues:       []string{"ag-abc"},
+		Decisions:    []string{"d1", "d1", "d2"}, // has duplicates
+		Knowledge:    []string{"k1", "k2", "k1"}, // has duplicates
+		FilesChanged: []string{"/a.go", "/b.go"},
+		Issues:       []string{"ag-abc"},
 	}
 
 	finalizeTranscriptSession(session, state, 4000)
@@ -2001,19 +2001,19 @@ func TestForgeCoverage_finalizeTranscriptSession(t *testing.T) {
 
 func TestForgeCoverage_transcriptState_Init(t *testing.T) {
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
-	if len(state.decisions) != 0 {
+	if len(state.Decisions) != 0 {
 		t.Error("expected empty decisions")
 	}
-	if len(state.knowledge) != 0 {
+	if len(state.Knowledge) != 0 {
 		t.Error("expected empty knowledge")
 	}
-	if len(state.filesChanged) != 0 {
+	if len(state.FilesChanged) != 0 {
 		t.Error("expected empty filesChanged")
 	}
-	if len(state.issues) != 0 {
+	if len(state.Issues) != 0 {
 		t.Error("expected empty issues")
 	}
 }
@@ -2400,8 +2400,8 @@ func TestForgeCoverage_consumeTranscriptMessages(t *testing.T) {
 	session := initSession("/test.jsonl")
 	extractor := parser.NewExtractor()
 	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
+		SeenFiles:  make(map[string]bool),
+		SeenIssues: make(map[string]bool),
 	}
 
 	msgCh := make(chan types.TranscriptMessage, 3)
@@ -2427,8 +2427,8 @@ func TestForgeCoverage_consumeTranscriptMessages(t *testing.T) {
 	if session.ID != "s1" {
 		t.Errorf("expected session ID 's1', got %q", session.ID)
 	}
-	if len(state.filesChanged) != 1 {
-		t.Errorf("expected 1 file changed, got %d", len(state.filesChanged))
+	if len(state.FilesChanged) != 1 {
+		t.Errorf("expected 1 file changed, got %d", len(state.FilesChanged))
 	}
 }
 

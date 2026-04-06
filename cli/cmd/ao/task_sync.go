@@ -255,49 +255,17 @@ func extractTaskEvents(transcriptPath, filterSession string) ([]TaskEvent, error
 // any task tool calls found in it to taskMap. It returns the (possibly updated)
 // session ID so the caller can thread it through successive lines.
 func processTranscriptLine(line, filterSession, currentSessionID string, taskMap map[string]*TaskEvent) string {
-	var data map[string]any
-	if err := json.Unmarshal([]byte(line), &data); err != nil {
-		return currentSessionID
-	}
-
-	if sid, ok := data["sessionId"].(string); ok && sid != "" {
-		currentSessionID = sid
-	}
-
-	if filterSession != "" && currentSessionID != filterSession {
-		return currentSessionID
-	}
-
-	blocks := extractContentBlocks(data)
+	newSID, blocks := lifecycle.ProcessTranscriptLine(line, filterSession, currentSessionID)
 	for _, block := range blocks {
-		applyToolBlock(block, currentSessionID, taskMap)
+		applyToolBlock(block, newSID, taskMap)
 	}
-	return currentSessionID
+	return newSID
 }
 
 // extractContentBlocks navigates data["message"]["content"] and returns only
 // tool_use blocks as typed maps.
 func extractContentBlocks(data map[string]any) []map[string]any {
-	message, ok := data["message"].(map[string]any)
-	if !ok {
-		return nil
-	}
-	content, ok := message["content"].([]any)
-	if !ok {
-		return nil
-	}
-	var blocks []map[string]any
-	for _, item := range content {
-		block, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		blockType, _ := block["type"].(string)
-		if blockType == "tool_use" {
-			blocks = append(blocks, block)
-		}
-	}
-	return blocks
+	return lifecycle.ExtractContentBlocks(data)
 }
 
 // applyToolBlock dispatches a single tool_use content block to the appropriate
@@ -322,7 +290,7 @@ func applyToolBlock(block map[string]any, sessionID string, taskMap map[string]*
 
 // parseTaskCreate extracts a TaskEvent from TaskCreate input.
 func parseTaskCreate(input map[string]any, sessionID string) *TaskEvent {
-	subject, _ := input["subject"].(string)
+	subject, description, activeForm, metadata := lifecycle.ParseTaskCreate(input)
 	if subject == "" {
 		return nil
 	}
@@ -330,22 +298,16 @@ func parseTaskCreate(input map[string]any, sessionID string) *TaskEvent {
 	task := &TaskEvent{
 		TaskID:    generateTaskID(),
 		Subject:   subject,
+		Description: description,
 		Status:    "pending",
 		SessionID: sessionID,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Utility:   types.InitialUtility,
+		Metadata:  metadata,
 	}
 
-	if desc, ok := input["description"].(string); ok {
-		task.Description = desc
-	}
-
-	if metadata, ok := input["metadata"].(map[string]any); ok {
-		task.Metadata = cloneMap(metadata)
-	}
-
-	if activeForm, ok := input["activeForm"].(string); ok {
+	if activeForm != "" {
 		if task.Metadata == nil {
 			task.Metadata = make(map[string]any)
 		}
@@ -359,23 +321,21 @@ func parseTaskCreate(input map[string]any, sessionID string) *TaskEvent {
 func updateTask(task *TaskEvent, input map[string]any) {
 	task.UpdatedAt = time.Now()
 
-	if status, ok := input["status"].(string); ok {
+	status, subject, description, owner := lifecycle.ApplyTaskUpdate(input)
+	if status != "" {
 		task.Status = status
 		task.Maturity = statusToMaturity(status)
 		if status == "completed" {
 			task.CompletedAt = time.Now()
 		}
 	}
-
-	if subject, ok := input["subject"].(string); ok {
+	if subject != "" {
 		task.Subject = subject
 	}
-
-	if desc, ok := input["description"].(string); ok {
-		task.Description = desc
+	if description != "" {
+		task.Description = description
 	}
-
-	if owner, ok := input["owner"].(string); ok {
+	if owner != "" {
 		task.Owner = owner
 	}
 }
@@ -696,17 +656,16 @@ func filterTasksBySession(tasks []TaskEvent, sessionID string) []TaskEvent {
 
 // computeTaskDistributions tallies status, maturity, and learning counts.
 func computeTaskDistributions(tasks []TaskEvent) (map[string]int, map[types.Maturity]int, int) {
-	statusCounts := make(map[string]int)
-	maturityCounts := make(map[types.Maturity]int)
-	withLearnings := 0
-	for _, t := range tasks {
-		statusCounts[t.Status]++
-		maturityCounts[t.Maturity]++
-		if t.LearningID != "" {
-			withLearnings++
-		}
+	statuses := make([]string, len(tasks))
+	maturities := make([]types.Maturity, len(tasks))
+	learningIDs := make([]string, len(tasks))
+	for i, t := range tasks {
+		statuses[i] = t.Status
+		maturities[i] = t.Maturity
+		learningIDs[i] = t.LearningID
 	}
-	return statusCounts, maturityCounts, withLearnings
+	d := lifecycle.ComputeTaskDistributions(statuses, maturities, learningIDs)
+	return d.StatusCounts, d.MaturityCounts, d.WithLearnings
 }
 
 // outputTaskStatusJSON writes task status as structured JSON.
