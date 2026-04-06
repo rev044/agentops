@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 	"time"
-)
 
-var findingIDPattern = regexp.MustCompile(`\bf-\d{4}-\d{2}-\d{2}-\d+\b`)
+	rpilib "github.com/boshu2/agentops/cli/internal/rpi"
+)
 
 // phaseHandoff is the structured artifact that carries context between phases.
 // Written by the orchestrator after each phase completes.
@@ -149,20 +147,7 @@ func readAllHandoffs(cwd string, upToPhase int) ([]*phaseHandoff, error) {
 }
 
 func uniqueStringsPreserveOrder(items []string) []string {
-	seen := make(map[string]struct{}, len(items))
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		trimmed := strings.TrimSpace(item)
-		if trimmed == "" {
-			continue
-		}
-		if _, ok := seen[trimmed]; ok {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		out = append(out, trimmed)
-	}
-	return out
+	return rpilib.UniqueStringsPreserveOrder(items)
 }
 
 func latestMatchingFile(cwd string, patterns ...string) string {
@@ -194,85 +179,19 @@ func latestMatchingFile(cwd string, patterns ...string) string {
 }
 
 func stripMarkdownFrontmatter(content string) string {
-	if !strings.HasPrefix(content, "---\n") {
-		return content
-	}
-	lines := strings.Split(content, "\n")
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
-			return strings.Join(lines[i+1:], "\n")
-		}
-	}
-	return content
+	return rpilib.StripMarkdownFrontmatter(content)
 }
 
 func extractFindingIDs(text string) []string {
-	return uniqueStringsPreserveOrder(findingIDPattern.FindAllString(text, -1))
+	return rpilib.ExtractFindingIDs(text)
 }
 
 func extractBulletItemsAfterMarker(text, marker string) []string {
-	lines := strings.Split(text, "\n")
-	marker = strings.TrimSpace(marker)
-	items := []string{}
-	capturing := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if !capturing {
-			if trimmed == marker || strings.HasPrefix(trimmed, marker+" ") {
-				capturing = true
-				continue
-			}
-			continue
-		}
-		if strings.HasPrefix(trimmed, "## ") || strings.HasPrefix(trimmed, "# ") {
-			break
-		}
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
-			items = append(items, strings.TrimSpace(trimmed[2:]))
-			continue
-		}
-		if len(items) > 0 {
-			break
-		}
-	}
-
-	return uniqueStringsPreserveOrder(items)
+	return rpilib.ExtractBulletItemsAfterMarker(text, marker)
 }
 
 func extractMarkdownListItemsUnderHeading(text, heading string) []string {
-	lines := strings.Split(text, "\n")
-	heading = strings.TrimSpace(heading)
-	items := []string{}
-	capturing := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if !capturing {
-			if trimmed == heading {
-				capturing = true
-			}
-			continue
-		}
-		if strings.HasPrefix(trimmed, "## ") || strings.HasPrefix(trimmed, "# ") {
-			break
-		}
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
-			items = append(items, strings.TrimSpace(trimmed[2:]))
-			continue
-		}
-		if len(items) > 0 {
-			break
-		}
-	}
-
-	return uniqueStringsPreserveOrder(items)
+	return rpilib.ExtractMarkdownListItemsUnderHeading(text, heading)
 }
 
 func compiledChecklistSummary(path string) string {
@@ -280,41 +199,8 @@ func compiledChecklistSummary(path string) string {
 	if err != nil {
 		return ""
 	}
-
-	body := stripMarkdownFrontmatter(string(data))
 	id := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	lines := strings.Split(body, "\n")
-	items := []string{}
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		switch {
-		case trimmed == "":
-			continue
-		case strings.HasPrefix(trimmed, "#"):
-			continue
-		case strings.HasPrefix(trimmed, "Prevent this known failure mode"):
-			continue
-		case strings.HasPrefix(trimmed, "- "):
-			item := strings.TrimSpace(trimmed[2:])
-			if strings.HasPrefix(item, "Source:") {
-				continue
-			}
-			items = append(items, item)
-		default:
-			if len(items) == 0 {
-				items = append(items, trimmed)
-			}
-		}
-		if len(items) >= 3 {
-			break
-		}
-	}
-
-	if len(items) == 0 {
-		return id
-	}
-	return fmt.Sprintf("%s — %s", id, strings.Join(items, " | "))
+	return rpilib.CompiledChecklistSummaryFromContent(id, string(data))
 }
 
 func compiledSummariesForFindings(cwd, subdir string, findingIDs []string) []string {
@@ -400,52 +286,20 @@ func collectPreventionContext(cwd string, phaseNum int) (appliedFindings, planni
 // fieldAllowed checks whether a field should be included in handoff context.
 // Returns true if the manifest has no HandoffFields (backward compat) or the field is listed.
 func fieldAllowed(m phaseManifest, field string) bool {
-	if len(m.HandoffFields) == 0 {
-		return true
-	}
-	for _, f := range m.HandoffFields {
-		if f == field {
-			return true
-		}
-	}
-	return false
+	return rpilib.FieldAllowed(m.HandoffFields, field)
 }
 
 // formatVerdicts renders a sorted verdict line from a map.
 // Returns empty string if verdicts is nil or empty.
 func formatVerdicts(verdicts map[string]string) string {
-	if len(verdicts) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(verdicts))
-	for k := range verdicts {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, k := range keys {
-		parts = append(parts, fmt.Sprintf("%s %s", k, verdicts[k]))
-	}
-	return fmt.Sprintf("Verdict: %s\n", strings.Join(parts, ", "))
+	return rpilib.FormatVerdicts(verdicts)
 }
 
 // renderHandoffField renders a labeled field line.
 // For string values: returns "Label: value\n" or "" if empty.
 // For []string values: returns "Label: a, b, c\n" or "" if empty.
 func renderHandoffField(label string, value interface{}) string {
-	switch v := value.(type) {
-	case string:
-		if v == "" {
-			return ""
-		}
-		return fmt.Sprintf("%s: %s\n", label, v)
-	case []string:
-		if len(v) == 0 {
-			return ""
-		}
-		return fmt.Sprintf("%s: %s\n", label, strings.Join(v, ", "))
-	}
-	return ""
+	return rpilib.RenderHandoffField(label, value)
 }
 
 // buildHandoffContext formats handoffs for prompt injection into the next phase.
@@ -493,13 +347,7 @@ func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) strin
 // NarrativeCap=0 means "omit narrative" when HandoffFields is set (least-privilege).
 // When HandoffFields is empty (no manifest), default to 1000 for backward compat.
 func resolveNarrativeCap(manifest phaseManifest) int {
-	if manifest.NarrativeCap > 0 {
-		return manifest.NarrativeCap
-	}
-	if len(manifest.HandoffFields) == 0 {
-		return 1000
-	}
-	return 0
+	return rpilib.ResolveNarrativeCap(manifest.NarrativeCap, manifest.HandoffFields)
 }
 
 // renderHandoffEntry writes a single phase handoff block to the builder.
@@ -548,11 +396,13 @@ func renderHandoffEntry(sb *strings.Builder, h *phaseHandoff, manifest phaseMani
 
 // renderDegradationWarnings writes context degradation warnings for handoffs with context loss.
 func renderDegradationWarnings(sb *strings.Builder, handoffs []*phaseHandoff) {
+	var degradedPhases []int
 	for _, h := range handoffs {
 		if h.ContextDegradation {
-			sb.WriteString(fmt.Sprintf("⚠️ CONTEXT DEGRADATION: Phase %d handoff was missing — context may be incomplete\n\n", h.Phase-1))
+			degradedPhases = append(degradedPhases, h.Phase)
 		}
 	}
+	rpilib.RenderDegradationWarnings(sb, degradedPhases)
 }
 
 // buildPhaseHandoffFromState constructs a handoff from existing state + phase result + summary.
@@ -673,9 +523,5 @@ func discoverPhaseArtifacts(cwd string, phaseNum int) []string {
 // truncateRunes truncates s to at most cap runes and appends "..." if truncated.
 // Safe for multi-byte UTF-8 characters — avoids slicing mid-codepoint.
 func truncateRunes(s string, cap int) string {
-	runes := []rune(s)
-	if len(runes) <= cap {
-		return s
-	}
-	return string(runes[:cap]) + "..."
+	return rpilib.TruncateRunes(s, cap)
 }

@@ -1163,10 +1163,10 @@ func TestHelper3_findStaleRunsWithMinAge(t *testing.T) {
 		stale := findStaleRunsWithMinAge(tmpDir, 0, time.Now())
 		found := false
 		for _, sr := range stale {
-			if sr.runID == "stale-1" {
+			if sr.RunID == "stale-1" {
 				found = true
 			}
-			if sr.runID == "completed-1" {
+			if sr.RunID == "completed-1" {
 				t.Error("completed runs should not appear as stale")
 			}
 		}
@@ -1179,7 +1179,7 @@ func TestHelper3_findStaleRunsWithMinAge(t *testing.T) {
 		// Use minAge of 10 hours - the stale run is only 2h old
 		stale := findStaleRunsWithMinAge(tmpDir, 10*time.Hour, time.Now())
 		for _, sr := range stale {
-			if sr.runID == "stale-1" {
+			if sr.RunID == "stale-1" {
 				t.Error("stale-1 is only 2h old, should be filtered with 10h minAge")
 			}
 		}

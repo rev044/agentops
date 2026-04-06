@@ -7,10 +7,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	rpilib "github.com/boshu2/agentops/cli/internal/rpi"
 )
 
 // PhaseExecutor abstracts the backend used to run a single phase session.
@@ -122,64 +123,27 @@ func (s *streamExecutor) Execute(ctx context.Context, prompt, cwd, runID string,
 }
 
 func shouldFallbackToDirect(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "stream startup timeout") ||
-		strings.Contains(msg, "stream parse error") ||
-		strings.Contains(msg, "does not support stream-json") ||
-		(strings.Contains(msg, string(failReasonStall)) && strings.Contains(msg, "no stream activity"))
+	return rpilib.ShouldFallbackToDirect(err, string(failReasonStall))
 }
 
 func runtimeBinaryName(command string) string {
-	executable, _ := splitRuntimeCommand(command)
-	if executable == "" {
-		return ""
-	}
-	base := strings.ToLower(filepath.Base(executable))
-	return strings.TrimSuffix(base, ".exe")
+	return rpilib.RuntimeBinaryName(command)
 }
 
 func splitRuntimeCommand(command string) (string, []string) {
-	fields := strings.Fields(strings.TrimSpace(command))
-	if len(fields) == 0 {
-		return "", nil
-	}
-	return fields[0], fields[1:]
+	return rpilib.SplitRuntimeCommand(command)
 }
 
 func runtimeDirectCommandArgs(command, prompt string) []string {
-	_, prefixArgs := splitRuntimeCommand(command)
-	args := append([]string{}, prefixArgs...)
-	if runtimeBinaryName(command) == "codex" {
-		return append(args, "exec", prompt)
-	}
-	return append(args, "-p", prompt)
+	return rpilib.RuntimeDirectCommandArgs(command, prompt)
 }
 
 func runtimeStreamCommandArgs(command, prompt string) ([]string, error) {
-	if runtimeBinaryName(command) == "codex" {
-		return nil, fmt.Errorf("runtime %q does not support stream-json mode", command)
-	}
-	_, prefixArgs := splitRuntimeCommand(command)
-	args := append([]string{}, prefixArgs...)
-	args = append(args, "-p", prompt, "--output-format", "stream-json", "--verbose")
-	return args, nil
+	return rpilib.RuntimeStreamCommandArgs(command, prompt)
 }
 
 func formatRuntimePromptInvocation(command, prompt string) string {
-	executable, _ := splitRuntimeCommand(command)
-	if executable == "" {
-		executable = command
-	}
-	args := runtimeDirectCommandArgs(command, prompt)
-	parts := make([]string, 0, len(args)+1)
-	parts = append(parts, executable)
-	for _, arg := range args {
-		parts = append(parts, fmt.Sprintf("%q", arg))
-	}
-	return strings.Join(parts, " ")
+	return rpilib.FormatRuntimePromptInvocation(command, prompt)
 }
 
 // backendCapabilities probes the runtime environment for executor prerequisites.
@@ -194,9 +158,10 @@ type backendCapabilities struct {
 // probeBackendCapabilities detects available backends in the current environment.
 // It is a pure function (no side effects) to keep selectExecutor testable.
 func probeBackendCapabilities(liveStatus bool, runtimeMode string) backendCapabilities {
+	caps := rpilib.ProbeBackendCapabilities(liveStatus, runtimeMode, normalizeRuntimeMode)
 	return backendCapabilities{
-		LiveStatusEnabled: liveStatus,
-		RuntimeMode:       normalizeRuntimeMode(runtimeMode),
+		LiveStatusEnabled: caps.LiveStatusEnabled,
+		RuntimeMode:       caps.RuntimeMode,
 	}
 }
 
@@ -456,18 +421,12 @@ func closeStreamPipeOnCancel(ctx context.Context, stdout io.ReadCloser) {
 // buildStreamPhaseContext creates a context with optional timeout for a stream phase.
 // It derives from parent so that orchestrator-level cancellation propagates.
 func buildStreamPhaseContext(parent context.Context, phaseTimeout time.Duration) (context.Context, context.CancelFunc) {
-	if phaseTimeout > 0 {
-		return context.WithTimeout(parent, phaseTimeout)
-	}
-	return context.WithCancel(parent)
+	return rpilib.BuildStreamPhaseContext(parent, phaseTimeout)
 }
 
 // normalizeCheckInterval returns checkInterval or a 1s default.
 func normalizeCheckInterval(checkInterval time.Duration) time.Duration {
-	if checkInterval <= 0 {
-		return 1 * time.Second
-	}
-	return checkInterval
+	return rpilib.NormalizeCheckInterval(checkInterval)
 }
 
 // startStreamWatchdogs launches startup and stall watchdog goroutines.
@@ -555,32 +514,12 @@ func mergePhaseProgress(dst *PhaseProgress, src PhaseProgress) {
 	}
 }
 
+
 // classifyStreamResult examines the context, wait error, and parse error to
 // produce the appropriate error for a completed stream-json phase.
 func classifyStreamResult(ctx, stallCtx context.Context, command string, phaseNum int, phaseTimeout time.Duration, waitErr, parseErr error, eventCount int64) error {
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return fmt.Errorf("phase %d (%s) timed out after %s (set --phase-timeout to increase)", phaseNum, failReasonTimeout, phaseTimeout)
-	}
-	stallErr := stallCtx.Err()
-	if stallErr != nil && ctx.Err() == nil {
-		if cause := context.Cause(stallCtx); cause != nil {
-			return fmt.Errorf("phase %d (%s): %w", phaseNum, failReasonStall, cause)
-		}
-	}
-	if waitErr != nil {
-		var exitErr *exec.ExitError
-		if errors.As(waitErr, &exitErr) {
-			return fmt.Errorf("%s exited with code %d (%s): %w", command, exitErr.ExitCode(), failReasonExit, waitErr)
-		}
-		return fmt.Errorf("%s execution failed (%s): %w", command, failReasonUnknown, waitErr)
-	}
-	if parseErr != nil {
-		return fmt.Errorf("stream parse error: %w", parseErr)
-	}
-	if eventCount == 0 {
-		return fmt.Errorf("stream startup timeout: stream completed without parseable events")
-	}
-	return nil
+	return rpilib.ClassifyStreamResult(ctx, stallCtx, command, phaseNum, phaseTimeout, waitErr, parseErr, eventCount,
+		string(failReasonTimeout), string(failReasonStall), string(failReasonExit), string(failReasonUnknown))
 }
 
 // spawnClaudePhaseWithStream is the legacy wrapper pinned to the default runtime.
@@ -611,9 +550,14 @@ func updateLivePhaseStatus(statusPath string, allPhases []PhaseProgress, phaseNu
 // buildAllPhases constructs a []PhaseProgress with Name fields populated
 // from the global phases slice, used as the initial state for live status tracking.
 func buildAllPhases(phaseDefs []phase) []PhaseProgress {
-	all := make([]PhaseProgress, len(phaseDefs))
+	defs := make([]rpilib.PhaseNameDef, len(phaseDefs))
 	for i, p := range phaseDefs {
-		all[i] = PhaseProgress{Name: p.Name, CurrentAction: "pending"}
+		defs[i] = rpilib.PhaseNameDef{Name: p.Name}
+	}
+	updates := rpilib.BuildAllPhaseProgress(defs)
+	all := make([]PhaseProgress, len(updates))
+	for i, u := range updates {
+		all[i] = PhaseProgress{Name: u.Name, CurrentAction: u.CurrentAction}
 	}
 	return all
 }

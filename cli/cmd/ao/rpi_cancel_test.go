@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/rpi"
 )
 
 func TestParseCancelSignal(t *testing.T) {
@@ -23,7 +25,7 @@ func TestParseCancelSignal(t *testing.T) {
 		{input: "bogus", wantErr: true},
 	}
 	for _, tt := range tests {
-		sig, err := parseCancelSignal(tt.input)
+		sig, err := rpi.ParseCancelSignal(tt.input)
 		if tt.wantErr {
 			if err == nil {
 				t.Fatalf("expected error for signal %q", tt.input)
@@ -46,7 +48,7 @@ func TestDescendantPIDs(t *testing.T) {
 		{PID: 102, PPID: 101},
 		{PID: 200, PPID: 1},
 	}
-	got := descendantPIDs(100, procs)
+	got := rpi.DescendantPIDs(100, procs)
 	if len(got) != 2 || got[0] != 101 || got[1] != 102 {
 		t.Fatalf("descendants mismatch: got %v, want [101 102]", got)
 	}
