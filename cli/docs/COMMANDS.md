@@ -1481,22 +1481,6 @@ Verify integrity of the RPI ledger.
 ao rpi verify [flags]
 ```
 
-#### `ao rpi workers`
-
-Show per-worker health derived from normalized RPI events
-
-```
-ao rpi workers [flags]
-```
-
-**Flags:**
-
-```
-  -h, --help            help for workers
-      --json            Render workers output as JSON
-      --run-id string   Run ID to inspect (defaults to latest phased state)
-```
-
 ---
 
 ### `ao session`
