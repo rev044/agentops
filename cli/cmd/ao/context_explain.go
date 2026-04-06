@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	aocontext "github.com/boshu2/agentops/cli/internal/context"
 )
 
 var contextExplainFlags struct {
@@ -27,31 +29,10 @@ type contextExplainResult struct {
 	Scorecard  stigmergicScorecard          `json:"scorecard"`
 }
 
-type contextExplainPayloadHealth struct {
-	Status        string `json:"status"`
-	SelectedCount int    `json:"selected_count"`
-	Reason        string `json:"reason"`
-}
-
-type contextExplainFamilyHealth struct {
-	Family string `json:"family"`
-	Count  int    `json:"count"`
-	Status string `json:"status"`
-	Reason string `json:"reason"`
-}
-
-type contextExplainSelection struct {
-	Class      string `json:"class"`
-	Title      string `json:"title"`
-	Reason     string `json:"reason"`
-	SourcePath string `json:"source_path,omitempty"`
-}
-
-type contextExplainSuppression struct {
-	Class  string `json:"class"`
-	Reason string `json:"reason"`
-	Count  int    `json:"count,omitempty"`
-}
+type contextExplainPayloadHealth = aocontext.ExplainPayloadHealth
+type contextExplainFamilyHealth = aocontext.ExplainFamilyHealth
+type contextExplainSelection = aocontext.ExplainSelection
+type contextExplainSuppression = aocontext.ExplainSuppression
 
 func init() {
 	explainCmd := &cobra.Command{
@@ -111,15 +92,7 @@ func buildContextExplainResult(cwd, repo, query, phase string, bundle rankedCont
 }
 
 func contextExplainPayload(selected []contextExplainSelection) contextExplainPayloadHealth {
-	count := len(selected)
-	switch {
-	case count == 0:
-		return contextExplainPayloadHealth{Status: "empty", SelectedCount: 0, Reason: "No ranked artifacts matched the current query and phase."}
-	case count < 4:
-		return contextExplainPayloadHealth{Status: "thin", SelectedCount: count, Reason: "Payload is present but thin; manual review recommended before trusting it as the only runtime context."}
-	default:
-		return contextExplainPayloadHealth{Status: "healthy", SelectedCount: count, Reason: "Payload has enough ranked coverage to explain current startup or briefing context."}
-	}
+	return aocontext.ExplainPayload(selected)
 }
 
 func collectContextExplainSelections(bundle rankedContextBundle, phase string) []contextExplainSelection {
@@ -215,29 +188,7 @@ func collectContextExplainHealth(cwd string, bundle rankedContextBundle) []conte
 }
 
 func describeContextFamily(name string, count int, experimental bool) contextExplainFamilyHealth {
-	status := "healthy"
-	reason := "Family has enough artifacts to participate without additional warnings."
-
-	switch {
-	case count == 0:
-		status = "missing"
-		reason = "No artifacts are available from this family in the current workspace."
-	case count < 3:
-		status = "thin"
-		reason = "Coverage is thin; manual review is recommended before treating this family as strong runtime context."
-	}
-
-	if experimental {
-		if count == 0 {
-			return contextExplainFamilyHealth{Family: name, Count: count, Status: "missing", Reason: "Experimental family has no artifacts in this workspace."}
-		}
-		if count < 3 {
-			return contextExplainFamilyHealth{Family: name, Count: count, Status: "manual_review", Reason: "Experimental family is thin and stays suppressed from default startup payloads."}
-		}
-		return contextExplainFamilyHealth{Family: name, Count: count, Status: "experimental", Reason: "Experimental family is available but remains out of default startup injection until health gates harden."}
-	}
-
-	return contextExplainFamilyHealth{Family: name, Count: count, Status: status, Reason: reason}
+	return aocontext.DescribeContextFamily(name, count, experimental)
 }
 
 func countKnowledgeArtifacts(dir string) int {
@@ -304,18 +255,7 @@ func nextWorkExplainReason(cwd string, item nextWorkItem) string {
 }
 
 func proofBackedNextWorkReason(proof nextWorkProofDecision) string {
-	sourceLabel := map[string]string{
-		"completed_run":         "completed-run",
-		"evidence_only_closure": "evidence-only-closure",
-		"execution_packet":      "execution-packet",
-	}[proof.Source]
-	if sourceLabel == "" {
-		sourceLabel = proof.Source
-	}
-	if proof.Detail == "" {
-		return fmt.Sprintf("Proof-backed next-work completion via %s proof.", sourceLabel)
-	}
-	return fmt.Sprintf("Proof-backed next-work completion via %s proof (%s).", sourceLabel, proof.Detail)
+	return aocontext.ProofBackedNextWorkReason(proof.Source, proof.Detail)
 }
 
 func collectContextExplainNextWorkProofSuppressions(cwd string) []contextExplainSuppression {
@@ -377,23 +317,7 @@ func collectContextExplainNextWorkProofSuppressions(cwd string) []contextExplain
 }
 
 func proofBackedNextWorkSuppressionReason(source string, count int, detail string) string {
-	sourceLabel := map[string]string{
-		"completed_run":         "completed-run",
-		"evidence_only_closure": "evidence-only-closure",
-		"execution_packet":      "execution-packet",
-	}[source]
-	if sourceLabel == "" {
-		sourceLabel = source
-	}
-
-	plural := "item"
-	if count != 1 {
-		plural = "items"
-	}
-	if detail == "" {
-		return fmt.Sprintf("Proof-backed next-work completion suppressed %d %s via %s proof.", count, plural, sourceLabel)
-	}
-	return fmt.Sprintf("Proof-backed next-work completion suppressed %d %s via %s proof (%s).", count, plural, sourceLabel, detail)
+	return aocontext.ProofBackedNextWorkSuppressionReason(source, count, detail)
 }
 
 func printContextExplainHuman(cmd *cobra.Command, result contextExplainResult) {
