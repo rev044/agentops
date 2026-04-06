@@ -6,11 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/rpi"
 )
 
 const (
@@ -18,41 +18,16 @@ const (
 	artifactPreviewByteLimit = 64 * 1024
 )
 
-var phaseArtifactNumberPattern = regexp.MustCompile(`phase-(\d+)`)
+type rpiArtifactRef = rpi.ArtifactRef
 
-type rpiArtifactRef struct {
-	Path      string `json:"path"`
-	Label     string `json:"label"`
-	Kind      string `json:"kind"`
-	Phase     int    `json:"phase,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
-	SizeBytes int64  `json:"size_bytes,omitempty"`
-}
-
-type rpiArtifactContent struct {
-	Path        string `json:"path"`
-	Label       string `json:"label,omitempty"`
-	Kind        string `json:"kind,omitempty"`
-	ContentType string `json:"content_type"`
-	UpdatedAt   string `json:"updated_at,omitempty"`
-	SizeBytes   int64  `json:"size_bytes,omitempty"`
-	Body        string `json:"body"`
-	Truncated   bool   `json:"truncated,omitempty"`
-}
+type rpiArtifactContent = rpi.ArtifactContent
 
 func pathClean(rel string) string {
-	return filepath.ToSlash(filepath.Clean(filepath.FromSlash(strings.TrimSpace(rel))))
+	return rpi.PathClean(rel)
 }
 
 func isSafeArtifactRelPath(rel string) bool {
-	rel = pathClean(rel)
-	if rel == "." || rel == "" {
-		return false
-	}
-	if strings.HasPrefix(rel, "../") || rel == ".." || strings.HasPrefix(rel, "/") {
-		return false
-	}
-	return true
+	return rpi.IsSafeArtifactRelPath(rel)
 }
 
 func collectRunArtifacts(root, runID string) []rpiArtifactRef {
@@ -163,62 +138,15 @@ func executionPacketReferencedPaths(root string) []string {
 }
 
 func classifyRPIArtifact(rel string) (kind, label string, phase int) {
-	base := filepath.Base(rel)
-	phase = artifactPhaseNumber(base)
-
-	switch {
-	case strings.HasSuffix(rel, "execution-packet.json"):
-		return "execution_packet", "Execution packet", 0
-	case strings.HasSuffix(rel, filepath.ToSlash(filepath.Join(".agents", "rpi", phasedStateFile))):
-		return "phased_state", "Phased state", 0
-	case strings.HasSuffix(rel, rpiC2EventsFileName):
-		return "run_events", "Run events", 0
-	case strings.HasSuffix(rel, "heartbeat.txt"):
-		return "run_heartbeat", "Heartbeat", 0
-	case strings.Contains(base, "-result.json"):
-		return "phase_result", fmt.Sprintf("Phase %d result", phase), phase
-	case strings.Contains(base, "-handoff.json"):
-		return "phase_handoff", fmt.Sprintf("Phase %d handoff", phase), phase
-	case strings.Contains(base, "-summary") && strings.HasSuffix(base, ".md"):
-		return "phase_summary", fmt.Sprintf("Phase %d summary", phase), phase
-	case strings.Contains(base, "-evaluator.json"):
-		return "phase_evaluator", fmt.Sprintf("Phase %d evaluator", phase), phase
-	case strings.Contains(rel, "/plans/"):
-		return "plan", "Plan", 0
-	case strings.Contains(rel, "/research/"):
-		return "research", "Research", 0
-	case strings.Contains(rel, "/council/") && strings.Contains(strings.ToLower(base), "pre-mortem"):
-		return "council_pre_mortem", "Pre-mortem report", 0
-	case strings.Contains(rel, "/council/") && strings.Contains(strings.ToLower(base), "post-mortem"):
-		return "council_post_mortem", "Post-mortem report", 0
-	case strings.Contains(rel, "/council/") && strings.Contains(strings.ToLower(base), "vibe"):
-		return "council_vibe", "Vibe report", 0
-	default:
-		return "artifact", base, phase
-	}
+	return rpi.ClassifyRPIArtifact(rel, phasedStateFile, rpiC2EventsFileName)
 }
 
 func artifactPhaseNumber(name string) int {
-	matches := phaseArtifactNumberPattern.FindStringSubmatch(name)
-	if len(matches) != 2 {
-		return 0
-	}
-	n, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return 0
-	}
-	return n
+	return rpi.ArtifactPhaseNumber(name)
 }
 
 func artifactContentType(rel string) string {
-	switch strings.ToLower(filepath.Ext(rel)) {
-	case ".json", ".jsonl":
-		return "application/json"
-	case ".md", ".mdx":
-		return "text/markdown"
-	default:
-		return "text/plain"
-	}
+	return rpi.ArtifactContentType(rel)
 }
 
 func readRunArtifactContent(root string, ref rpiArtifactRef, limit int64) (*rpiArtifactContent, error) {

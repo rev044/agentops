@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/rpi"
 )
 
 type phaseSessionOutcome struct {
@@ -174,141 +176,72 @@ func latestPhaseSessionID(cwd, runID string, phaseNum int) string {
 }
 
 func sessionIDFromRPIEvent(ev RPIC2Event) string {
-	if len(ev.Details) == 0 {
-		return ""
-	}
-	var details map[string]any
-	if err := json.Unmarshal(ev.Details, &details); err != nil {
-		return ""
-	}
-	if raw, ok := details["session_id"].(string); ok {
-		return strings.TrimSpace(raw)
-	}
-	return ""
+	return rpi.SessionIDFromEventDetails(ev.Details)
 }
 
 func phaseEvaluatorVerdict(phaseNum int, state *phasedState, gateVerdict string, outcome *phaseSessionOutcome) string {
-	normalized := strings.ToUpper(strings.TrimSpace(gateVerdict))
-	switch normalized {
-	case "FAIL", "BLOCKED":
-		return "FAIL"
+	trackerMode := ""
+	if state != nil {
+		trackerMode = state.TrackerMode
 	}
-	if outcome != nil && outcome.TranscriptPath != "" && outcome.Reward < 0.25 {
-		return "FAIL"
+	hasTranscript := outcome != nil && outcome.TranscriptPath != ""
+	reward := 0.0
+	if outcome != nil {
+		reward = outcome.Reward
 	}
-	if normalized == "WARN" || normalized == "PARTIAL" || normalized == "SKIP" {
-		return "WARN"
-	}
-	if phaseNum == 1 && state != nil && state.TrackerMode == "tasklist" {
-		return "WARN"
-	}
-	if outcome != nil && outcome.TranscriptPath != "" && outcome.Reward < 0.55 {
-		return "WARN"
-	}
-	return "PASS"
+	return rpi.PhaseEvaluatorVerdict(phaseNum, trackerMode, gateVerdict, hasTranscript, reward)
 }
 
 func phaseEvaluatorSummary(phaseNum int, state *phasedState, gateVerdict string, outcome *phaseSessionOutcome, findings []finding) string {
-	parts := []string{
-		fmt.Sprintf("%s evaluator marked the phase %s", phaseNameForNumber(phaseNum), phaseEvaluatorVerdict(phaseNum, state, gateVerdict, outcome)),
+	trackerMode := ""
+	if state != nil {
+		trackerMode = state.TrackerMode
 	}
-	if gate := strings.ToUpper(strings.TrimSpace(gateVerdict)); gate != "" {
-		parts = append(parts, fmt.Sprintf("gate=%s", gate))
+	hasTranscript := outcome != nil && outcome.TranscriptPath != ""
+	reward := 0.0
+	if outcome != nil {
+		reward = outcome.Reward
 	}
-	if outcome != nil && outcome.TranscriptPath != "" {
-		parts = append(parts, fmt.Sprintf("reward=%.2f", outcome.Reward))
-	}
-	if len(findings) > 0 {
-		parts = append(parts, fmt.Sprintf("findings=%d", len(findings)))
-	}
-	if phaseNum == 1 && state != nil && state.TrackerMode == "tasklist" {
-		parts = append(parts, "tracker degraded -> tasklist fallback")
-	}
-	return strings.Join(parts, " · ")
+	return rpi.PhaseEvaluatorSummary(phaseNum, trackerMode, gateVerdict, hasTranscript, reward, len(findings))
 }
 
 func defaultEvaluatorFindings(phaseNum int, state *phasedState, gateVerdict string, outcome *phaseSessionOutcome, evidence []string) []finding {
-	var findings []finding
+	trackerMode := ""
+	if state != nil {
+		trackerMode = state.TrackerMode
+	}
+	hasTranscript := outcome != nil && outcome.TranscriptPath != ""
+	reward := 0.0
+	transcriptPath := ""
+	if outcome != nil {
+		reward = outcome.Reward
+		transcriptPath = outcome.TranscriptPath
+	}
 	ref := ""
 	if len(evidence) > 0 {
 		ref = evidence[0]
 	}
-
-	switch strings.ToUpper(strings.TrimSpace(gateVerdict)) {
-	case "BLOCKED":
-		findings = append(findings, finding{
-			Description: "Implementation phase ended blocked",
-			Fix:         "Unblock the remaining execution path before advancing validation.",
-			Ref:         ref,
-		})
-	case "PARTIAL":
-		findings = append(findings, finding{
-			Description: "Implementation phase ended partial",
-			Fix:         "Complete the remaining execution work before validation claims success.",
-			Ref:         ref,
-		})
-	case "FAIL":
-		findings = append(findings, finding{
-			Description: fmt.Sprintf("%s gate returned FAIL", phaseNameForNumber(phaseNum)),
-			Fix:         "Resolve the failing report findings and rerun the phase gate.",
-			Ref:         ref,
-		})
+	rpiFindings := rpi.DefaultEvaluatorFindings(phaseNum, trackerMode, gateVerdict, hasTranscript, reward, transcriptPath, ref)
+	out := make([]finding, len(rpiFindings))
+	for i, f := range rpiFindings {
+		out[i] = finding{Description: f.Description, Fix: f.Fix, Ref: f.Ref}
 	}
-
-	if phaseNum == 1 && state != nil && state.TrackerMode == "tasklist" {
-		findings = append(findings, finding{
-			Description: "Tracker degraded during discovery",
-			Fix:         "Use the execution packet and plan artifact as the objective spine until tracker health is restored.",
-			Ref:         ref,
-		})
-	}
-
-	if outcome != nil && outcome.TranscriptPath != "" {
-		switch {
-		case outcome.Reward < 0.25:
-			findings = append(findings, finding{
-				Description: fmt.Sprintf("Transcript-derived reward %.2f indicates a failing session outcome", outcome.Reward),
-				Fix:         "Inspect the transcript signals and resolve the failing test/error/push conditions before retrying.",
-				Ref:         outcome.TranscriptPath,
-			})
-		case outcome.Reward < 0.55:
-			findings = append(findings, finding{
-				Description: fmt.Sprintf("Transcript-derived reward %.2f indicates weak completion quality", outcome.Reward),
-				Fix:         "Tighten verification and closeout before treating the phase as complete.",
-				Ref:         outcome.TranscriptPath,
-			})
-		}
-	}
-
-	return findings
+	return out
 }
 
 func uniqueFindings(items []finding) []finding {
-	seen := make(map[string]struct{}, len(items))
-	out := make([]finding, 0, len(items))
-	for _, item := range items {
-		key := strings.TrimSpace(item.Description) + "\x00" + strings.TrimSpace(item.Fix) + "\x00" + strings.TrimSpace(item.Ref)
-		if strings.TrimSpace(item.Description) == "" && strings.TrimSpace(item.Fix) == "" && strings.TrimSpace(item.Ref) == "" {
-			continue
-		}
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, item)
+	rpiItems := make([]rpi.Finding, len(items))
+	for i, f := range items {
+		rpiItems[i] = rpi.Finding{Description: f.Description, Fix: f.Fix, Ref: f.Ref}
+	}
+	deduped := rpi.UniqueFindings(rpiItems)
+	out := make([]finding, len(deduped))
+	for i, f := range deduped {
+		out[i] = finding{Description: f.Description, Fix: f.Fix, Ref: f.Ref}
 	}
 	return out
 }
 
 func phaseNameForNumber(phaseNum int) string {
-	switch phaseNum {
-	case 1:
-		return "discovery"
-	case 2:
-		return "implementation"
-	case 3:
-		return "validation"
-	default:
-		return fmt.Sprintf("phase-%d", phaseNum)
-	}
+	return rpi.PhaseNameForNumber(phaseNum)
 }

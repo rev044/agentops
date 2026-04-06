@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	cliRPI "github.com/boshu2/agentops/cli/internal/rpi"
 	"github.com/spf13/cobra"
 )
 
@@ -42,62 +43,12 @@ Examples:
 	rpiCmd.AddCommand(statusCmd)
 }
 
-// --- rpiRun: log-parsed run data ---
-
-// rpiRun represents a single orchestration run parsed from the log file.
-type rpiRun struct {
-	RunID      string            `json:"run_id"`
-	Goal       string            `json:"goal,omitempty"`
-	Phases     []rpiPhaseEntry   `json:"phases"`
-	StartedAt  time.Time         `json:"started_at"`
-	FinishedAt time.Time         `json:"finished_at,omitempty"`
-	Duration   time.Duration     `json:"duration,omitempty"`
-	Verdicts   map[string]string `json:"verdicts,omitempty"`
-	Retries    map[string]int    `json:"retries,omitempty"`
-	Status     string            `json:"status"` // running, completed, failed
-	EpicID     string            `json:"epic_id,omitempty"`
-}
-
-// rpiPhaseEntry represents a single phase log entry within a run.
-type rpiPhaseEntry struct {
-	Name    string `json:"name"`
-	Details string `json:"details"`
-	Time    string `json:"time"`
-}
-
-// --- rpiRunInfo: state-file-based run data ---
-
-type rpiRunInfo struct {
-	RunID         string `json:"run_id"`
-	Goal          string `json:"goal,omitempty"`
-	Phase         int    `json:"phase"`
-	PhaseName     string `json:"phase_name"`
-	Status        string `json:"status"`
-	Reason        string `json:"reason,omitempty"` // why a run is stale/failed (e.g. "worktree missing")
-	EpicID        string `json:"epic_id,omitempty"`
-	TrackerMode   string `json:"tracker_mode,omitempty"`
-	TrackerReason string `json:"tracker_reason,omitempty"`
-	Worktree      string `json:"worktree,omitempty"`
-	StartedAt     string `json:"started_at,omitempty"`
-	Elapsed       string `json:"elapsed,omitempty"`
-	// Liveness metadata (not shown in table, used for categorisation)
-	IsActive      bool      `json:"is_active"`
-	LastHeartbeat time.Time `json:"last_heartbeat,omitempty"`
-}
-
-type rpiStatusOutput struct {
-	Active       []rpiRunInfo         `json:"active"`
-	Historical   []rpiRunInfo         `json:"historical"`
-	Runs         []rpiRunInfo         `json:"runs"` // combined, kept for back-compat
-	LogRuns      []rpiRun             `json:"log_runs,omitempty"`
-	LiveStatuses []liveStatusSnapshot `json:"live_statuses,omitempty"`
-	Count        int                  `json:"count"`
-}
-
-type liveStatusSnapshot struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-}
+// Type aliases delegate to internal/rpi.
+type rpiRun = cliRPI.RPIRun
+type rpiPhaseEntry = cliRPI.RPIPhaseEntry
+type rpiRunInfo = cliRPI.RPIRunInfo
+type rpiStatusOutput = cliRPI.RPIStatusOutput
+type liveStatusSnapshot = cliRPI.LiveStatusSnapshot
 
 // heartbeatLiveThreshold is the maximum age of a heartbeat for a run to be
 // considered alive without probing tmux.
@@ -234,17 +185,7 @@ func renderStateRunsSection(title string, runs []rpiRunInfo, label string, withL
 }
 
 func trackerSummary(run rpiRunInfo) string {
-	mode := strings.TrimSpace(run.TrackerMode)
-	if mode == "" {
-		return "beads"
-	}
-	if mode != "tasklist" {
-		return mode
-	}
-	if strings.TrimSpace(run.TrackerReason) == "" {
-		return mode
-	}
-	return truncateGoal(mode+":"+run.TrackerReason, 12)
+	return cliRPI.TrackerSummary(run.TrackerMode, run.TrackerReason)
 }
 
 func renderLogRunsSection(logRuns []rpiRun) {
@@ -276,51 +217,27 @@ func renderLiveStatusesSection(cwd string, liveStatuses []liveStatusSnapshot) {
 }
 
 func truncateGoal(goal string, maxLen int) string {
-	if len(goal) <= maxLen {
-		return goal
-	}
-	return goal[:maxLen-3] + "..."
+	return cliRPI.TruncateGoal(goal, maxLen)
 }
 
 func lastPhaseName(phases []rpiPhaseEntry) string {
-	if len(phases) == 0 {
-		return ""
-	}
-	return phases[len(phases)-1].Name
+	return cliRPI.LastPhaseName(phases)
 }
 
 func totalRetries(retries map[string]int) int {
-	total := 0
-	for _, v := range retries {
-		total += v
-	}
-	return total
+	return cliRPI.TotalRetries(retries)
 }
 
 func formatLogRunDuration(dur time.Duration) string {
-	if dur <= 0 {
-		return ""
-	}
-	return dur.Truncate(time.Second).String()
+	return cliRPI.FormatLogRunDuration(dur)
 }
 
 func formattedLogRunStatus(run rpiRun) string {
-	verdictStr := joinVerdicts(run.Verdicts)
-	if verdictStr == "" || run.Status != "completed" {
-		return run.Status
-	}
-	return run.Status + " [" + verdictStr + "]"
+	return cliRPI.FormattedLogRunStatus(run)
 }
 
 func joinVerdicts(verdicts map[string]string) string {
-	verdictStr := ""
-	for k, v := range verdicts {
-		if verdictStr != "" {
-			verdictStr += ","
-		}
-		verdictStr += k + "=" + v
-	}
-	return verdictStr
+	return cliRPI.JoinVerdicts(verdicts)
 }
 
 // runRPIStatusWatch polls every 5s and redraws the display.
@@ -364,12 +281,8 @@ func clearScreen() {
 
 // --- Log parsing ---
 
-// logLineRegex matches both old format and new format log lines.
-// Old: [timestamp] phase: details
-// New: [timestamp] [runID] phase: details
-var logLineRegex = regexp.MustCompile(
-	`^\[([^\]]+)\]\s+(?:\[([^\]]+)\]\s+)?([^:]+):\s+(.*)$`,
-)
+// logLineRegex delegates to internal/rpi.
+var logLineRegex = cliRPI.LogLineRegex
 
 // parseOrchestrationLog reads the orchestration log file and returns parsed runs.
 // Handles both old format (no run-ID) and new format (with [runID] bracket).
