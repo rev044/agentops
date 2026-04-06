@@ -8,36 +8,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/search"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
-// enrichPatternFreshness sets age, freshness, and default utility on a pattern
-// based on the file's modification time.
+// Thin wrappers — canonical definitions in internal/search/patterns.go.
 func enrichPatternFreshness(p *pattern, file string, now time.Time) {
-	info, statErr := os.Stat(file)
-	if statErr != nil {
-		VerbosePrintf("Warning: stat %s: %v\n", file, statErr)
-	}
-	if info != nil {
-		ageHours := now.Sub(info.ModTime()).Hours()
-		p.AgeWeeks = ageHours / (24 * 7)
-		p.FreshnessScore = freshnessScore(p.AgeWeeks)
-	} else {
-		p.FreshnessScore = 0.5
-	}
-	if p.Utility == 0 {
-		p.Utility = types.InitialUtility
-	}
+	search.EnrichPatternFreshness(p, file, now)
 }
-
-// patternMatchesQuery returns true if the pattern name or description contains
-// the query (case-insensitive). An empty query matches everything.
 func patternMatchesQuery(p pattern, queryLower string) bool {
-	if queryLower == "" {
-		return true
-	}
-	content := strings.ToLower(p.Name + " " + p.Description)
-	return strings.Contains(content, queryLower)
+	return search.PatternMatchesQuery(p, queryLower)
 }
 
 // collectPatterns finds patterns from .agents/patterns/ and optionally ~/.agents/patterns/.
@@ -157,79 +137,14 @@ func scoreAndWeighPatterns(patterns []pattern, globalWeight float64) {
 	}
 }
 
-// parsePatternFile extracts pattern info from a markdown file
-func parsePatternFile(path string) (pattern, error) {
-	p := pattern{
-		Name:     strings.TrimSuffix(filepath.Base(path), ".md"),
-		FilePath: path,
-	}
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return p, err
-	}
-
-	lines := strings.Split(string(content), "\n")
-	contentStart, utility := parseFrontmatterBlock(lines)
-	if utility > 0 {
-		p.Utility = utility
-	}
-	name, description := extractPatternNameAndDescription(lines, contentStart)
-	if name != "" {
-		p.Name = name
-	}
-	if description != "" {
-		p.Description = description
-	}
-
-	return p, nil
+func parsePatternFile(path string) (pattern, error) { return search.ParsePatternFile(path) }
+func parseFrontmatterBlock(lines []string) (int, float64) {
+	return search.ParseFrontmatterBlock(lines)
 }
-
-// parseFrontmatterBlock scans YAML frontmatter and returns content start index and utility value.
-// Delegates to parseFrontMatter (inject_learnings.go) for the actual parsing.
-func parseFrontmatterBlock(lines []string) (contentStart int, utility float64) {
-	fm, start := parseFrontMatter(lines)
-	if fm.HasUtility {
-		utility = fm.Utility
-	}
-	return start, utility
-}
-
-// assembleDescriptionFrom builds a description by joining the line at index i
-// with up to one following continuation line.
 func assembleDescriptionFrom(lines []string, i int) string {
-	desc := strings.TrimSpace(lines[i])
-	for j := i + 1; j < len(lines) && j < i+2; j++ {
-		nextLine := strings.TrimSpace(lines[j])
-		if nextLine == "" || strings.HasPrefix(nextLine, "#") {
-			break
-		}
-		desc += " " + nextLine
-	}
-	return truncateText(desc, 150)
+	return search.AssembleDescriptionFrom(lines, i)
 }
-
-// isContentLine returns true if the trimmed line is a non-empty body line
-// (not a heading, frontmatter delimiter, or inline metadata).
-func isContentLine(line string) bool {
-	return line != "" && !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "---") && !isInlineMetadata(line)
-}
-
-// extractPatternNameAndDescription scans content lines for title and description.
-func extractPatternNameAndDescription(lines []string, contentStart int) (name, description string) {
-	for i := contentStart; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "# ") {
-			name = strings.TrimPrefix(line, "# ")
-			continue
-		}
-		if description == "" && isContentLine(line) {
-			description = assembleDescriptionFrom(lines, i)
-			break
-		}
-	}
-	return name, description
+func isContentLine(line string) bool { return search.IsContentLine(line) }
+func extractPatternNameAndDescription(lines []string, contentStart int) (string, string) {
+	return search.ExtractPatternNameAndDescription(lines, contentStart)
 }
