@@ -1,16 +1,19 @@
-package main
+package goals_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 )
 
 func TestGoalsMeta_NoMetaGoals(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -28,31 +31,22 @@ Mission.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = false
-	goalsTimeout = 10
-
 	// No meta-goals — should print message and return nil
-	err := goalsMetaCmd.RunE(goalsMetaCmd, nil)
+	err := goals.RunMeta(goals.MetaOptions{
+		GoalsFile: goalsPath,
+		JSON:      false,
+		Timeout:   10 * time.Second,
+		Stdout:    &bytes.Buffer{},
+	})
 	if err != nil {
 		t.Fatalf("meta returned error for no meta-goals: %v", err)
 	}
 }
 
 func TestGoalsMeta_AllMetaPass(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
-	// Create a GOALS.md file, then manually build the GoalFile with meta type
-	// since the markdown format doesn't have a type column. We test the RunE
-	// by providing a YAML file that supports types.
 	yaml := `version: 2
 mission: Test
 goals:
@@ -77,25 +71,19 @@ goals:
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = false
-	goalsTimeout = 10
-
-	err := goalsMetaCmd.RunE(goalsMetaCmd, nil)
+	err := goals.RunMeta(goals.MetaOptions{
+		GoalsFile: goalsPath,
+		JSON:      false,
+		Timeout:   10 * time.Second,
+		Stdout:    &bytes.Buffer{},
+	})
 	if err != nil {
 		t.Fatalf("meta returned error: %v", err)
 	}
 }
 
 func TestGoalsMeta_MetaFailure_ReturnsError(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	yaml := `version: 2
@@ -112,19 +100,12 @@ goals:
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = false
-	goalsTimeout = 10
-
-	err := goalsMetaCmd.RunE(goalsMetaCmd, nil)
+	err := goals.RunMeta(goals.MetaOptions{
+		GoalsFile: goalsPath,
+		JSON:      false,
+		Timeout:   10 * time.Second,
+		Stdout:    &bytes.Buffer{},
+	})
 	if err == nil {
 		t.Fatal("expected error when meta-goals fail")
 	}
@@ -134,6 +115,7 @@ goals:
 }
 
 func TestGoalsMeta_JSONOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	yaml := `version: 2
@@ -150,37 +132,20 @@ goals:
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = true
-	goalsTimeout = 10
-
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsMetaCmd.RunE(goalsMetaCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := goals.RunMeta(goals.MetaOptions{
+		GoalsFile: goalsPath,
+		JSON:      true,
+		Timeout:   10 * time.Second,
+		Stdout:    &buf,
+	})
 	if err != nil {
 		t.Fatalf("meta returned error: %v", err)
 	}
 
-	buf := make([]byte, 16384)
-	n, _ := r.Read(buf)
-
 	var snap goals.Snapshot
-	if err := json.Unmarshal(buf[:n], &snap); err != nil {
-		t.Fatalf("failed to decode JSON: %v (raw: %s)", err, string(buf[:n]))
+	if err := json.Unmarshal(buf.Bytes(), &snap); err != nil {
+		t.Fatalf("failed to decode JSON: %v (raw: %s)", err, buf.String())
 	}
 
 	if snap.Summary.Total != 1 {
@@ -189,6 +154,7 @@ goals:
 }
 
 func TestGoalsMeta_FiltersOutNonMeta(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	yaml := `version: 2
@@ -215,36 +181,19 @@ goals:
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = true
-	goalsTimeout = 10
-
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsMetaCmd.RunE(goalsMetaCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := goals.RunMeta(goals.MetaOptions{
+		GoalsFile: goalsPath,
+		JSON:      true,
+		Timeout:   10 * time.Second,
+		Stdout:    &buf,
+	})
 	if err != nil {
 		t.Fatalf("meta returned error: %v", err)
 	}
 
-	buf := make([]byte, 16384)
-	n, _ := r.Read(buf)
-
 	var snap goals.Snapshot
-	if err := json.Unmarshal(buf[:n], &snap); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &snap); err != nil {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
@@ -258,22 +207,13 @@ goals:
 }
 
 func TestGoalsMeta_MissingGoalsFile(t *testing.T) {
-	oldFile := goalsFile
-	defer func() { goalsFile = oldFile }()
+	t.Parallel()
 
-	goalsFile = "/nonexistent/GOALS.yaml"
-
-	err := goalsMetaCmd.RunE(goalsMetaCmd, nil)
+	err := goals.RunMeta(goals.MetaOptions{
+		GoalsFile: "/nonexistent/GOALS.yaml",
+		Stdout:    &bytes.Buffer{},
+	})
 	if err == nil {
 		t.Fatal("expected error for missing goals file")
-	}
-}
-
-func TestGoalsMeta_CmdAttributes(t *testing.T) {
-	if goalsMetaCmd.Use != "meta" {
-		t.Errorf("Use = %q, want meta", goalsMetaCmd.Use)
-	}
-	if goalsMetaCmd.GroupID != "management" {
-		t.Errorf("GroupID = %q, want management", goalsMetaCmd.GroupID)
 	}
 }

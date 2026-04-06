@@ -1,16 +1,19 @@
-package main
+package goals_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 )
 
 func TestGoalsMeasure_BasicRun(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -29,50 +32,21 @@ Mission.
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	oldGoalID := goalsMeasureGoalID
-	oldDirectives := goalsMeasureDirectives
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-		goalsMeasureGoalID = oldGoalID
-		goalsMeasureDirectives = oldDirectives
-	}()
-
-	goalsFile = goalsPath
-	goalsJSON = true
-	goalsTimeout = 10
-	goalsMeasureGoalID = ""
-	goalsMeasureDirectives = false
-
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile: goalsPath,
+		JSON:      true,
+		Timeout:   10 * time.Second,
+		Stdout:    &buf,
+		SnapDir:   filepath.Join(dir, "baselines"),
+	})
 	if err != nil {
 		t.Fatalf("measure returned error: %v", err)
 	}
 
-	buf := make([]byte, 16384)
-	n, _ := r.Read(buf)
-
 	var snap goals.Snapshot
-	if err := json.Unmarshal(buf[:n], &snap); err != nil {
-		t.Fatalf("failed to decode JSON: %v (raw: %s)", err, string(buf[:n]))
+	if err := json.Unmarshal(buf.Bytes(), &snap); err != nil {
+		t.Fatalf("failed to decode JSON: %v (raw: %s)", err, buf.String())
 	}
 
 	if snap.Summary.Total != 2 {
@@ -87,6 +61,7 @@ Mission.
 }
 
 func TestGoalsMeasure_SingleGoalFilter(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -105,49 +80,21 @@ Mission.
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	oldGoalID := goalsMeasureGoalID
-	oldDirectives := goalsMeasureDirectives
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-		goalsMeasureGoalID = oldGoalID
-		goalsMeasureDirectives = oldDirectives
-	}()
-
-	goalsFile = goalsPath
-	goalsJSON = true
-	goalsTimeout = 10
-	goalsMeasureGoalID = "target-goal"
-	goalsMeasureDirectives = false
-
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile: goalsPath,
+		JSON:      true,
+		Timeout:   10 * time.Second,
+		GoalID:    "target-goal",
+		Stdout:    &buf,
+		SnapDir:   filepath.Join(dir, "baselines"),
+	})
 	if err != nil {
 		t.Fatalf("measure returned error: %v", err)
 	}
 
-	buf := make([]byte, 16384)
-	n, _ := r.Read(buf)
-
 	var snap goals.Snapshot
-	if err := json.Unmarshal(buf[:n], &snap); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &snap); err != nil {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
@@ -160,6 +107,7 @@ Mission.
 }
 
 func TestGoalsMeasure_GoalNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -177,23 +125,12 @@ Mission.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldGoalID := goalsMeasureGoalID
-	oldDirectives := goalsMeasureDirectives
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsMeasureGoalID = oldGoalID
-		goalsMeasureDirectives = oldDirectives
-		goalsTimeout = oldTimeout
-	}()
-
-	goalsFile = goalsPath
-	goalsMeasureGoalID = "nonexistent-goal"
-	goalsMeasureDirectives = false
-	goalsTimeout = 10
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile: goalsPath,
+		GoalID:    "nonexistent-goal",
+		Timeout:   10 * time.Second,
+		SnapDir:   filepath.Join(dir, "baselines"),
+	})
 	if err == nil {
 		t.Fatal("expected error for nonexistent goal ID")
 	}
@@ -203,6 +140,7 @@ Mission.
 }
 
 func TestGoalsMeasure_DirectivesAndGoalConflict(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -228,20 +166,12 @@ Body.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldGoalID := goalsMeasureGoalID
-	oldDirectives := goalsMeasureDirectives
-	defer func() {
-		goalsFile = oldFile
-		goalsMeasureGoalID = oldGoalID
-		goalsMeasureDirectives = oldDirectives
-	}()
-
-	goalsFile = goalsPath
-	goalsMeasureGoalID = "g1"
-	goalsMeasureDirectives = true
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile:  goalsPath,
+		GoalID:     "g1",
+		Directives: true,
+		SnapDir:    filepath.Join(dir, "baselines"),
+	})
 	if err == nil {
 		t.Fatal("expected error when --directives and --goal are both set")
 	}
@@ -251,6 +181,7 @@ Body.
 }
 
 func TestGoalsMeasure_DirectivesOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -282,37 +213,19 @@ No vulnerabilities.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldGoalID := goalsMeasureGoalID
-	oldDirectives := goalsMeasureDirectives
-	defer func() {
-		goalsFile = oldFile
-		goalsMeasureGoalID = oldGoalID
-		goalsMeasureDirectives = oldDirectives
-	}()
-
-	goalsFile = goalsPath
-	goalsMeasureGoalID = ""
-	goalsMeasureDirectives = true
-
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile:  goalsPath,
+		Directives: true,
+		Stdout:     &buf,
+		SnapDir:    filepath.Join(dir, "baselines"),
+	})
 	if err != nil {
 		t.Fatalf("measure --directives returned error: %v", err)
 	}
 
-	buf := make([]byte, 8192)
-	n, _ := r.Read(buf)
-
 	var dirs []goals.Directive
-	if err := json.Unmarshal(buf[:n], &dirs); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &dirs); err != nil {
 		t.Fatalf("failed to decode directives JSON: %v", err)
 	}
 
@@ -328,6 +241,7 @@ No vulnerabilities.
 }
 
 func TestGoalsMeasure_DirectivesOnYAML(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	yaml := `version: 2
@@ -343,20 +257,11 @@ goals:
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldGoalID := goalsMeasureGoalID
-	oldDirectives := goalsMeasureDirectives
-	defer func() {
-		goalsFile = oldFile
-		goalsMeasureGoalID = oldGoalID
-		goalsMeasureDirectives = oldDirectives
-	}()
-
-	goalsFile = goalsPath
-	goalsMeasureGoalID = ""
-	goalsMeasureDirectives = true
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile:  goalsPath,
+		Directives: true,
+		SnapDir:    filepath.Join(dir, "baselines"),
+	})
 	if err == nil {
 		t.Fatal("expected error for YAML + --directives, got nil")
 	}
@@ -366,23 +271,19 @@ goals:
 }
 
 func TestGoalsMeasure_MissingGoalsFile(t *testing.T) {
-	oldFile := goalsFile
-	oldDirectives := goalsMeasureDirectives
-	defer func() {
-		goalsFile = oldFile
-		goalsMeasureDirectives = oldDirectives
-	}()
+	t.Parallel()
 
-	goalsFile = "/nonexistent/GOALS.md"
-	goalsMeasureDirectives = false
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile: "/nonexistent/GOALS.md",
+		SnapDir:   t.TempDir(),
+	})
 	if err == nil {
 		t.Fatal("expected error for missing goals file")
 	}
 }
 
 func TestGoalsMeasure_TableOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -401,47 +302,19 @@ Mission.
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	oldGoalID := goalsMeasureGoalID
-	oldDirectives := goalsMeasureDirectives
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-		goalsMeasureGoalID = oldGoalID
-		goalsMeasureDirectives = oldDirectives
-	}()
-
-	goalsFile = goalsPath
-	goalsJSON = false // exercise table output path
-	goalsTimeout = 10
-	goalsMeasureGoalID = ""
-	goalsMeasureDirectives = false
-
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var buf bytes.Buffer
+	err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile: goalsPath,
+		JSON:      false,
+		Timeout:   10 * time.Second,
+		Stdout:    &buf,
+		SnapDir:   filepath.Join(dir, "baselines"),
+	})
 	if err != nil {
 		t.Fatalf("measure returned error: %v", err)
 	}
 
-	buf := make([]byte, 16384)
-	n, _ := r.Read(buf)
-	output := string(buf[:n])
+	output := buf.String()
 
 	// Verify table header
 	if !strings.Contains(output, "GOAL") {
@@ -476,20 +349,92 @@ Mission.
 	}
 }
 
-func TestGoalsMeasure_CmdAttributes(t *testing.T) {
-	if goalsMeasureCmd.Use != "measure" {
-		t.Errorf("Use = %q, want measure", goalsMeasureCmd.Use)
+func TestGoalsMeasure_WeightedScoring(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name      string
+		goals     []goals.Goal
+		wantScore float64
+		wantPass  int
+		wantFail  int
+	}{
+		{
+			name: "all pass equal weight",
+			goals: []goals.Goal{
+				{ID: "a", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
+				{ID: "b", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
+			},
+			wantScore: 100.0,
+			wantPass:  2,
+			wantFail:  0,
+		},
+		{
+			name: "one pass one fail weighted",
+			goals: []goals.Goal{
+				{ID: "heavy-pass", Check: "exit 0", Weight: 8, Type: goals.GoalTypeHealth},
+				{ID: "light-fail", Check: "exit 1", Weight: 2, Type: goals.GoalTypeHealth},
+			},
+			wantScore: 80.0,
+			wantPass:  1,
+			wantFail:  1,
+		},
+		{
+			name: "all fail",
+			goals: []goals.Goal{
+				{ID: "f1", Check: "exit 1", Weight: 5, Type: goals.GoalTypeHealth},
+				{ID: "f2", Check: "exit 1", Weight: 3, Type: goals.GoalTypeHealth},
+			},
+			wantScore: 0.0,
+			wantPass:  0,
+			wantFail:  2,
+		},
+		{
+			name:      "empty goals",
+			goals:     []goals.Goal{},
+			wantScore: 0.0,
+			wantPass:  0,
+			wantFail:  0,
+		},
 	}
-	if goalsMeasureCmd.GroupID != "measurement" {
-		t.Errorf("GroupID = %q, want measurement", goalsMeasureCmd.GroupID)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			gf := &goals.GoalFile{Version: 2, Goals: tt.goals}
+			snap := goals.Measure(gf, 5*time.Second)
+
+			if snap.Summary.Score != tt.wantScore {
+				t.Errorf("Score = %f, want %f", snap.Summary.Score, tt.wantScore)
+			}
+			if snap.Summary.Passing != tt.wantPass {
+				t.Errorf("Passing = %d, want %d", snap.Summary.Passing, tt.wantPass)
+			}
+			if snap.Summary.Failing != tt.wantFail {
+				t.Errorf("Failing = %d, want %d", snap.Summary.Failing, tt.wantFail)
+			}
+		})
 	}
-	found := false
-	for _, a := range goalsMeasureCmd.Aliases {
-		if a == "m" {
-			found = true
-		}
+}
+
+func TestGoalsMeasure_SkippedGoals(t *testing.T) {
+	t.Parallel()
+	gf := &goals.GoalFile{
+		Version: 2,
+		Goals: []goals.Goal{
+			{ID: "pass-1", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
+			{ID: "timeout-1", Check: "sleep 10", Weight: 10, Type: goals.GoalTypeHealth},
+		},
 	}
-	if !found {
-		t.Error("expected alias 'm' for measure command")
+	// Very short timeout to force skip
+	snap := goals.Measure(gf, 50*time.Millisecond)
+
+	if snap.Summary.Skipped != 1 {
+		t.Errorf("Skipped = %d, want 1", snap.Summary.Skipped)
+	}
+	if snap.Summary.Passing != 1 {
+		t.Errorf("Passing = %d, want 1", snap.Summary.Passing)
+	}
+	if snap.Summary.Score != 100.0 {
+		t.Errorf("Score = %f, want 100.0 (skipped excluded from denominator)", snap.Summary.Score)
 	}
 }

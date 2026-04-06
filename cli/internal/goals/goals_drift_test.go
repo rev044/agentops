@@ -1,15 +1,18 @@
-package main
+package goals_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 )
 
 func TestGoalsDrift_NoBaseline_CreatesInitialSnapshot(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a simple GOALS.md with a passing gate
@@ -28,33 +31,22 @@ Mission.
 		t.Fatal(err)
 	}
 
-	// Set up working directory and flag state
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
+	snapDir := filepath.Join(dir, ".agents/ao/goals/baselines")
 
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = false
-	goalsTimeout = 10
-
-	// Run drift with no existing snapshots
-	err := goalsDriftCmd.RunE(goalsDriftCmd, nil)
+	var stdout, stderr bytes.Buffer
+	err := goals.RunDrift(goals.DriftOptions{
+		GoalsFile: goalsPath,
+		Timeout:   10 * time.Second,
+		JSON:      false,
+		SnapDir:   snapDir,
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+	})
 	if err != nil {
 		t.Fatalf("drift returned error: %v", err)
 	}
 
 	// Verify a snapshot was created
-	snapDir := filepath.Join(dir, ".agents/ao/goals/baselines")
 	entries, err := os.ReadDir(snapDir)
 	if err != nil {
 		t.Fatalf("could not read snapshot dir: %v", err)
@@ -65,6 +57,7 @@ Mission.
 }
 
 func TestGoalsDrift_WithBaseline_ComparesSnapshots(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a GOALS.md with a passing gate
@@ -105,26 +98,15 @@ Mission.
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = false
-	goalsTimeout = 10
-
-	// Run drift — should compare against the baseline
-	err := goalsDriftCmd.RunE(goalsDriftCmd, nil)
+	var stdout, stderr bytes.Buffer
+	err := goals.RunDrift(goals.DriftOptions{
+		GoalsFile: goalsPath,
+		Timeout:   10 * time.Second,
+		JSON:      false,
+		SnapDir:   snapDir,
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+	})
 	if err != nil {
 		t.Fatalf("drift returned error: %v", err)
 	}
@@ -140,6 +122,7 @@ Mission.
 }
 
 func TestGoalsDrift_JSONOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -174,54 +157,36 @@ Mission.
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldFile := goalsFile
-	oldJSON := goalsJSON
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsJSON = oldJSON
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsJSON = true
-	goalsTimeout = 10
-
-	// Redirect stdout to capture JSON
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsDriftCmd.RunE(goalsDriftCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var stdout, stderr bytes.Buffer
+	err := goals.RunDrift(goals.DriftOptions{
+		GoalsFile: goalsPath,
+		Timeout:   10 * time.Second,
+		JSON:      true,
+		SnapDir:   snapDir,
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+	})
 	if err != nil {
 		t.Fatalf("drift returned error: %v", err)
 	}
 
-	buf := make([]byte, 8192)
-	n, _ := r.Read(buf)
-
 	var drifts []goals.DriftResult
-	if err := json.Unmarshal(buf[:n], &drifts); err != nil {
-		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, string(buf[:n]))
+	if err := json.Unmarshal(stdout.Bytes(), &drifts); err != nil {
+		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, stdout.String())
 	}
 }
 
 func TestGoalsDrift_MissingGoalsFile(t *testing.T) {
-	oldFile := goalsFile
-	defer func() { goalsFile = oldFile }()
+	t.Parallel()
 
-	goalsFile = "/nonexistent/GOALS.md"
-
-	err := goalsDriftCmd.RunE(goalsDriftCmd, nil)
+	var stdout, stderr bytes.Buffer
+	err := goals.RunDrift(goals.DriftOptions{
+		GoalsFile: "/nonexistent/GOALS.md",
+		Timeout:   10 * time.Second,
+		SnapDir:   "/nonexistent/snaps",
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+	})
 	if err == nil {
 		t.Fatal("expected error for missing goals file")
 	}

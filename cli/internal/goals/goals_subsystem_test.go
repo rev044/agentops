@@ -1,9 +1,10 @@
-package main
+package goals_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 )
@@ -11,6 +12,7 @@ import (
 // --- TestGoalsValidate_ValidMD ---
 
 func TestGoalsValidate_ValidMD(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	md := `# Goals
 
@@ -76,9 +78,11 @@ Set up initial quality gates.
 // --- TestGoalsValidate_InvalidFormat ---
 
 func TestGoalsValidate_InvalidFormat(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	t.Run("empty file", func(t *testing.T) {
+		t.Parallel()
 		p := filepath.Join(dir, "empty.md")
 		if err := os.WriteFile(p, []byte(""), 0o644); err != nil {
 			t.Fatal(err)
@@ -90,6 +94,7 @@ func TestGoalsValidate_InvalidFormat(t *testing.T) {
 	})
 
 	t.Run("yaml_bad_version", func(t *testing.T) {
+		t.Parallel()
 		p := filepath.Join(dir, "bad_version.yaml")
 		content := "version: 99\ngoals:\n  - id: foo\n    description: d\n    check: echo ok\n    weight: 5\n"
 		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
@@ -102,6 +107,7 @@ func TestGoalsValidate_InvalidFormat(t *testing.T) {
 	})
 
 	t.Run("malformed_yaml", func(t *testing.T) {
+		t.Parallel()
 		p := filepath.Join(dir, "malformed.yaml")
 		content := "version: [\nbroken yaml\n"
 		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
@@ -114,6 +120,7 @@ func TestGoalsValidate_InvalidFormat(t *testing.T) {
 	})
 
 	t.Run("goals_with_missing_fields", func(t *testing.T) {
+		t.Parallel()
 		gf := &goals.GoalFile{
 			Version: 2,
 			Goals: []goals.Goal{
@@ -140,6 +147,7 @@ func TestGoalsValidate_InvalidFormat(t *testing.T) {
 // --- TestGoalsValidate_DirectiveCounting ---
 
 func TestGoalsValidate_DirectiveCounting(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		md             string
@@ -223,6 +231,7 @@ Body three.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			p := filepath.Join(dir, "GOALS.md")
 			if err := os.WriteFile(p, []byte(tt.md), 0o644); err != nil {
@@ -244,104 +253,10 @@ Body three.
 	}
 }
 
-// --- TestGoalsMeasure_WeightedScoring ---
-
-func TestGoalsMeasure_WeightedScoring(t *testing.T) {
-	// computeSummary is not exported, but we can test through Measure
-	// which calls computeSummary internally. We use simple echo commands.
-	tests := []struct {
-		name      string
-		goals     []goals.Goal
-		wantScore float64
-		wantPass  int
-		wantFail  int
-	}{
-		{
-			name: "all pass equal weight",
-			goals: []goals.Goal{
-				{ID: "a", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
-				{ID: "b", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
-			},
-			wantScore: 100.0,
-			wantPass:  2,
-			wantFail:  0,
-		},
-		{
-			name: "one pass one fail weighted",
-			goals: []goals.Goal{
-				{ID: "heavy-pass", Check: "exit 0", Weight: 8, Type: goals.GoalTypeHealth},
-				{ID: "light-fail", Check: "exit 1", Weight: 2, Type: goals.GoalTypeHealth},
-			},
-			wantScore: 80.0, // 8/(8+2) * 100
-			wantPass:  1,
-			wantFail:  1,
-		},
-		{
-			name: "all fail",
-			goals: []goals.Goal{
-				{ID: "f1", Check: "exit 1", Weight: 5, Type: goals.GoalTypeHealth},
-				{ID: "f2", Check: "exit 1", Weight: 3, Type: goals.GoalTypeHealth},
-			},
-			wantScore: 0.0,
-			wantPass:  0,
-			wantFail:  2,
-		},
-		{
-			name:      "empty goals",
-			goals:     []goals.Goal{},
-			wantScore: 0.0,
-			wantPass:  0,
-			wantFail:  0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gf := &goals.GoalFile{Version: 2, Goals: tt.goals}
-			snap := goals.Measure(gf, 5e9) // 5 second timeout as time.Duration
-
-			if snap.Summary.Score != tt.wantScore {
-				t.Errorf("Score = %f, want %f", snap.Summary.Score, tt.wantScore)
-			}
-			if snap.Summary.Passing != tt.wantPass {
-				t.Errorf("Passing = %d, want %d", snap.Summary.Passing, tt.wantPass)
-			}
-			if snap.Summary.Failing != tt.wantFail {
-				t.Errorf("Failing = %d, want %d", snap.Summary.Failing, tt.wantFail)
-			}
-		})
-	}
-}
-
-// --- TestGoalsMeasure_SkippedGoals ---
-
-func TestGoalsMeasure_SkippedGoals(t *testing.T) {
-	// Skipped goals (timeout) should be excluded from score calculation.
-	gf := &goals.GoalFile{
-		Version: 2,
-		Goals: []goals.Goal{
-			{ID: "pass-1", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
-			{ID: "timeout-1", Check: "sleep 10", Weight: 10, Type: goals.GoalTypeHealth},
-		},
-	}
-	// Very short timeout to force skip
-	snap := goals.Measure(gf, 50e6) // 50ms
-
-	if snap.Summary.Skipped != 1 {
-		t.Errorf("Skipped = %d, want 1", snap.Summary.Skipped)
-	}
-	if snap.Summary.Passing != 1 {
-		t.Errorf("Passing = %d, want 1", snap.Summary.Passing)
-	}
-	// Skipped excluded from denominator: 5/5 * 100 = 100
-	if snap.Summary.Score != 100.0 {
-		t.Errorf("Score = %f, want 100.0 (skipped excluded from denominator)", snap.Summary.Score)
-	}
-}
-
 // --- TestGoalsDrift_DetectsChange ---
 
 func TestGoalsDrift_DetectsChange(t *testing.T) {
+	t.Parallel()
 	baseline := &goals.Snapshot{
 		Goals: []goals.Measurement{
 			{GoalID: "stable-goal", Result: "pass", Weight: 5},
@@ -386,6 +301,7 @@ func TestGoalsDrift_DetectsChange(t *testing.T) {
 }
 
 func TestGoalsDrift_NewGoalShowsAsNew(t *testing.T) {
+	t.Parallel()
 	baseline := &goals.Snapshot{
 		Goals: []goals.Measurement{},
 	}
@@ -408,6 +324,7 @@ func TestGoalsDrift_NewGoalShowsAsNew(t *testing.T) {
 }
 
 func TestGoalsDrift_ValueDeltaComputed(t *testing.T) {
+	t.Parallel()
 	baseVal := 2.5
 	curVal := 4.0
 	baseline := &goals.Snapshot{
@@ -431,5 +348,98 @@ func TestGoalsDrift_ValueDeltaComputed(t *testing.T) {
 	want := 1.5 // 4.0 - 2.5
 	if *drifts[0].ValueDelta != want {
 		t.Errorf("ValueDelta = %f, want %f", *drifts[0].ValueDelta, want)
+	}
+}
+
+// --- TestGoalsMeasure_WeightedScoring (subsystem-level) ---
+
+func TestGoalsMeasure_WeightedScoring_Subsystem(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name      string
+		goals     []goals.Goal
+		wantScore float64
+		wantPass  int
+		wantFail  int
+	}{
+		{
+			name: "all pass equal weight",
+			goals: []goals.Goal{
+				{ID: "a", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
+				{ID: "b", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
+			},
+			wantScore: 100.0,
+			wantPass:  2,
+			wantFail:  0,
+		},
+		{
+			name: "one pass one fail weighted",
+			goals: []goals.Goal{
+				{ID: "heavy-pass", Check: "exit 0", Weight: 8, Type: goals.GoalTypeHealth},
+				{ID: "light-fail", Check: "exit 1", Weight: 2, Type: goals.GoalTypeHealth},
+			},
+			wantScore: 80.0,
+			wantPass:  1,
+			wantFail:  1,
+		},
+		{
+			name: "all fail",
+			goals: []goals.Goal{
+				{ID: "f1", Check: "exit 1", Weight: 5, Type: goals.GoalTypeHealth},
+				{ID: "f2", Check: "exit 1", Weight: 3, Type: goals.GoalTypeHealth},
+			},
+			wantScore: 0.0,
+			wantPass:  0,
+			wantFail:  2,
+		},
+		{
+			name:      "empty goals",
+			goals:     []goals.Goal{},
+			wantScore: 0.0,
+			wantPass:  0,
+			wantFail:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			gf := &goals.GoalFile{Version: 2, Goals: tt.goals}
+			snap := goals.Measure(gf, 5*time.Second)
+
+			if snap.Summary.Score != tt.wantScore {
+				t.Errorf("Score = %f, want %f", snap.Summary.Score, tt.wantScore)
+			}
+			if snap.Summary.Passing != tt.wantPass {
+				t.Errorf("Passing = %d, want %d", snap.Summary.Passing, tt.wantPass)
+			}
+			if snap.Summary.Failing != tt.wantFail {
+				t.Errorf("Failing = %d, want %d", snap.Summary.Failing, tt.wantFail)
+			}
+		})
+	}
+}
+
+// --- TestGoalsMeasure_SkippedGoals (subsystem-level) ---
+
+func TestGoalsMeasure_SkippedGoals_Subsystem(t *testing.T) {
+	t.Parallel()
+	gf := &goals.GoalFile{
+		Version: 2,
+		Goals: []goals.Goal{
+			{ID: "pass-1", Check: "exit 0", Weight: 5, Type: goals.GoalTypeHealth},
+			{ID: "timeout-1", Check: "sleep 10", Weight: 10, Type: goals.GoalTypeHealth},
+		},
+	}
+	snap := goals.Measure(gf, 50*time.Millisecond)
+
+	if snap.Summary.Skipped != 1 {
+		t.Errorf("Skipped = %d, want 1", snap.Summary.Skipped)
+	}
+	if snap.Summary.Passing != 1 {
+		t.Errorf("Passing = %d, want 1", snap.Summary.Passing)
+	}
+	if snap.Summary.Score != 100.0 {
+		t.Errorf("Score = %f, want 100.0 (skipped excluded from denominator)", snap.Summary.Score)
 	}
 }

@@ -1,6 +1,7 @@
-package main
+package goals_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,34 +12,27 @@ import (
 )
 
 func TestGoalsHistory_NoHistoryFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
+	historyPath := filepath.Join(dir, ".agents/ao/goals/history.jsonl")
 
-	oldJSON := goalsJSON
-	oldSince := goalsHistorySince
-	oldGoalID := goalsHistoryGoalID
-	defer func() {
-		goalsJSON = oldJSON
-		goalsHistorySince = oldSince
-		goalsHistoryGoalID = oldGoalID
-	}()
-	goalsJSON = false
-	goalsHistorySince = ""
-	goalsHistoryGoalID = ""
-
+	var stdout bytes.Buffer
 	// Should print "no history" message, not error
-	err := goalsHistoryCmd.RunE(goalsHistoryCmd, nil)
+	err := goals.RunHistory(goals.HistoryOptions{
+		GoalID:      "",
+		Since:       "",
+		JSON:        false,
+		HistoryPath: historyPath,
+		Stdout:      &stdout,
+	})
 	if err != nil {
 		t.Fatalf("history returned error: %v", err)
 	}
 }
 
 func TestGoalsHistory_WithEntries(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	historyDir := filepath.Join(dir, ".agents/ao/goals")
@@ -63,31 +57,21 @@ func TestGoalsHistory_WithEntries(t *testing.T) {
 	}
 	_ = f.Close()
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldJSON := goalsJSON
-	oldSince := goalsHistorySince
-	oldGoalID := goalsHistoryGoalID
-	defer func() {
-		goalsJSON = oldJSON
-		goalsHistorySince = oldSince
-		goalsHistoryGoalID = oldGoalID
-	}()
-	goalsJSON = false
-	goalsHistorySince = ""
-	goalsHistoryGoalID = ""
-
-	err = goalsHistoryCmd.RunE(goalsHistoryCmd, nil)
+	var stdout bytes.Buffer
+	err = goals.RunHistory(goals.HistoryOptions{
+		GoalID:      "",
+		Since:       "",
+		JSON:        false,
+		HistoryPath: historyPath,
+		Stdout:      &stdout,
+	})
 	if err != nil {
 		t.Fatalf("history returned error: %v", err)
 	}
 }
 
 func TestGoalsHistory_JSONOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	historyDir := filepath.Join(dir, ".agents/ao/goals")
@@ -111,44 +95,21 @@ func TestGoalsHistory_JSONOutput(t *testing.T) {
 	}
 	_ = f.Close()
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldJSON := goalsJSON
-	oldSince := goalsHistorySince
-	oldGoalID := goalsHistoryGoalID
-	defer func() {
-		goalsJSON = oldJSON
-		goalsHistorySince = oldSince
-		goalsHistoryGoalID = oldGoalID
-	}()
-	goalsJSON = true
-	goalsHistorySince = ""
-	goalsHistoryGoalID = ""
-
-	// Capture stdout
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err = goalsHistoryCmd.RunE(goalsHistoryCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var stdout bytes.Buffer
+	err = goals.RunHistory(goals.HistoryOptions{
+		GoalID:      "",
+		Since:       "",
+		JSON:        true,
+		HistoryPath: historyPath,
+		Stdout:      &stdout,
+	})
 	if err != nil {
 		t.Fatalf("history returned error: %v", err)
 	}
 
-	buf := make([]byte, 8192)
-	n, _ := r.Read(buf)
-
 	var decoded []goals.HistoryEntry
-	if err := json.Unmarshal(buf[:n], &decoded); err != nil {
-		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, string(buf[:n]))
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, stdout.String())
 	}
 	if len(decoded) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(decoded))
@@ -159,6 +120,7 @@ func TestGoalsHistory_JSONOutput(t *testing.T) {
 }
 
 func TestGoalsHistory_SinceFilter(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	historyDir := filepath.Join(dir, ".agents/ao/goals")
@@ -184,42 +146,20 @@ func TestGoalsHistory_SinceFilter(t *testing.T) {
 	}
 	_ = f.Close()
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldJSON := goalsJSON
-	oldSince := goalsHistorySince
-	oldGoalID := goalsHistoryGoalID
-	defer func() {
-		goalsJSON = oldJSON
-		goalsHistorySince = oldSince
-		goalsHistoryGoalID = oldGoalID
-	}()
-	goalsJSON = true
-	goalsHistorySince = "2025-06-01"
-	goalsHistoryGoalID = ""
-
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err = goalsHistoryCmd.RunE(goalsHistoryCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var stdout bytes.Buffer
+	err = goals.RunHistory(goals.HistoryOptions{
+		GoalID:      "",
+		Since:       "2025-06-01",
+		JSON:        true,
+		HistoryPath: historyPath,
+		Stdout:      &stdout,
+	})
 	if err != nil {
 		t.Fatalf("history returned error: %v", err)
 	}
 
-	buf := make([]byte, 8192)
-	n, _ := r.Read(buf)
-
 	var decoded []goals.HistoryEntry
-	if err := json.Unmarshal(buf[:n], &decoded); err != nil {
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 	if len(decoded) != 2 {
@@ -228,6 +168,7 @@ func TestGoalsHistory_SinceFilter(t *testing.T) {
 }
 
 func TestGoalsHistory_InvalidSinceDate(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	historyDir := filepath.Join(dir, ".agents/ao/goals")
@@ -242,44 +183,18 @@ func TestGoalsHistory_InvalidSinceDate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldSince := goalsHistorySince
-	oldGoalID := goalsHistoryGoalID
-	defer func() {
-		goalsHistorySince = oldSince
-		goalsHistoryGoalID = oldGoalID
-	}()
-	goalsHistorySince = "not-a-date"
-	goalsHistoryGoalID = ""
-
-	err := goalsHistoryCmd.RunE(goalsHistoryCmd, nil)
+	var stdout bytes.Buffer
+	err := goals.RunHistory(goals.HistoryOptions{
+		GoalID:      "",
+		Since:       "not-a-date",
+		JSON:        false,
+		HistoryPath: historyPath,
+		Stdout:      &stdout,
+	})
 	if err == nil {
 		t.Fatal("expected error for invalid --since date")
 	}
 	if !strings.Contains(err.Error(), "invalid --since date") {
 		t.Errorf("error = %q, want 'invalid --since date'", err.Error())
-	}
-}
-
-func TestGoalsHistory_CmdAttributes(t *testing.T) {
-	if goalsHistoryCmd.Use != "history" {
-		t.Errorf("Use = %q, want history", goalsHistoryCmd.Use)
-	}
-	if goalsHistoryCmd.GroupID != "analysis" {
-		t.Errorf("GroupID = %q, want analysis", goalsHistoryCmd.GroupID)
-	}
-	found := false
-	for _, a := range goalsHistoryCmd.Aliases {
-		if a == "h" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected alias 'h' for history command")
 	}
 }

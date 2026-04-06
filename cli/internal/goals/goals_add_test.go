@@ -1,15 +1,19 @@
-package main
+package goals_test
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 )
 
 func TestGoalsAdd_RejectsNonKebabID(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	md := `# Goals
 
@@ -26,10 +30,6 @@ Mission.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	defer func() { goalsFile = oldFile }()
-	goalsFile = goalsPath
-
 	tests := []struct {
 		name string
 		id   string
@@ -44,7 +44,16 @@ Mission.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := goalsAddCmd.RunE(goalsAddCmd, []string{tt.id, "echo test"})
+			t.Parallel()
+			err := goals.RunAdd(context.Background(), goals.AddOptions{
+				ID:        tt.id,
+				Check:     "echo test",
+				GoalsFile: goalsPath,
+				Weight:    5,
+				Timeout:   10 * time.Second,
+				DryRun:    true,
+				Stdout:    &bytes.Buffer{},
+			})
 			if err == nil {
 				t.Error("expected error for non-kebab-case ID")
 			}
@@ -56,6 +65,7 @@ Mission.
 }
 
 func TestGoalsAdd_RejectsDuplicateID(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	md := `# Goals
 
@@ -72,11 +82,15 @@ Mission.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	defer func() { goalsFile = oldFile }()
-	goalsFile = goalsPath
-
-	err := goalsAddCmd.RunE(goalsAddCmd, []string{"build-ok", "echo test"})
+	err := goals.RunAdd(context.Background(), goals.AddOptions{
+		ID:        "build-ok",
+		Check:     "echo test",
+		GoalsFile: goalsPath,
+		Weight:    5,
+		Timeout:   10 * time.Second,
+		DryRun:    true,
+		Stdout:    &bytes.Buffer{},
+	})
 	if err == nil {
 		t.Fatal("expected error for duplicate goal ID")
 	}
@@ -86,6 +100,7 @@ Mission.
 }
 
 func TestGoalsAdd_InvalidType(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	md := `# Goals
 
@@ -102,19 +117,16 @@ Mission.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldType := goalsAddType
-	oldDryRun := dryRun
-	defer func() {
-		goalsFile = oldFile
-		goalsAddType = oldType
-		dryRun = oldDryRun
-	}()
-	goalsFile = goalsPath
-	goalsAddType = "bogus"
-	dryRun = true // skip check validation
-
-	err := goalsAddCmd.RunE(goalsAddCmd, []string{"new-goal", "echo ok"})
+	err := goals.RunAdd(context.Background(), goals.AddOptions{
+		ID:        "new-goal",
+		Check:     "echo ok",
+		Type:      "bogus",
+		GoalsFile: goalsPath,
+		Weight:    5,
+		Timeout:   10 * time.Second,
+		DryRun:    true,
+		Stdout:    &bytes.Buffer{},
+	})
 	if err == nil {
 		t.Fatal("expected error for invalid goal type")
 	}
@@ -124,6 +136,7 @@ Mission.
 }
 
 func TestGoalsAdd_DefaultsTypeToHealth(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	md := `# Goals
 
@@ -140,26 +153,17 @@ Mission.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldType := goalsAddType
-	oldWeight := goalsAddWeight
-	oldDesc := goalsAddDescription
-	oldDryRun := dryRun
-	defer func() {
-		goalsFile = oldFile
-		goalsAddType = oldType
-		goalsAddWeight = oldWeight
-		goalsAddDescription = oldDesc
-		dryRun = oldDryRun
-	}()
-
-	goalsFile = goalsPath
-	goalsAddType = ""
-	goalsAddWeight = 5
-	goalsAddDescription = "A new test goal"
-	dryRun = true // skip command execution
-
-	err := goalsAddCmd.RunE(goalsAddCmd, []string{"new-goal", "echo ok"})
+	err := goals.RunAdd(context.Background(), goals.AddOptions{
+		ID:          "new-goal",
+		Check:       "echo ok",
+		Type:        "",
+		Description: "A new test goal",
+		GoalsFile:   goalsPath,
+		Weight:      5,
+		Timeout:     10 * time.Second,
+		DryRun:      true,
+		Stdout:      &bytes.Buffer{},
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -186,6 +190,7 @@ Mission.
 }
 
 func TestGoalsAdd_DescriptionFallsBackToID(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	md := `# Goals
 
@@ -202,26 +207,17 @@ Mission.
 		t.Fatal(err)
 	}
 
-	oldFile := goalsFile
-	oldType := goalsAddType
-	oldWeight := goalsAddWeight
-	oldDesc := goalsAddDescription
-	oldDryRun := dryRun
-	defer func() {
-		goalsFile = oldFile
-		goalsAddType = oldType
-		goalsAddWeight = oldWeight
-		goalsAddDescription = oldDesc
-		dryRun = oldDryRun
-	}()
-
-	goalsFile = goalsPath
-	goalsAddType = ""
-	goalsAddWeight = 3
-	goalsAddDescription = "" // empty description
-	dryRun = true
-
-	err := goalsAddCmd.RunE(goalsAddCmd, []string{"fallback-id", "echo ok"})
+	err := goals.RunAdd(context.Background(), goals.AddOptions{
+		ID:          "fallback-id",
+		Check:       "echo ok",
+		Type:        "",
+		Description: "",
+		GoalsFile:   goalsPath,
+		Weight:      3,
+		Timeout:     10 * time.Second,
+		DryRun:      true,
+		Stdout:      &bytes.Buffer{},
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -247,35 +243,21 @@ Mission.
 }
 
 func TestGoalsAdd_MissingGoalsFile(t *testing.T) {
-	oldFile := goalsFile
-	defer func() { goalsFile = oldFile }()
+	t.Parallel()
 
-	goalsFile = "/nonexistent/path/GOALS.md"
-
-	err := goalsAddCmd.RunE(goalsAddCmd, []string{"new-goal", "echo test"})
+	err := goals.RunAdd(context.Background(), goals.AddOptions{
+		ID:        "new-goal",
+		Check:     "echo test",
+		GoalsFile: "/nonexistent/path/GOALS.md",
+		Weight:    5,
+		Timeout:   10 * time.Second,
+		DryRun:    true,
+		Stdout:    &bytes.Buffer{},
+	})
 	if err == nil {
 		t.Fatal("expected error for missing goals file")
 	}
 	if !strings.Contains(err.Error(), "loading goals") {
 		t.Errorf("error = %q, want 'loading goals'", err.Error())
-	}
-}
-
-func TestGoalsAdd_CobraArgsValidation(t *testing.T) {
-	if goalsAddCmd.Args == nil {
-		t.Fatal("goalsAddCmd.Args is nil, expected ExactArgs(2)")
-	}
-	// ExactArgs(2) should reject 0, 1, and 3 args
-	if err := goalsAddCmd.Args(goalsAddCmd, []string{}); err == nil {
-		t.Error("expected error for 0 args")
-	}
-	if err := goalsAddCmd.Args(goalsAddCmd, []string{"one"}); err == nil {
-		t.Error("expected error for 1 arg")
-	}
-	if err := goalsAddCmd.Args(goalsAddCmd, []string{"one", "two", "three"}); err == nil {
-		t.Error("expected error for 3 args")
-	}
-	if err := goalsAddCmd.Args(goalsAddCmd, []string{"id", "check"}); err != nil {
-		t.Errorf("unexpected error for 2 args: %v", err)
 	}
 }

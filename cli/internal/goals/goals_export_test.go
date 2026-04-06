@@ -1,15 +1,18 @@
-package main
+package goals_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 )
 
 func TestGoalsExport_WithExistingSnapshot(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create GOALS.md
@@ -46,41 +49,21 @@ Mission.
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	oldFile := goalsFile
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsTimeout = 10
-
-	// Capture stdout
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsExportCmd.RunE(goalsExportCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var stdout, stderr bytes.Buffer
+	err := goals.RunExport(goals.ExportOptions{
+		GoalsFile: goalsPath,
+		Timeout:   10 * time.Second,
+		SnapDir:   snapDir,
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+	})
 	if err != nil {
 		t.Fatalf("export returned error: %v", err)
 	}
 
-	buf := make([]byte, 8192)
-	n, _ := r.Read(buf)
-
 	var exported goals.Snapshot
-	if err := json.Unmarshal(buf[:n], &exported); err != nil {
-		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, string(buf[:n]))
+	if err := json.Unmarshal(stdout.Bytes(), &exported); err != nil {
+		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, stdout.String())
 	}
 	if exported.Timestamp != "2025-06-01T12:00:00Z" {
 		t.Errorf("Timestamp = %q, want 2025-06-01T12:00:00Z", exported.Timestamp)
@@ -91,6 +74,7 @@ Mission.
 }
 
 func TestGoalsExport_NoSnapshot_MeasuresFresh(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	md := `# Goals
@@ -108,41 +92,23 @@ Mission.
 		t.Fatal(err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
+	snapDir := filepath.Join(dir, ".agents/ao/goals/baselines")
 
-	oldFile := goalsFile
-	oldTimeout := goalsTimeout
-	defer func() {
-		goalsFile = oldFile
-		goalsTimeout = oldTimeout
-	}()
-	goalsFile = goalsPath
-	goalsTimeout = 10
-
-	// Capture stdout
-	r, w, _ := os.Pipe()
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	err := goalsExportCmd.RunE(goalsExportCmd, nil)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
+	var stdout, stderr bytes.Buffer
+	err := goals.RunExport(goals.ExportOptions{
+		GoalsFile: goalsPath,
+		Timeout:   10 * time.Second,
+		SnapDir:   snapDir,
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+	})
 	if err != nil {
 		t.Fatalf("export returned error: %v", err)
 	}
 
-	buf := make([]byte, 8192)
-	n, _ := r.Read(buf)
-
 	var exported goals.Snapshot
-	if err := json.Unmarshal(buf[:n], &exported); err != nil {
-		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, string(buf[:n]))
+	if err := json.Unmarshal(stdout.Bytes(), &exported); err != nil {
+		t.Fatalf("failed to decode JSON output: %v (raw: %s)", err, stdout.String())
 	}
 	if exported.Summary.Total != 1 {
 		t.Errorf("Total = %d, want 1", exported.Summary.Total)
@@ -150,38 +116,20 @@ Mission.
 }
 
 func TestGoalsExport_MissingGoalsFileAndNoSnapshots(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
-	origDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(origDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
+	snapDir := filepath.Join(dir, ".agents/ao/goals/baselines")
 
-	oldFile := goalsFile
-	defer func() { goalsFile = oldFile }()
-	goalsFile = filepath.Join(dir, "GOALS.md") // does not exist
-
-	err := goalsExportCmd.RunE(goalsExportCmd, nil)
+	var stdout, stderr bytes.Buffer
+	err := goals.RunExport(goals.ExportOptions{
+		GoalsFile: filepath.Join(dir, "GOALS.md"), // does not exist
+		Timeout:   10 * time.Second,
+		SnapDir:   snapDir,
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+	})
 	if err == nil {
 		t.Fatal("expected error when both snapshots and goals file are missing")
-	}
-}
-
-func TestGoalsExport_CmdAttributes(t *testing.T) {
-	if goalsExportCmd.Use != "export" {
-		t.Errorf("Use = %q, want export", goalsExportCmd.Use)
-	}
-	if goalsExportCmd.GroupID != "analysis" {
-		t.Errorf("GroupID = %q, want analysis", goalsExportCmd.GroupID)
-	}
-	found := false
-	for _, a := range goalsExportCmd.Aliases {
-		if a == "e" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected alias 'e' for export command")
 	}
 }
