@@ -27,12 +27,7 @@ var (
 	knowledgePlaybooksIncludeThin bool
 )
 
-type knowledgeBuilderInvocation struct {
-	Step           string   `json:"step"`
-	Script         string   `json:"script,omitempty"`
-	Implementation string   `json:"implementation,omitempty"`
-	Args           []string `json:"args,omitempty"`
-}
+type knowledgeBuilderInvocation = knowledgepkg.BuilderInvocation
 
 type knowledgeBuilderRun struct {
 	knowledgeBuilderInvocation
@@ -89,13 +84,7 @@ type knowledgeActivateResult struct {
 	Gaps           knowledgeGapSummary   `json:"gaps"`
 }
 
-type knowledgeTopicState struct {
-	ID       string
-	Title    string
-	Health   string
-	Path     string
-	OpenGaps []string
-}
+type knowledgeTopicState = knowledgepkg.TopicState
 
 var knowledgeCmd = &cobra.Command{
 	Use:   "knowledge",
