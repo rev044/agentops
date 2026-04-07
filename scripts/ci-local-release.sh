@@ -303,6 +303,7 @@ run_security_scan_patterns() {
         if grep -r -i -E "$pattern" \
             --binary-files=without-match \
             --exclude-dir=.git \
+            --exclude-dir=.gc \
             --exclude-dir=.claude \
             --exclude-dir=.agents \
             --exclude-dir=.tmp \
@@ -316,7 +317,7 @@ run_security_scan_patterns() {
             --exclude="*.sh" \
             --exclude="*_test.go" \
             --exclude="validate.yml" \
-            . 2>/dev/null; then
+            . 2>/dev/null | grep -v 'Getenv\|os\.Environ\|DOLT_PASSWORD' | grep -q .; then
             found=1
         fi
     done

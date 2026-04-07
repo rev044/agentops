@@ -616,7 +616,7 @@
       "name": "forge",
       "source_skill": "skills/forge",
       "source_hash": "286b17f44efe413b7b8514cefded51f7085e82bf9698cc41d0136337af66662d",
-      "generated_hash": "27fb28456b5c0d91d7dde68f2114be74720f3d565febf96febb5283088b0c4e1"
+      "generated_hash": "4a908ffd2965adcbe35bd8b165e336165c28018c41f388d41d3df260d16a001c"
     },
     {
       "name": "goals",
@@ -694,7 +694,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "afce1fac76a1e506e9405b76886ecdf390c3eead5d863d82b8311286ad00d6a4",
-      "generated_hash": "6e39077cb940e491f0513c731b60a1c4372f53b632fbb5e053b6a1e5e45493ae"
+      "generated_hash": "153f8041fd03a5519c39dd8e0414b05335b8c635fd3856ffc3202dd26da2cf9c"
     },
     {
       "name": "pr-implement",
@@ -838,7 +838,7 @@
       "name": "scenario",
       "source_skill": "skills/scenario",
       "source_hash": "5795f67b06b9240dfeb017a4621180f119583878fcb80946863c32209ae885b6",
-      "generated_hash": "17185b80153a77f8bb88a93b57546f6fa801da6b46d01231d83d5a915d75633b"
+      "generated_hash": "50740a551582b280ec08bd07a361edddb2b133ee6e75f149838c30ac0963e54f"
     },
     {
       "name": "security",
