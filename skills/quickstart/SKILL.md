@@ -85,7 +85,7 @@ Starting a new project? Run `/scaffold <language> <name>` to generate project st
 | Problem | Solution |
 |---------|----------|
 | Skills not installed | `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)` |
-| Codex has no startup/session-end hooks | Use `ao codex start` to begin and `ao codex stop` to close out; `ao codex status` shows hookless lifecycle health |
+| Codex hooks on older versions (pre-v0.115.0) | Codex CLI v0.115.0+ has native hooks. For older versions, use `ao codex start` to begin and `ao codex stop` to close out; `ao codex status` shows hookless lifecycle health |
 | Flywheel count is 0 | First session — run `/rpi "a small goal"` to start it |
 | Want the full skill catalog | Ask: "show me all the skills" or see `references/full-catalog.md` |
 

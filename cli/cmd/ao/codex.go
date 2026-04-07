@@ -158,18 +158,20 @@ type codexStatusResult struct {
 
 var codexCmd = &cobra.Command{
 	Use:   "codex",
-	Short: "Codex-native lifecycle commands for hookless sessions",
-	Long: `Codex-native lifecycle commands for runtimes without Claude/OpenCode lifecycle hooks.
+	Short: "Codex lifecycle commands (fallback for pre-v0.115.0; native hooks preferred)",
+	Long: `Codex lifecycle commands for the AgentOps knowledge flywheel.
 
-Use these commands to make the knowledge flywheel explicit in Codex:
+Codex CLI v0.115.0+ supports native hooks — prefer those for automatic lifecycle.
+These commands remain as a fallback for older Codex versions without native hook support.
+
   ao codex start   Surface prior context and run safe maintenance
   ao codex stop    Forge the current session, queue learnings, and close the loop
-  ao codex status  Show hookless lifecycle health and flywheel status`,
+  ao codex status  Show lifecycle health and flywheel status`,
 }
 
 var codexStartCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start a Codex session with explicit flywheel maintenance",
+	Short: "Start a Codex session with explicit flywheel maintenance (fallback for pre-v0.115.0)",
 	Args:  cobra.NoArgs,
 	RunE:  runCodexStart,
 }
@@ -183,7 +185,7 @@ var codexEnsureStartCmd = &cobra.Command{
 
 var codexStopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Close a Codex session without relying on runtime hooks",
+	Short: "Close a Codex session explicitly (fallback for pre-v0.115.0)",
 	Args:  cobra.NoArgs,
 	RunE:  runCodexStop,
 }
@@ -197,7 +199,7 @@ var codexEnsureStopCmd = &cobra.Command{
 
 var codexStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show Codex hookless lifecycle health",
+	Short: "Show Codex lifecycle health (native hooks detected when available)",
 	Args:  cobra.NoArgs,
 	RunE:  runCodexStatus,
 }

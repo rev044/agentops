@@ -1,8 +1,8 @@
 # Session Lifecycle Workflow
 
-**Purpose:** Runtime-aware guide to working across sessions with hook-capable runtimes and Codex hookless fallback
+**Purpose:** Runtime-aware guide to working across sessions with hook-capable runtimes (including Codex v0.115.0+ native hooks) and the Codex hookless fallback for older versions
 
-**Philosophy:** Talk naturally when lifecycle hooks exist. In Codex, use the explicit lifecycle commands instead of assuming hidden automation.
+**Philosophy:** Talk naturally when lifecycle hooks exist. Codex v0.115.0+ supports native hooks (installed by `scripts/install-codex-plugin.sh`) and works like Claude Code. Older Codex versions use the explicit lifecycle commands instead of assuming hidden automation.
 
 ---
 
@@ -85,7 +85,8 @@ SessionEnd would normally run.
 | Mode | Start | Closeout | Notes |
 |------|-------|----------|-------|
 | Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed; `CLAUDE.md` is the startup surface and hooks stage state silently |
-| Codex hookless fallback | `ao factory start --goal "<goal>"`, `ao codex start`, or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit, and closeout owns the same curation hygiene as SessionEnd |
+| Codex native hooks (v0.115.0+) | Same as hook-capable — native hooks installed by `scripts/install-codex-plugin.sh` | Same as hook-capable — native SessionEnd/Stop hooks | Full hook surface; same automatic lifecycle as Claude Code |
+| Codex hookless fallback (pre-v0.115.0) | `ao factory start --goal "<goal>"`, `ao codex start`, or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit, and closeout owns the same curation hygiene as SessionEnd |
 | Manual fallback | `ao inject`, `ao lookup` | `ao forge transcript`, `ao flywheel close-loop` | Lowest-level portable path |
 
 ---
@@ -133,7 +134,9 @@ SessionEnd would normally run.
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Codex Hookless Lifecycle
+## Codex Hookless Lifecycle (pre-v0.115.0)
+
+> Codex v0.115.0+ supports native hooks and follows the hook-capable lifecycle above. The diagram below applies to older Codex versions using the hookless fallback.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -306,8 +309,8 @@ Next time, just say "continue the caching work" and I'll pick up where you left 
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `ao codex start` | Start an explicit Codex hookless session | Start of work in Codex |
-| `ao codex stop` | Close out a Codex session without runtime hooks | End of work in Codex |
+| `ao codex start` | Start an explicit Codex hookless session | Start of work in Codex pre-v0.115.0 (v0.115.0+ uses native hooks automatically) |
+| `ao codex stop` | Close out a Codex session without runtime hooks | End of work in Codex pre-v0.115.0 |
 | `ao codex status` | Inspect Codex lifecycle and flywheel health | Any time in Codex |
 | Natural-language goal | Native factory intake when hooks are installed | Preferred operator entrypoint in Claude/OpenCode |
 | `/session-start` | Initialize session, load context | Start of work in hook-capable runtimes |

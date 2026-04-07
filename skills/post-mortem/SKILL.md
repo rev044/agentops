@@ -21,7 +21,7 @@ output_contract: skills/council/schemas/verdict.json
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
 >
-> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex does not expose that hook surface, so Codex sessions should finish closeout with `ao codex stop`.
+> **Runtime note:** Hook-driven closeout is runtime-dependent. Claude/OpenCode can wire Phase 2-5 maintenance through lifecycle hooks. Codex CLI v0.115.0+ supports native hooks (same behavior). For older Codex versions without hook surfaces, finish closeout with `ao codex stop`.
 
 Six phases:
 1. **Council** — Did we implement it correctly?
@@ -48,7 +48,7 @@ Six phases:
 
 ### Codex Closeout
 
-In Codex hookless mode, run these after the post-mortem workflow writes learnings and next work:
+Codex CLI v0.115.0+ has native hooks and handles closeout automatically (no extra steps needed). For older Codex versions (hookless fallback), run these after the post-mortem workflow writes learnings and next work:
 
 ```bash
 ao codex stop

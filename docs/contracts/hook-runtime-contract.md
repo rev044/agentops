@@ -8,7 +8,8 @@
 | Runtime | Detection | Hook Surface |
 |---------|-----------|-------------|
 | Claude Code | `CLAUDE_PLUGIN_ROOT` env or `~/.claude/settings.json` exists | Full hook manifest (`hooks.json`) |
-| Codex | `CODEX_HOME` env or `~/.codex/config.toml` exists | Skill-driven lifecycle (`ao codex start/stop`) |
+| Codex (native hooks) | `CODEX_HOME` env + Codex v0.115.0+ detected | Full hook manifest via `scripts/install-codex-plugin.sh` (same surface as Claude Code) |
+| Codex (hookless fallback) | `CODEX_HOME` env or `~/.codex/config.toml` exists + Codex < v0.115.0 | Skill-driven lifecycle (`ao codex start/stop`) |
 | Manual | Neither detected | Explicit `ao inject` / `ao forge` commands |
 
 ## Event Mapping
@@ -48,10 +49,23 @@ ao hook install  # Merges hooks.json into ~/.claude/settings.json
 - All events wired automatically
 - `CLAUDE.md` remains the startup surface; hooks prepare factory state silently and keep only explicit safety nudges operator-facing
 
-### Codex
+### Codex (v0.115.0+ — native hooks)
 
 ```bash
 # Plugin install (handled by install-codex-plugin.sh):
+# 1. Enable plugin in ~/.codex/config.toml
+# 2. Stage skills-codex/ bundle
+# 3. Install native hook manifest — same event surface as Claude Code
+```
+
+- Full hook manifest installed by `scripts/install-codex-plugin.sh`
+- SessionStart, SessionEnd, Stop events wired natively
+- Same automatic lifecycle as Claude Code
+
+### Codex (pre-v0.115.0 — hookless fallback)
+
+```bash
+# Legacy plugin install for older Codex versions:
 # 1. Enable plugin in ~/.codex/config.toml
 # 2. Stage skills-codex/ bundle
 # 3. No hook manifest — lifecycle is skill-driven

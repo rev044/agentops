@@ -195,7 +195,8 @@ AgentOps has four runtime modes. Do not assume hook automation exists everywhere
 |------|-----------------|------------|---------------|------------|
 | `gc` | Gas City (`gc`) binary available and `city.toml` present | gc controller manages sessions; `ao rpi` auto-selects gc executor | gc event bus captures phase/gate/failure/metric events | Default when gc is available. Phase execution via gc sessions, events via gc event bus, agent health via gc health patrol |
 | `hook-capable` | Claude/OpenCode with lifecycle hooks installed (no gc) | Runtime hook or `ao inject` / `ao lookup` | Runtime hook or `ao forge transcript` + `ao flywheel close-loop` | Automatic startup/context injection and session-end maintenance when hooks are installed |
-| `codex-hookless-fallback` | Codex Desktop / Codex CLI without hook surfaces | `ao codex start` | `ao codex stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
+| `codex-native-hooks` | Codex CLI v0.115.0+ with native hook support (March 2026) | Runtime hooks (same as hook-capable) | Runtime hooks (same as hook-capable) | Native lifecycle hooks — same guarantees as hook-capable mode |
+| `codex-hookless-fallback` | Codex Desktop / Codex CLI pre-v0.115.0 without hook surfaces | `ao codex start` | `ao codex stop` | Explicit startup context, citation tracking, transcript fallback, and close-loop metrics without hooks |
 | `manual` | No hooks and no Codex-native runtime detection | `ao inject` / `ao lookup` | `ao forge transcript` + `ao flywheel close-loop` | Works everywhere, but lifecycle actions are operator-driven |
 
 ## Issue Tracking
@@ -219,7 +220,11 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 3. In `lean` mode, the hook extracts pending knowledge and injects prior learnings with a reduced token budget.
 4. This skill can be injected automatically into session context.
 
-**Codex hookless fallback**
+**Codex native hooks (v0.115.0+)**
+1. Codex CLI v0.115.0+ supports native lifecycle hooks — same behavior as hook-capable runtimes above.
+2. No explicit `ao codex start`/`ao codex stop` needed; hooks fire automatically.
+
+**Codex hookless fallback (pre-v0.115.0)**
 1. Run `ao codex start`.
 2. AgentOps inspects `.agents/`, runs safe close-loop maintenance, syncs MEMORY.md, and writes `.agents/ao/codex/startup-context.md`.
 3. Surfaced learnings, patterns, and findings are cited as `retrieved`.

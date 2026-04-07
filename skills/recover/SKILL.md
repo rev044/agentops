@@ -1,6 +1,6 @@
 ---
 name: recover
-description: 'Post-compaction context recovery. Detects in-progress RPI and evolve sessions, loads knowledge, shows recent work and pending tasks. In Codex, it also prefers the explicit hookless lifecycle path. Triggers: "recover", "lost context", "where was I", "what was I working on".'
+description: 'Post-compaction context recovery. Detects in-progress RPI and evolve sessions, loads knowledge, shows recent work and pending tasks. In Codex v0.115.0+, native hooks handle lifecycle automatically; for older versions, it prefers the explicit hookless fallback path. Triggers: "recover", "lost context", "where was I", "what was I working on".'
 skill_api_version: 1
 context:
   window: inherit
@@ -15,7 +15,7 @@ output_contract: "stdout: recovered context summary"
 
 # /recover — Context Recovery After Compaction
 
-> **Purpose:** Help you get back up to speed after context compaction. Automatically detects in-progress work (RPI runs, evolve cycles), loads relevant knowledge, summarizes what you were doing and what's next, and prefers the Codex hookless lifecycle path when applicable.
+> **Purpose:** Help you get back up to speed after context compaction. Automatically detects in-progress work (RPI runs, evolve cycles), loads relevant knowledge, summarizes what you were doing and what's next. Codex v0.115.0+ uses native hooks automatically; for older Codex versions, prefers the explicit hookless fallback path (`ao codex start`/`ao codex stop`).
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -121,7 +121,7 @@ fi
 
 **Apply retrieved knowledge:** If learnings are returned, check each for applicability to the recovery context. Cite applicable learnings by filename and record: `ao metrics cite "<path>" --type applied 2>/dev/null || true`
 
-If Codex hookless mode is detected, also run:
+If Codex hookless fallback mode is detected (pre-v0.115.0, no native hooks), also run:
 
 ```bash
 if command -v ao &>/dev/null && { [ -n "${CODEX_THREAD_ID:-}" ] || [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; }; then
