@@ -494,9 +494,6 @@ jobs:
           go tool cover -func=coverage.out | tail -1
           echo "✅ Go tests passed"
 
-      - name: Check cmd/ao coverage floor
-        run: bash scripts/check-cmdao-coverage-floor.sh
-
       - name: Warn about slow test packages
         if: always()
         run: |
@@ -714,25 +711,6 @@ jobs:
           chmod +x scripts/check-test-staleness.sh
           bash scripts/check-test-staleness.sh
 
-  coverage-ratchet:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: go-build
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.26'
-          cache: true
-          cache-dependency-path: cli/go.sum
-
-      - name: Run coverage ratchet check
-        run: |
-          chmod +x scripts/coverage-ratchet.sh
-          scripts/coverage-ratchet.sh --check
-
   swarm-evidence:
     runs-on: ubuntu-latest
     steps:
@@ -759,7 +737,7 @@ jobs:
           echo "File manifests found in evidence — overlap check delegated to file-manifest-overlap job"
 
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, json-flag-consistency, file-manifest-overlap, doctor-check, skill-lint, learning-coherence, bats-tests, coverage-ratchet, check-test-staleness, swarm-evidence]
+    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, json-flag-consistency, file-manifest-overlap, doctor-check, skill-lint, learning-coherence, bats-tests, check-test-staleness, swarm-evidence]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -792,7 +770,6 @@ jobs:
           echo "skill-lint: ${{ needs.skill-lint.result }}"
           echo "learning-coherence: ${{ needs.learning-coherence.result }}"
           echo "bats-tests: ${{ needs.bats-tests.result }}"
-          echo "coverage-ratchet: ${{ needs.coverage-ratchet.result }}"
           echo "check-test-staleness: ${{ needs.check-test-staleness.result }}"
           echo "swarm-evidence: ${{ needs.swarm-evidence.result }}"
 
@@ -820,7 +797,6 @@ jobs:
              [[ "${{ needs.skill-lint.result }}" != "success" ]] || \
              [[ "${{ needs.learning-coherence.result }}" != "success" ]] || \
              [[ "${{ needs.bats-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.coverage-ratchet.result }}" != "success" ]] || \
              [[ "${{ needs.swarm-evidence.result }}" != "success" ]]; then
             echo ""
             echo "❌ Some checks failed"

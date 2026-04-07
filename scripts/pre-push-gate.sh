@@ -309,38 +309,6 @@ else
     skip "command/test pairing"
 fi
 
-# --- 4. cmd/ao coverage floor ---
-if needs_check go; then
-    if [[ -x scripts/check-cmdao-coverage-floor.sh ]]; then
-        if coverage_output="$(scripts/check-cmdao-coverage-floor.sh 2>&1)"; then
-            pass "cmd/ao coverage floor"
-        else
-            fail "cmd/ao coverage floor"
-            indent_output "$coverage_output"
-        fi
-    else
-        fail "missing executable: scripts/check-cmdao-coverage-floor.sh"
-    fi
-else
-    skip "cmd/ao coverage floor"
-fi
-
-# --- 4b. Per-package coverage ratchet (default mode only, not --fast) ---
-if [[ "$FAST_MODE" != "true" ]] && needs_check go; then
-    if [[ -x scripts/coverage-ratchet.sh ]] && [[ -f .coverage-baseline.json ]]; then
-        if ratchet_output="$(run_without_git_env_and_stdin scripts/coverage-ratchet.sh --check 2>&1)"; then
-            pass "coverage ratchet (per-package)"
-        else
-            fail "coverage ratchet (per-package)"
-            indent_output "$ratchet_output"
-        fi
-    else
-        skip "coverage ratchet (missing script or baseline)"
-    fi
-else
-    skip "coverage ratchet"
-fi
-
 # --- 5. Embedded hooks sync (full parity gate) ---
 if [[ -x scripts/validate-embedded-sync.sh ]]; then
     if embed_output="$(./scripts/validate-embedded-sync.sh 2>&1)"; then

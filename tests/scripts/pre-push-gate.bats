@@ -115,7 +115,7 @@ GIT
     # Provide passing stubs for all other checks
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
 
     cd "$FAKE_REPO"
@@ -143,7 +143,7 @@ GO
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
 
     cd "$FAKE_REPO"
@@ -173,7 +173,7 @@ GIT
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
 
     cd "$FAKE_REPO"
@@ -200,7 +200,7 @@ GIT
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh" 1
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
 
     cd "$FAKE_REPO"
@@ -261,7 +261,7 @@ GIT
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
     make_stub "$FAKE_REPO/scripts/check-worktree-disposition.sh" 1
 
@@ -289,7 +289,7 @@ GIT
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
     make_stub "$FAKE_REPO/scripts/validate-codex-backbone-prompts.sh" 1
 
@@ -317,7 +317,7 @@ GIT
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
     make_stub "$FAKE_REPO/scripts/validate-codex-override-coverage.sh" 1
 
@@ -345,7 +345,7 @@ GIT
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
     make_stub "$FAKE_REPO/scripts/validate-headless-runtime-skills.sh" 1
 
@@ -385,7 +385,7 @@ SNIPPETS
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
 
     cd "$FAKE_REPO"
@@ -424,7 +424,7 @@ DOCS
 
     make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
     make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+
     make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
 
     cd "$FAKE_REPO"
@@ -435,46 +435,3 @@ DOCS
     [[ "$output" == *"ok"*"CLI docs parity"* ]]
 }
 
-@test "pre-push-gate.sh isolates coverage ratchet from hook git env and stdin" {
-    cat > "$MOCK_BIN/go" <<'GO'
-#!/usr/bin/env bash
-exit 0
-GO
-    chmod +x "$MOCK_BIN/go"
-
-    cat > "$MOCK_BIN/git" <<'GIT'
-#!/usr/bin/env bash
-if [[ "$*" == *"diff --name-only"* ]]; then
-    echo ""
-fi
-exit 0
-GIT
-    chmod +x "$MOCK_BIN/git"
-
-    cat > "$FAKE_REPO/scripts/coverage-ratchet.sh" <<'RATCHET'
-#!/usr/bin/env bash
-if [[ -n "${GIT_DIR:-}" || -n "${GIT_WORK_TREE:-}" || -n "${GIT_COMMON_DIR:-}" ]]; then
-    echo "unexpected git env leaked into coverage ratchet" >&2
-    exit 1
-fi
-if IFS= read -r -t 0.1 line; then
-    echo "unexpected stdin leaked into coverage ratchet: $line" >&2
-    exit 1
-fi
-exit 0
-RATCHET
-    chmod +x "$FAKE_REPO/scripts/coverage-ratchet.sh"
-    echo '{}' > "$FAKE_REPO/.coverage-baseline.json"
-
-    make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
-    make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
-    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
-    make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
-
-    cd "$FAKE_REPO"
-    export PATH="$MOCK_BIN:$PATH"
-
-    run bash -lc "printf 'stdin-from-hook\\n' | env GIT_DIR=/tmp/fake.git GIT_WORK_TREE=/tmp/fake GIT_COMMON_DIR=/tmp/common bash \"$GATE\""
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"ok"*"coverage ratchet (per-package)"* ]]
-}

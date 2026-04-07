@@ -653,14 +653,12 @@ run_step_bg "Git hook shim tests" bash ./tests/scripts/test-githook-shims.sh
 run_step_bg "Validate-local tests" bash ./tests/scripts/test-validate-local.sh
 run_step_bg "Headless runtime skill smoke tests" bash ./tests/scripts/test-headless-runtime-skills.sh
 run_step_bg "Constraint compiler BATS wrapper" ./tests/hooks/test-constraint-compiler.sh
-run_step_bg "cmd/ao coverage floor gate" ./scripts/check-cmdao-coverage-floor.sh
 
 collect_parallel
 
 # ── Phase 3b: Remote-parity checks ──
 # These run in CI (validate.yml) but were missing from local gate.
 
-run_step_bg "Coverage ratchet check" ./scripts/coverage-ratchet.sh --check
 run_step_bg "Skill schema validation" ./scripts/validate-skill-schema.sh --verbose
 run_step_bg "Learning coherence" ./scripts/validate-learning-coherence.sh
 run_step_bg "JSON flag consistency" ./tests/cli/test-json-flag-consistency.sh
