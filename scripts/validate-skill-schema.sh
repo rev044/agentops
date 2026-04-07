@@ -152,14 +152,14 @@ validate_structural() {
   local tier
   tier=$(echo "$json_data" | jq -r '.metadata.tier // empty' 2>/dev/null)
   if [[ -n "$tier" ]]; then
-    local valid_tiers="judgment execution library session product contribute meta background orchestration"
+    local valid_tiers="judgment execution library session product contribute meta background orchestration cross-vendor knowledge"
     if ! echo "$valid_tiers" | grep -qw "$tier"; then
       errors="${errors}'metadata.tier' invalid value '$tier'; "
     fi
   fi
 
   # Check for unknown top-level keys (additionalProperties: false)
-  local valid_keys="name description skill_api_version metadata user-invocable context allowed-tools license compatibility model"
+  local valid_keys="name description skill_api_version metadata user-invocable context allowed-tools license compatibility model output_contract"
   local actual_keys
   actual_keys=$(echo "$json_data" | jq -r 'keys[]' 2>/dev/null)
   for key in $actual_keys; do

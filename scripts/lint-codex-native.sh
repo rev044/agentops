@@ -112,7 +112,7 @@ check_skill() {
     # Real slash-commands: ` /research`, `"/council`, backtick-/skill
     # False positives: `.agents/council/`, `skills/research/`, `merge/release`
     local slash_hits
-    slash_hits=$(perl -ne "print \"$.: \$_\" if m{(?<![A-Za-z0-9_/.=-])/(${SKILL_NAMES})(?![A-Za-z0-9-])}" "$skill_file" 2>/dev/null || true)
+    slash_hits=$(perl -ne "print \"$.: \$_\" if m{(?<![A-Za-z0-9_/.=\\\$-])/(${SKILL_NAMES})(?![A-Za-z0-9-])}" "$skill_file" 2>/dev/null || true)
     if [[ -n "$slash_hits" ]]; then
         local count
         count=$(count_lines "$slash_hits")

@@ -92,8 +92,8 @@ Displays all scenarios with:
 Filter options:
 ```bash
 ao scenario list --status active
-ao scenario list --source human
-ao scenario list --scope src/auth/
+ao scenario list --status draft
+ao scenario list --status retired
 ```
 
 ### Step 5: Integration with Validation

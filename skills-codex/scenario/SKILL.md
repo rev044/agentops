@@ -62,10 +62,10 @@ ao scenario list --status active  # Active only
 - Scenarios use **satisfaction scoring** (0.0-1.0), not boolean pass/fail
 - Scenarios should be written by humans or evaluator agents, NEVER by the implementing agent
 - `source` field tracks provenance: `human`, `agent`, `prod-telemetry`
-- Agent-built specs (from /implement Step 5c) use `auto-*` id prefix and live in `.agents/specs/`
+- Agent-built specs (from $/implement Step 5c) use `auto-*` id prefix and live in `.agents/specs/`
 
 ## See Also
 
 - `/validation` — STEP 1.8 consumes scenarios
-- `/vibe` — Exposes satisfaction_score
-- `/implement` — Step 5c generates agent-built specs
+- `$/vibe` — Exposes satisfaction_score
+- `$/implement` — Step 5c generates agent-built specs
