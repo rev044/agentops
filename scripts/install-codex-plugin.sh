@@ -356,7 +356,7 @@ cat > "$PLUGIN_STATE_FILE" <<EOF
 {
   "installed_at": "$INSTALLED_AT",
   "install_mode": "native-plugin",
-  "hook_runtime": "codex-hookless-fallback",
+  "hook_runtime": "codex-native-hooks",
   "version": "$VERSION",
   "manifest_hash": "$MANIFEST_HASH",
   "skill_count": $SKILL_COUNT,
@@ -369,7 +369,7 @@ cat > "$INSTALL_META" <<EOF
   "installed_at": "$INSTALLED_AT",
   "source": "install-codex-plugin.sh",
   "install_mode": "native-plugin",
-  "hook_runtime": "codex-hookless-fallback",
+  "hook_runtime": "codex-native-hooks",
   "hook_contract": "docs/contracts/hook-runtime-contract.md",
   "lifecycle_commands": ["ao codex start", "ao codex stop"],
   "plugin_key": "$PLUGIN_KEY",
@@ -382,6 +382,52 @@ cat > "$INSTALL_META" <<EOF
   "update_command": "$UPDATE_CMD"
 }
 EOF
+
+# ── Install Codex-native hooks ──
+HOOKS_SRC="${REPO_ROOT}/hooks"
+HOOKS_DST="${PLUGIN_CACHE_ROOT}/hooks"
+
+if [[ -f "${HOOKS_SRC}/codex-hooks.json" ]]; then
+  mkdir -p "$HOOKS_DST"
+  # Copy hook scripts to plugin cache
+  for hook_script in "$HOOKS_SRC"/*.sh; do
+    [[ -f "$hook_script" ]] || continue
+    cp "$hook_script" "$HOOKS_DST/"
+    chmod +x "$HOOKS_DST/$(basename "$hook_script")"
+  done
+  # Copy shared helpers
+  if [[ -d "${REPO_ROOT}/lib" ]]; then
+    cp "${REPO_ROOT}/lib/"*.sh "$HOOKS_DST/" 2>/dev/null || true
+  fi
+
+  # Install hooks.json to ~/.codex/hooks.json (merge if exists)
+  CODEX_HOOKS_FILE="${HOME}/.codex/hooks.json"
+  CODEX_HOOKS_SRC="${HOOKS_SRC}/codex-hooks.json"
+
+  # Replace AGENTOPS_PLUGIN_ROOT with actual path
+  RENDERED_HOOKS="$(sed "s|\${AGENTOPS_PLUGIN_ROOT:-~/.codex/plugins/cache/agentops}|${PLUGIN_CACHE_ROOT}|g" "$CODEX_HOOKS_SRC")"
+
+  if [[ -f "$CODEX_HOOKS_FILE" ]]; then
+    # Backup existing hooks
+    cp "$CODEX_HOOKS_FILE" "${CODEX_HOOKS_FILE}.bak.$(date +%s)"
+    # Remove any existing agentops hooks, then merge
+    EXISTING="$(jq '[.hooks[] | select(.name | startswith("agentops-") | not)]' "$CODEX_HOOKS_FILE" 2>/dev/null || echo '[]')"
+    NEW_HOOKS="$(echo "$RENDERED_HOOKS" | jq '.hooks')"
+    jq -n --argjson existing "$EXISTING" --argjson new "$NEW_HOOKS" '{"hooks": ($existing + $new)}' > "$CODEX_HOOKS_FILE"
+  else
+    mkdir -p "$(dirname "$CODEX_HOOKS_FILE")"
+    echo "$RENDERED_HOOKS" | jq '.' > "$CODEX_HOOKS_FILE"
+  fi
+
+  # Enable hooks feature in config
+  upsert_toml_key "$CONFIG_FILE" "[features]" "codex_hooks" "true"
+
+  info "Codex hooks installed ($(echo "$RENDERED_HOOKS" | jq '.hooks | length') hooks)"
+  echo "  Hooks config: $CODEX_HOOKS_FILE"
+  echo "  Hook scripts: $HOOKS_DST/"
+else
+  warn "No codex-hooks.json found — hooks not installed"
+fi
 
 info "Native Codex plugin installed"
 echo "  Plugin key: $PLUGIN_KEY"
