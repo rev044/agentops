@@ -210,7 +210,6 @@ This repo has a canonical root worktree. It owns the common `.git` directory and
 | **validate-hooks-doc-parity** | Scoped docs avoid stale hook-count claims vs runtime `hooks/hooks.json` | Runtime hook contract changed but docs were not updated |
 | **bats-tests** | BATS integration tests for shell scripts pass | Hook or script behavioral regression |
 | **check-test-staleness** | Detects stale/abandoned test files | Non-blocking (`continue-on-error: true`) |
-| **coverage-ratchet** | Coverage baseline doesn't regress vs `.coverage-baseline.json` | New code drops package coverage below floor |
 | **file-manifest-overlap** | No file path conflicts between workers/skills | Two skills claim the same output file |
 | **json-flag-consistency** | All `--json` flags produce valid JSON with consistent format | Missing `--json` support on a new command |
 
