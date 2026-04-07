@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.35.0] - 2026-04-07
+
+### Added
+
+- **Knowledge compiler skill** — renamed athena → `/compile` with Karpathy-style incremental compilation, pluggable LLM backend (`AGENTOPS_COMPILE_RUNTIME=ollama|claude`), interlinked markdown wiki output at `.agents/compiled/`
+- **App struct dependency injection** — `App` struct carries `ExecCommand`, `LookPath`, `RandReader`, `Stdout`, `Stderr` seams; gc bridge, events, executor, context relevance, tracker health, and stream modules accept injected dependencies instead of mutable package-level vars
+- **Test shuffle in CI** — `-shuffle=on` added to `validate.yml` and `Makefile` test targets, exposing and fixing 6 ordering-dependent tests (cobra flag leaks, maturity var leaks, env var leaks)
+
+### Changed
+
+- **CLI internal extraction (waves 5-13)** — business logic extracted from `cmd/ao` monolith into 15 `internal/` domain packages (`rpi`, `search`, `context`, `quality`, `goals`, `lifecycle`, `bridge`, `forge`, `mine`, `plans`, `knowledge`, `storage`, `pool`, `taxonomy`, `worker`) using Options struct pattern for dependency injection
+- **Goals test migration** — 7 goals test files moved from `cmd/ao` to `internal/goals` as external test package (`goals_test`) with `t.Parallel()` and direct `goals.Run*()` calls replacing cobra command wiring
+- **Test isolation** — `resetCommandState` now saves/restores 10 maturity globals; `resetFlagChangesRecursive` resets flag values to defaults; RPILoop and toolchain tests clear `AGENTOPS_RPI_RUNTIME*` env vars via `t.Setenv`
+
+### Fixed
+
+- **Defrag test flag leak** — `TestDefragOutputDirFlag` used `cmd.Flags().Lookup("output")` which matched the root persistent `--output` flag; changed to `cmd.LocalFlags().Lookup("output")`
+- **Goroutine leak false positive** — `TestRunGoals_GoroutineLeak` used `goleak.VerifyNone` which caught goroutines from parallel tests; switched to `goleak.IgnoreCurrent()` to only detect leaks within the test itself
+- **Secret scan false positives** — excluded `.gc/` directory and `Getenv`/`os.Environ` patterns from secret pattern scan
+- **Codex skill validation** — added `output_contract` as valid schema key, `cross-vendor`/`knowledge` as valid tiers, fixed `$/` prefix in codex forge/post-mortem/scenario skills
+- **Scenario CLI snippets** — replaced non-existent `--source`/`--scope` flags with valid `--status` variants
+
+### Removed
+
+- **Coverage percentage CI gates** — removed `coverage-ratchet` job, `check-cmdao-coverage-floor.sh`, `.coverage-baseline.json`, and associated BATS tests; percentage gates blocked CI during architectural refactors without catching bugs
+- **`fire.go`** — FIRE loop (find-ignite-reap-escalate) superseded by gc sling + bead dispatch; `formatAge` helper moved to `inject_predecessor.go`
+- **`rpi_workers.go`** — per-worker health display superseded by gc agent health patrol; `ao rpi workers` subcommand removed from CLI and docs
+
 ## [2.34.0] - 2026-04-05
 
 ### Added
