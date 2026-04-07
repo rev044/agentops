@@ -17,6 +17,26 @@ if [[ -z "$TOOL_NAME" ]]; then
 fi
 [[ "$TOOL_NAME" != "Edit" ]] && exit 0
 
+# --- SKILL.md line-count guard (warn at 240, fail at 250) ---
+_check_skill_line_limit() {
+    local fpath="$1"
+    [[ "$fpath" == */SKILL.md ]] || return 0
+    [[ -f "$fpath" ]] || return 0
+    local lines
+    lines=$(wc -l < "$fpath")
+    if (( lines >= 250 )); then
+        cat <<WARN_EOF
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"WARNING: ${fpath##*/} is ${lines} lines (limit 248). skill-lint will FAIL in CI. Move content to references/ or scripts/."}}
+WARN_EOF
+        exit 0
+    elif (( lines >= 240 )); then
+        cat <<WARN_EOF
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"CAUTION: ${fpath##*/} is ${lines} lines — approaching 248-line CI limit. Consider moving content to references/."}}
+WARN_EOF
+        exit 0
+    fi
+}
+
 # Find repo root
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 LEARNINGS_DIR="$ROOT/.agents/learnings"
@@ -29,6 +49,9 @@ if [[ -z "$FILE_PATH" ]]; then
     FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""' 2>/dev/null) || exit 0
 fi
 [[ -z "$FILE_PATH" ]] && exit 0
+
+# SKILL.md line-count guard
+_check_skill_line_limit "$FILE_PATH"
 
 # Normalize to relative path for matching
 REL_PATH="${FILE_PATH#"$ROOT/"}"

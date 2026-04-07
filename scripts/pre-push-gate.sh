@@ -591,7 +591,14 @@ else
 fi
 
 # --- 24b. CLI docs parity (generate-cli-reference.sh --check) ---
-if needs_check go; then
+# Trigger on any cmd/ao/*.go change (help text, flags, etc.), not just go build changes
+HAS_CMD_AO=0
+if [[ "$FAST_MODE" == "true" ]]; then
+    if echo "$all_changed" | grep -qE '^cli/cmd/ao/.*\.go$'; then
+        HAS_CMD_AO=1
+    fi
+fi
+if needs_check go || [[ "$HAS_CMD_AO" -eq 1 ]]; then
     if [[ -x scripts/generate-cli-reference.sh ]]; then
         if cli_docs_output="$(run_without_git_env scripts/generate-cli-reference.sh --check 2>&1)"; then
             pass "CLI docs parity"
@@ -809,7 +816,7 @@ fi
 # --- 35. Flywheel health (warn only) ---
 if command -v ao >/dev/null 2>&1 && [[ -d .agents ]]; then
     if health_output="$(ao metrics health --json 2>/dev/null)"; then
-        fly_status="$(echo "$health_output" | grep -o '"flywheel_status":"[^"]*"' | head -1 | cut -d'"' -f4)"
+        fly_status="$(echo "$health_output" | grep -o '"flywheel_status":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
         if [[ "$fly_status" == "DECAYING" ]]; then
             warn "flywheel health: DECAYING — run /evolve or check citation flow"
         elif [[ -n "$fly_status" ]]; then
@@ -822,6 +829,19 @@ if command -v ao >/dev/null 2>&1 && [[ -d .agents ]]; then
     fi
 else
     skip "flywheel health (ao not available)"
+fi
+
+# --- 36. CHANGELOG sync (docs/CHANGELOG.md must match root) ---
+if needs_check docs || needs_check always; then
+    if [[ -f docs/CHANGELOG.md && -f CHANGELOG.md ]]; then
+        if diff -q CHANGELOG.md docs/CHANGELOG.md >/dev/null 2>&1; then
+            pass "CHANGELOG sync"
+        else
+            fail "CHANGELOG sync (run: cp CHANGELOG.md docs/CHANGELOG.md)"
+        fi
+    else
+        skip "CHANGELOG sync (missing file)"
+    fi
 fi
 
 # --- Summary ---
