@@ -220,18 +220,11 @@ bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automat
 3. In `lean` mode, the hook extracts pending knowledge and injects prior learnings with a reduced token budget.
 4. This skill can be injected automatically into session context.
 
-**Codex native hooks (v0.115.0+)**
-1. Codex CLI v0.115.0+ supports native lifecycle hooks — same behavior as hook-capable runtimes above.
-2. No explicit `ao codex start`/`ao codex stop` needed; hooks fire automatically.
+**Codex (v0.115.0+: native hooks, older: hookless fallback)**
+1. v0.115.0+: hooks fire automatically — same behavior as hook-capable runtimes above.
+2. Pre-v0.115.0: run `ao codex start` explicitly, use `ao lookup` for citations, end with `ao codex stop`.
 
-**Codex hookless fallback (pre-v0.115.0)**
-1. Run `ao codex start`.
-2. AgentOps inspects `.agents/`, runs safe close-loop maintenance, syncs MEMORY.md, and writes `.agents/ao/codex/startup-context.md`.
-3. Surfaced learnings, patterns, and findings are cited as `retrieved`.
-4. Use `ao lookup` for automatic citations during work, or `ao search --cite retrieved|reference|applied` when a search result is actually adopted.
-5. End the session with `ao codex stop`, then verify loop health with `ao codex status`.
-
-**Result:** The agent gets the RPI workflow, prior context, and a citation path in both modes. The difference is whether lifecycle work is hook-driven or command-driven.
+**Result:** The agent gets the RPI workflow, prior context, and a citation path in all modes.
 
 ### Workflow Reference During Planning
 

@@ -743,7 +743,7 @@ ao autodev validate [flags]
 
 ### `ao codex`
 
-Codex-native lifecycle commands for runtimes without Claude/OpenCode lifecycle hooks.
+Codex lifecycle commands for the AgentOps knowledge flywheel.
 
 ```
 ao codex [command]
@@ -789,7 +789,7 @@ ao codex ensure-stop [flags]
 
 #### `ao codex start`
 
-Start a Codex session with explicit flywheel maintenance
+Start a Codex session with explicit flywheel maintenance (fallback for pre-v0.115.0)
 
 ```
 ao codex start [flags]
@@ -806,7 +806,7 @@ ao codex start [flags]
 
 #### `ao codex status`
 
-Show Codex hookless lifecycle health
+Show Codex lifecycle health (native hooks detected when available)
 
 ```
 ao codex status [flags]
@@ -821,7 +821,7 @@ ao codex status [flags]
 
 #### `ao codex stop`
 
-Close a Codex session without relying on runtime hooks
+Close a Codex session explicitly (fallback for pre-v0.115.0)
 
 ```
 ao codex stop [flags]
