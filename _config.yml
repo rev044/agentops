@@ -27,6 +27,7 @@ exclude:
   - tests/
   - bin/
   - schemas/
+  - docs/
   - .agents/
   - .beads/
   - .claude/
@@ -35,6 +36,10 @@ exclude:
   - .opencode/
   - skills-codex/
   - skills-codex-overrides/
+  - AGENTS.md
+  - GOALS.md
+  - CLAUDE.md
+  - README.md
   - Makefile
   - go.mod
   - go.sum
