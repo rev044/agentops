@@ -23,13 +23,13 @@ Then type `/quickstart` in your agent chat.
 
 | Tool | Focus | What AgentOps Adds |
 |------|-------|--------------------|
-| [GSD](comparisons/agentops-vs-gsd) | Spec-driven execution, 7 runtimes | Cross-session memory |
-| [Compound Engineer](comparisons/agentops-vs-compound-engineer) | Knowledge compounding loop | Automated flywheel + validation gates |
-| [Superpowers](comparisons/agentops-vs-superpowers) | Strict TDD enforcement | Memory that compounds + pre-mortem |
-| [Claude-Flow / Ruflo](comparisons/agentops-vs-claude-flow) | 54+ agent swarms, WASM perf | Knowledge layer across sessions |
-| [SDD Tools](comparisons/agentops-vs-sdd) | Spec as source of truth | Learning extraction + failure prevention |
+| [GSD](docs/comparisons/vs-gsd.md) | Spec-driven execution, 7 runtimes | Cross-session memory |
+| [Compound Engineer](docs/comparisons/vs-compound-engineer.md) | Knowledge compounding loop | Automated flywheel + validation gates |
+| [Superpowers](docs/comparisons/vs-superpowers.md) | Strict TDD enforcement | Memory that compounds + pre-mortem |
+| [Claude-Flow / Ruflo](docs/comparisons/vs-claude-flow.md) | 54+ agent swarms, WASM perf | Knowledge layer across sessions |
+| [SDD Tools](docs/comparisons/vs-sdd.md) | Spec as source of truth | Learning extraction + failure prevention |
 
-[Full comparison matrix →](comparisons/)
+[Full comparison matrix →](docs/comparisons/README.md)
 
 ## Links
 
