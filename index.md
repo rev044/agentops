@@ -90,5 +90,5 @@ How AgentOps stacks up against other AI coding agent tools:
 ### Contributing
 - [Contributing Guide](docs/CONTRIBUTING.md)
 - [Code of Conduct](docs/CODE_OF_CONDUCT.md)
-- [Releasing](docs/RELEASING.md)
 - [Changelog](docs/CHANGELOG.md)
+- [Releasing Guide](https://github.com/boshu2/agentops/blob/main/docs/RELEASING.md) (source only)

@@ -55,6 +55,11 @@ exclude:
   - docs/releases/
   - docs/levels/
   - docs/assets/hero.jpg
+  # Files with Helm/Go template syntax that Jekyll's Liquid parser chokes on
+  - docs/RELEASING.md
+  - docs/workflows/
+  - docs/standards/
+  - docs/templates/kernel.template.md
   # Repo meta
   - AGENTS.md
   - GOALS.md
