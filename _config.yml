@@ -4,20 +4,32 @@ url: https://boshu2.github.io
 baseurl: /agentops
 theme: minima
 
-include:
-  - docs/comparisons
-
-defaults:
-  - scope:
-      path: "docs/comparisons"
-    values:
-      layout: default
-      nav_exclude: false
-
 plugins:
   - jekyll-seo-tag
   - jekyll-sitemap
 
+# Disable Liquid rendering on markdown files by default so Helm/Go templates
+# and other code blocks don't break the build. Frontmatter still processed.
+defaults:
+  - scope:
+      path: ""
+      type: pages
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "docs"
+      type: pages
+    values:
+      layout: default
+      render_with_liquid: false
+  - scope:
+      path: "docs/comparisons"
+      type: pages
+    values:
+      layout: default
+      render_with_liquid: false
+
+# Only publish docs/ + top-level index. Exclude everything else.
 exclude:
   - cli/
   - skills/
@@ -27,7 +39,6 @@ exclude:
   - tests/
   - bin/
   - schemas/
-  - docs/
   - .agents/
   - .beads/
   - .claude/
@@ -36,6 +47,15 @@ exclude:
   - .opencode/
   - skills-codex/
   - skills-codex-overrides/
+  # Operational / non-user-facing subdirs
+  - docs/evidence/
+  - docs/migration-trackers/
+  - docs/plans/
+  - docs/profiles/
+  - docs/releases/
+  - docs/levels/
+  - docs/assets/hero.jpg
+  # Repo meta
   - AGENTS.md
   - GOALS.md
   - CLAUDE.md
