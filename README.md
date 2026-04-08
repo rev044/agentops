@@ -4,6 +4,7 @@
 
 [![Validate](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![Nightly](https://github.com/boshu2/agentops/actions/workflows/nightly.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/nightly.yml)
+[![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops/stargazers)
 
 ### Every session starts where the last one left off.
 
@@ -615,3 +616,15 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md). If AgentOps helped you ship somethi
 ## License
 
 Apache-2.0 · [Docs](docs/INDEX.md) · [Philosophy](docs/philosophy.md) · [How It Works](docs/how-it-works.md) · [FAQ](docs/FAQ.md) · [Glossary](docs/GLOSSARY.md) · [Architecture](docs/ARCHITECTURE.md) · [Configuration](docs/ENV-VARS.md) · [CLI Reference](cli/docs/COMMANDS.md) · [Changelog](docs/CHANGELOG.md)
+
+---
+
+## Star History
+
+<a href="https://star-history.com/#boshu2/agentops&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=boshu2/agentops&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=boshu2/agentops&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=boshu2/agentops&type=Date" width="600" />
+ </picture>
+</a>
