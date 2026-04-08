@@ -1,8 +1,14 @@
-# AgentOps vs Claude-Flow
+---
+title: "AgentOps vs Claude-Flow (Ruflo) — Detailed Comparison"
+description: "How AgentOps compares to Claude-Flow/Ruflo for AI coding agents. Claude-Flow optimizes swarm orchestration at scale. AgentOps compounds knowledge across sessions."
+permalink: /comparisons/agentops-vs-claude-flow
+---
 
-> **Claude-Flow** is a multi-agent orchestration platform for Claude featuring specialized agents and performance optimizations.
+# AgentOps vs Claude-Flow (now Ruflo)
+
+> **Ruflo v3.5** (formerly Claude-Flow) is a multi-agent orchestration platform featuring 314 MCP tools, 16+ agent roles, and WASM-optimized performance. V3 was a complete rebuild with 250,000+ lines redesigned into modular TypeScript/WASM architecture. 6,000+ commits, 54+ specialized agents in coordinated swarms.
 >
-> *Comparison as of January 2026. See [Claude-Flow repo](https://github.com/ruvnet/claude-flow) for current features.*
+> *Comparison updated April 2026. See [Ruflo repo](https://github.com/ruvnet/ruflo) for current features.*
 
 ---
 
@@ -11,8 +17,9 @@
 | Aspect | Claude-Flow | AgentOps |
 |--------|-------------|----------|
 | **Philosophy** | "Swarm intelligence at scale" | "Knowledge compounds over time" |
-| **Core strength** | Multi-agent orchestration, performance | Cross-session memory, learning |
-| **GitHub stars** | 11,400+ | Growing |
+| **Core strength** | Multi-agent orchestration, WASM performance, 314 MCP tools | Cross-session memory, validation gates, knowledge flywheel |
+| **Latest** | v3.5.65 (April 2026, rebranded to Ruflo) | v2.35.0 (April 2026) |
+| **GitHub stars** | 11,400+ | 240+ (growing rapidly) |
 | **Downloads** | 500,000+ | — |
 | **Primary use** | Enterprise orchestration | Ongoing codebase work |
 

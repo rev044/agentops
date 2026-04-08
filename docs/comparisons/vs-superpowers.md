@@ -1,8 +1,20 @@
+---
+title: "AgentOps vs Superpowers — Detailed Comparison"
+description: "How AgentOps compares to Superpowers for AI coding agents. Superpowers enforces strict TDD. AgentOps adds cross-session memory and multi-model validation councils."
+permalink: /comparisons/agentops-vs-superpowers
+---
+
 # AgentOps vs Superpowers
 
-> **Superpowers** is a popular Claude Code plugin known for disciplined TDD workflows and autonomous operation.
+---
+title: "AgentOps vs Superpowers — Detailed Comparison"
+description: "How AgentOps compares to Superpowers for AI coding agents. Superpowers enforces strict TDD. AgentOps adds cross-session memory and multi-model validation councils."
+permalink: /comparisons/agentops-vs-superpowers
+---
+
+> **Superpowers** is a popular coding agent plugin known for disciplined TDD workflows and autonomous operation. Now supports Kimi Code CLI, OpenClaw, and Mistral Vibe (April 2026). Major architectural shift: skills separated into a dedicated repo (obra/superpowers-skills) — the plugin is now a lightweight shim that auto-updates skills on session start.
 >
-> *Comparison as of January 2026. See [Superpowers repo](https://github.com/obra/superpowers) for current features.*
+> *Comparison updated April 2026. See [Superpowers repo](https://github.com/obra/superpowers) for current features.*
 
 ---
 

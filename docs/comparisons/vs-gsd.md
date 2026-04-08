@@ -1,8 +1,14 @@
+---
+title: "AgentOps vs GSD (Get Shit Done) — Detailed Comparison"
+description: "How AgentOps compares to GSD for AI coding agents. GSD optimizes within sessions with fresh context per agent. AgentOps carries knowledge between sessions with a compounding flywheel."
+permalink: /comparisons/agentops-vs-gsd
+---
+
 # AgentOps vs GSD (Get Shit Done)
 
-> **GSD v1.27** is a full-featured spec-driven development framework for AI coding agents. It installs as slash commands into 7 runtimes (Claude Code, Gemini CLI, OpenCode, Codex, Copilot, Cursor, Antigravity) and solves "context rot" by spawning fresh-context subagents for each task.
+> **GSD v1.34** is a full-featured spec-driven development framework for AI coding agents. It installs as slash commands into 7 runtimes (Claude Code, Gemini CLI, OpenCode, Codex, Copilot, Cursor, Antigravity) and solves "context rot" by spawning fresh-context subagents for each task. Trusted by engineers at Amazon, Google, Shopify, and Webflow.
 >
-> *Comparison as of March 2026. See the [GSD repo](https://github.com/glittercowboy/get-shit-done) for current features.*
+> *Comparison updated April 2026. See the [GSD repo](https://github.com/glittercowboy/get-shit-done) for current features.*
 
 ---
 
@@ -13,6 +19,7 @@
 | **Philosophy** | "Ship fast — fresh context per agent" | "Knowledge compounds over time" |
 | **Core strength** | Multi-agent orchestration with context isolation, multi-runtime support | Cross-session memory, validation gates, knowledge flywheel |
 | **GitHub** | glittercowboy/get-shit-done | boshu2/agentops |
+| **Latest** | v1.34.2 (April 2026) | v2.35.0 (April 2026) |
 | **Scale** | 53 commands, 46 workflows, 16 agents | 50+ skills, compiled CLI, hooks, schemas |
 | **Primary use** | Spec-driven development with phased execution | Ongoing codebase work with persistent memory |
 
@@ -56,6 +63,10 @@ Not just "human verification" anymore. GSD v1.27 has:
 ### 6. Seven Runtime Support
 
 Installs to Claude Code, Gemini CLI, OpenCode, Codex, Copilot, Cursor, and Antigravity. The installer transforms file content per runtime at install time (tool name mapping, agent frontmatter, hook events, path conventions).
+
+### 7. Advisor Mode and Fast Path (New in v1.34)
+
+`/gsd:advisor` provides research-backed discussion without execution. `/gsd:fast` skips planning for trivial tasks. Multi-repo workspace support added for cross-project orchestration.
 
 ### 7. Deep State Management
 

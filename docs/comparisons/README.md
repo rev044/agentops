@@ -1,20 +1,26 @@
+---
+title: "AgentOps vs The Competition — AI Coding Agent Comparisons"
+description: "How AgentOps compares to GSD, Compound Engineer, Superpowers, Claude-Flow/Ruflo, and SDD tools. Most tools optimize within sessions. AgentOps optimizes across them."
+permalink: /comparisons/
+---
+
 # AgentOps vs The Competition
 
 > **TL;DR:** Most tools optimize *within* a session. Compound Engineer is the closest philosophical neighbor; AgentOps pushes harder on git-native memory and validation.
 
 ---
 
-## The Landscape (January 2026)
+## The Landscape (April 2026)
 
-The Claude Code plugin ecosystem has exploded. Here's how the major players stack up:
+The AI coding agent ecosystem has exploded. Here's how the major players stack up:
 
 | Tool | Focus | Strength | Gap AgentOps Fills |
 |------|-------|----------|-------------------|
-| [Superpowers](vs-superpowers.md) | TDD + Planning | Disciplined autonomous work | No cross-session memory |
-| [Claude-Flow](vs-claude-flow.md) | Multi-agent swarms | 60+ agents, WASM performance | No learning mechanism |
-| [SDD Tools](vs-sdd.md) | Spec-driven development | Structured requirements | Specs only, no learnings |
-| [GSD](vs-gsd.md) | Meta-prompting | Lightweight, fast shipping | Ephemeral, no persistence |
-| [Compound Engineer](vs-compound-engineer.md) | Plan/work/review/compound loop | Portable workflow and cross-tool sync | Less emphasis on git-native memory and validation gates |
+| [Superpowers](vs-superpowers.md) | TDD + Planning | Disciplined autonomous work, 6+ runtimes | No cross-session memory |
+| [Claude-Flow / Ruflo](vs-claude-flow.md) | Multi-agent swarms | 54+ agents, WASM, 314 MCP tools | No learning mechanism |
+| [SDD Tools](vs-sdd.md) | Spec-driven development | Industry standard (AWS Kiro, GitHub Spec Kit) | Specs only, no learnings |
+| [GSD](vs-gsd.md) | Spec-driven execution | 53 commands, 7 runtimes, advisor mode | Ephemeral, no persistence |
+| [Compound Engineer](vs-compound-engineer.md) | Plan/work/review/compound | Stack-aware routing, 10 runtimes | Manual compounding, no validation gates |
 
 ---
 
@@ -131,7 +137,7 @@ By session 100:
 ## Detailed Comparisons
 
 - [vs. Superpowers](vs-superpowers.md) — The TDD powerhouse
-- [vs. Claude-Flow](vs-claude-flow.md) — The swarm orchestrator
+- [vs. Claude-Flow / Ruflo](vs-claude-flow.md) — The swarm orchestrator
 - [vs. SDD Tools](vs-sdd.md) — The spec-driven approach
 - [vs. GSD](vs-gsd.md) — The lightweight shipper
 - [vs. Compound Engineer](vs-compound-engineer.md) — The closest philosophical neighbor

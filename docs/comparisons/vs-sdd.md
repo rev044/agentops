@@ -1,6 +1,12 @@
+---
+title: "AgentOps vs SDD (Spec-Driven Development) — Detailed Comparison"
+description: "How AgentOps compares to Spec-Driven Development tools (cc-sdd, GitHub Spec Kit). SDD captures what you decided. AgentOps captures what you learned."
+permalink: /comparisons/agentops-vs-sdd
+---
+
 # AgentOps vs SDD (Spec-Driven Development)
 
-> **Spec-Driven Development** is an emerging methodology where specifications are the central artifact. Major tools include **cc-sdd**, **GitHub Spec Kit**, and **SDD_Flow**.
+> **Spec-Driven Development** has gone mainstream in 2026. Major tools include **cc-sdd v2.0** (8 agents, 13 languages), **GitHub Spec Kit v0.5.0** (now industry standard), and **AWS Kiro** (spec-driven IDE). Tessl is pushing "spec-as-source" for infrastructure-as-code.
 
 ---
 

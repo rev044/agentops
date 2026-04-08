@@ -1,8 +1,14 @@
+---
+title: "AgentOps vs Compound Engineer — Detailed Comparison"
+description: "How AgentOps compares to Compound Engineer for AI coding agents. Both compound knowledge, but AgentOps automates the flywheel while Compound Engineer requires manual invocation."
+permalink: /comparisons/agentops-vs-compound-engineer
+---
+
 # AgentOps vs Compound Engineer
 
-> **Compound Engineer v2.47** is Every's coding-agent plugin implementing a knowledge-compounding development workflow. The core thesis: "Each unit of engineering work should make subsequent units easier." It now includes 45+ skills, 25+ agents, ideation with adversarial filtering, knowledge maintenance, and cross-runtime support for 10 targets.
+> **Compound Engineer** is Every's coding-agent plugin implementing a knowledge-compounding development workflow. The core thesis: "Each unit of engineering work should make subsequent units easier." Includes 45+ skills, 25+ agents, ideation with adversarial filtering, knowledge maintenance, and cross-runtime support for 10 targets. Recent additions: stack-aware reviewer routing, mandatory code review by default, and PR description filtering.
 >
-> *Comparison as of March 2026. See the [Compound Engineer repo](https://github.com/EveryInc/compound-engineering-plugin) for current features.*
+> *Comparison updated April 2026. See the [Compound Engineer repo](https://github.com/EveryInc/compound-engineering-plugin) for current features.*
 
 ---
 
@@ -13,6 +19,7 @@
 | **Philosophy** | "Each unit of engineering work should make subsequent units easier" | "Knowledge compounds over time" |
 | **Core strength** | Full ideate-to-compound loop, cross-runtime portability, configurable review agents | Git-tracked memory, validation gates, knowledge flywheel with scoring |
 | **GitHub** | EveryInc/compound-engineering-plugin | boshu2/agentops |
+| **Latest** | Active development (April 2026) | v2.35.0 (April 2026) |
 | **Scale** | 45+ skills, 25+ agents, 10 runtime targets | 50+ skills, compiled CLI, hooks, schemas |
 | **Primary use** | Standardized engineering workflow with knowledge capture | Ongoing codebase work with persistent memory and validation |
 
