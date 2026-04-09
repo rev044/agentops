@@ -18,6 +18,7 @@ Outputs:
   <output-dir>/harvest/latest.json
   <output-dir>/close-loop.json
   <output-dir>/metrics-health.json
+  <output-dir>/retrieval-bench.json
   <output-dir>/defrag/latest.json
   <output-dir>/summary.json
   <output-dir>/summary.md
@@ -101,6 +102,7 @@ SUMMARY_JSON="$OUTPUT_DIR/summary.json"
 SUMMARY_MD="$OUTPUT_DIR/summary.md"
 CLOSE_LOOP_JSON="$OUTPUT_DIR/close-loop.json"
 METRICS_JSON="$OUTPUT_DIR/metrics-health.json"
+RETRIEVAL_JSON="$OUTPUT_DIR/retrieval-bench.json"
 FORGE_LOG="$OUTPUT_DIR/forge.log"
 
 rm -rf "$WORKSPACE_ROOT" "$HARVEST_DIR" "$PROMOTE_DIR" "$DEFRAG_DIR"
@@ -183,6 +185,12 @@ DEFRAG_JSON="$DEFRAG_DIR/latest.json"
 )
 [[ -f "$METRICS_JSON" ]] || die "metrics report missing: $METRICS_JSON"
 
+(
+  cd "$WORKSPACE_ROOT"
+  "$AO_BIN" retrieval-bench --live --json >"$RETRIEVAL_JSON"
+)
+[[ -f "$RETRIEVAL_JSON" ]] || die "retrieval report missing: $RETRIEVAL_JSON"
+
 harvest_rigs="$(jq -r '.rigs_scanned // 0' "$HARVEST_JSON")"
 harvest_total_files="$(jq -r '.total_files // 0' "$HARVEST_JSON")"
 harvest_artifacts="$(jq -r '(.artifacts | length) // 0' "$HARVEST_JSON")"
@@ -214,6 +222,14 @@ metrics_constraints="$(jq -r '.knowledge_stock.constraints // 0' "$METRICS_JSON"
 metrics_r1="$(jq -r '.loop_dominance.r1 // 0' "$METRICS_JSON")"
 metrics_b1="$(jq -r '.loop_dominance.b1 // 0' "$METRICS_JSON")"
 metrics_dominant="$(jq -r '.loop_dominance.dominant // "unknown"' "$METRICS_JSON")"
+retrieval_mode="$(jq -r '.mode // "live-local"' "$RETRIEVAL_JSON")"
+retrieval_total_learnings="$(jq -r '.total_learnings // 0' "$RETRIEVAL_JSON")"
+retrieval_queries="$(jq -r '.queries // 0' "$RETRIEVAL_JSON")"
+retrieval_k="$(jq -r '.k // 0' "$RETRIEVAL_JSON")"
+retrieval_queries_with_hits="$(jq -r '.queries_with_hits // 0' "$RETRIEVAL_JSON")"
+retrieval_coverage="$(jq -r '.coverage // 0' "$RETRIEVAL_JSON")"
+retrieval_hit_summary="$(jq -c '[.results[]? | {query, count, top_ids: (.top_ids // [])}]' "$RETRIEVAL_JSON")"
+retrieval_coverage_pct="$(awk "BEGIN { printf \"%.0f\", $retrieval_coverage * 100 }")"
 
 jq -n \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -251,6 +267,13 @@ jq -n \
   --argjson metrics_b1 "$metrics_b1" \
   --arg metrics_dominant "$metrics_dominant" \
   --arg metrics_escape "$metrics_escape" \
+  --arg retrieval_mode "$retrieval_mode" \
+  --argjson retrieval_total_learnings "$retrieval_total_learnings" \
+  --argjson retrieval_queries "$retrieval_queries" \
+  --argjson retrieval_k "$retrieval_k" \
+  --argjson retrieval_queries_with_hits "$retrieval_queries_with_hits" \
+  --argjson retrieval_coverage "$retrieval_coverage" \
+  --argjson retrieval_hit_summary "$retrieval_hit_summary" \
   '{
     generated_at: $generated_at,
     repo_root: $repo_root,
@@ -300,6 +323,16 @@ jq -n \
         b1: $metrics_b1,
         dominant: $metrics_dominant
       }
+    },
+    retrieval_live: {
+      report_path: "retrieval-bench.json",
+      mode: $retrieval_mode,
+      total_learnings: $retrieval_total_learnings,
+      queries: $retrieval_queries,
+      k: $retrieval_k,
+      queries_with_hits: $retrieval_queries_with_hits,
+      coverage: $retrieval_coverage,
+      query_hit_summary: $retrieval_hit_summary
     }
   }' >"$SUMMARY_JSON"
 
@@ -329,6 +362,18 @@ This run snapshots the checked-in \`.agents/\` corpus into an ephemeral nightly 
 - Dominant loop: ${metrics_dominant}
 - R1: ${metrics_r1}
 - B1: ${metrics_b1}
+
+### Live Retrieval
+
+- Mode: ${retrieval_mode}
+- Corpus learnings: ${retrieval_total_learnings}
+- Coverage: ${retrieval_coverage_pct}% (${retrieval_queries_with_hits}/${retrieval_queries} queries with hits)
+- K: ${retrieval_k}
+- Report: \`retrieval-bench.json\`
+
+\`\`\`json
+${retrieval_hit_summary}
+\`\`\`
 EOF
 
 echo "Dream-cycle summary written to $SUMMARY_MD"

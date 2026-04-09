@@ -616,7 +616,7 @@
       "name": "forge",
       "source_skill": "skills/forge",
       "source_hash": "286b17f44efe413b7b8514cefded51f7085e82bf9698cc41d0136337af66662d",
-      "generated_hash": "4a908ffd2965adcbe35bd8b165e336165c28018c41f388d41d3df260d16a001c"
+      "generated_hash": "4ae6bde43e0af7bc8974e4d0bbe973ca16c1175d6976fb4f8b81047ce5bd68ae"
     },
     {
       "name": "goals",
@@ -652,7 +652,7 @@
       "name": "implement",
       "source_skill": "skills/implement",
       "source_hash": "2ab197d1810fd3eb56f73aac4645c02edc01aa41e524064b12b993c6861ebc32",
-      "generated_hash": "2ed1918f55180687c573f54bbc052dc31d87387570f342f0fe7189824ab5b99c"
+      "generated_hash": "96e07704749dc8a8202bb6cf1053bc1832697bfb19bece0f9a4a288bad7e4fdd"
     },
     {
       "name": "inject",
@@ -664,7 +664,7 @@
       "name": "knowledge-activation",
       "source_skill": "skills/knowledge-activation",
       "source_hash": "",
-      "generated_hash": "2b7128de2d1aaf33dd0de43c72e7f2be01c2744f0e567efe51a88194fe3c8fde"
+      "generated_hash": "3f6838853e34e874ae9d2554d71450e6f0ab36d9f98c1357bc8ca6f86ca3f621"
     },
     {
       "name": "openai-docs",
@@ -694,7 +694,7 @@
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
       "source_hash": "afce1fac76a1e506e9405b76886ecdf390c3eead5d863d82b8311286ad00d6a4",
-      "generated_hash": "153f8041fd03a5519c39dd8e0414b05335b8c635fd3856ffc3202dd26da2cf9c"
+      "generated_hash": "b6daa308b06b25678a05976dc8c1129afc5dcb93e8066ff623cb9932537c91e2"
     },
     {
       "name": "pr-implement",
@@ -807,8 +807,8 @@
     {
       "name": "retro",
       "source_skill": "skills/retro",
-      "source_hash": "4cf265d7ee5b71ac33e7039aeb58c899a02b8721b3a998e96151641d7e9b6d3c",
-      "generated_hash": "37f6188b3c25a7c21109d38aa3ade6d5b233bf2834c240052d2814d455802d54"
+      "source_hash": "766c677cdceb6b891805b9d865a6f5df547a6220d1824dfa2e5c1aead5ec1bca",
+      "generated_hash": "09e1cb6541b54695fcbe01daba1d77da50325a39e5ad56a2146d8d11f2c21bfc"
     },
     {
       "name": "reverse-engineer-rpi",
@@ -838,7 +838,7 @@
       "name": "scenario",
       "source_skill": "skills/scenario",
       "source_hash": "5795f67b06b9240dfeb017a4621180f119583878fcb80946863c32209ae885b6",
-      "generated_hash": "50740a551582b280ec08bd07a361edddb2b133ee6e75f149838c30ac0963e54f"
+      "generated_hash": "4fa87bab94929801c40ebe889c75f28950e59cc26452fdf9631d257b7c539e66"
     },
     {
       "name": "security",
@@ -904,7 +904,7 @@
       "name": "validation",
       "source_skill": "skills/validation",
       "source_hash": "2e71f8dbe94c65971f0dff7f82ac83396649ff036bbea388060174945f660c5c",
-      "generated_hash": "24b75c8b2feb0ebca1443a479794891d0f48147e04b5b8dd1fa24973cd8a2cd9"
+      "generated_hash": "ed3e999c9ef4ff67f3d4e9e4a9220224f82e3a94cb997a60bd09fcade15de526"
     },
     {
       "name": "vibe",
