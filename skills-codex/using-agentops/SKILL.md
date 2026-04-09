@@ -1,14 +1,23 @@
 ---
 name: using-agentops
-description: 'Meta skill explaining the RPI workflow. Hook-capable runtimes inject it at session start; Codex uses it through the explicit startup fallback. Covers Research-Plan-Implement workflow, Knowledge Flywheel, and skill catalog.'
+description: 'Meta skill explaining the AgentOps operating model. Hook-capable runtimes inject it at session start; Codex uses it through the explicit startup fallback. Covers bookkeeping, validation, primitives, flows, the RPI lifecycle, and the skill catalog.'
 ---
 
 
-# RPI Workflow
+# AgentOps Operating Model
 
-You have access to workflow skills for structured development.
+AgentOps is the operational layer for coding agents.
 
-## The RPI Workflow
+Publicly, it gives you four things:
+
+- **Bookkeeping** — captured learnings, findings, and reusable context
+- **Validation** — plan and code review before work ships
+- **Primitives** — single skills, hooks, and CLI surfaces
+- **Flows** — named compositions like `$research`, `$validation`, and `$rpi`
+
+Technically, AgentOps acts as a context compiler: raw session signal becomes reusable knowledge, compiled prevention, and better next work.
+
+## Core Flow: RPI
 
 ```
 Research → Plan → Implement → Validate

@@ -4,14 +4,16 @@
 
 Parallel agents produce noisy output; councils filter it; ratchets lock progress so it can never regress.
 
-Think of the mechanics below as the substrate under the software-factory
-operator surface: briefings and startup context prepare the work order, RPI
-phases run the delivery lane, and the flywheel closes the learning loop. See
+Publicly, AgentOps sells bookkeeping, validation, primitives, and flows. This page explains the internal mechanics beneath that story: the three-gap proof contract, the Brownian Ratchet, and the flywheel that makes sessions compound.
+
+Think of the mechanics below as the substrate under the operator surface:
+briefings and startup context prepare the work order, RPI phases run the
+delivery lane, and the flywheel closes the learning loop. See
 [Software Factory Surface](software-factory.md).
 
 ## The Three Gaps
 
-AgentOps exists because most agent tooling leaves three gaps open after prompt construction and routing are solved. The runtime mechanics described on this page are organized around closing them:
+AgentOps exists because most agent tooling leaves three gaps open after prompt construction and routing are solved. The runtime mechanics described on this page are organized around proving they are actually closed:
 
 1. **Judgment validation** — agents ship without risk context. Hooks and skills that challenge plans and implementations before they land (pre-mortem gate, `/vibe`, `/council`, task-validation gate).
 2. **Durable learning** — solved problems recur. The knowledge flywheel extracts, scores, promotes, and retrieves learnings so the same lesson is never re-paid (session-end forging, `ao forge`, `ao lookup`, maturity controls).
@@ -105,7 +107,7 @@ Skills auto-select the best available backend:
 }
 ```
 
-## Hooks — The Workflow Enforces Itself
+## Hooks — The Operational Layer Enforces Itself
 
 The active runtime manifest currently declares **7 hook event sections** in `hooks/hooks.json`. All have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 

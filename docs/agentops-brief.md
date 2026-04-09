@@ -6,9 +6,9 @@
 
 ## What It Is
 
-A repo-native operating layer for stateless coding agents.
+A repo-native operational layer for coding agents.
 
-AgentOps gives every session a mission, a phased workflow, quality gates, and a durable memory substrate on disk. Work begins with repo context instead of a blank prompt, passes through explicit plan and code judgment, and ends by feeding findings, learnings, and next work back into the environment.
+AgentOps gives every session bookkeeping, validation, primitives, and flows. Work begins with repo context instead of a blank prompt, passes through explicit validation before shipping, and ends by feeding findings, learnings, and next work back into the environment.
 
 The institutional knowledge stops walking out the door because the repo keeps it.
 
@@ -16,7 +16,7 @@ The institutional knowledge stops walking out the door because the repo keeps it
 
 ## The Three Gaps
 
-Most coding-agent tooling handles prompt construction and routing well. The failure mode comes after that, in three gaps that AgentOps treats as a single lifecycle contract (see [docs/context-lifecycle.md](context-lifecycle.md)):
+Most coding-agent tooling handles prompt construction and routing well. The failure mode comes after that. Internally, AgentOps proves the product through a three-gap lifecycle contract (see [docs/context-lifecycle.md](context-lifecycle.md)):
 
 | Gap | Problem | AgentOps response |
 |-----|---------|-------------------|
@@ -30,16 +30,16 @@ The compound effect below only works because all three gaps are closed: validati
 
 ## Four Load-Bearing Layers
 
-### Skills — The Orchestration Layer
-Structured workflows for discovery, execution, validation, recovery, and release. Skills route work into the right primitive chain instead of leaving the agent to improvise the lifecycle.
+### Skills — The Primitive and Flow Layer
+Structured primitives and named flows for discovery, execution, validation, recovery, and release. Skills route work into the right chain instead of leaving the agent to improvise the lifecycle.
 
 ### Hooks — The Enforcement Layer
 Runtime hooks fire at session start/end, prompt submission, tool boundaries, stop, and task completion. They keep guidance, validation, and loop closure active even when the operator does not remember every step.
 
-### `ao` CLI — The Retrieval and Ratchet Layer
-The CLI handles retrieval, ratchet checkpoints, flywheel closure, goals, curation, and phased execution support. It is the mechanical bridge between plain files, workflows, and enforceable progress.
+### `ao` CLI — The Control Plane
+The CLI handles retrieval, ratchet checkpoints, flywheel closure, goals, curation, and phased execution support. It is the mechanical bridge between plain files, flows, and enforceable progress.
 
-### `.agents/` — The Stigmergic Memory Layer
+### `.agents/` — The Bookkeeping Layer
 Plain files on disk: research, brainstorms, findings, learnings, handoffs, ratchet traces, next-work queues. No single session has to remember the plan. The environment carries it forward.
 
 ---
@@ -93,11 +93,11 @@ By session 100, the repo already carries prior failures, design choices, plannin
 The most accurate current framing is:
 
 ```text
-12-Factor AgentOps -> operating conditions
-Three Gaps         -> validation, learning, and loop closure as a lifecycle contract
-Stigmergic Spiral  -> macro lifecycle for stateless builders
-Brownian Ratchet   -> chaos filtered into locked progress
-Knowledge Flywheel -> durable learning and loop closure
+Public category    -> operational layer for coding agents
+Public value       -> bookkeeping, validation, primitives, and flows
+Internal proof     -> three-gap lifecycle contract
+Technical frame    -> context compiler
+Runtime mechanics  -> Brownian Ratchet + Stigmergic Spiral + Knowledge Flywheel
 ```
 
 The claim is not "better models." The claim is "better repo mechanics around the models you already have." The three gaps are the organizing principle: every skill, hook, and CLI command exists to close one of them.
@@ -116,8 +116,9 @@ The claim is not "better models." The claim is "better repo mechanics around the
 ┌──────────────────────────────────────────────────────────────────┐
 │                    AgentOps at a Glance                          │
 ├───────────────────┬──────────────────────┬───────────────────────┤
-│    54 Skills      │   52 CLI Commands    │   7 Hook Events       │
-│  (45 + 9 split)   │  (audited surfaces)  │  (runtime manifest)   │
+│ 66 shared skills  │   `ao` Control Plane │   7 Hook Events       │
+│ plus runtime      │ repo-native retrieval│  runtime manifest     │
+│    artifacts      │ goals, and automation│                       │
 └───────────────────┴──────────────────────┴───────────────────────┘
 ```
 
@@ -134,7 +135,7 @@ GOALS.md
           -> Validation: /validation -> /vibe -> /post-mortem -> /retro -> /forge
 ```
 
-### Judgment Layer — Everything Flows Through Council
+### Validation Layer — Everything Flows Through Council
 
 ```
                    ┌──────────────────────────────┐

@@ -6,7 +6,9 @@ last_reviewed: 2026-04-09
 
 ## Mission
 
-AgentOps closes the three gaps that prevent coding agents from compounding: **judgment validation**, **durable learning**, and **loop closure**. It is the operational layer for coding agents, with a context-compiler architecture: it validates the plan and code, captures what was learned, and feeds it into the next session so every cycle produces better work than the last.
+AgentOps is the operational layer for coding agents. Publicly, it gives agents **bookkeeping**, **validation**, **primitives**, and **flows** so every session starts where the last one left off. Technically, it uses a context-compiler architecture: raw session signal becomes reusable knowledge, compiled prevention, and better next work.
+
+The older three-gap model remains the internal proof contract: judgment validation, durable learning, and loop closure are how we verify that the product actually compounds.
 
 > Canonical contract: [docs/context-lifecycle.md](docs/context-lifecycle.md)
 
@@ -47,15 +49,15 @@ The gap between "architecture exists for compound growth" (what others describe)
 
 ## What the Product Actually Is
 
-AgentOps has three layers, each designed to close one or more of the three gaps:
+AgentOps has three layers:
 
 ### 1. Skills (66 skills across 4 runtimes)
 
-Markdown-defined workflows that agents load and execute. Organized by which gap they close:
+Markdown-defined primitives and flows that agents load and execute:
 
-- **Judgment validation** — `/pre-mortem`, `/vibe`, `/council`, `/review`. Multi-model consensus validates plans before build and code before commit.
-- **Durable learning** — `/retro`, `/forge`, `/inject`, `/flywheel`, `/compile`. Extract, score, curate, and retrieve learnings so solved problems stay solved.
-- **Loop closure** — `/post-mortem`, `/evolve`, `/rpi`, `/crank`. Turn completed work into better next work, better rules, and better future context.
+- **Validation primitives** — `/pre-mortem`, `/vibe`, `/council`, `/review`. Multi-model consensus validates plans before build and code before commit.
+- **Bookkeeping primitives** — `/retro`, `/forge`, `/inject`, `/flywheel`, `/compile`. Extract, score, curate, and retrieve learnings so solved problems stay solved.
+- **Flows** — `/research`, `/implement`, `/validation`, `/rpi`, `/crank`, `/evolve`. Compose single actions into repeatable paths that can run manually or end to end.
 
 Skills work across Claude Code, Codex CLI, Cursor, and OpenCode. Each runtime has native format support (`/converter` exports between them). Codex-native skills ship alongside Claude-native.
 
@@ -63,29 +65,28 @@ Skills work across Claude Code, Codex CLI, Cursor, and OpenCode. Each runtime ha
 
 A Go binary that provides the repo-native infrastructure skills depend on:
 
-- **Knowledge flywheel** (durable learning) — `ao inject`, `ao lookup`, `ao forge`, `ao curate`, `ao defrag` manage the learning lifecycle with quality scoring, freshness decay, and deduplication.
-- **Goals** (loop closure) — `ao goals measure` runs fitness gates, `ao goals steer` manages strategic directives, `/evolve` uses goals as its objective function.
-- **Context assembly** (judgment validation) — `ao context assemble` builds phase-appropriate context packets. `ao inject` loads relevant learnings into the current session.
-- **Issue tracking** (loop closure) — `bd` (beads) provides git-native issue tracking with dependency graphs, wave decomposition, and epic management.
+- **Bookkeeping control plane** — `ao inject`, `ao lookup`, `ao forge`, `ao curate`, `ao defrag`, and `ao memory sync` manage learning capture, retrieval, freshness decay, and promotion.
+- **Goal and issue orchestration** — `ao goals measure` runs fitness gates, `ao goals steer` manages directives, and `bd` provides git-native issue tracking with dependency graphs and epic management.
+- **Context assembly and operator surfaces** — `ao context assemble`, `ao rpi`, and `ao factory` build phase-appropriate packets and terminal-native flows.
 
 ### 3. Hooks
 
-Session lifecycle hooks that run automatically, closing gaps without agent initiative:
+Session lifecycle hooks that run automatically so the operational layer stays active without agent initiative:
 
-- **SessionStart** — injects relevant knowledge (durable learning), checks for stale state, loads prior handoffs (loop closure).
-- **PreToolUse / PostToolUse** — nudges toward structured workflows, enforces constraints (judgment validation).
-- **UserPromptSubmit** — pre-mortem reminders, stall detection (judgment validation).
+- **SessionStart / SessionEnd / Stop** — inject, maintain, and close the bookkeeping loop between sessions.
+- **PreToolUse / PostToolUse** — nudge toward the right primitives and enforce validation constraints.
+- **UserPromptSubmit** — route intent, surface startup guidance, and keep the operator on a productive path.
 
 ## Core Value Propositions
 
-Each value proposition maps to one or more of the three gaps it closes:
+The public value proposition should now map to the category we are actually selling:
 
-- **Ship With Confidence** (judgment validation) — Multi-model consensus (Claude + Codex judges debate independently) validates plans before build and code before commit. Validation gates block, not advise.
-- **Repo-Native Agent Memory** (durable learning) — Agent knowledge is managed like code: version-controlled, reviewed, promoted, and decayed — not stuffed into a vector database or a proprietary cloud store. Each session captures learnings scored on specificity, actionability, novelty, context, and confidence. Learnings promote to patterns; patterns become planning rules. The flywheel compounds when retrieval rate x usage rate exceeds decay rate. Grep replaces RAG.
-- **Hands-Free Execution** (loop closure) — `/evolve` and `/crank` spawn agents that work toward goals autonomously. Cycle state is disk-based (survives context compaction), regression gates are hard-gated, and every cycle writes a verifiable audit trail. Completed work produces better next work automatically.
-- **Compose What You Need** (all three gaps) — Skills are standalone building blocks. Use one (`/council validate this PR`), chain several (`/plan` -> `/pre-mortem` -> `/crank`), or run the full pipeline (`/rpi`). The same recursive shape — lead decomposes, workers execute, gates lock — repeats at every scale.
-- **Multi-Runtime, Multi-Model** (judgment validation) — Same skills work across Claude Code, Codex CLI, Cursor, and OpenCode. `/converter` exports to native formats. Mixed-vendor council judges (Claude + Codex) provide independent perspectives.
-- **Zero Setup, Zero Telemetry** (all three gaps) — All state lives in local `.agents/` directories (git-ignored by default; opt in to commit with `AGENTOPS_GITIGNORE_AUTO=0`) with no cloud dependency. 66 skills, 3 hooks, and the knowledge flywheel work independently with no external daemon. Install is one command per runtime.
+- **Bookkeeping That Compounds** — Agent knowledge is managed like code: version-controlled, reviewed, promoted, and decayed instead of trapped in ephemeral chat history or a proprietary store. Each session captures learnings scored on specificity, actionability, novelty, context, and confidence. Learnings promote to patterns; patterns become planning rules.
+- **Validation Before Ship** — Multi-model consensus (Claude + Codex judges debate independently) validates plans before build and code before commit. Validation gates block, not advise.
+- **Primitives + Flows** — Skills are standalone building blocks. Use one (`/council validate this PR`), compose several (`/research` → `/plan` → `/council validate`), or run the full lifecycle (`/rpi`). The same recursive shape repeats at every scale.
+- **Hands-Free Execution** — `/evolve` and `/crank` spawn agents that work toward goals autonomously. Cycle state is disk-based, regression gates are hard-gated, and every cycle writes a verifiable audit trail.
+- **Multi-Runtime, Multi-Model** — Same skills work across Claude Code, Codex CLI, Cursor, and OpenCode. `/converter` exports to native formats. Mixed-vendor council judges provide independent perspectives.
+- **Zero Setup, Zero Telemetry** — All state lives in local `.agents/` directories (git-ignored by default; opt in to commit with `AGENTOPS_GITIGNORE_AUTO=0`) with no cloud dependency. 66 skills, 3 hooks, and the flywheel can operate with no external daemon.
 
 ## Strategic Bet
 

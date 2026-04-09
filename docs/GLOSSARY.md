@@ -5,7 +5,7 @@ Project-specific terms used throughout AgentOps documentation.
 ## A
 
 ### AgentOps
-A skills plugin that turns coding agents into autonomous software engineering systems. Provides the RPI workflow, knowledge flywheel, multi-model validation, and parallel execution — all with local-only state. [Full documentation](../README.md)
+The operational layer for coding agents. Publicly, AgentOps adds bookkeeping, validation, primitives, and flows so sessions compound instead of restarting from zero. Technically, it acts as a context compiler around your existing models and tools. [Full documentation](../README.md)
 
 ### Atomic Work
 A unit of work with no shared mutable state with concurrent workers. Pure function model: input (issue spec + codebase snapshot) → output (patch + verification). This isolation property is what enables parallel wave execution — workers cannot interfere with each other. Enforced by fresh context per worker and lead-only commits.
@@ -15,6 +15,9 @@ A unit of work with no shared mutable state with concurrent workers. Pure functi
 ### Beads
 Git-native issue tracking system accessed via the `bd` CLI. Issues live in `.beads/` inside your repo and sync through normal git operations — no external service required. [Full documentation](../skills/beads/SKILL.md)
 
+### Bookkeeping
+AgentOps' public term for repo-native capture, retrieval, promotion, decay, and resurfacing of what sessions learn. `.agents/`, `/retro`, `/forge`, `/compile`, `ao inject`, and `ao lookup` are all bookkeeping surfaces. [Full documentation](../README.md#how-bookkeeping-compounds)
+
 ### Brownian Ratchet
 The core execution model: spawn parallel agents (chaos), validate their output with a multi-model council (filter), and merge passing results to main (ratchet). Progress locks forward — failed agents are discarded cheaply because fresh context means no contamination. [Full documentation](how-it-works.md#the-brownian-ratchet)
 
@@ -22,6 +25,9 @@ The core execution model: spawn parallel agents (chaos), validate their output w
 
 ### Codex Team
 A skill (`/codex-team`) that spawns parallel Codex (OpenAI) execution agents orchestrated by Claude, enabling cross-vendor parallel task execution. [Full documentation](../skills/codex-team/SKILL.md)
+
+### Context Compiler
+The technical framing for AgentOps. Raw session signal becomes reusable knowledge, compiled prevention, and better next work. The public story is operational layer; the context compiler is the architectural explanation behind it. [Full documentation](../README.md)
 
 ### Council
 The core validation primitive. Spawns independent judge agents (Claude and/or Codex) that review work from different perspectives, deliberate, and converge on a verdict: PASS, WARN, or FAIL. Foundation for `/vibe`, `/pre-mortem`, and `/post-mortem`. [Full documentation](../skills/council/SKILL.md)
@@ -59,7 +65,7 @@ A checkpoint enforced by a hook that blocks progress until a condition is met. F
 A skill (`/handoff`) that creates structured session handoff documents so another agent or future session can continue work with full context. [Full documentation](../skills/handoff/SKILL.md)
 
 ### Hook
-A shell script that fires automatically on agent lifecycle events. AgentOps currently registers 3 active hooks in `hooks/hooks.json` (SessionStart, SessionEnd, Stop) to run the knowledge flywheel lifecycle. All hooks can be disabled with `AGENTOPS_HOOKS_DISABLED=1`. [Full documentation](../hooks/hooks.json)
+A shell script that fires automatically on agent lifecycle events. AgentOps currently registers 7 hook event sections in `hooks/hooks.json`, spanning session lifecycle, prompt routing, tool-time gates, and task completion. All hooks can be disabled with `AGENTOPS_HOOKS_DISABLED=1`. [Full documentation](../hooks/hooks.json)
 
 ## I
 
@@ -121,7 +127,7 @@ The historical name for AgentOps' full lifecycle workflow. In current runtime te
 ## S
 
 ### Skill
-A self-contained capability defined by a `SKILL.md` file with YAML frontmatter. Skills are the primary unit of functionality in AgentOps — each one has triggers, instructions, and optional reference docs loaded just-in-time. AgentOps currently ships 54 source skills (45 user-facing, 9 internal). [Full documentation](SKILLS.md)
+A self-contained capability defined by a `SKILL.md` file with YAML frontmatter. Skills are the primary unit of functionality in AgentOps — each one has triggers, instructions, and optional reference docs loaded just-in-time. AgentOps currently ships 66 shared skills, with runtime-specific artifacts maintained alongside them. [Full documentation](SKILLS.md)
 
 ### Swarm
 A skill (`/swarm`) that spawns parallel worker agents with fresh context. Each wave gets a new team; the lead validates and commits. Workers never commit directly. [Full documentation](../skills/swarm/SKILL.md)

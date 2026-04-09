@@ -2,6 +2,8 @@
 
 > Definitive reference for AgentOps SKILL.md frontmatter fields. Schema: `schemas/skill-frontmatter.v1.schema.json`.
 
+Publicly, AgentOps talks about bookkeeping, validation, primitives, and flows. This document describes the internal API and taxonomy behind that operating model.
+
 ## Frontmatter Format
 
 Every skill has a YAML frontmatter block between `---` delimiters at the top of `SKILL.md`:
@@ -59,7 +61,7 @@ How the skill's execution context relates to the parent session.
 
 | Value | Meaning |
 |-------|---------|
-| `isolated` | Fresh context, no parent inheritance. For judgment and mechanical skills. |
+| `isolated` | Fresh context, no parent inheritance. For validation and mechanical skills. |
 | `fork` | Copy parent context as starting point. For skills that need to know what you're working on. |
 | `inherit` | Use full parent context as-is. For session utilities (status, handoff, recover). |
 
@@ -165,7 +167,7 @@ metadata:
 
 | Tier | Purpose | Example Skills |
 |------|---------|----------------|
-| `judgment` | Multi-model validation | council, vibe, pre-mortem, post-mortem |
+| `judgment` | Legacy internal tier name for validation and review gates | council, vibe, pre-mortem, post-mortem |
 | `execution` | Single-task implementation | implement, bug-hunt, complexity, security-suite |
 | `orchestration` | Multi-skill coordination | rpi, crank, swarm, evolve |
 | `session` | Session lifecycle | handoff, recover, status, quickstart |
@@ -198,11 +200,11 @@ Used by downstream skills to validate that upstream output matches the expected 
 
 ## Context Declaration Quick Reference
 
-All 52 skills and their context policies:
+Core skills and their context policies:
 
 | Skill | Window | Sections | Intent | Intel Scope |
 |-------|--------|----------|--------|-------------|
-| **Judgment** | | | | |
+| **Validation (tier: judgment)** | | | | |
 | council | isolated | exclude: HISTORY | task | full |
 | vibe | fork | exclude: HISTORY | task | — |
 | pre-mortem | fork | exclude: HISTORY | task | — |

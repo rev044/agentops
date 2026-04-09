@@ -1,6 +1,6 @@
 # Skill Tier Taxonomy
 
-This document defines the `tier` field used in skill frontmatter to categorize skills by their role in the AgentOps workflow.
+This document defines the internal `tier` field used in skill frontmatter. Publicly, AgentOps talks about bookkeeping, validation, primitives, and flows. The tier names below are the internal execution taxonomy behind that operating model.
 
 ## Tier Values
 
@@ -8,9 +8,9 @@ Skills fall into three functional categories, plus infrastructure tiers for inte
 
 | Tier | Category | Description | Examples |
 |------|----------|-------------|----------|
-| **judgment** | Judgment | Validation, review, and quality gates — council is the foundation | council, vibe, pre-mortem, post-mortem, red-team |
-| **execution** | Execution | Research, plan, build, ship — the work itself | research, plan, implement, crank, swarm, rpi |
-| **knowledge** | Knowledge | The flywheel — extract, store, query, inject learnings | retro (quick-capture), flywheel, forge |
+| **judgment** | Validation | Internal tier for validation, review, and quality gates — council is the foundation | council, vibe, pre-mortem, post-mortem, red-team |
+| **execution** | Primitives + flows | Research, plan, build, and ship — the work itself | research, plan, implement, crank, swarm, rpi |
+| **knowledge** | Bookkeeping | The flywheel — capture, store, query, inject, and promote learnings | retro (quick-capture), flywheel, forge |
 | **product** | Execution | Define mission, goals, release, docs | product, goals, release, readme, doc |
 | **session** | Execution | Session continuity and status | handoff, recover, status |
 | **utility** | Execution | Standalone tools | quickstart, brainstorm, bug-hunt, complexity |
@@ -22,7 +22,7 @@ Skills fall into three functional categories, plus infrastructure tiers for inte
 
 ## The Three Categories
 
-### Judgment — the foundation
+### Validation — the foundation (tier: judgment)
 
 Council is the core primitive. Every validation skill depends on it. Remove council and all quality gates break.
 
@@ -45,9 +45,9 @@ Council is the core primitive. Every validation skill depends on it. Remove coun
                        └────────────┘
 ```
 
-### Execution — the work
+### Primitives and flows — the work (tier: execution)
 
-Skills that move work through the system. Swarm parallelizes any of them. RPI chains them into a pipeline.
+Skills that move work through the system. Swarm parallelizes them. Flows like RPI chain them into a repeatable delivery path.
 
 ```
 RESEARCH          PLAN              IMPLEMENT           VALIDATE
@@ -88,9 +88,9 @@ POST-SHIP                             ONBOARDING / STATUS
 └─────────────┘
 ```
 
-### Knowledge — the flywheel
+### Bookkeeping — the flywheel (tier: knowledge)
 
-Append-only ledger in `.agents/`. Every session writes. Freshness decay prunes. Next session injects the best. This is what makes sessions compound instead of starting from scratch.
+Append-only ledger in `.agents/`. Every session writes. Freshness decay prunes. Next session injects the best. This is the bookkeeping layer that makes sessions compound instead of starting from scratch.
 
 ```
 ┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐

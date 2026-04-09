@@ -4,12 +4,12 @@ If you're new to this repository, this guide gives you a practical mental model,
 
 ## What this repo is
 
-AgentOps is a **skills + hooks + CLI** system that helps coding agents compound knowledge across sessions instead of restarting from zero each time.
+AgentOps is the **operational layer for coding agents**: a skills + hooks + CLI system that provides bookkeeping, validation, primitives, and flows so sessions compound instead of restarting from zero.
 
 At a high level:
 
-1. Run workflows with skills (`/research`, `/plan`, `/crank`, `/vibe`, `/post-mortem`)
-2. Persist knowledge in `.agents/`
+1. Run primitives and flows with skills (`/research`, `/implement`, `/validation`, `/rpi`)
+2. Persist bookkeeping in `.agents/`
 3. Inject the best prior learnings into the next session
 4. Enforce quality through hooks and CI gates
 
@@ -39,7 +39,7 @@ When docs disagree, follow this order:
 
 For Codex skills specifically:
 
-1. `skills/<name>/SKILL.md` is the canonical workflow contract
+1. `skills/<name>/SKILL.md` is the canonical behavior contract
 2. `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer
 3. `skills-codex-overrides/catalog.json` records the Codex treatment decision for every skill
 4. `skills-codex/<name>/` is the checked-in Codex runtime artifact
@@ -58,7 +58,7 @@ refresh and Codex-specific validators follow one obvious repair path.
 
 The architecture assumes output quality depends on input context quality. Most patterns in this repo are about context scoping, isolation, and compounding.
 
-### 2) Skills are composable workflows
+### 2) Skills are composable primitives and flows
 
 Use the router in [Skills Reference](SKILLS.md) to choose the right entry point:
 

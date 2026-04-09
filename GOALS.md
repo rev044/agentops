@@ -1,6 +1,6 @@
 # Goals
 
-The local DevOps layer for coding agents — skills, CLI, and knowledge flywheel that make every session smarter than the last.
+The operational layer for coding agents — repo-native bookkeeping, validation, primitives, and flows that make every session smarter than the last.
 
 ## North Stars
 
@@ -8,7 +8,7 @@ The local DevOps layer for coding agents — skills, CLI, and knowledge flywheel
 - Skills work identically across Claude Code, Codex CLI, Cursor, and OpenCode
 - Knowledge captured in one session is retrieved and applied in the next
 - The flywheel runs autonomously between sessions (dream cycle), not just on-demand
-- A new user goes from install to first validated workflow in under 5 minutes
+- A new user goes from install to first validated flow in under 5 minutes
 
 ## Anti Stars
 
@@ -70,7 +70,7 @@ CI catches codex drift at push time, but 40% of fix commits in the March 2026 in
 
 Today harvest/forge/inject are on-demand — an operator runs them when they remember to. Anthropic's "dream cycle" concept validates what we've known: consolidation should happen automatically between sessions. Ship a GitHub Action (or scheduled Claude task) that runs nightly: harvest new learnings from recent sessions, forge patterns from accumulated learnings, defrag stale knowledge, and report flywheel health. The dream cycle is what turns the flywheel from "useful when invoked" to "always compounding."
 
-**Progress:** Not started. Existing primitives (`ao harvest`, `ao forge`, `ao compile mine/grow/defrag`) are all CLI-invocable and could be composed into a workflow. No nightly automation exists yet.
+**Progress:** Partially started. Nightly automation already runs the compile cycle (`ao mine` + `ao defrag` + compile health checks) in `.github/workflows/nightly.yml`. Remaining gap: it does not yet run the full dream-cycle path (`harvest -> forge -> inject -> report`) or publish a visible compounding summary for users.
 
 **Steer:** increase (automated consolidation runs per week)
 

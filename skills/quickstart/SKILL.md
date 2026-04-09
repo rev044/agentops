@@ -36,13 +36,16 @@ command -v bd >/dev/null && echo "BD=true" || echo "BD=false"
 Output exactly this (no additions, no diagrams):
 
 ```
-AgentOps gives your coding agent three things it doesn't have by default:
+AgentOps is the operational layer for coding agents.
 
-  Memory    — sessions accumulate learnings in .agents/ and surface them back
-  Judgment  — /council spawns independent judges to validate plans and code
-  Workflow  — /rpi delegates /discovery → /crank → /validation in one command
+It gives your coding agent four things it doesn't have by default:
 
-Key skills: /rpi  /discovery  /validation  /implement  /research  /council  /swarm  /status
+  Bookkeeping — sessions capture learnings, findings, and reusable context in .agents/
+  Validation  — /council, /pre-mortem, and /vibe challenge plans and code before shipping
+  Primitives  — skills, hooks, and the ao CLI give you building blocks for almost any interaction
+  Flows       — /research, /implement, /validation, and /rpi can run alone or compose end to end
+
+Key skills: /rpi  /research  /validation  /implement  /council  /pre-mortem  /swarm  /status
 Full reference: /quickstart --catalog
 ```
 
