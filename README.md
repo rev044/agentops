@@ -24,13 +24,15 @@ Technically, AgentOps acts as a context compiler: raw session signal becomes reu
 
 ## What AgentOps Gives You
 
-Session 1, your agent spends 2 hours debugging a timeout bug. Session 15, a new agent finds the answer in 10 seconds — because `/retro` captured the lesson and the flywheel promoted it. Three capabilities make this work:
+AgentOps gives your coding agent three things it doesn't have by default:
 
-1. **Judgment validation** — agents get risk context that challenges the plan and the code *before* shipping.
-2. **Durable learning** — solved problems stay solved. Your repo accumulates institutional knowledge across sessions, agents, and runtimes.
-3. **Loop closure** — completed work produces better next work, stronger rules, and richer future context.
+1. **Memory** — sessions accumulate learnings in `.agents/` and surface them back.
+2. **Judgment** — `/council` spawns independent judges to validate plans and code.
+3. **Workflow** — `/rpi` delegates `/discovery` → `/crank` → `/validation` in one command.
 
-Every skill, hook, and CLI command exists to deliver one of these three. They form a single [lifecycle contract](docs/context-lifecycle.md), not separate features.
+Session 1, your agent spends 2 hours debugging a timeout bug. Session 15, a new agent finds the answer in 10 seconds because the lesson was captured, surfaced back, and validated into the next cycle.
+
+Every skill, hook, and CLI command exists to strengthen one of these three surfaces. They form a single [lifecycle contract](docs/context-lifecycle.md), not separate features.
 
 Operationally, that means AgentOps behaves like a software factory:
 
@@ -43,9 +45,9 @@ See [Software Factory Surface](docs/software-factory.md) for the explicit operat
 
 | Capability | What you get |
 |-----|---------------|
-| Judgment validation | `/pre-mortem` challenges your plan before build; `/vibe` + `/council` validate code before commit |
-| Durable learning | Repo-native memory via `.agents/` — lessons compound across sessions, agents, and runtimes |
-| Loop closure | Every cycle produces artifacts, issues, and next-work suggestions the next session acts on |
+| Memory | Repo-native learnings in `.agents/`, surfaced back through retrieval and startup context |
+| Judgment | `/pre-mortem`, `/vibe`, and `/council` validate plans and code before they ship |
+| Workflow | `/rpi` runs discovery → implementation → validation as one operational path |
 
 ---
 
