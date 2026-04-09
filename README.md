@@ -133,7 +133,7 @@ Consensus: WARN — add rate limiting to /login before shipping
 That ran overnight on this repo. Regression gates auto-reverted anything that broke a passing goal.
 
 <details>
-<summary><b>More examples</b> — swarm, continuity, and different entry points</summary>
+<summary><b>More examples</b> — swarm, continuity, and intent-based entry points</summary>
 
 <br>
 
@@ -164,12 +164,12 @@ That ran overnight on this repo. Regression gates auto-reverted anything that br
           Next: /implement ag-0058.3
 ```
 
-| Entry point | Commands | What happens |
-|-------------|----------|--------------|
-| **PR reviewer** | `/council validate this PR` | One command, actionable feedback |
-| **Team lead** | `/research` → `/plan` → `/council validate` | Compose primitives manually, stay in control |
-| **Solo dev** | `/rpi "add user auth"` | Discovery through post-mortem, walk away |
-| **Platform team** | `/swarm` + `/evolve` | Parallel pipelines + overnight improvement |
+| Intent | Commands | What happens |
+|--------|----------|--------------|
+| **Review before shipping** | `/council validate this PR` | One command, actionable feedback |
+| **Understand before changing** | `/research` → `/plan` → `/council validate` | Surface prior context, scope the work, then validate the approach |
+| **Ship one change end to end** | `/rpi "add user auth"` | Run discovery through post-mortem in one flow |
+| **Parallelize or compound improvements** | `/swarm` + `/evolve` | Fan out work and keep improving the repo over time |
 
 </details>
 
