@@ -92,7 +92,11 @@ while IFS= read -r bead; do
     fi
 
     # --- Fixed check: file-based (files mentioned in desc modified since bead creation) ---
-    CREATED_AT="$(bd show "${BEAD_ID}" --json 2>/dev/null | jq -r '.created_at // empty' || true)"
+    CREATED_AT="$(
+        bd show "${BEAD_ID}" --json 2>/dev/null \
+            | jq -r 'if type == "array" then (.[0].created_at // empty) else (.created_at // empty) end' \
+            || true
+    )"
     if [[ -n "$CREATED_AT" ]]; then
         # Extract file paths from description (lines starting with - or ` containing /)
         FILE_PATHS="$(echo "${DESC}" | grep -oE '[a-zA-Z0-9_./-]+\.[a-zA-Z]{1,6}' | grep '/' | head -10 || true)"
