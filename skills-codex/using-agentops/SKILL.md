@@ -66,16 +66,6 @@ $retro                 # Quick-capture a single learning
 
 **Output:** `.agents/learnings/`, `.agents/patterns/`
 
-### Release Phase
-
-```bash
-$release [version]     # Full release: changelog + bump + commit + tag
-$release --check       # Readiness validation only (GO/NO-GO)
-$release --dry-run     # Preview without writing
-```
-
-**Output:** Updated CHANGELOG.md, version bumps, git tag, `docs/releases/`
-
 ## Phase-to-Skill Mapping
 
 | Phase | Primary Skill | Supporting Skills |
@@ -83,7 +73,6 @@ $release --dry-run     # Preview without writing
 | **Discovery** | `$discovery` | `$brainstorm`, `$research`, `$plan`, `$pre-mortem` |
 | **Implement** | `$crank` | `$implement` (single issue), `$swarm` (parallel execution) |
 | **Validate** | `$validation` | `$vibe`, `$post-mortem`, `$retro`, `$forge` |
-| **Release** | `$release` | — |
 
 **Choosing the skill:**
 - Use `$implement` for **single issue** execution. **Now defaults to TDD-first** — writes failing tests before implementing. Skip with `--no-tdd`.
@@ -92,8 +81,6 @@ $release --dry-run     # Preview without writing
 - Use `$validation` for the **validation phase only** (vibe → post-mortem → retro → forge).
 - Use `$rpi` for **full lifecycle** — delegates to `$discovery` → `$crank` → `$validation`.
 - Use `$ratchet` to **gate/record progress** through RPI.
-
-## Available Skills
 
 ## Start Here (12 starters)
 
@@ -166,11 +153,7 @@ These are the skills every user needs first. Everything else is available when y
 
 ## Knowledge Flywheel
 
-Every `$post-mortem` feeds back to `$research`:
-
-1. **Learnings** extracted → `.agents/learnings/`
-2. **Patterns** discovered → `.agents/patterns/`
-3. **Research** enriched → Future sessions benefit
+Every `$post-mortem` promotes learnings and patterns into `.agents/` so future `$research` starts with better context instead of zero.
 
 ## Runtime Modes
 
