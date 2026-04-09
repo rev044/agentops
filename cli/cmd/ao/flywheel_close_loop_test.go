@@ -709,3 +709,41 @@ func TestOutputFlywheelCloseLoopResult_Quiet(t *testing.T) {
 		t.Errorf("expected empty output in quiet mode, got:\n%s", out)
 	}
 }
+
+func TestPerformFlywheelCloseLoop_GeneratesSkillDrafts(t *testing.T) {
+	tmp := t.TempDir()
+
+	patternsDir := filepath.Join(tmp, ".agents", "patterns")
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(patternsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	patternPath := filepath.Join(patternsDir, "2026-04-09-test-pattern.md")
+	if err := os.WriteFile(patternPath, []byte("---\nconfidence: 0.9\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"sess1.jsonl", "sess2.md", "sess3.jsonl"} {
+		path := filepath.Join(sessionsDir, name)
+		if err := os.WriteFile(path, []byte("used 2026-04-09-test-pattern.md\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := performFlywheelCloseLoop(tmp, filepath.Join(".agents", "knowledge", "pending"), 0, true)
+	if err != nil {
+		t.Fatalf("performFlywheelCloseLoop: %v", err)
+	}
+	if result.Ingest.Added != 0 {
+		t.Fatalf("expected no ingest work, got %+v", result.Ingest)
+	}
+
+	draftPath := filepath.Join(tmp, ".agents", "skill-drafts", "test", "SKILL.md")
+	if _, err := os.Stat(draftPath); err != nil {
+		t.Fatalf("expected generated skill draft at %s: %v", draftPath, err)
+	}
+}
