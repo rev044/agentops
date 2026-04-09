@@ -22,7 +22,7 @@ The operational layer for coding agents — repo-native bookkeeping, validation,
 
 README and PRODUCT.md promise skills work across 4 runtimes, but runtime-specific tests are quarantined (Claude Code, Codex, OpenCode all disabled in `tests/_quarantine/`). Only one cross-runtime test exists (`tests/codex/test-skill-cross-runtime.sh`). Ship at least 2 more runtime-specific smoke tests and promote them to CI.
 
-**Progress:** One cross-runtime test (`tests/codex/test-skill-cross-runtime.sh`) exists and passes. Two additional runtime smoke tests promoted to CI: `tests/skills/test-runtime-opencode-smoke.sh` (OpenCode install script + skill structure) and `tests/skills/test-runtime-claude-code-smoke.sh` (Claude Code plugin manifest + hooks + frontmatter). Both are standalone — no live runtime required. Remaining gap: Codex CLI and live runtime execution tests still require external infrastructure.
+**Progress:** One cross-runtime test (`tests/codex/test-skill-cross-runtime.sh`) exists and passes. Three additional runtime smoke tests are now active in CI through `tests/smoke-test.sh`: `tests/skills/test-runtime-opencode-smoke.sh` (OpenCode install script + skill structure), `tests/skills/test-runtime-claude-code-smoke.sh` (Claude Code plugin manifest + hooks + frontmatter), and `tests/skills/test-runtime-codex-smoke.sh` (Codex native plugin install + hooks + bundle structure). `tests/scripts/test-headless-runtime-skills.sh` also now exercises the Claude/Codex headless validator contract in CI with mocked runtimes. Remaining gap: live hosted-runtime execution and inventory proof still require external CLIs/auth beyond GitHub-hosted runners.
 
 **Steer:** increase (runtime coverage count)
 

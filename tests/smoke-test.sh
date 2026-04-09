@@ -145,6 +145,26 @@ else
 fi
 
 # =============================================================================
+# Test 5b: Runtime smoke surfaces
+# =============================================================================
+log "Validating runtime smoke surfaces..."
+
+for runtime_test in \
+    "$REPO_ROOT/tests/skills/test-runtime-claude-code-smoke.sh" \
+    "$REPO_ROOT/tests/skills/test-runtime-codex-smoke.sh" \
+    "$REPO_ROOT/tests/skills/test-runtime-opencode-smoke.sh" \
+    "$REPO_ROOT/tests/scripts/test-headless-runtime-skills.sh"; do
+    [[ -f "$runtime_test" ]] || continue
+    test_name="$(basename "$runtime_test")"
+    if bash "$runtime_test" >"/tmp/${test_name}.log" 2>&1; then
+        pass "$test_name passed"
+    else
+        fail "$test_name failed"
+        [[ "$VERBOSE" == "--verbose" ]] && tail -30 "/tmp/${test_name}.log" | sed 's/^/    /'
+    fi
+done
+
+# =============================================================================
 # Test 6: Check for placeholder patterns
 # =============================================================================
 log "Checking for issues..."

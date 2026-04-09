@@ -194,7 +194,7 @@ The heal script validates that every file in `skills/<name>/references/` is link
 
 ## Quarantine Policy
 
-Tests requiring external services (API calls, network access, running Claude CLI) that cannot be mocked are placed in `tests/_quarantine/`.
+Tests requiring external services (API calls, network access, live Claude/Codex sessions) that cannot be mocked are placed in `tests/_quarantine/`.
 
 **Promotion path:** To move a quarantined test into the main suite:
 
@@ -202,14 +202,14 @@ Tests requiring external services (API calls, network access, running Claude CLI
 2. Move the test file to the appropriate `tests/` subdirectory.
 3. Verify it passes in CI without network access.
 
-Quarantined tests are excluded from the default `run-all.sh` tiers and CI.
+Quarantined tests are excluded from the default `run-all.sh` tiers and CI. Standalone runtime smoke tests that do not require live runtimes belong in `tests/skills/` or `tests/scripts/` and are expected to run in CI.
 
 ## Test Directory Map
 
 | Directory | Purpose |
 |-----------|---------|
 | `tests/hooks/` | BATS unit tests for hook scripts (`hooks/*.sh`) |
-| `tests/skills/` | Skill validation scripts (structure, frontmatter, lint, coverage) |
+| `tests/skills/` | Skill validation scripts plus standalone runtime smoke tests (Claude Code, Codex, OpenCode) |
 | `tests/spec-consistency/` | Spec consistency gates across manifests and docs |
 | `tests/goals/` | Goal validation and measurement (`GOALS.yaml` / `GOALS.md`) |
 | `tests/lint/` | Lint allowlists and code style checks |
