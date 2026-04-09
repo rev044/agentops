@@ -202,9 +202,71 @@ jobs:
           path: /tmp/compile/
           retention-days: 14
 
+  dream-cycle:
+    name: Dream Cycle Proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache-dependency-path: cli/go.sum
+
+      - name: Build ao
+        run: cd cli && make build
+
+      - name: Run nightly dream cycle
+        run: |
+          chmod +x scripts/nightly-dream-cycle.sh
+          scripts/nightly-dream-cycle.sh \
+            --ao "$GITHUB_WORKSPACE/cli/bin/ao" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --output-dir "${RUNNER_TEMP}/dream-cycle"
+
+      - name: Append dream-cycle summary
+        run: cat "${RUNNER_TEMP}/dream-cycle/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dream-cycle report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: dream-cycle-report
+          path: ${{ runner.temp }}/dream-cycle/
+          retention-days: 14
+
+      - name: Create or update dream-cycle issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITLE="Nightly dream cycle status"
+          BODY_FILE="${RUNNER_TEMP}/dream-cycle/issue-body.md"
+          {
+            cat "${RUNNER_TEMP}/dream-cycle/summary.md"
+            echo ""
+            echo "---"
+            echo ""
+            echo "Run: ${RUN_URL}"
+          } > "$BODY_FILE"
+
+          LABEL_ARGS=()
+          if gh label list --limit 200 --json name --jq '.[].name' | grep -Fxq "dream-cycle"; then
+            LABEL_ARGS+=(--label dream-cycle)
+          fi
+
+          EXISTING=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title --jq 'map(select(.title == "'"$TITLE"'")) | .[0].number' 2>/dev/null || true)
+          if [[ -z "$EXISTING" || "$EXISTING" == "null" ]]; then
+            gh issue create --title "$TITLE" --body-file "$BODY_FILE" "${LABEL_ARGS[@]}"
+          else
+            gh issue edit "$EXISTING" --title "$TITLE" --body-file "$BODY_FILE"
+          fi
+
   summary:
     name: Summary
-    needs: [cli-tests, static-validation, security-toolchain, compile]
+    needs: [cli-tests, static-validation, retrieval-bench, security-toolchain, compile, dream-cycle]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -218,13 +280,15 @@ jobs:
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| CLI tests | ${{ needs.cli-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Static validation | ${{ needs.static-validation.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Retrieval bench | ${{ needs.retrieval-bench.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security toolchain | ${{ needs.security-toolchain.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Compile knowledge cycle | ${{ needs.compile.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dream cycle proof | ${{ needs.dream-cycle.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
 
       - name: Create issue on failure
-        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.security-toolchain.result == 'failure' || needs.compile.result == 'failure'
+        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.retrieval-bench.result == 'failure' || needs.security-toolchain.result == 'failure' || needs.compile.result == 'failure' || needs.dream-cycle.result == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -235,8 +299,10 @@ jobs:
           |-----|--------|
           | CLI tests | ${{ needs.cli-tests.result }} |
           | Static validation | ${{ needs.static-validation.result }} |
+          | Retrieval bench | ${{ needs.retrieval-bench.result }} |
           | Security toolchain | ${{ needs.security-toolchain.result }} |
           | Compile knowledge cycle | ${{ needs.compile.result }} |
+          | Dream cycle proof | ${{ needs.dream-cycle.result }} |
 
           **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
@@ -256,5 +322,5 @@ jobs:
           fi
 
       - name: Check for failures
-        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.security-toolchain.result == 'failure' || needs.compile.result == 'failure'
+        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.retrieval-bench.result == 'failure' || needs.security-toolchain.result == 'failure' || needs.compile.result == 'failure' || needs.dream-cycle.result == 'failure'
         run: exit 1

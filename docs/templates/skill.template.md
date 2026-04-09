@@ -1,81 +1,56 @@
-# Skill: [skill-name]
+---
+name: your-skill-name
+description: 'What this skill does. Triggers: "trigger phrase", "other phrase".'
+skill_api_version: 1
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: topic
+metadata:
+  tier: execution
+---
 
-## Overview
+# your-skill-name
 
-[What domain knowledge this skill provides]
+## Purpose
+
+What this skill does and why it exists.
 
 ## When to Use
 
-- [Trigger condition 1]
-- [Trigger condition 2]
-- [Trigger condition 3]
+- Trigger condition one
+- Trigger condition two
+- Trigger condition three
 
-## Quick Reference
+## Inputs
 
-| Task | Command/Action |
-|------|----------------|
-| [Task 1] | [How to do it] |
-| [Task 2] | [How to do it] |
-| [Task 3] | [How to do it] |
+- Required user input
+- Relevant repo or runtime assumptions
 
-## Core Concepts
+## Instructions
 
-### [Concept 1]
+1. First concrete step.
+2. Main execution flow.
+3. Validation or closeout step.
 
-[Explanation with examples]
+## Output
 
-### [Concept 2]
+- Artifact, decision, or state change the skill should produce
 
-[Explanation with examples]
+## Examples
 
-## Common Patterns
-
-### Pattern: [Name]
-
-**When:** [Situation]
-
-**Do:**
-```bash
-[Commands or code]
+```text
+Example prompt or invocation
 ```
-
-**Result:** [Expected outcome]
-
-### Pattern: [Name]
-
-**When:** [Situation]
-
-**Do:**
-```bash
-[Commands or code]
-```
-
-**Result:** [Expected outcome]
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| [Symptom 1] | [Cause] | [Solution] |
-| [Symptom 2] | [Cause] | [Solution] |
+- Symptom: what goes wrong
+  Fix: what to check or change
 
-## Related Resources
+## References
 
-- [Resource 1]: [Link or path]
-- [Resource 2]: [Link or path]
-
----
-
-## Directory Structure (for bundled skills)
-
-```
-skill-name/
-├── SKILL.md           # This file
-├── references/        # Detailed documentation
-│   ├── api.md
-│   └── patterns.md
-├── scripts/           # Executable helpers
-│   └── helper.sh
-└── templates/         # Reusable templates
-    └── config.yaml
-```
+- Add concrete `references/*.md` links here when the skill has them.

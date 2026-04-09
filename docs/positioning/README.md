@@ -17,5 +17,7 @@ Use this section as the entry point for positioning work:
 
 - [`DevOps for Vibe-Coding`](./devops-for-vibe-coding.md) - bridge narrative for readers arriving from DevOps, vibe-coding, or 12-factor language
 - [`12 Factors Validation Lens`](./12-factors-validation-lens.md) - supporting lifecycle/control-plane lens for the internal proof contract and software-factory control plane
+- [`Convergence Thesis Discussion Draft`](./convergence-thesis-discussion.md) - draft for the pinned GitHub Discussion
+- [`HN / dev.to Article Draft`](./hn-devto-article.md) - long-form GTM draft for external posting
 
 Back: [Docs Index](../INDEX.md)

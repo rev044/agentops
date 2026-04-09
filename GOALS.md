@@ -70,7 +70,7 @@ CI catches codex drift at push time, but 40% of fix commits in the March 2026 in
 
 Today harvest/forge/inject are on-demand — an operator runs them when they remember to. Anthropic's "dream cycle" concept validates what we've known: consolidation should happen automatically between sessions. Ship a GitHub Action (or scheduled Claude task) that runs nightly: harvest new learnings from recent sessions, forge patterns from accumulated learnings, defrag stale knowledge, and report flywheel health. The dream cycle is what turns the flywheel from "useful when invoked" to "always compounding."
 
-**Progress:** Partially started. Nightly automation already runs the compile cycle (`ao mine` + `ao defrag` + compile health checks) in `.github/workflows/nightly.yml`. Remaining gap: it does not yet run the full dream-cycle path (`harvest -> forge -> inject -> report`) or publish a visible compounding summary for users.
+**Progress:** Implemented in nightly CI. `.github/workflows/nightly.yml` now runs a dedicated dream-cycle proof job (`harvest -> forge -> close-loop -> defrag -> metrics health`) against the checked-in knowledge corpus, uploads the full report artifact, and updates a rolling GitHub issue with a visible compounding summary.
 
 **Steer:** increase (automated consolidation runs per week)
 
@@ -78,7 +78,7 @@ Today harvest/forge/inject are on-demand — an operator runs them when they rem
 
 When the same pattern appears across 3+ sessions — a debugging technique, a validation sequence, a refactoring approach — the system should propose a new skill. Today skills are hand-authored. The next step is semi-automated: `/compile` or `/forge` detects recurring patterns, drafts a skill skeleton (SKILL.md + frontmatter), and presents it for human review before promotion. This is Anthropic's "Skillify" concept — compound growth without manual authoring.
 
-**Progress:** Not started. `/compile grow` already synthesizes cross-domain insights and `/forge` extracts learnings. The gap is the last mile: turning a promoted pattern into a SKILL.md draft with correct frontmatter, references, and tier classification.
+**Progress:** Prototype implemented. `ao flywheel close-loop` now generates review-only draft skills under `.agents/skill-drafts/` when a pattern has evidence across 3+ session artifacts. The remaining gap is promotion polish: richer section synthesis, stronger tier heuristics, and a cleaner review/publish path from draft to shipped skill.
 
 **Steer:** increase (auto-proposed skill drafts)
 

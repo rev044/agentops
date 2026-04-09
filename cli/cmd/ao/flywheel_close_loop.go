@@ -145,6 +145,14 @@ func performFlywheelCloseLoop(cwd, pendingDir string, threshold time.Duration, q
 	}
 	result.MemoryPromoted = memoryPromoted
 
+	if draftResult, draftErr := ratchet.GenerateSkillDrafts(cwd); draftErr != nil {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "warn: skill draft generation: %v\n", draftErr)
+		}
+	} else if draftResult.Generated > 0 && !quiet {
+		fmt.Fprintf(os.Stderr, "info: generated %d skill draft(s)\n", draftResult.Generated)
+	}
+
 	return result, nil
 }
 

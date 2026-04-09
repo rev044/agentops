@@ -1,341 +1,142 @@
 # Contributing to AgentOps
 
-Thank you for your interest in contributing to AgentOps! This guide will help you create and submit high-quality skills.
+AgentOps is the operational layer for coding agents. Contributions are welcome across docs, runtime behavior, CLI reliability, tests, and skills.
 
-## Table of Contents
+If you want the fastest path to a meaningful first contribution, start here:
 
-- [Getting Started](#getting-started)
-- [Ways to Contribute](#ways-to-contribute)
-- [How to Add a Skill](#how-to-add-a-skill)
-- [Skill Structure](#skill-structure)
-- [Quality Standards](#quality-standards)
-- [Testing Your Skill](#testing-your-skill)
-- [Submission Process](#submission-process)
-- [Code of Conduct](#code-of-conduct)
+- [Create Your First Skill](create-your-first-skill.md)
+- [SKILL-API.md](SKILL-API.md)
+- [testing-skills.md](testing-skills.md)
 
 ## Getting Started
 
 ### Prerequisites
 
 - GitHub account
-- Claude Code installed and configured
-- Basic understanding of Claude Code plugins
-- Familiarity with markdown and YAML frontmatter
+- Git
+- A supported runtime if you want to test installs end to end (`Codex`, `Claude Code`, `OpenCode`, or another skill-install target)
+- Comfort editing Markdown and YAML frontmatter
 
 ### Fork and Clone
 
 ```bash
-# Fork the repository on GitHub
-# Then clone your fork
 git clone https://github.com/YOUR_USERNAME/agentops.git
 cd agentops
-ao init          # Set up .agents/ dirs + .gitignore
-ao init --hooks --full  # Optional: register all 8 lifecycle hooks
+
+# Optional, but useful for local workflow testing
+bash scripts/install-dev-hooks.sh
 ```
 
-## Ways to Contribute
+## High-Leverage Ways To Contribute
 
-You do not need to create a new skill to contribute.
+You do not need to add a brand-new skill to make a good contribution.
 
-High-leverage contribution paths:
-- Docs quality: README clarity, broken links, missing examples
-- Testing and validation: smoke tests, scripts, CI checks
-- CLI/runtime improvements: command UX, error handling, reliability
-- Skills: new skills, existing skill fixes, reference updates
+Useful contribution paths:
 
-### First Contribution in 30 Minutes
+- Docs clarity: tighten README, guides, examples, or onboarding
+- Skill quality: improve an existing `SKILL.md`, references, or validation scripts
+- Runtime reliability: hooks, install paths, and lifecycle behavior
+- CLI ergonomics: help text, JSON output, workflow plumbing
+- Validation and CI: tests, parity checks, and failure-proofing
 
-1. Pick a small scope: typo fix, unclear sentence, broken link, or missing example.
+## First Contribution In 30 Minutes
+
+1. Pick one narrow improvement: a typo, broken link, unclear instruction, or stale command example.
 2. Create a branch: `git checkout -b docs/first-contribution-fix`
-3. Make your change and run a targeted check (for docs, verify links/commands you touched).
-4. Commit and open a PR with clear before/after context.
+3. Make the change.
+4. Run the narrowest relevant check.
+5. Open a PR with before/after context.
 
-For ideas, check open issues and prioritize items labeled `good first issue` or `documentation`.
+## Adding A Skill
 
-## How to Add a Skill
+Use [Create Your First Skill](create-your-first-skill.md) for the full walk-through.
 
-### 1. Create Skill Directory
+The short version:
 
-```bash
-# Create your skill directory
-mkdir -p skills/your-skill-name
-```
+1. Create `skills/your-skill-name/`.
+2. Add a current `SKILL.md` with `skill_api_version: 1`.
+3. Keep the entry point lean; put deeper material in `references/` only when needed.
+4. Link every `references/*.md` file from `SKILL.md`.
+5. Run the local gates before opening the PR.
 
-### 2. Create SKILL.md
+## Local Validation
 
-Create `skills/your-skill-name/SKILL.md` with YAML frontmatter:
-
-```markdown
----
-name: your-skill-name
-description: 'Brief description of what your skill does. Trigger: /your-skill-name'
-tier: solo
-metadata:
-  internal: false
-dependencies:
-  - council    # If your skill uses council for validation
----
-
-# Your Skill Name
-
-## Purpose
-
-What this skill does and when to use it.
-
-## Instructions
-
-Step-by-step instructions for the AI agent executing this skill.
-
-## Output
-
-What this skill produces and where it writes results.
-
-## Examples
-
-Concrete usage examples.
-```
-
-**Required Frontmatter Fields:**
-- `name`: Kebab-case identifier (e.g., `your-skill-name`)
-- `description`: Clear, concise purpose with trigger pattern
-
-**Recommended Frontmatter Fields:**
-- `tier`: One of `solo`, `library`, `orchestration`, `team`, `background`, `meta` (see `skills/SKILL-TIERS.md`)
-- `metadata.internal`: Set `true` for skills not intended for direct user invocation
-- `dependencies`: List of skills this skill depends on
-
-### 3. Add References (Optional)
-
-For complex skills, keep SKILL.md lean and add detailed docs in `references/`:
-
-```
-skills/your-skill-name/
-├── SKILL.md              # Entry point (lean)
-├── references/           # Progressive disclosure docs
-│   ├── patterns.md       # Detailed patterns
-│   └── examples.md       # Extended examples
-└── scripts/              # Validation scripts (optional)
-    └── validate.sh
-```
-
-### 4. Add Validation Scripts (Optional)
-
-If your skill has specific validation requirements, add a `scripts/validate.sh`:
+At minimum, run:
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-# Custom validation for your skill
-# Exit 0 on success, non-zero on failure
+# Skill structure and reference integrity
+bash skills/heal-skill/scripts/heal.sh --strict
+
+# Docs, links, and skill-count consistency
+bash tests/docs/validate-doc-release.sh
 ```
 
-## Skill Structure
-
-### Directory Layout
-
-```
-skills/your-skill-name/
-├── SKILL.md              # Skill entry point (required)
-├── references/           # Detailed documentation (optional)
-│   └── *.md
-└── scripts/              # Validation scripts (optional)
-    └── validate.sh
-```
-
-### File Naming Conventions
-
-- **Skills:** `kebab-case/` (e.g., `bug-hunt/`)
-- **SKILL.md:** Always uppercase (entry point)
-- **References:** `kebab-case.md` (e.g., `security-patterns.md`)
-
-### Skill Tiers
-
-See `skills/SKILL-TIERS.md` for the complete taxonomy:
-
-| Tier | Description | Examples |
-|------|-------------|----------|
-| **solo** | Standalone, invoked directly by users | research, plan, vibe |
-| **library** | Reference skills loaded JIT by other skills | beads, standards |
-| **orchestration** | Multi-skill coordinators | crank, council, swarm |
-| **team** | Require human collaboration | implement (guided mode) |
-| **background** | Hook-triggered or automatic | inject, forge, extract |
-| **meta** | Skills about skills | using-agentops |
-
-## Quality Standards
-
-### Documentation Requirements
-
-Every skill must have:
-- SKILL.md with valid YAML frontmatter (`name` and `description` fields)
-- Clear purpose statement
-- Usage examples
-- Output description
-
-### Code Quality
-
-Required:
-- No hardcoded credentials or secrets
-- Valid YAML frontmatter in SKILL.md
-- Working markdown links (references must exist)
-- Dependencies must reference existing skills
-
-Recommended:
-- Include anti-patterns to avoid
-- Provide troubleshooting guidance
-- Document known limitations
-
-## Testing Your Skill
-
-### 1. Static Validation
+If you add or remove a skill directory, also run:
 
 ```bash
-# Validate your skill structure
-./tests/skills/validate-skill.sh skills/your-skill-name
-
-# Run all skill validations
-./tests/skills/run-all.sh
+scripts/sync-skill-counts.sh
 ```
 
-### 2. Smoke Test
+If you touched Codex-facing behavior or checked-in Codex artifacts, also run:
 
 ```bash
-# Verify the plugin loads correctly with your skill
-./tests/smoke-test.sh
+bash scripts/audit-codex-parity.sh --skill your-skill-name
+bash scripts/validate-codex-generated-artifacts.sh --scope worktree
 ```
 
-### 3. Plugin Load Test
+Before pushing, the recommended fast gate is:
 
 ```bash
-# Test with Claude Code directly
-claude --plugin ./
+scripts/pre-push-gate.sh --fast
 ```
 
-### 4. Full Test Suite
+## Opening The PR
 
-```bash
-# Run everything
-./tests/run-all.sh
-```
+Make the PR easy to review. Include:
 
-## Submission Process
+- what changed
+- why the existing behavior or docs were not enough
+- what checks you ran locally
+- any follow-up work you intentionally did not include
 
-### 1. Create Feature Branch
+Good PR titles:
 
-```bash
-git checkout -b add-your-skill-name
-```
+- `docs: clarify first skill contribution path`
+- `feat: add <skill-name> skill`
+- `fix: tighten codex lifecycle guidance`
 
-### 2. Commit Changes
+## Review Expectations
 
-```bash
-git add skills/your-skill-name/
-git commit -m "feat: add your-skill-name skill
+Maintainers will look for:
 
-## Context
-Adding skill for [purpose] to help users [benefit].
-
-## Testing
-- Static validation passed
-- Smoke test passed
-- Plugin loads correctly
-"
-```
-
-### 3. Push and Create PR
-
-```bash
-git push origin add-your-skill-name
-```
-
-Then create a Pull Request on GitHub with:
-
-**Title:** `feat: add [skill-name] skill`
-
-**Description:**
-```markdown
-## Skill Information
-
-- **Name:** your-skill-name
-- **Tier:** solo
-- **Description:** [Brief description]
-
-## Features
-
-- [Feature 1]
-- [Feature 2]
-
-## Testing Checklist
-
-- [ ] `./tests/skills/validate-skill.sh skills/your-skill-name` passes
-- [ ] `./tests/smoke-test.sh` passes
-- [ ] SKILL.md has valid YAML frontmatter
-- [ ] Documentation complete
-- [ ] Examples provided
-
-## Related Issues
-
-Closes #X (if applicable)
-```
-
-### 4. PR Review Process
-
-We will review:
-- Skill structure and SKILL.md completeness
-- YAML frontmatter validity
-- Documentation quality
-- Test validation results
-- Security (no secrets, no dangerous shell patterns)
-
-Review timeline:
-- Initial review: 2-3 business days
-- Feedback provided if changes needed
-- Approval once all requirements met
-
-### 5. After Merge
-
-Once merged:
-- Your skill is available in the plugin
-- Users install by runtime:
-  - Claude Code: `claude plugin install agentops@agentops-marketplace`
-  - Codex: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash` (installs the native plugin and `~/.codex/hooks.json`; open a fresh Codex session after install)
-  - OpenCode: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`
-  - Other agents: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
-- You'll be credited as author
+- current frontmatter and taxonomy usage
+- linked references and working docs paths
+- matching runtime/story across docs and shipped artifacts
+- validation evidence
+- no secrets, symlinks, or dangerous shell patterns
 
 ## Release Timing
 
-AgentOps does not enforce a minimum wait between releases. Maintainers can cut a release whenever the repo state and validation results justify it.
+AgentOps ships when the repo state justifies it. There is no fixed cadence.
 
-### Maintainer Guidance
+Maintainer notes:
 
-- Keep `[Unreleased]` in `CHANGELOG.md` current so release prep stays mechanical.
-- Prefer batching related changes into coherent release notes when practical.
-- Draft releases do not notify anyone and can be used freely for CI testing.
-
-### For Maintainers
-
-When cutting a release:
-
-1. Ensure CHANGELOG.md `[Unreleased]` section has all changes
-2. Write curated release notes to `docs/releases/YYYY-MM-DD-v<version>-notes.md`
-3. Run `/release <version>` — handles changelog, version bumps, tag, and draft GitHub Release
-4. Push tag: `git push origin main --tags`
-5. CI builds, validates, and publishes automatically
-
-The release pipeline reads curated notes from `docs/releases/` and shows them as highlights on the GitHub Release page, with the full changelog in a collapsible section.
+- Keep `[Unreleased]` in `CHANGELOG.md` current.
+- Prefer coherent release bundles over random patch piles.
+- Draft releases are acceptable for validating packaging before public promotion.
 
 ## Code of Conduct
 
 ### Our Standards
 
-**Positive behavior:**
+Positive behavior:
 - Be respectful and inclusive
 - Provide constructive feedback
 - Collaborate openly
 - Welcome newcomers
 - Share knowledge generously
 
-**Unacceptable behavior:**
+Unacceptable behavior:
 - Harassment or discrimination
 - Trolling or insulting comments
 - Personal or political attacks
@@ -353,49 +154,16 @@ Report issues to: fullerbt@users.noreply.github.com
 
 ## Getting Help
 
-### Questions?
+Useful places to orient:
 
-- **Documentation:** Check README.md and existing skills
-- **Examples:** Browse `skills/` for reference implementations
-- **Skill Taxonomy:** See `skills/SKILL-TIERS.md`
-- **GitHub Discussions:** Ask usage questions and share workflow results
-- **GitHub Issues:** Report confirmed bugs or request concrete features
-- **Email:** fullerbt@users.noreply.github.com
+- [README.md](../README.md)
+- [docs/INDEX.md](INDEX.md)
+- [docs/SKILLS.md](SKILLS.md)
+- [docs/SKILL-API.md](SKILL-API.md)
+- [docs/testing-skills.md](testing-skills.md)
+- [AGENTS.md](../AGENTS.md)
 
-### Useful Resources
-
-**Project Documentation:**
-- [AGENTS.md](../AGENTS.md) - Project instructions for AI agents
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [SKILLS.md](SKILLS.md) - Skills reference
-- [SKILL-TIERS.md](../skills/SKILL-TIERS.md) - Skill taxonomy
-- [testing-skills.md](testing-skills.md) - Testing guide
-
-**External:**
-- [Claude Code Plugins](https://docs.claude.com/en/docs/claude-code/plugins)
-
-## Maintainer Guidelines
-
-### For Repository Maintainers
-
-**Reviewing PRs:**
-1. Check skill structure (SKILL.md with valid frontmatter)
-2. Run `./tests/skills/validate-skill.sh skills/<name>`
-3. Review documentation quality
-4. Check for security issues
-5. Provide constructive feedback
-
-**Merging:**
-- Require all checks passed
-- Require approval from at least 1 maintainer
-- Use squash merge for cleaner history
-- Update CHANGELOG.md
-
-**Communication:**
-- Respond to PRs within 2-3 business days
-- Be welcoming and supportive
-- Provide clear, actionable feedback
-- Thank contributors for their work
+For examples, browse existing skills under `skills/`.
 
 ## License
 
@@ -403,6 +171,4 @@ By contributing to this project, you agree that your contributions will be licen
 
 ---
 
-**Thank you for contributing to AgentOps!**
-
-**Questions?** Open an issue or email fullerbt@users.noreply.github.com
+Questions? Open an issue or email fullerbt@users.noreply.github.com

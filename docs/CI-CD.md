@@ -8,7 +8,7 @@ CI ensures code quality, security, and release integrity for the AgentOps reposi
 |----------|------|---------|---------|
 | Validate | `validate.yml` | Push to `main`, PRs to `main` | Primary quality gate (29 jobs) |
 | Release Publisher | `release.yml` | Tag push (`v*`), manual dispatch | Build, publish, attest releases |
-| Nightly | `nightly.yml` | Daily 6am UTC, manual | Full test suite + security + Compile knowledge cycle |
+| Nightly | `nightly.yml` | Daily 6am UTC, manual | Full test suite + retrieval + security + compile cycle + dream-cycle proof summary |
 | Stale Issues | `stale.yml` | Weekly Monday 9am UTC | Auto-mark/close inactive issues and PRs |
 | Label PRs | `labeler.yml` | PR opened/synced/reopened | Auto-label PRs by changed paths |
 
