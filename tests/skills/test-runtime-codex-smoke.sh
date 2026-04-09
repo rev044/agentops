@@ -128,11 +128,11 @@ else
 fi
 
 if [[ -f "$CODEX_HOME/hooks.json" ]]; then
-    pass "~/.codex/hooks.json created by installer"
+    pass "$CODEX_HOME/hooks.json created by installer"
     jq -e '.hooks[] | select(.name == "agentops-session-start")' "$CODEX_HOME/hooks.json" >/dev/null 2>&1 \
-        && pass "~/.codex/hooks.json includes agentops-session-start" || fail "~/.codex/hooks.json missing agentops-session-start"
+        && pass "$CODEX_HOME/hooks.json includes agentops-session-start" || fail "$CODEX_HOME/hooks.json missing agentops-session-start"
 else
-    fail "~/.codex/hooks.json missing after install"
+    fail "$CODEX_HOME/hooks.json missing after install"
 fi
 
 if [[ -f "$CODEX_HOME/.agentops-codex-install.json" ]]; then
@@ -159,13 +159,13 @@ else
 fi
 
 while IFS= read -r -d '' entrypoint_file; do
-    if grep -qE '~/.codex/skills|\$HOME/.codex/skills' "$entrypoint_file"; then
-        fail "installed Codex entrypoint still references raw ~/.codex/skills paths: $entrypoint_file"
+    if grep -qE '[~]/\.codex/skills|\$HOME/\.codex/skills' "$entrypoint_file"; then
+        fail "installed Codex entrypoint still references raw .codex/skills paths: $entrypoint_file"
         break
     fi
 done < <(find "$PLUGIN_SKILLS" -type f \( -name 'SKILL.md' -o -name 'prompt.md' \) -print0)
 if [[ $FAIL -eq 0 ]]; then
-    pass "installed Codex entrypoints avoid stale ~/.codex/skills references"
+    pass "installed Codex entrypoints avoid stale raw .codex/skills references"
 fi
 
 echo ""
