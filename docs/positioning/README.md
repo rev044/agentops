@@ -1,14 +1,21 @@
 # Positioning
 
-AgentOps is the local DevOps layer for coding agents. The product framing is current in [PRODUCT.md](../../PRODUCT.md): it tracks the work, validates the plan and code, preserves what was learned, and closes the loop into the next session.
+AgentOps is the operational layer for coding agents. The current public
+framing lives in [PRODUCT.md](../../PRODUCT.md) and
+[README.md](../../README.md): bookkeeping, validation, primitives, and flows
+so every session starts where the last one left off.
 
-The primary positioning message is the current tagline from [`devops-for-vibe-coding.md`](./devops-for-vibe-coding.md): "The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions." That document is the canonical narrative for the market-facing pitch, audience framing, and differentiation.
+Use DevOps and 12-factor language here as supporting doctrine, lineage, or
+bridge language for specific audiences. They are no longer the category
+headline.
 
-The 12-factor doctrine is a supporting lifecycle/control-plane lens. It explains how the three-gap contract and software-factory control plane work operationally, but it does not define the product.
+The 12-factor doctrine remains a supporting lifecycle/control-plane lens. It
+explains how the internal proof contract and software-factory control plane
+work operationally, but it does not define the product.
 
 Use this section as the entry point for positioning work:
 
-- [`DevOps for Vibe-Coding`](./devops-for-vibe-coding.md) - canonical positioning narrative, tagline, target audience, and competitive framing
-- [`12 Factors Validation Lens`](./12-factors-validation-lens.md) - supporting lifecycle/control-plane lens for the three-gap contract and software-factory control plane
+- [`DevOps for Vibe-Coding`](./devops-for-vibe-coding.md) - bridge narrative for readers arriving from DevOps, vibe-coding, or 12-factor language
+- [`12 Factors Validation Lens`](./12-factors-validation-lens.md) - supporting lifecycle/control-plane lens for the internal proof contract and software-factory control plane
 
 Back: [Docs Index](../INDEX.md)

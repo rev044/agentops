@@ -1,18 +1,26 @@
 # Context Lifecycle Contract
 
-> AgentOps is not just about what goes into the context window before work starts. It is the repo layer that makes validation, learning, and loop closure explicit between "agent wrote code" and "the system got smarter."
+> Publicly, AgentOps sells bookkeeping, validation, primitives, and flows.
+> This page explains the internal lifecycle contract that proves those claims:
+> judgment validation, durable learning, and loop closure.
 
-## The Three Gaps
+## Internal Proof Contract
 
 Most coding-agent tooling is strong at prompt construction and agent routing. The failure mode comes after that:
 
-1. **Judgment validation** is missing, so the agent chooses an approach without loading the risk context that would challenge it before or after implementation.
-2. **Durable learning** is missing, so solved problems come back as if they were never solved.
-3. **Loop closure** is missing, so completed work does not reliably produce better next work, better rules, or better future context.
+1. **Validation** is missing. Internally, this gap is tracked as
+   **judgment validation**: the agent chooses an approach without loading the
+   risk context that would challenge it before or after implementation.
+2. **Bookkeeping** is missing. Internally, this gap is tracked as
+   **durable learning**: solved problems come back as if they were never
+   solved.
+3. **Closure** is missing. Internally, this gap is tracked as
+   **loop closure**: completed work does not reliably produce better next
+   work, better rules, or better future context.
 
 AgentOps treats those three gaps as a lifecycle contract, not as separate features.
 
-## Gap 1: Judgment Validation
+## Gap 1: Validation
 
 **Problem.** Compile/test checks are not enough. An agent can ship the happy path while missing architecture fit, edge cases, or risk context.
 
@@ -26,12 +34,12 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 
 | Mechanism | Source | Role |
 |-----------|--------|------|
-| `/pre-mortem` | [skills/pre-mortem/SKILL.md](../skills/pre-mortem/SKILL.md) | Loads plan-review judgment before code exists |
-| `/vibe` | [skills/vibe/SKILL.md](../skills/vibe/SKILL.md) | Runs post-implementation judgment instead of stopping at build/test |
+| `/pre-mortem` | [skills/pre-mortem/SKILL.md](../skills/pre-mortem/SKILL.md) | Loads plan-review validation before code exists |
+| `/vibe` | [skills/vibe/SKILL.md](../skills/vibe/SKILL.md) | Runs post-implementation validation instead of stopping at build/test |
 | `/council` | [skills/council/SKILL.md](../skills/council/SKILL.md) | Supplies multi-judge review for plans and code |
 | Pre-mortem gate hook | `hooks/pre-mortem-gate.sh` + [hooks/hooks.json](../hooks/hooks.json) | Prevents large implementation work from skipping plan validation |
 | Task-validation constraint hook | `hooks/task-validation-gate.sh` + `.agents/constraints/index.json` | Task-validation executes active compiled constraints for mechanically detectable findings |
-| Product-aware review context | [PRODUCT.md](../PRODUCT.md) | Injects product and DX perspectives into judgment flows |
+| Product-aware review context | [PRODUCT.md](../PRODUCT.md) | Injects product and DX perspectives into validation flows |
 
 **Supporting failure modes addressed inside this gap:**
 
@@ -39,7 +47,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 - architecture drift from choosing the wrong existing pattern
 - review culture that depends on a human noticing problems after the fact
 
-## Gap 2: Durable Learning
+## Gap 2: Bookkeeping
 
 **Problem.** Notes are not learning. If solved work is not extracted, scored, retrieved, and re-used, the same repo keeps paying for the same lesson.
 
@@ -47,14 +55,14 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 
 - An auth bug fixed on Monday comes back on Wednesday
 - The agent re-runs the same dead-end investigation in a new session
-- The repo accumulates artifacts, but not reusable judgment
+- The repo accumulates artifacts, but not reusable bookkeeping
 
 **AgentOps mechanisms:**
 
 | Mechanism | Source | Role |
 |-----------|--------|------|
 | `.agents/` ledger | [Knowledge Ledger](#the-knowledge-ledger--session-to-session-flow) | Stores plans, learnings, patterns, council outputs, and next-work artifacts on disk |
-| Finding registry | [docs/contracts/finding-registry.md](contracts/finding-registry.md) | Stores reusable structured findings that planning and judgment can load before rediscovering the same failure |
+| Finding registry | [docs/contracts/finding-registry.md](contracts/finding-registry.md) | Stores reusable structured findings that planning and validation can load before rediscovering the same failure |
 | `ao lookup` / injection | [Knowledge Ledger](#the-knowledge-ledger--session-to-session-flow) and `ao` CLI | Retrieves repo-specific context at session start and task boundaries |
 | `/retro` and `/post-mortem` extraction | [skills/post-mortem/SKILL.md](../skills/post-mortem/SKILL.md) | Turns completed work into reusable learnings and patterns |
 | Freshness / maturity controls | `ao maturity`, `ao dedup`, `ao contradict` | Keeps retrieval focused on useful, current knowledge |
@@ -66,7 +74,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 - stale or contradictory learnings swamping retrieval
 - "memory" systems that store notes without curation or reinforcement
 
-## Gap 3: Loop Closure
+## Gap 3: Closure
 
 **Problem.** A session is not complete when code exists. It is complete when the work has been judged, the learning has been harvested, and the system knows what to do next.
 
@@ -98,16 +106,16 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 
 | Gap | Mechanism | Durable Artifact / Contract | Proof Surface |
 |-----|-----------|-----------------------------|---------------|
-| Judgment validation | `/pre-mortem` | `skills/pre-mortem/SKILL.md` | Plan review before implementation |
-| Judgment validation | `/vibe` | `skills/vibe/SKILL.md` | Code review before commit/merge |
-| Judgment validation | pre-mortem gate | `hooks/pre-mortem-gate.sh`, `hooks/hooks.json` | Runtime hook enforcement |
-| Durable learning | extraction + retrieval | `.agents/`, `ao lookup`, `ao forge`, finding registry, finding artifacts | Repo-specific context and reusable structured findings loaded into later sessions |
-| Durable learning | curation | `ao maturity`, `ao dedup`, `ao contradict` | Freshness, contradiction, and duplication control |
-| Durable learning | Compile | `GOALS.md`, Compile checks | Daily maintenance of learning quality |
-| Loop closure | `/post-mortem` + finding compiler | `skills/post-mortem/SKILL.md`, `docs/contracts/finding-registry.md`, `docs/contracts/finding-compiler.md` | Learnings + next work harvested from completed work; reusable findings re-enter planning/review and compile into preventive artifacts |
-| Loop closure | task-validation compiled enforcement | `hooks/task-validation-gate.sh`, `.agents/constraints/index.json` | Task-validation executes active compiled constraints before completion is accepted |
-| Loop closure | flywheel close hook | `hooks/ao-flywheel-close.sh` | Stop-time feedback loop closure |
-| Loop closure | goals / evolve | `GOALS.md`, flywheel-proof gate | Proof that the system compounds across sessions |
+| Validation | `/pre-mortem` | `skills/pre-mortem/SKILL.md` | Plan review before implementation |
+| Validation | `/vibe` | `skills/vibe/SKILL.md` | Code review before commit/merge |
+| Validation | pre-mortem gate | `hooks/pre-mortem-gate.sh`, `hooks/hooks.json` | Runtime hook enforcement |
+| Bookkeeping | extraction + retrieval | `.agents/`, `ao lookup`, `ao forge`, finding registry, finding artifacts | Repo-specific context and reusable structured findings loaded into later sessions |
+| Bookkeeping | curation | `ao maturity`, `ao dedup`, `ao contradict` | Freshness, contradiction, and duplication control |
+| Bookkeeping | Compile | `GOALS.md`, Compile checks | Daily maintenance of learning quality |
+| Closure | `/post-mortem` + finding compiler | `skills/post-mortem/SKILL.md`, `docs/contracts/finding-registry.md`, `docs/contracts/finding-compiler.md` | Learnings + next work harvested from completed work; reusable findings re-enter planning/review and compile into preventive artifacts |
+| Closure | task-validation compiled enforcement | `hooks/task-validation-gate.sh`, `.agents/constraints/index.json` | Task-validation executes active compiled constraints before completion is accepted |
+| Closure | flywheel close hook | `hooks/ao-flywheel-close.sh` | Stop-time feedback loop closure |
+| Closure | goals / evolve | `GOALS.md`, flywheel-proof gate | Proof that the system compounds across sessions |
 
 ## What AgentOps Does Not Claim
 

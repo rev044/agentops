@@ -1,11 +1,20 @@
 # Software Factory Surface
 
-AgentOps already contains the machinery for a software factory. This document
-names the operator surface explicitly so users do not have to infer it from
-skills, hooks, CLI commands, and internal artifacts.
+Publicly, AgentOps is the operational layer for coding agents. This document
+names the operator surface and software-factory mechanics beneath that public
+story so users do not have to infer them from skills, hooks, CLI commands, and
+internal artifacts.
 
 ## Thesis
 
+AgentOps gives coding agents four things by default:
+
+- bookkeeping
+- validation
+- primitives
+- flows
+
+This page explains the operator surface beneath that promise. Internally,
 AgentOps is best understood as a **software-factory control plane**.
 
 The environment carries:
@@ -13,7 +22,7 @@ The environment carries:
 - bounded briefing and context assembly
 - tracked planning and scoped execution
 - validation gates and ratchet checkpoints
-- durable learning and loop closure
+- bookkeeping and flywheel closure between sessions
 - isolated work lanes for long-running or parallel work
 
 The workers remain replaceable. The environment carries continuity.
@@ -149,7 +158,7 @@ The factory framing matters because the repo already has the hard parts:
 
 - RPI provides the conveyor belt.
 - Context packets and briefings provide bounded work orders.
-- The flywheel provides durable learning and loop closure.
+- The flywheel provides bookkeeping and closure between sessions.
 - Codex lifecycle commands provide explicit runtime boundaries where hooks do
   not exist.
 

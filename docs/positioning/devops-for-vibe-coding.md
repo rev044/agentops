@@ -2,17 +2,17 @@
 
 **Version:** 1.2.0
 **Date:** 2026-01-31
-**Status:** Foundation document for strategic pivot
+**Status:** Supporting bridge narrative, not the primary category page
 
 ---
 
 ## Tagline
 
-**Primary:** The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions.
+**Primary:** The operational layer for coding agents.
 
-**Secondary:** Validation Built In, Not Bolted On
+**Secondary:** Bookkeeping, validation, primitives, and flows that compound between sessions.
 
-**Category:** DevOps for coding agents
+**Category:** Operational layer for coding agents
 
 **Legacy (SEO/blog only):** DevOps for Vibe-Coding
 
@@ -20,25 +20,33 @@
 
 ## Elevator Pitch (30 seconds)
 
-> AgentOps is DevOps for coding agents. The 12-factor doctrine is supporting doctrine for the lifecycle/control plane, not the product definition. It shifts validation left, but it also does the two things most tooling still misses: durable repo memory and loop closure. Pre-mortem before you implement. Vibe check before you commit. Findings and learnings written back into the environment so the next session starts smarter.
+> AgentOps is the operational layer for coding agents. DevOps is the lineage,
+> not the category. It gives coding agents bookkeeping, validation,
+> primitives, and flows so work starts with repo context instead of a blank
+> prompt, gets challenged before shipping, and compounds between sessions.
 
 ### One-Liner (10 seconds)
 
-> The missing DevOps layer for coding agents: validation, memory, and loop closure.
+> Bookkeeping and validation for coding agents that compounds between sessions.
 
 ### Tweet-Length (280 chars)
 
-> DevOps gave us reliable infrastructure. 12-Factor AgentOps gives us reliable coding agents. Validation built in, not bolted on. Durable memory on disk. Findings that compile into better future work.
+> Coding agents do not do their own bookkeeping. AgentOps is the operational
+> layer for coding agents: bookkeeping, validation, primitives, and flows that
+> help every session start where the last one left off.
 
 ---
 
-## The Three Gaps
+## Internal Proof Contract
 
-Most coding-agent tooling is strong at prompt construction and agent routing. The failure mode comes after that. AgentOps treats three gaps as a lifecycle contract (see [docs/context-lifecycle.md](../context-lifecycle.md) for the full treatment):
+Most coding-agent tooling is strong at prompt construction and agent routing.
+The failure mode comes after that. Internally, AgentOps proves the product
+through a three-gap lifecycle contract (see
+[docs/context-lifecycle.md](../context-lifecycle.md) for the full treatment):
 
-1. **Judgment validation** — the agent ships without the risk context that would challenge its choices. `/pre-mortem` before implementation, `/vibe` before commit, `/council` for multi-judge review.
-2. **Durable learning** — solved problems recur because nothing extracts, scores, and retrieves the lesson. The `.agents/` ledger, `ao lookup`, finding registry, and `/retro` keep learnings alive across sessions.
-3. **Loop closure** — completed work does not produce better next work. `/post-mortem` harvests learnings and next-work items, the finding compiler promotes repeat failures into preventive constraints, and `GOALS.md` + `/evolve` turn findings into measurable improvements.
+1. **Validation** (internal: judgment validation) — the agent ships without the risk context that would challenge its choices. `/pre-mortem` before implementation, `/vibe` before commit, `/council` for multi-judge review.
+2. **Bookkeeping** (internal: durable learning) — solved problems recur because nothing extracts, scores, and retrieves the lesson. The `.agents/` ledger, `ao lookup`, finding registry, and `/retro` keep learnings alive across sessions.
+3. **Closure** (internal: loop closure) — completed work does not produce better next work. `/post-mortem` harvests learnings and next-work items, the finding compiler promotes repeat failures into preventive constraints, and `GOALS.md` + `/evolve` turn findings into measurable improvements.
 
 These three gaps are not separate features. They form a single feedback loop:
 
@@ -63,7 +71,20 @@ Write code → Ship → CI catches problems → Fix → Repeat
 
 The validation loop happens before code ships, not after. But validation alone is not the whole story. The larger system also extracts what was learned, compiles repeat failures into preventive artifacts, and feeds better context into the next cycle. See gaps 2 and 3 above.
 
-### 2. Coding Agent Specific
+### 2. Repo-Native Bookkeeping
+
+AgentOps does not stop at chat history or "memory" as a vague promise. It
+writes research, findings, learnings, handoffs, ratchet traces, and next-work
+artifacts into the repo-native environment:
+
+- `.agents/` as the working ledger
+- retrieval and injection at startup and task boundaries
+- curation controls for freshness, contradiction, and promotion
+- flywheel closure so each session leaves better context behind
+
+That is the mechanism behind the compounding claim.
+
+### 3. Coding Agent Specific
 
 We focus on **coding agents**—AI assistants that write, modify, and review code:
 
@@ -78,7 +99,7 @@ We are NOT:
 - An SDK for multi-modal agents
 - A solution for general autonomous production agents
 
-### 3. DevOps Principles, New Context
+### 4. DevOps Principles, New Context
 
 We apply proven operational discipline to a new domain:
 
@@ -90,18 +111,21 @@ We apply proven operational discipline to a new domain:
 | Post-Mortems | /retro to extract and compound learnings |
 | Observability | Knowledge flywheel tracks what works |
 
-### 4. Single-Session Excellence
+DevOps is therefore lineage and supporting doctrine, not the primary category label.
 
-AgentOps optimizes the single coding session while refusing to waste what it learned:
+### 5. Primitives and Flows
 
-- Context management (40% rule)
-- Validation gates within the session
-- Knowledge extraction, retrieval, and compiled prevention
-- Human-AI collaboration patterns
+Skills are the building blocks. Flows are the named compositions of those skills:
 
-For multi-session orchestration, see Olympus (Temporal-based workflows).
+- Pull one primitive: `/council validate this PR`
+- Compose several manually: `/research` -> `/plan` -> `/council validate`
+- Run the full lane: `/rpi "add retry backoff"`
+- Automate toward goals: `/evolve`
 
-### 5. Knowledge That Compounds
+This matters because AgentOps is not one monolithic workflow. It gives
+operators reusable surfaces they can enter and exit based on intent.
+
+### 6. Knowledge That Compounds
 
 The Knowledge Flywheel:
 ```
@@ -115,10 +139,11 @@ Every session makes the next one better because the environment changes, not bec
 
 ## What We Are
 
-- **DevOps principles applied to coding agents** — The same operational discipline that made infrastructure reliable
+- **Operational layer for coding agents** — a repo-native layer around the models you already use
+- **DevOps principles applied to coding agents** — the lineage and operational discipline behind the design
 - **Validation-first workflow** — Shift-left, not shift-blame
-- **Knowledge flywheel that compounds** — Learnings persist, get curated, and harden into future prevention
-- **Single-session orchestration** — Excellence where it matters most
+- **Repo-native bookkeeping that compounds** — Learnings persist, get curated, and harden into future prevention
+- **Primitives and flows** — One-off actions and repeatable lanes on the same surface
 - **Framework, not SDK** — Patterns and practices, not lock-in
 
 ## What We Are NOT
@@ -188,7 +213,11 @@ Single-Session          │   Agent SDKs
 
 ### When Asked "What is 12-Factor AgentOps?"
 
-> It's DevOps for coding agents. We apply the same operational principles that made infrastructure reliable, then add the missing memory and loop-closure layers agents need because they forget everything between sessions. Instead of shipping AI-generated code and hoping CI catches problems, you validate before commit and write the learning back into the repo.
+> Publicly, AgentOps is the operational layer for coding agents. It gives
+> coding agents bookkeeping, validation, primitives, and flows so every
+> session starts where the last one left off. Under the hood, DevOps and
+> 12-factor ideas explain why the lifecycle/control plane looks the way it
+> does.
 
 ### When Asked "How is it different from X?"
 
@@ -211,30 +240,31 @@ Different surfaces need different messaging density. Match the message to the au
 
 | Surface | Message | Source |
 |---------|---------|--------|
-| **GitHub description** (< 100 chars) | Agent memory that compounds. Zero infrastructure. | Hybrid A+C |
-| **README hero** | Your agents forget everything between sessions. AgentOps fixes that. | A (emotional) |
-| **README subtitle** | Learnings, patterns, and decisions live as plain files in `.agents/` | C (mechanical) |
+| **GitHub description** (< 100 chars) | The operational layer for coding agents. | Hybrid A+C |
+| **README hero** | Coding agents don't do their own bookkeeping. | A (emotional) |
+| **README subtitle** | Bookkeeping, validation, primitives, and flows that compound between sessions. | C (mechanical) |
 | **Social / Twitter** | Mistakes happen once. `.agents/` makes sure of it. | A+C (outcome) |
-| **HN / technical blog** | Grep replaces RAG: permanent agent memory with plain files | C (provocative) |
+| **HN / technical blog** | Coding agents don't do their own bookkeeping. AgentOps makes that repo-native. | C (provocative) |
 | **Conference talk** | Your agents are temps. Your repo remembers everything. | A (emotional) |
-| **Landing page (managers)** | Institutional memory for AI agents. Zero infrastructure. | A+C (balanced) |
-| **Competitive comparison** | Agent knowledge as files. Diffable. Greppable. No vendor lock-in. | C (mechanical) |
+| **Landing page (managers)** | Bookkeeping and validation for coding agents. Zero infrastructure. | A+C (balanced) |
+| **Competitive comparison** | Repo-native bookkeeping and validation. Diffable. Greppable. No vendor lock-in. | C (mechanical) |
 
-**Category claim:** "Repo-native agent memory" — agent knowledge managed like code (version-controlled, reviewed, promoted, decayed), not stuffed into a vector database or a proprietary cloud store.
+**Category claim:** "Operational layer for coding agents" — the repo-native layer that gives agents bookkeeping, validation, primitives, and flows.
 
-**Strategic position:** Validation drives adoption. The flywheel drives retention. Loop closure drives lock-in. The flywheel is pillar 2 of 3, not the headline.
+**Strategic position:** Validation drives adoption. Bookkeeping and the flywheel drive retention. Closure hardens the moat. The flywheel is real, but it is not the headline.
 
 ## Key Phrases Reference
 
 ### Use These
 
-- "DevOps for Vibe-Coding"
-- "The Three Gaps" (judgment validation, durable learning, loop closure)
+- "The operational layer for coding agents"
+- "Bookkeeping, validation, primitives, and flows"
+- "The Three Gaps" (as internal proof, not the public headline)
 - "Shift-left validation for coding agents"
 - "Validation built in, not bolted on"
 - "Catch it before you ship it"
 - "Knowledge that compounds"
-- "Repo-native agent memory"
+- "Repo-native bookkeeping"
 - "Your agents are temps. Your repo remembers everything."
 - "Mistakes happen once. `.agents/` makes sure of it."
 - "Grep replaces RAG"
@@ -285,9 +315,9 @@ Closes the loop. Extracts learnings, feeds the flywheel. Every session makes the
 
 This positioning is successful when:
 
-1. **Users can state what we do in one sentence** — "DevOps for vibe-coding" or equivalent
+1. **Users can state what we do in one sentence** — "The operational layer for coding agents"
 2. **No confusion with general agent frameworks** — Clear we're coding-specific
-3. **All three gaps are understood** — Validation, learning, and loop closure carry equal weight
+3. **Public and internal layers do not blur** — Public story first, three-gap proof second
 4. **Knowledge flywheel is understood** — Sessions compound, not isolated
 
 ---
@@ -312,4 +342,6 @@ The operational discipline that made infrastructure reliable. We're applying the
 
 ---
 
-*This document is the foundation for all messaging updates. Reference it when updating READMEs, articles, plugin metadata, and skill descriptions.*
+*This document is a supporting bridge narrative. Reference it when writing for
+DevOps- or vibe-coding-native audiences, not as the primary category source of
+truth.*

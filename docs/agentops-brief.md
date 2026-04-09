@@ -14,17 +14,19 @@ The institutional knowledge stops walking out the door because the repo keeps it
 
 ---
 
-## The Three Gaps
+## Internal Proof Contract
 
 Most coding-agent tooling handles prompt construction and routing well. The failure mode comes after that. Internally, AgentOps proves the product through a three-gap lifecycle contract (see [docs/context-lifecycle.md](context-lifecycle.md)):
 
 | Gap | Problem | AgentOps response |
 |-----|---------|-------------------|
-| **Judgment validation** | The agent ships without risk context that would challenge its choices | `/pre-mortem` before implementation, `/vibe` before commit, `/council` for multi-judge review |
-| **Durable learning** | Solved problems recur because nothing extracts, scores, or retrieves the lesson | `.agents/` ledger, `ao lookup`, finding registry, `/retro` extraction, freshness curation |
-| **Loop closure** | Completed work does not produce better next work | `/post-mortem` harvests learnings and next-work, finding compiler promotes failures into constraints, `GOALS.md` + `/evolve` turn findings into measurable improvements |
+| **Validation** (internal: judgment validation) | The agent ships without risk context that would challenge its choices | `/pre-mortem` before implementation, `/vibe` before commit, `/council` for multi-judge review |
+| **Bookkeeping** (internal: durable learning) | Solved problems recur because nothing extracts, scores, or retrieves the lesson | `.agents/` ledger, `ao lookup`, finding registry, `/retro` extraction, freshness curation |
+| **Closure** (internal: loop closure) | Completed work does not produce better next work | `/post-mortem` harvests learnings and next-work, finding compiler promotes failures into constraints, `GOALS.md` + `/evolve` turn findings into measurable improvements |
 
-The compound effect below only works because all three gaps are closed: validation catches the problem, learning remembers it, and loop closure ensures the next session loads that memory before repeating the mistake.
+The compound effect below only works because validation catches the problem,
+bookkeeping preserves the lesson, and closure ensures the next session loads
+better context before repeating the mistake.
 
 ---
 
@@ -34,7 +36,9 @@ The compound effect below only works because all three gaps are closed: validati
 Structured primitives and named flows for discovery, execution, validation, recovery, and release. Skills route work into the right chain instead of leaving the agent to improvise the lifecycle.
 
 ### Hooks — The Enforcement Layer
-Runtime hooks fire at session start/end, prompt submission, tool boundaries, stop, and task completion. They keep guidance, validation, and loop closure active even when the operator does not remember every step.
+Runtime hooks fire at session start/end, prompt submission, tool boundaries,
+stop, and task completion. They keep guidance, validation, and flywheel
+closure active even when the operator does not remember every step.
 
 ### `ao` CLI — The Control Plane
 The CLI handles retrieval, ratchet checkpoints, flywheel closure, goals, curation, and phased execution support. It is the mechanical bridge between plain files, flows, and enforceable progress.
@@ -100,7 +104,10 @@ Technical frame    -> context compiler
 Runtime mechanics  -> Brownian Ratchet + Stigmergic Spiral + Knowledge Flywheel
 ```
 
-The claim is not "better models." The claim is "better repo mechanics around the models you already have." The three gaps are the organizing principle: every skill, hook, and CLI command exists to close one of them.
+The claim is not "better models." The claim is "better repo mechanics around
+the models you already have." Publicly, that means bookkeeping, validation,
+primitives, and flows. Internally, the three-gap contract remains the proof
+model that verifies those claims are real.
 
 ---
 

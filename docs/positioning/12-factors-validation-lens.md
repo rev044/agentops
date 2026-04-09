@@ -2,15 +2,21 @@
 
 The original 12-factor doctrine still matters here, but only as supporting doctrine. The primary product definition lives in [PRODUCT.md](../../PRODUCT.md), [README.md](../../README.md), [docs/context-lifecycle.md](../context-lifecycle.md), and [docs/software-factory.md](../software-factory.md).
 
-AgentOps is a **software-factory control plane**. The environment carries continuity, the workers remain replaceable, and the system closes the gaps that matter: **judgment validation**, **durable learning**, and **loop closure**. This is the 12-factor expression of environment-carried continuity with replaceable workers. This lens explains why the 12-factor shape still fits, but it does not replace the current contract.
+Publicly, AgentOps is the **operational layer for coding agents**. Under the
+hood, it behaves like a **software-factory control plane**. The environment
+carries continuity, the workers remain replaceable, and the system proves
+itself through an internal lifecycle contract: validation, bookkeeping, and
+closure. This is the 12-factor expression of environment-carried continuity
+with replaceable workers. This lens explains why the 12-factor shape still
+fits, but it does not replace the current product framing.
 
 ## How to Read This Lens
 
 The 12-factor model is useful because it describes an operating style where state belongs in the environment, processes are disposable, and the control plane stays explicit. AgentOps uses that same shape, but the goal is different:
 
 - load the right context before work starts
-- validate judgment before code ships
-- retain what the repo learned
+- validate work before code ships
+- retain what the repo learned through bookkeeping
 - close the loop so the next session starts smarter
 
 That is the operating logic behind the software-factory control plane described in the repo docs.
@@ -27,7 +33,8 @@ The point is not "one repo because 12-factor says so." The point is one shared c
 
 Dependencies must be explicit because validation depends on reproducibility. In AgentOps that includes CLI commands, hooks, schemas, skill contracts, and the supporting documents that define how the control plane behaves.
 
-If a worker cannot declare its dependencies, the environment cannot validate its judgment or reproduce its result.
+If a worker cannot declare its dependencies, the environment cannot validate
+its work or reproduce its result.
 
 ### Factor III: Config
 
@@ -45,13 +52,16 @@ The worker can be swapped out. The service contract remains.
 
 AgentOps separates discovery, planning, implementation, validation, and learning so the repo can judge work at the right time. That is the same discipline the 12-factor model wanted from build, release, and run, but applied to the agent loop.
 
-The environment should know when work is still being shaped, when it is ready to validate, and when it has become durable learning.
+The environment should know when work is still being shaped, when it is ready
+to validate, and when it has become bookkeeping that future sessions can use.
 
 ### Factor VI: Processes
 
 Workers are processes, not permanent identities. They should be replaceable, bounded, and restartable. The environment is what persists.
 
-This is the clearest expression of the software-factory control plane: workers come and go, but the repo keeps the state that matters for judgment validation, durable learning, and loop closure.
+This is the clearest expression of the software-factory control plane: workers
+come and go, but the repo keeps the state that matters for validation,
+bookkeeping, and closure.
 
 ### Factor VII: Port Binding
 
@@ -69,7 +79,9 @@ That is why the repo emphasizes scoped execution, fresh context, and non-overlap
 
 Workers should be disposable; the environment should not be. Sessions can end, compactions can happen, and workers can be replaced without losing the state of the system.
 
-This is where loop closure becomes operational: completed work does not vanish with the worker. It is harvested into artifacts, findings, and follow-on work that the next session can use.
+This is where closure becomes operational: completed work does not vanish with
+the worker. It is harvested into artifacts, findings, and follow-on work that
+the next session can use.
 
 ### Factor X: Dev/Prod Parity
 
@@ -79,7 +91,9 @@ If the control plane works in one session but falls apart in another, the enviro
 
 ### Factor XI: Logs
 
-Logs are not just debugging output. In AgentOps they are the evidence trail for judgment validation, the memory substrate for durable learning, and the raw material for loop closure.
+Logs are not just debugging output. In AgentOps they are the evidence trail for
+validation, the bookkeeping substrate for durable learning, and the raw
+material for closure.
 
 That includes transcripts, findings, learnings, constraints, and the artifacts that make later validation stronger than earlier validation.
 
@@ -97,18 +111,28 @@ The 12-factor shape is still useful because it reinforces the repo's actual oper
 |------|------------------|
 | Config and backing services live outside the worker | The environment carries continuity |
 | Processes are disposable | Workers remain replaceable |
-| Build/release/run are separated | Judgment validation happens before the cost of shipping |
-| Logs and admin processes are first-class | Durable learning and loop closure are explicit |
+| Build/release/run are separated | Validation happens before the cost of shipping |
+| Logs and admin processes are first-class | Bookkeeping and closure are explicit |
 
-The doctrine is therefore supportive, not defining. The product is not "12-factor agents." The product is a software-factory control plane for coding agents that closes the three gaps.
+The doctrine is therefore supportive, not defining. The product is not
+"12-factor agents." The product is the operational layer for coding agents,
+with a software-factory control plane underneath it.
 
 ## Canonical Contract Mapping
 
-- **Judgment validation** maps to the parts of the system that challenge the plan and the code before ship time.
-- **Durable learning** maps to the parts of the system that extract, store, curate, and retrieve what the repo learned.
-- **Loop closure** maps to the parts of the system that turn completed work into the next work, the next rule, and the next context packet.
+- **Validation** maps internally to judgment validation: the parts of the
+  system that challenge the plan and the code before ship time.
+- **Bookkeeping** maps internally to durable learning: the parts of the system
+  that extract, store, curate, and retrieve what the repo learned.
+- **Closure** maps internally to loop closure: the parts of the system that
+  turn completed work into the next work, the next rule, and the next context
+  packet.
 - **Software-factory control plane** is the umbrella: the environment carries continuity, workers are replaceable, and the operator surface stays explicit.
 
 ## Bottom Line
 
-12-factor language still helps explain AgentOps, but only as a lens. The real contract is the repo-native one: validate judgment, preserve learning, and close the loop inside a software-factory control plane where the environment carries continuity and workers remain replaceable.
+12-factor language still helps explain AgentOps, but only as a lens. The real
+product story is the operational layer for coding agents. The internal
+contract proves that story by validating work, preserving bookkeeping, and
+closing the loop inside a software-factory control plane where the environment
+carries continuity and workers remain replaceable.
