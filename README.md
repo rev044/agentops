@@ -8,7 +8,7 @@
 
 ### Every session starts where the last one left off.
 
-The operational layer for coding agents. AgentOps brings validation, memory, lifecycle gates, and briefing-first control so each session starts with better context and ends with stronger feedback loops.
+The operational layer for coding agents. AgentOps handles the bookkeeping, validation, primitives, and flows that agents don't do by default.
 
 Technically, AgentOps acts as a context compiler: raw session signal becomes reusable knowledge, compiled prevention, and better next work.
 
@@ -24,15 +24,27 @@ Technically, AgentOps acts as a context compiler: raw session signal becomes reu
 
 ## What AgentOps Gives You
 
-AgentOps gives your coding agent three things it doesn't have by default:
+AgentOps gives your coding agent four things it doesn't have by default:
 
-1. **Memory** — sessions don't just store state; they extract, accumulate, and surface learnings through `.agents/`, retrieval, and the flywheel.
-2. **Judgment** — validation captures what works, what fails, and why, then feeds those findings back into future plans, code reviews, and workflows.
-3. **Workflow** — repeatable lanes for discovery, implementation, validation, and knowledge extraction that you can run separately, stitch together, or automate end to end.
+1. **Bookkeeping** — sessions don't just leave behind chat history; AgentOps captures learnings, findings, and reusable context, then resurfaces them through `.agents/`, retrieval, and the flywheel.
+2. **Validation** — `/pre-mortem`, `/vibe`, and `/council` validate plans and code before they ship, and record what worked, what failed, and why.
+3. **Primitives** — skills, hooks, and CLI surfaces you can pull from for almost any interaction, whether you're researching, implementing, validating, or extracting knowledge.
+4. **Flows** — linked paths for discovery, implementation, validation, and knowledge extraction that you can run separately, compose together, or automate end to end.
 
-Session 1, your agent spends 2 hours debugging a timeout bug. Session 15, a new agent finds the answer in 10 seconds because the lesson was captured, surfaced back, and validated into the next cycle.
+Session 1, your agent spends 2 hours debugging a timeout bug. Session 15, a new agent finds the answer in 10 seconds because the lesson was captured, validated, and surfaced back into the next cycle.
 
-These are not separate features. Skills, hooks, and the `ao` CLI tie them together so you can enter the cycle where you are: brainstorm, research, pre-mortem, implement, validate, extract learnings, or run the full loop. You can use one lane manually, chain several together, or automate as much of the lifecycle as your repo and team want.
+These are not separate features. Primitives compose into flows, flows generate bookkeeping, validation shapes what gets promoted, and together they feed the flywheel so the repo compounds knowledge instead of resetting every session. You can enter the cycle where you are, compose only the lanes you need, or automate as much of the lifecycle as your repo and team want.
+
+```mermaid
+flowchart LR
+    P[Primitives<br/>skills, hooks, ao CLI] --> F[Flows<br/>discovery, implementation,<br/>validation, knowledge extraction]
+    F --> B[Bookkeeping<br/>learnings, findings,<br/>reusable context]
+    F --> V[Validation<br/>what worked,<br/>what failed, and why]
+    B --> FW[(Flywheel<br/>capture -> retrieve -> promote)]
+    V --> FW
+    FW --> N[Next session<br/>better context,<br/>stronger gates, faster work]
+    N --> F
+```
 
 Operationally, that means AgentOps behaves like a software factory:
 
@@ -45,9 +57,10 @@ See [Software Factory Surface](docs/software-factory.md) for the explicit operat
 
 | Capability | What you get |
 |-----|---------------|
-| Memory | Repo-native learnings in `.agents/`, retrieved later, promoted into patterns, and used to keep the flywheel spinning |
-| Judgment | `/pre-mortem`, `/vibe`, `/council`, and compiled findings capture what works, what fails, and why |
-| Workflow | Segmented lanes for discovery, implementation, validation, and knowledge extraction, with manual entry points and automated orchestration |
+| Bookkeeping | Repo-native learnings, findings, and reusable context captured in `.agents/`, then retrieved later to keep the flywheel spinning |
+| Validation | `/pre-mortem`, `/vibe`, `/council`, and compiled findings challenge plans and code and record what works, what fails, and why |
+| Primitives | Skills, hooks, and the `ao` CLI give you building blocks you can compose for nearly any agent interaction |
+| Flows | Linked paths for discovery, implementation, validation, and knowledge extraction, with manual entry points and automated orchestration |
 
 ---
 
