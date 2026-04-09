@@ -6,7 +6,7 @@ permalink: /comparisons/
 
 # AgentOps vs The Competition
 
-> **TL;DR:** Most tools optimize *within* a session. AgentOps is the operational layer for coding agents: publicly a DevOps-rooted control layer, technically a context compiler that turns work into better future work.
+> **TL;DR:** Most tools optimize *within* a session. AgentOps is the operational layer for coding agents: publicly an operational control layer, technically a context compiler that turns work into better future work.
 
 ---
 

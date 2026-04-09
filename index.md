@@ -1,6 +1,6 @@
 ---
 title: "AgentOps — The Operational Layer for Coding Agents"
-description: "Memory, validation, and feedback loops that compound between sessions. Rooted in DevOps. Hooks into Claude Code, Codex, and OpenCode."
+description: "Memory, validation, and feedback loops that compound between sessions. Hooks into Claude Code, Codex, and OpenCode."
 layout: home
 ---
 
@@ -8,7 +8,7 @@ layout: home
 
 **The operational layer for coding agents.** Memory, validation, and feedback loops that compound between sessions.
 
-Agents are fast, capable, and forgetful. AgentOps brings DevOps-style operational discipline to agent work: Session 1, your agent debugs a bug for 2 hours. Session 15, a different agent hits the same bug and starts from scratch. AgentOps fixes this.
+Agents are fast, capable, and forgetful. AgentOps brings operational discipline to agent work: Session 1, your agent debugs a bug for 2 hours. Session 15, a different agent hits the same bug and starts from scratch. AgentOps fixes this.
 
 - **Validation** — independent councils challenge your plan *and* your code before it ships
 - **Memory** — solved problems stay solved. Your repo accumulates knowledge across sessions, agents, and runtimes

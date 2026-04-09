@@ -8,7 +8,7 @@
 
 ### Every session starts where the last one left off.
 
-The operational layer for coding agents, rooted in DevOps. AgentOps brings validation, memory, lifecycle gates, and briefing-first control so each session starts with better context and ends with stronger feedback loops.
+The operational layer for coding agents. AgentOps brings validation, memory, lifecycle gates, and briefing-first control so each session starts with better context and ends with stronger feedback loops.
 
 Technically, AgentOps acts as a context compiler: raw session signal becomes reusable knowledge, compiled prevention, and better next work.
 

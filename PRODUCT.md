@@ -6,7 +6,7 @@ last_reviewed: 2026-04-09
 
 ## Mission
 
-AgentOps closes the three gaps that prevent coding agents from compounding: **judgment validation**, **durable learning**, and **loop closure**. It is the operational layer for coding agents, with roots in DevOps and a context-compiler architecture: it validates the plan and code, captures what was learned, and feeds it into the next session so every cycle produces better work than the last.
+AgentOps closes the three gaps that prevent coding agents from compounding: **judgment validation**, **durable learning**, and **loop closure**. It is the operational layer for coding agents, with a context-compiler architecture: it validates the plan and code, captures what was learned, and feeds it into the next session so every cycle produces better work than the last.
 
 > Canonical contract: [docs/context-lifecycle.md](docs/context-lifecycle.md)
 
