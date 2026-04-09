@@ -90,7 +90,7 @@ sudo apt-get install -y bubblewrap
 
 ### Install ao CLI (optional)
 
-Skills work standalone. The `ao` CLI unlocks the full repo-native layer: knowledge extraction, retrieval and injection, maturity scoring, goals, and control-plane workflows.
+Skills work standalone. The `ao` CLI unlocks the full repo-native layer: bookkeeping automation, retrieval and injection, maturity scoring, goals, and control-plane flows.
 
 #### Homebrew (recommended)
 
@@ -146,15 +146,15 @@ That path keeps briefing, runtime startup, delivery, and loop closure on one sur
 
 ## How It Works
 
-Each phase delivers one or more of the three capabilities — judgment, learning, loop closure:
+Each flow strengthens bookkeeping, validation, and compounding in a different way:
 
 | Phase | Primary skills | What you get |
 |------|----------------|---------------------|
-| Discovery | `/brainstorm` -> `/research` -> `/plan` -> `/pre-mortem` | Repo context, scoped work, known risks, execution packet |
-| Implementation | `/crank` -> `/swarm` -> `/implement` | Closed issues, validated wave outputs, ratchet checkpoints |
-| Validation + learning | `/validation` -> `/vibe` -> `/post-mortem` -> `/retro` -> `/forge` | Findings, learnings, next work, stronger prevention artifacts |
+| Discovery | `/brainstorm` -> `/research` -> `/plan` -> `/pre-mortem` | Surfaces prior context, scopes the work, and pressure-tests the plan before build |
+| Implementation | `/crank` -> `/swarm` -> `/implement` | Executes scoped work through composable primitives and wave-based coordination |
+| Validation + bookkeeping | `/validation` -> `/vibe` -> `/post-mortem` -> `/retro` -> `/forge` | Captures what worked, what failed, and what should feed the next cycle |
 
-`/rpi` orchestrates all three phases. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next. The output is code + state + memory + gates.
+`/rpi` orchestrates all three phases. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next. The output is code + findings + learnings + stronger next work.
 
 The explicit CLI operator surface around that line is:
 
@@ -183,11 +183,11 @@ The explicit CLI operator surface around that line is:
 
 Each cycle adds new rules, learnings, and constraints — without anyone shipping new code. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
 
-### How Agent Memory Works
+### How Bookkeeping Compounds
 
 Session 50 starts with 50 sessions of accumulated wisdom.
 
-`.agents/` is a directory in your repo that stores what your agents learned — as plain files. Grep replaces RAG. Plain text you can diff, review in PRs, and open in Obsidian.
+`.agents/` is the repo-native bookkeeping layer for what your agents learned — as plain files. Grep replaces RAG. Plain text you can diff, review in PRs, and open in Obsidian.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -202,7 +202,7 @@ Session 50 starts with 50 sessions of accumulated wisdom.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**How it compounds:** Session 1, your agent hits a timeout bug and spends 2 hours debugging. `/retro` captures the lesson. `/compile` promotes it to a pattern. Session 15, a new agent greps "timeout" and finds the answer in 2 operations — turning a 2-hour investigation into a 10-second lookup. Session 20, a planning rule gates plans that omit timeout checks. That's institutional knowledge that survives agent death.
+**How it compounds:** Session 1, your agent hits a timeout bug and spends 2 hours debugging. `/retro` captures the lesson. `/compile` promotes it to a pattern. Session 15, a new agent greps "timeout" and finds the answer in 2 operations — turning a 2-hour investigation into a 10-second lookup. Session 20, a planning rule gates plans that omit timeout checks. That is bookkeeping turned into reusable operational leverage.
 
 ```
 ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐
@@ -402,7 +402,7 @@ Unsure which skill to run? See the [Skill Router](docs/SKILL-ROUTER.md).
 
 ## Skills
 
-Every skill works alone. Compose them however you want.
+Every skill works alone. Skills are the primitives; flows are what you get when you compose them.
 
 **Core skills** — where most users spend their time:
 
@@ -417,7 +417,7 @@ Every skill works alone. Compose them however you want.
 **Full catalog:**
 
 <details>
-<summary><b>Judgment</b> — the foundation everything validates against</summary>
+<summary><b>Validation</b> — the review and failure-prevention layer</summary>
 
 | Skill | What it does |
 |-------|-------------|
@@ -429,7 +429,7 @@ Every skill works alone. Compose them however you want.
 </details>
 
 <details>
-<summary><b>Execution</b> — research, plan, build, ship</summary>
+<summary><b>Flows</b> — linked paths for discovery, build, and validation</summary>
 
 | Skill | What it does |
 |-------|-------------|
@@ -444,7 +444,7 @@ Every skill works alone. Compose them however you want.
 </details>
 
 <details>
-<summary><b>Knowledge</b> — the flywheel that makes sessions compound</summary>
+<summary><b>Bookkeeping</b> — the flywheel inputs and outputs that make sessions compound</summary>
 
 | Skill | What it does |
 |-------|-------------|
