@@ -30,6 +30,7 @@ _helper_teardown() {
     rm -rf "$TMP_TEST_DIR"
     # Clean up any dedup flags that may have leaked into the real repo
     rm -f "$REPO_ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
+    rm -f "$REPO_ROOT/.agents/ao/.new-user-welcome-needed" 2>/dev/null
     rm -f "$REPO_ROOT/.agents/ao/.read-streak" 2>/dev/null
     rm -f "$REPO_ROOT/.agents/ao/.ratchet-advance-fired" 2>/dev/null
 }

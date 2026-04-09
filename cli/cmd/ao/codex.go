@@ -308,6 +308,7 @@ func codexStartAlreadyStarted(state *codexLifecycleState, sessionID string) bool
 }
 
 func performCodexStart(cwd string) (codexStartResult, error) {
+	showNewUserWelcome := codexShouldShowNewUserWelcome(cwd)
 	if err := ensureCodexLifecycleDirs(cwd); err != nil {
 		return codexStartResult{}, err
 	}
@@ -347,9 +348,12 @@ func performCodexStart(cwd string) (codexStartResult, error) {
 		VerbosePrintf("Warning: codex memory sync: %v\n", err)
 	}
 
-	startupContextPath, err := writeCodexStartupContext(cwd, profile, query, briefings, learnings, patterns, findings, recentSessions, nextWork, research)
+	startupContextPath, err := writeCodexStartupContext(cwd, profile, query, briefings, learnings, patterns, findings, recentSessions, nextWork, research, showNewUserWelcome)
 	if err != nil {
 		return codexStartResult{}, fmt.Errorf("write codex startup context: %w", err)
+	}
+	if showNewUserWelcome {
+		_ = os.Remove(filepath.Join(cwd, ".agents", "ao", ".new-user-welcome-needed"))
 	}
 
 	state, statePath, err := loadOrInitCodexLifecycleState(cwd)
@@ -755,6 +759,14 @@ func ensureCodexLifecycleDirs(cwd string) error {
 	return nil
 }
 
+func codexShouldShowNewUserWelcome(cwd string) bool {
+	if _, err := os.Stat(filepath.Join(cwd, ".agents", "ao", ".new-user-welcome-needed")); err == nil {
+		return true
+	}
+	_, err := os.Stat(filepath.Join(cwd, ".agents"))
+	return os.IsNotExist(err)
+}
+
 func loadOrInitCodexLifecycleState(cwd string) (*codexLifecycleState, string, error) {
 	if err := ensureCodexLifecycleDirs(cwd); err != nil {
 		return nil, "", err
@@ -833,7 +845,7 @@ func saveCodexLifecycleState(path string, state *codexLifecycleState) error {
 	return nil
 }
 
-func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query string, briefings []codexArtifactRef, learnings []learning, patterns []pattern, findings []knowledgeFinding, recentSessions []session, nextWork []nextWorkItem, research []codexArtifactRef) (string, error) {
+func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query string, briefings []codexArtifactRef, learnings []learning, patterns []pattern, findings []knowledgeFinding, recentSessions []session, nextWork []nextWorkItem, research []codexArtifactRef, showNewUserWelcome bool) (string, error) {
 	bundle := buildRankedContextBundle(cwd, query, codexStartLimit, learnings, patterns, findings, recentSessions, nextWork, research)
 	agentsRoot := knowledgeAgentsRoot(cwd)
 	beliefs := append([]string(nil), bundle.Beliefs...)
@@ -855,6 +867,12 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 	}
 	if query != "" {
 		sb.WriteString(fmt.Sprintf("- Query: %s\n", query))
+	}
+	if showNewUserWelcome {
+		sb.WriteString("\n## New Here?\n")
+		sb.WriteString("- `$research \"how does auth work\"` to understand the repo before changing it\n")
+		sb.WriteString("- `$implement \"fix the login bug\"` to run one scoped task end to end\n")
+		sb.WriteString("- `$council validate this plan` to pressure-test a plan, PR, or direction before shipping\n")
 	}
 	sb.WriteString("\n## Briefings\n")
 	if len(briefings) == 0 {
@@ -919,6 +937,9 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 	}
 
 	path := filepath.Join(cwd, ".agents", "ao", "codex", "startup-context.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return "", fmt.Errorf("create codex startup context dir: %w", err)
+	}
 	if err := atomicWriteFile(path, []byte(sb.String()), 0o600); err != nil {
 		return "", err
 	}

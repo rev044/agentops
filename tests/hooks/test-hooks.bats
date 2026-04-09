@@ -46,6 +46,16 @@ teardown() {
     [ -d "$mock/.agents/research" ] && [ ! -d "$mock/subdir/.agents/research" ]
 }
 
+@test "session-start: fresh repo stages one-time new-user welcome marker" {
+    local mock="$TMP_TEST_DIR/mock-fresh-session"
+    mkdir -p "$mock"
+    git -C "$mock" init -q >/dev/null 2>&1
+    run bash -c 'cd "$1" && bash "$2" 2>&1' -- "$mock" "$HOOKS_DIR/session-start.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    [ -f "$mock/.agents/ao/.new-user-welcome-needed" ]
+}
+
 @test "session-start: factory mode stages a matched briefing without injecting it" {
     local mock="$TMP_TEST_DIR/mock-factory-start"
     mkdir -p "$mock/.agents/handoff" "$mock/bin"

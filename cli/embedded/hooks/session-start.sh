@@ -18,6 +18,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 AO_DIR="$ROOT/.agents/ao"
+FRESH_REPO=0
+if [ ! -e "$ROOT/.agents" ]; then
+    FRESH_REPO=1
+fi
 
 HOOK_ERROR_LOG="$AO_DIR/hook-errors.log"
 AO_TIMEOUT_BIN="timeout"
@@ -170,6 +174,10 @@ for dir in .agents/research .agents/products .agents/retros .agents/learnings \
            .agents/constraints; do
     mkdir -p "$ROOT/$dir" 2>/dev/null
 done
+
+if [ "$FRESH_REPO" = "1" ]; then
+    : > "$ROOT/.agents/ao/.new-user-welcome-needed" 2>/dev/null || true
+fi
 
 write_environment_manifest
 

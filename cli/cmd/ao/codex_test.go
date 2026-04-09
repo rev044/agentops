@@ -293,6 +293,7 @@ id: "f-startup-002"
 		[]session{{Date: "2026-04-01", Summary: "Reworked startup context."}},
 		[]nextWorkItem{{Title: "Wire startup context to ranked packet", Severity: "high", Description: "Replace low-signal startup dump"}},
 		[]codexArtifactRef{{Title: "Session intelligence research", ModifiedAt: "2026-04-01T22:00:00Z"}},
+		false,
 	)
 	if err != nil {
 		t.Fatalf("writeCodexStartupContext: %v", err)
@@ -338,6 +339,40 @@ id: "f-startup-002"
 	}
 	if !strings.Contains(content, "primary dynamic surface") {
 		t.Fatalf("expected briefing-first guidance in startup context, got:\n%s", content)
+	}
+}
+
+func TestWriteCodexStartupContextIncludesNewUserWelcome(t *testing.T) {
+	repo := t.TempDir()
+	profile := lifecycleRuntimeProfile{Runtime: runtimeKindCodex, Mode: lifecycleModeCodexHookless, ThreadName: "startup"}
+
+	path, err := writeCodexStartupContext(
+		repo,
+		profile,
+		"first run",
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("writeCodexStartupContext: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read startup context: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "## New Here?") {
+		t.Fatalf("expected new-user section in startup context, got:\n%s", content)
+	}
+	if !strings.Contains(content, "$research") || !strings.Contains(content, "$implement") || !strings.Contains(content, "$council") {
+		t.Fatalf("expected startup commands in new-user section, got:\n%s", content)
 	}
 }
 

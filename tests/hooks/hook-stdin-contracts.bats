@@ -335,7 +335,60 @@ AOEOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 8. pre-mortem-gate.sh — .tool_input.skill, .tool_input.args
+# 8. new-user-welcome.sh — .prompt (UserPromptSubmit)
+# ═══════════════════════════════════════════════════════════════════════
+
+@test "new-user-welcome: missing marker exits silently" {
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"prompt":"help me understand auth"}' "$HOOKS_DIR/new-user-welcome.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "new-user-welcome: substantive prompt emits context and clears marker" {
+    mkdir -p "$MOCK_REPO/.agents/ao"
+    touch "$MOCK_REPO/.agents/ao/.new-user-welcome-needed"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"prompt":"help me understand auth"}' "$HOOKS_DIR/new-user-welcome.sh"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.hookSpecificOutput.additionalContext' >/dev/null 2>&1
+    [ ! -f "$MOCK_REPO/.agents/ao/.new-user-welcome-needed" ]
+}
+
+@test "new-user-welcome: slash command exits silently and keeps marker" {
+    mkdir -p "$MOCK_REPO/.agents/ao"
+    touch "$MOCK_REPO/.agents/ao/.new-user-welcome-needed"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"prompt":"/research auth"}' "$HOOKS_DIR/new-user-welcome.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    [ -f "$MOCK_REPO/.agents/ao/.new-user-welcome-needed" ]
+}
+
+@test "new-user-welcome: kill switch silences output" {
+    mkdir -p "$MOCK_REPO/.agents/ao"
+    touch "$MOCK_REPO/.agents/ao/.new-user-welcome-needed"
+    run bash -c 'cd "$1" && printf "%s" "$2" | AGENTOPS_NEW_USER_WELCOME_DISABLED=1 bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"prompt":"help me understand auth"}' "$HOOKS_DIR/new-user-welcome.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    [ -f "$MOCK_REPO/.agents/ao/.new-user-welcome-needed" ]
+}
+
+@test "new-user-welcome: malformed JSON exits gracefully" {
+    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
+        -- 'not valid {json' "$HOOKS_DIR/new-user-welcome.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "new-user-welcome: empty stdin exits gracefully" {
+    run bash -c 'printf "" | bash "$1" 2>&1' \
+        -- "$HOOKS_DIR/new-user-welcome.sh"
+    [ "$status" -eq 0 ]
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+# 9. pre-mortem-gate.sh — .tool_input.skill, .tool_input.args
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "pre-mortem-gate: non-Skill tool passes" {
@@ -402,7 +455,7 @@ AOEOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 9. prompt-nudge.sh — .prompt (UserPromptSubmit)
+# 10. prompt-nudge.sh — .prompt (UserPromptSubmit)
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "prompt-nudge: empty prompt exits silently" {
@@ -439,7 +492,7 @@ AOEOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 10. ratchet-advance.sh — .tool_input.command, .tool_response.exit_code
+# 11. ratchet-advance.sh — .tool_input.command, .tool_response.exit_code
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "ratchet-advance: non-ratchet command exits silently" {

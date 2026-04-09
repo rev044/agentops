@@ -121,7 +121,21 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 3. intent-echo.sh (UserPromptSubmit) — registered
+# 3. new-user-welcome.sh (UserPromptSubmit) — registered
+# ═══════════════════════════════════════════════════════════════════════
+
+@test "new-user-welcome: fresh-repo prompt output conforms to schema with hookEventName=UserPromptSubmit" {
+    mkdir -p "$MOCK_REPO/.agents/ao"
+    touch "$MOCK_REPO/.agents/ao/.new-user-welcome-needed"
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$MOCK_REPO" '{"prompt":"help me understand this auth repo"}' "$HOOKS_DIR/new-user-welcome.sh"
+    [ "$status" -eq 0 ]
+    [ -n "$output" ]
+    assert_hook_schema "$output" "UserPromptSubmit"
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+# 4. intent-echo.sh (UserPromptSubmit) — registered
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "intent-echo: destructive prompt output conforms to schema with hookEventName=UserPromptSubmit" {
@@ -143,7 +157,7 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 4. commit-review-gate.sh (PreToolUse) — registered
+# 5. commit-review-gate.sh (PreToolUse) — registered
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "commit-review-gate: git commit with staged changes emits schema with hookEventName=PreToolUse" {
@@ -168,7 +182,7 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 5. go-vet-post-edit.sh (PostToolUse) — registered
+# 6. go-vet-post-edit.sh (PostToolUse) — registered
 #    Only emits JSON when editing a _test.go file with assertion-free test functions.
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -205,7 +219,7 @@ GOEOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 6. research-loop-detector.sh (PostToolUse) — registered
+# 7. research-loop-detector.sh (PostToolUse) — registered
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "research-loop-detector: streak at threshold emits schema with hookEventName=PostToolUse" {
@@ -233,7 +247,7 @@ GOEOF
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 7. context-guard.sh (UserPromptSubmit) — unregistered
+# 8. context-guard.sh (UserPromptSubmit) — unregistered
 #    Requires `ao` CLI to return a message.
 # ═══════════════════════════════════════════════════════════════════════
 

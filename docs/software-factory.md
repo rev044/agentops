@@ -120,6 +120,7 @@ run without operator action and keep the conveyor belt honest.
 | | `compile-session-defrag.sh` | Knowledge defragmentation pass |
 | **Stop** | `ao-flywheel-close.sh` | Closes the flywheel loop (learnings, citations, handoff) |
 | **UserPromptSubmit** | `factory-router.sh` | Routes operator intent to the correct lane |
+| | `new-user-welcome.sh` | Gives fresh repos a one-time path into `/research`, `/implement`, or `/council` |
 | | `prompt-nudge.sh` | Reminds about pending gates (e.g. pre-mortem) |
 | | `intent-echo.sh` | Injects intent-echo discipline |
 | | `quality-signals.sh` | Surfaces quality context before work begins |
