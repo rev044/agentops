@@ -8,7 +8,9 @@
 
 ### Every session starts where the last one left off.
 
-Validation, memory, lifecycle gates, and briefing-first control for coding agents. AgentOps acts as a software-factory control plane: bounded context goes in, validated code and durable learning come out.
+The operational layer for coding agents, rooted in DevOps. AgentOps brings validation, memory, lifecycle gates, and briefing-first control so each session starts with better context and ends with stronger feedback loops.
+
+Technically, AgentOps acts as a context compiler: raw session signal becomes reusable knowledge, compiled prevention, and better next work.
 
 [Start Here](#start-here) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Newcomer Guide](docs/newcomer-guide.md)
 

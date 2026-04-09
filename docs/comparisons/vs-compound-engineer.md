@@ -16,7 +16,7 @@ permalink: /comparisons/agentops-vs-compound-engineer
 
 | Aspect | Compound Engineer | AgentOps |
 |--------|-------------------|----------|
-| **Philosophy** | "Each unit of engineering work should make subsequent units easier" | "Knowledge compounds over time" |
+| **Philosophy** | "Each unit of engineering work should make subsequent units easier" | "Operational layer for coding agents; technically a context compiler" |
 | **Core strength** | Full ideate-to-compound loop, cross-runtime portability, configurable review agents | Git-tracked memory, validation gates, knowledge flywheel with scoring |
 | **GitHub** | EveryInc/compound-engineering-plugin | boshu2/agentops |
 | **Latest** | Active development (April 2026) | v2.35.0 (April 2026) |

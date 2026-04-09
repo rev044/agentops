@@ -16,7 +16,7 @@ permalink: /comparisons/agentops-vs-gsd
 
 | Aspect | GSD | AgentOps |
 |--------|-----|----------|
-| **Philosophy** | "Ship fast — fresh context per agent" | "Knowledge compounds over time" |
+| **Philosophy** | "Ship fast — fresh context per agent" | "Operational layer for coding agents; technically a context compiler" |
 | **Core strength** | Multi-agent orchestration with context isolation, multi-runtime support | Cross-session memory, validation gates, knowledge flywheel |
 | **GitHub** | glittercowboy/get-shit-done | boshu2/agentops |
 | **Latest** | v1.34.2 (April 2026) | v2.35.0 (April 2026) |

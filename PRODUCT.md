@@ -1,12 +1,12 @@
 ---
-last_reviewed: 2026-04-05
+last_reviewed: 2026-04-09
 ---
 
 # PRODUCT.md
 
 ## Mission
 
-AgentOps closes the three gaps that prevent coding agents from compounding: **judgment validation**, **durable learning**, and **loop closure**. It is the local DevOps layer that validates the plan and code, captures what was learned, and feeds it into the next session so every cycle produces better work than the last.
+AgentOps closes the three gaps that prevent coding agents from compounding: **judgment validation**, **durable learning**, and **loop closure**. It is the operational layer for coding agents, with roots in DevOps and a context-compiler architecture: it validates the plan and code, captures what was learned, and feeds it into the next session so every cycle produces better work than the last.
 
 > Canonical contract: [docs/context-lifecycle.md](docs/context-lifecycle.md)
 
@@ -49,7 +49,7 @@ The gap between "architecture exists for compound growth" (what others describe)
 
 AgentOps has three layers, each designed to close one or more of the three gaps:
 
-### 1. Skills (54 skills across 4 runtimes)
+### 1. Skills (66 skills across 4 runtimes)
 
 Markdown-defined workflows that agents load and execute. Organized by which gap they close:
 
@@ -86,6 +86,36 @@ Each value proposition maps to one or more of the three gaps it closes:
 - **Compose What You Need** (all three gaps) — Skills are standalone building blocks. Use one (`/council validate this PR`), chain several (`/plan` -> `/pre-mortem` -> `/crank`), or run the full pipeline (`/rpi`). The same recursive shape — lead decomposes, workers execute, gates lock — repeats at every scale.
 - **Multi-Runtime, Multi-Model** (judgment validation) — Same skills work across Claude Code, Codex CLI, Cursor, and OpenCode. `/converter` exports to native formats. Mixed-vendor council judges (Claude + Codex) provide independent perspectives.
 - **Zero Setup, Zero Telemetry** (all three gaps) — All state lives in local `.agents/` directories (git-ignored by default; opt in to commit with `AGENTOPS_GITIGNORE_AUTO=0`) with no cloud dependency. 66 skills, 3 hooks, and the knowledge flywheel work independently with no external daemon. Install is one command per runtime.
+
+## Strategic Bet
+
+AgentOps bets that the durable advantage in AI coding will come from compounding context between sessions, not from packing more prompts, more agents, or more context into a single session. The winning layer is the bookkeeping/context-compiler layer: raw session signal becomes reusable learnings, compiled prevention, and better next work.
+
+## Evidence
+
+As of 2026-04-09:
+
+**Traction:**
+
+- GitHub repo: 265 stars, 24 forks, 2 open issues, last pushed 2026-04-08
+- Public surface: GitHub Pages comparison site and search metadata are live
+- Distribution/runtime reach: 66 shared skills, 66 checked-in Codex artifacts, and 35 Codex overrides
+
+**Measured operational proof:**
+
+- Knowledge corpus: 163 learnings, 13 planning rules, 12 patterns
+- `ao doctor --json`: 10 of 12 checks passing, with full 7/7 hook coverage
+- Competitive freshness gate passing: all 5 comparison docs are within the 45-day target
+
+## Known Product Gaps
+
+| Gap | Impact | Status |
+|-----|--------|--------|
+| Full dream-cycle automation is incomplete | The product promise says compounding should happen between sessions, but nightly automation does not yet run the full harvest -> forge -> inject -> report loop. | open |
+| Pattern-to-skill pipeline is not built | The strongest differentiation thesis, self-programming compounding, is still manual at the last mile. | open |
+| Multi-runtime proof is still partial | README and PRODUCT promise parity across Claude Code, Codex, Cursor, and OpenCode, but live runtime verification and Codex parity still cost ongoing maintenance. | in-progress |
+| Messaging is not yet fully unified | Public surfaces should now converge on "operational layer," while technical docs still need a clean split between the public category and the internal "context compiler" framing. | open |
+| Retrieval and worker knowledge propagation still limit compounding | The flywheel architecture is in place, but retrieval quality and passing prevention/finding context to implement workers remain weaker than the core thesis requires. | open |
 
 ## Design Principles
 

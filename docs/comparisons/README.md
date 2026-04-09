@@ -1,12 +1,12 @@
 ---
 title: "AgentOps vs The Competition — AI Coding Agent Comparisons"
-description: "How AgentOps compares to GSD, Compound Engineer, Superpowers, Claude-Flow/Ruflo, and SDD tools. Most tools optimize within sessions. AgentOps optimizes across them."
+description: "How AgentOps compares to GSD, Compound Engineer, Superpowers, Claude-Flow/Ruflo, and SDD tools. AgentOps is the operational layer for coding agents and a context compiler for compounding work across sessions."
 permalink: /comparisons/
 ---
 
 # AgentOps vs The Competition
 
-> **TL;DR:** Most tools optimize *within* a session. Compound Engineer is the closest philosophical neighbor; AgentOps pushes harder on git-native memory and validation.
+> **TL;DR:** Most tools optimize *within* a session. AgentOps is the operational layer for coding agents: publicly a DevOps-rooted control layer, technically a context compiler that turns work into better future work.
 
 ---
 
@@ -45,7 +45,7 @@ The AI coding agent ecosystem has exploded. Here's how the major players stack u
 ```
 
 **Most other tools:** Make each session faster
-**AgentOps:** Make each session build on the last
+**AgentOps:** Provide the operational layer that makes each session build on the last
 
 Compound Engineer is the exception in this set: it also aims at compounding, but through a different workflow and persistence model.
 

@@ -1,5 +1,5 @@
 title: AgentOps
-description: The bookkeeping layer for coding agents. Memory, validation, and feedback loops that compound between sessions.
+description: The operational layer for coding agents. Memory, validation, and feedback loops that compound between sessions.
 url: https://boshu2.github.io
 baseurl: /agentops
 theme: minima

@@ -16,7 +16,7 @@ permalink: /comparisons/agentops-vs-superpowers
 
 | Aspect | Superpowers | AgentOps |
 |--------|-------------|----------|
-| **Philosophy** | "Disciplined senior engineer" | "Knowledge compounds over time" |
+| **Philosophy** | "Disciplined senior engineer" | "Operational layer for coding agents; technically a context compiler" |
 | **Core strength** | TDD, planning, autonomous hours | Cross-session memory, learning |
 | **GitHub stars** | 29,000+ | Growing |
 | **Primary use** | Greenfield development | Ongoing codebase work |

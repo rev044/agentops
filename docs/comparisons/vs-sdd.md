@@ -14,7 +14,7 @@ permalink: /comparisons/agentops-vs-sdd
 
 | Aspect | SDD Tools | AgentOps |
 |--------|-----------|----------|
-| **Philosophy** | "Spec is the source of truth" | "Knowledge compounds over time" |
+| **Philosophy** | "Spec is the source of truth" | "Operational layer for coding agents; technically a context compiler" |
 | **Core strength** | Structured requirements, cross-platform | Cross-session memory, learning |
 | **Primary tools** | cc-sdd, spec-kit, SDD_Flow | AgentOps plugin + CLI |
 | **Primary use** | Spec-first development | Ongoing codebase work |

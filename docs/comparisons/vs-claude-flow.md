@@ -16,7 +16,7 @@ permalink: /comparisons/agentops-vs-claude-flow
 
 | Aspect | Claude-Flow | AgentOps |
 |--------|-------------|----------|
-| **Philosophy** | "Swarm intelligence at scale" | "Knowledge compounds over time" |
+| **Philosophy** | "Swarm intelligence at scale" | "Operational layer for coding agents; technically a context compiler" |
 | **Core strength** | Multi-agent orchestration, WASM performance, 314 MCP tools | Cross-session memory, validation gates, knowledge flywheel |
 | **Latest** | v3.5.65 (April 2026, rebranded to Ruflo) | v2.35.0 (April 2026) |
 | **GitHub stars** | 11,400+ | 240+ (growing rapidly) |
