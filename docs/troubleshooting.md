@@ -6,7 +6,8 @@ Common issues and quick fixes for AgentOps.
 
 ## Hooks aren't running
 
-Hooks require configuration in Claude Code's settings file.
+Hooks are runtime-specific: Claude uses `~/.claude/settings.json`, while Codex
+v0.115.0+ uses `~/.codex/hooks.json` installed by the native plugin path.
 
 **Diagnosis:**
 
@@ -43,6 +44,15 @@ Look for the "Hooks installed" check. If it shows `✗`, hooks are not configure
    ls -la hooks/
    ```
    All `.sh` files in the hooks directory should have execute permissions.
+
+4. For Codex native-plugin installs, verify the native hooks file exists:
+   ```bash
+   cat ~/.codex/hooks.json | jq '.hooks'
+   ```
+   If it is missing, reinstall with:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
+   ```
 
 ---
 
@@ -292,7 +302,7 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 | Check | What it verifies | How to fix |
 |-------|-----------------|------------|
 | **CLI Dependencies** | `gt` and `bd` are on your PATH (nice-to-have for multi-repo ops + beads issue tracking). | Install missing tools (e.g., `brew install gastown`, `brew install beads`). |
-| **Hook Coverage** | Claude Code: hooks configured via `~/.claude/settings.json`. Codex: skill-driven lifecycle via `ao codex start/stop`. | Claude: `ao hooks install`. Codex: `scripts/install-codex-plugin.sh`. See `docs/contracts/hook-runtime-contract.md`. |
+| **Hook Coverage** | Claude Code: hooks configured via `~/.claude/settings.json`. Codex v0.115.0+: native hooks configured via `~/.codex/hooks.json`; older Codex versions fall back to `ao codex start/stop`. | Claude: `ao hooks install`. Codex: `scripts/install-codex-plugin.sh` or `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. See `docs/contracts/hook-runtime-contract.md`. |
 | **Knowledge Freshness** | At least one recent session exists under `.agents/ao/sessions/`. | After a session, run `ao forge transcript <path>` to ingest it. |
 | **Search Index** | A non-empty `.agents/ao/index.jsonl` exists for faster repo-local searches. | Run `ao store rebuild`. |
 | **Flywheel Health** | At least one learning exists under `.agents/ao/learnings/` (or legacy `.agents/learnings/`). | Run `/retro` or `/forge` to extract learnings; empty is normal early on. |

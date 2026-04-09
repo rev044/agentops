@@ -297,7 +297,7 @@ Once merged:
 - Your skill is available in the plugin
 - Users install by runtime:
   - Claude Code: `claude plugin install agentops@agentops-marketplace`
-  - Codex: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash` (installs to `~/.agents/skills`; open a fresh Codex session after install)
+  - Codex: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash` (installs the native plugin and `~/.codex/hooks.json`; open a fresh Codex session after install)
   - OpenCode: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`
   - Other agents: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
 - You'll be credited as author

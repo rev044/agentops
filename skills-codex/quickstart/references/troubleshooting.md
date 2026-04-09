@@ -9,19 +9,19 @@
 # Verify hooks are installed
 ao hooks test
 
-# Check hooks.json exists and is valid (hooks live in hooks/, not .claude-plugin/)
-cat hooks/hooks.json | jq . 2>/dev/null
+# Check repo hook source exists and is valid
+cat hooks/codex-hooks.json | jq . 2>/dev/null
 
-# Check settings.json for ao hooks
-cat ~/.codex/settings.json | jq '.hooks' 2>/dev/null
+# Check installed native hooks
+cat ~/.codex/hooks.json | jq '.hooks' 2>/dev/null
 
-# Verify plugin is loaded
-claude --plugin ./ --help
+# Verify the plugin is enabled
+rg '^\[plugins\."agentops@agentops-marketplace"\]$|^enabled = true$' ~/.codex/config.toml
 ```
 
 **Fixes:**
-- Reinstall hooks: `ao hooks install --full` (full runtime hook set) or `ao init --hooks` (full 12-event coverage by default)
-- Check that `hooks/hooks.json` is not malformed JSON
+- Reinstall the native Codex plugin and hooks: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`
+- Check that `hooks/codex-hooks.json` is not malformed JSON
 - Restart Codex after hook changes
 
 ## Skills Not Showing Up
@@ -31,17 +31,18 @@ claude --plugin ./ --help
 **Checks:**
 ```bash
 # Check SKILL.md exists with valid frontmatter
-head -5 ~/.agents/skills/quickstart/SKILL.md
+head -5 ~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex/quickstart/SKILL.md
 
 # List installed skills
-ls ~/.agents/skills/
+find ~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex -maxdepth 1 -mindepth 1 -type d | sort
 ```
 
 **Fixes:**
-- Reinstall: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
-- Manual sync for a single skill:
+- Reinstall: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`
+- If duplicates persist, archive stale raw mirrors:
   ```bash
-  /bin/cp -r ~/.agents/skills/<skill-name>/ ~/.agents/skills/<skill-name>/
+  mv ~/.agents/skills ~/.agents/skills.backup.$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
+  mv ~/.codex/skills ~/.codex/skills.backup.$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
   ```
 
 ## CLI Not Found (ao, bd, gt)

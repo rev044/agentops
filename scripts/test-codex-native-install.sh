@@ -166,10 +166,16 @@ rg -q '^\[ui\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing [ui] sec
 rg -q '^suppress_unstable_features_warning = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing suppress_unstable_features_warning = true"
 rg -q '^\[plugins\."agentops@agentops-marketplace"\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing AgentOps plugin block"
 rg -q '^enabled = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing enabled = true"
+rg -q '^codex_hooks = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing codex_hooks = true"
+[[ -f "$CODEX_HOME/hooks.json" ]] || fail "Missing ~/.codex/hooks.json after native install"
+jq -e '.hooks | length == 8' "$CODEX_HOME/hooks.json" >/dev/null \
+  || fail "Expected 8 native Codex hooks in ~/.codex/hooks.json"
+jq -e '.hooks[] | select(.name == "agentops-session-start")' "$CODEX_HOME/hooks.json" >/dev/null \
+  || fail "Missing agentops-session-start in ~/.codex/hooks.json"
 rg -q '"install_mode": "native-plugin"' "$CODEX_HOME/.agentops-codex-install.json" \
   || fail "install metadata missing native-plugin mode"
-rg -q '"hook_runtime": "codex-hookless-fallback"' "$CODEX_HOME/.agentops-codex-install.json" \
-  || fail "install metadata missing hook_runtime field"
+rg -q '"hook_runtime": "codex-native-hooks"' "$CODEX_HOME/.agentops-codex-install.json" \
+  || fail "install metadata missing native hook_runtime field"
 rg -q '"hook_contract": "docs/contracts/hook-runtime-contract.md"' "$CODEX_HOME/.agentops-codex-install.json" \
   || fail "install metadata missing hook_contract reference"
 rg -q '"user_skills_root": null' "$CODEX_HOME/.agentops-codex-install.json" \

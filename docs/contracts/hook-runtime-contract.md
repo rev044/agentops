@@ -9,7 +9,7 @@
 |---------|-----------|-------------|
 | Claude Code | `CLAUDE_PLUGIN_ROOT` env or `~/.claude/settings.json` exists | Full hook manifest (`hooks.json`) |
 | Codex (native hooks) | `CODEX_HOME` env + Codex v0.115.0+ detected | Full hook manifest via `scripts/install-codex-plugin.sh` (same surface as Claude Code) |
-| Codex (hookless fallback) | `CODEX_HOME` env or `~/.codex/config.toml` exists + Codex < v0.115.0 | Skill-driven lifecycle (`ao codex start/stop`) |
+| Codex (hookless fallback) | `CODEX_HOME` env or `~/.codex/config.toml` exists + Codex < v0.115.0 | Explicit lifecycle (`ao codex start/stop`) |
 | Manual | Neither detected | Explicit `ao inject` / `ao forge` commands |
 
 ## Event Mapping

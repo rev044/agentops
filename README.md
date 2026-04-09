@@ -23,7 +23,7 @@ The operational layer for coding agents. AgentOps adds bookkeeping, validation, 
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (0.110.0+ native plugin)
+# Codex CLI (v0.115.0+ native hooks by default)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode
@@ -35,9 +35,13 @@ npx skills@latest add boshu2/agentops --cursor -g
 
 Then type `/quickstart` in your agent chat.
 
+For Codex, that installer stages the native plugin, installs `~/.codex/hooks.json`,
+archives stale raw mirrors when found, and makes native hooks the default path.
+Restart Codex after install.
+
 | Concern | Answer |
 |---------|--------|
-| What it touches | Installs skills globally, writes knowledge artifacts to `.agents/`, and can optionally register hooks in `.claude/settings.json` |
+| What it touches | Installs skills globally, writes knowledge artifacts to `.agents/`, registers Claude hooks in `.claude/settings.json` when requested, and for Codex writes the native plugin cache plus `~/.codex/hooks.json` |
 | Source code changes | None. AgentOps does not modify your source code during install |
 | Network behavior | Install and update paths fetch from GitHub. Repo artifacts stay local unless you choose external tools, browsing, or remote model runtimes |
 | Permission surface | Skills may run shell commands and read or write repo files as part of agent work, so install it where you want an agent to operate |

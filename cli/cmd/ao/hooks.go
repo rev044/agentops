@@ -30,8 +30,10 @@ type HookEntry = bridge.HookEntry
 type HookGroup = bridge.HookGroup
 
 // AllEventNames returns all 12 hook event names in canonical order.
-// These map to Claude Code events. Codex uses a skill-driven lifecycle instead.
-// See docs/contracts/hook-runtime-contract.md for the cross-runtime mapping.
+// These map directly to Claude Code events. Codex v0.115.0+ installs the native
+// equivalent manifest via scripts/install-codex-plugin.sh; older Codex versions
+// use the explicit fallback lifecycle. See docs/contracts/hook-runtime-contract.md
+// for the cross-runtime mapping.
 func AllEventNames() []string {
 	return bridge.AllEventNames()
 }
@@ -99,7 +101,8 @@ var hooksCmd = &cobra.Command{
 	Short: "Manage runtime hooks for automatic knowledge flywheel",
 	Long: `The hooks command manages runtime hooks that automate the CASS knowledge flywheel.
 Note: Hook install targets Claude Code (~/.claude/settings.json). Codex uses a
-skill-driven lifecycle instead — see 'ao codex start/stop' and
+native hook install via scripts/install-codex-plugin.sh when available; older
+Codex versions use the explicit 'ao codex start/stop' fallback. See
 docs/contracts/hook-runtime-contract.md for the cross-runtime mapping.
 
 Subcommands:
@@ -141,7 +144,7 @@ Output formats:
 
 var hooksInstallCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install hooks to Claude Code settings (Codex uses skill-driven lifecycle)",
+	Short: "Install hooks to Claude Code settings (Codex native hooks install separately)",
 	Long: `Install ao hooks to ~/.claude/settings.json.
 
 This command:

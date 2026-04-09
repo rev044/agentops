@@ -7,12 +7,16 @@ The ao CLI integrates with runtime hooks to automate the CASS (Contextual Agent 
 | Runtime | Hook Mechanism | Install |
 |---------|---------------|---------|
 | **Claude Code** | Full hook manifest via `~/.claude/settings.json` | `ao hooks install` |
-| **Codex** | Skill-driven lifecycle (`ao codex start/stop`) | `scripts/install-codex-plugin.sh` |
+| **Codex (v0.115.0+)** | Native hook manifest via `~/.codex/hooks.json` | `scripts/install-codex-plugin.sh` or `scripts/install-codex.sh` |
+| **Codex (older versions)** | Explicit lifecycle fallback (`ao codex start/stop`) | `ao codex start` / `ao codex stop` |
 | **Manual** | Explicit commands (`ao inject`, `ao forge`) | N/A |
 
 See `docs/contracts/hook-runtime-contract.md` for the full event mapping.
 
-The rest of this document covers the **Claude Code** hook configuration.
+The rest of this document mainly covers the **Claude Code** hook configuration.
+Codex v0.115.0+ uses the same hook model via `scripts/install-codex-plugin.sh`;
+older Codex versions use the explicit fallback documented in
+`docs/contracts/hook-runtime-contract.md`.
 
 ## Quick Start
 
