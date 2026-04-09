@@ -26,13 +26,13 @@ Technically, AgentOps acts as a context compiler: raw session signal becomes reu
 
 AgentOps gives your coding agent three things it doesn't have by default:
 
-1. **Memory** — sessions accumulate learnings in `.agents/` and surface them back.
-2. **Judgment** — `/council` spawns independent judges to validate plans and code.
-3. **Workflow** — `/rpi` delegates `/discovery` → `/crank` → `/validation` in one command.
+1. **Memory** — sessions don't just store state; they extract, accumulate, and surface learnings through `.agents/`, retrieval, and the flywheel.
+2. **Judgment** — validation captures what works, what fails, and why, then feeds those findings back into future plans, code reviews, and workflows.
+3. **Workflow** — repeatable lanes for discovery, implementation, validation, and knowledge extraction that you can run separately, stitch together, or automate end to end.
 
 Session 1, your agent spends 2 hours debugging a timeout bug. Session 15, a new agent finds the answer in 10 seconds because the lesson was captured, surfaced back, and validated into the next cycle.
 
-Every skill, hook, and CLI command exists to strengthen one of these three surfaces. They form a single [lifecycle contract](docs/context-lifecycle.md), not separate features.
+These are not separate features. Skills, hooks, and the `ao` CLI tie them together so you can enter the cycle where you are: brainstorm, research, pre-mortem, implement, validate, extract learnings, or run the full loop. You can use one lane manually, chain several together, or automate as much of the lifecycle as your repo and team want.
 
 Operationally, that means AgentOps behaves like a software factory:
 
@@ -45,9 +45,9 @@ See [Software Factory Surface](docs/software-factory.md) for the explicit operat
 
 | Capability | What you get |
 |-----|---------------|
-| Memory | Repo-native learnings in `.agents/`, surfaced back through retrieval and startup context |
-| Judgment | `/pre-mortem`, `/vibe`, and `/council` validate plans and code before they ship |
-| Workflow | `/rpi` runs discovery → implementation → validation as one operational path |
+| Memory | Repo-native learnings in `.agents/`, retrieved later, promoted into patterns, and used to keep the flywheel spinning |
+| Judgment | `/pre-mortem`, `/vibe`, `/council`, and compiled findings capture what works, what fails, and why |
+| Workflow | Segmented lanes for discovery, implementation, validation, and knowledge extraction, with manual entry points and automated orchestration |
 
 ---
 
