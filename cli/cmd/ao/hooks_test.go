@@ -86,6 +86,18 @@ func TestAllEventNames(t *testing.T) {
 	}
 }
 
+func TestHooksCommandCopyMentionsCodexNativeHooks(t *testing.T) {
+	if !strings.Contains(hooksCmd.Long, "scripts/install-codex-plugin.sh") {
+		t.Fatalf("expected hooks command help to mention native Codex hook install, got:\n%s", hooksCmd.Long)
+	}
+	if !strings.Contains(hooksCmd.Long, "ao codex start/stop") {
+		t.Fatalf("expected hooks command help to mention explicit Codex fallback, got:\n%s", hooksCmd.Long)
+	}
+	if !strings.Contains(hooksInstallCmd.Short, "Codex native hooks install separately") {
+		t.Fatalf("expected hooks install short help to mention separate Codex native hook install, got %q", hooksInstallCmd.Short)
+	}
+}
+
 func TestHooksConfigGetSetEventGroups(t *testing.T) {
 	config := &HooksConfig{}
 	groups := []HookGroup{
