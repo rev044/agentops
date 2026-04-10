@@ -821,9 +821,14 @@ func validateCodexLifecycleState(state *codexLifecycleState) error {
 		}
 	}
 
-	// If both start and stop exist with timestamps, stop must not precede start.
+	// If both start and stop exist for the SAME session with timestamps,
+	// stop must not precede start. For an active session, last_stop refers
+	// to a prior (older) session and will legitimately be before last_start;
+	// that shape is allowed.
 	if state.LastStart != nil && state.LastStop != nil &&
-		state.LastStart.Timestamp != "" && state.LastStop.Timestamp != "" {
+		state.LastStart.Timestamp != "" && state.LastStop.Timestamp != "" &&
+		strings.TrimSpace(state.LastStart.SessionID) != "" &&
+		strings.TrimSpace(state.LastStart.SessionID) == strings.TrimSpace(state.LastStop.SessionID) {
 		startT, err1 := time.Parse(time.RFC3339, state.LastStart.Timestamp)
 		stopT, err2 := time.Parse(time.RFC3339, state.LastStop.Timestamp)
 		if err1 == nil && err2 == nil && stopT.Before(startT) {

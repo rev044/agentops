@@ -992,18 +992,41 @@ func TestCodexValidateState_InvalidStopTimestamp(t *testing.T) {
 }
 
 func TestCodexValidateState_StopBeforeStart(t *testing.T) {
+	// Same session_id: stop before start is impossible and must be rejected.
 	state := &codexLifecycleState{
 		SchemaVersion: 1,
-		LastStart:     &codexLifecycleEvent{Timestamp: "2026-04-02T12:00:00Z"},
-		LastStop:      &codexLifecycleEvent{Timestamp: "2026-04-02T11:00:00Z"},
+		LastStart:     &codexLifecycleEvent{SessionID: "sess-a", Timestamp: "2026-04-02T12:00:00Z"},
+		LastStop:      &codexLifecycleEvent{SessionID: "sess-a", Timestamp: "2026-04-02T11:00:00Z"},
 	}
 	err := validateCodexLifecycleState(state)
 	if err == nil {
-		t.Fatal("expected error when last_stop is before last_start")
+		t.Fatal("expected error when last_stop is before last_start for same session")
 	}
 	expected := "last_stop (2026-04-02T11:00:00Z) is before last_start (2026-04-02T12:00:00Z)"
 	if err.Error() != expected {
 		t.Fatalf("expected %q, got %q", expected, err.Error())
+	}
+}
+
+// TestCodexValidateState_ActiveSession_StopBeforeStartDifferentSession is the
+// na-khx regression: during an active session, last_stop records the PREVIOUS
+// (older) session and last_start records the CURRENT (newer) session. That
+// shape must validate successfully so ensure-start/ensure-stop/status work
+// without manual state repair.
+func TestCodexValidateState_ActiveSession_StopBeforeStartDifferentSession(t *testing.T) {
+	state := &codexLifecycleState{
+		SchemaVersion: 1,
+		LastStart: &codexLifecycleEvent{
+			SessionID: "019d77ff-6609-77c3-8df3-9e2d433a9edc",
+			Timestamp: "2026-04-10T15:26:31Z",
+		},
+		LastStop: &codexLifecycleEvent{
+			SessionID: "019d77d9-7f74-7501-ae9a-83730531219d",
+			Timestamp: "2026-04-10T15:20:51Z",
+		},
+	}
+	if err := validateCodexLifecycleState(state); err != nil {
+		t.Fatalf("expected no error for active-session shape (different session_ids, stop before start), got: %v", err)
 	}
 }
 
