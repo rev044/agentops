@@ -84,7 +84,7 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 		IncludeDirs: includeDirs,
 	}
 
-	rigs, err := harvest.DiscoverRigs(opts)
+	rigs, discoveryWarnings, err := harvest.DiscoverRigsWithWarnings(opts)
 	if err != nil {
 		return fmt.Errorf("discovering rigs: %w", err)
 	}
@@ -94,16 +94,22 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 	}
 
 	var allArtifacts []harvest.Artifact
-	var warnings []harvest.HarvestWarning
+	warnings := append([]harvest.HarvestWarning{}, discoveryWarnings...)
+	for _, warning := range discoveryWarnings {
+		printHarvestWarning(warning)
+	}
+
+	totalCandidateFiles := 0
 	for _, rig := range rigs {
-		arts, rigWarnings := harvest.ExtractArtifacts(rig, opts)
-		if len(rigWarnings) > 0 {
-			for _, warning := range rigWarnings {
-				fmt.Fprintf(os.Stderr, "harvest: warning: %s: %s\n", warning.Stage, warning.Message)
+		result := harvest.ExtractArtifactsWithStats(rig, opts)
+		totalCandidateFiles += result.CandidateFiles
+		if len(result.Warnings) > 0 {
+			for _, warning := range result.Warnings {
+				printHarvestWarning(warning)
 			}
-			warnings = append(warnings, rigWarnings...)
+			warnings = append(warnings, result.Warnings...)
 		}
-		allArtifacts = append(allArtifacts, arts...)
+		allArtifacts = append(allArtifacts, result.Artifacts...)
 	}
 
 	catalog := harvest.BuildCatalog(allArtifacts, harvestMinConfidence)
@@ -115,13 +121,9 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 	catalog.Rigs = append([]harvest.RigInfo{}, rigs...)
 	catalog.Warnings = append([]harvest.HarvestWarning{}, warnings...)
 	catalog.RigsScanned = len(rigs)
-
-	totalFiles := 0
-	for _, rig := range rigs {
-		totalFiles += rig.FileCount
-	}
-	catalog.TotalFiles = totalFiles
+	catalog.TotalFiles = totalCandidateFiles
 	catalog.Timestamp = time.Now().UTC()
+	catalog.Summary.WarningCount = len(catalog.Warnings)
 
 	if !harvestQuiet {
 		fmt.Printf("Extracted %d artifacts (%d unique, %d duplicate excess, %d promotion candidates, %d warnings)\n",
@@ -169,6 +171,10 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 	VerbosePrintf("Rigs scanned: %d, Total files: %d\n", catalog.RigsScanned, catalog.TotalFiles)
 
 	return nil
+}
+
+func printHarvestWarning(warning harvest.HarvestWarning) {
+	fmt.Fprintf(os.Stderr, "harvest: warning: %s: %s\n", warning.Stage, warning.Message)
 }
 
 // duplicateArtifactCount returns the total number of duplicate artifacts

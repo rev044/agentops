@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/boshu2/agentops/cli/internal/harvest"
@@ -142,6 +143,9 @@ func TestRunHarvest_DryRun(t *testing.T) {
 	}
 	if got := cat.Summary.WarningCount; got != len(cat.Warnings) {
 		t.Errorf("summary.warning_count = %d, want %d", got, len(cat.Warnings))
+	}
+	if got := cat.TotalFiles; got != 1 {
+		t.Errorf("total_files = %d, want 1 candidate file", got)
 	}
 	if !cat.DryRun {
 		t.Error("expected dry_run=true in catalog")
@@ -329,7 +333,99 @@ func TestRunHarvest_MalformedFileBecomesWarning(t *testing.T) {
 	if cat.Summary.WarningCount != 1 {
 		t.Fatalf("summary.warning_count = %d, want 1", cat.Summary.WarningCount)
 	}
+	if cat.TotalFiles != 2 {
+		t.Fatalf("total_files = %d, want 2 candidate files", cat.TotalFiles)
+	}
 	if cat.Warnings[0].Stage != "parse_frontmatter" {
 		t.Fatalf("warning stage = %q, want parse_frontmatter", cat.Warnings[0].Stage)
+	}
+}
+
+func TestRunHarvest_PersistsDiscoveryWarnings(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", filepath.Join(tmp, "home"))
+
+	validRigDir := filepath.Join(tmp, "goodproject", ".agents", "learnings")
+	if err := os.MkdirAll(validRigDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	valid := "---\ntitle: Valid Learning\nconfidence: 0.8\n---\n\n# Valid Learning\n\nThis artifact should still be harvested.\n"
+	if err := os.WriteFile(filepath.Join(validRigDir, "2026-04-10-valid.md"), []byte(valid), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	badAgentsDir := filepath.Join(tmp, "badproject", ".agents")
+	if err := os.MkdirAll(filepath.Join(badAgentsDir, "learnings"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(badAgentsDir, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(badAgentsDir, 0o755)
+	})
+
+	origRoots := harvestRootsFlag
+	origOutput := harvestOutputDir
+	origPromote := harvestPromoteTo
+	origQuiet := harvestQuiet
+	origDryRun := dryRun
+	origMinConf := harvestMinConfidence
+	origInclude := harvestInclude
+	origMaxSize := harvestMaxFileSize
+	t.Cleanup(func() {
+		harvestRootsFlag = origRoots
+		harvestOutputDir = origOutput
+		harvestPromoteTo = origPromote
+		harvestQuiet = origQuiet
+		dryRun = origDryRun
+		harvestMinConfidence = origMinConf
+		harvestInclude = origInclude
+		harvestMaxFileSize = origMaxSize
+	})
+
+	harvestRootsFlag = tmp
+	harvestOutputDir = filepath.Join(tmp, "harvest-output")
+	harvestPromoteTo = filepath.Join(tmp, "promoted")
+	harvestQuiet = true
+	dryRun = true
+	harvestMinConfidence = 0.5
+	harvestInclude = "learnings"
+	harvestMaxFileSize = 1048576
+
+	if err := runHarvest(harvestCmd, nil); err != nil {
+		t.Fatalf("runHarvest returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(harvestOutputDir, "latest.json"))
+	if err != nil {
+		t.Fatalf("reading catalog: %v", err)
+	}
+	var cat harvest.Catalog
+	if err := json.Unmarshal(data, &cat); err != nil {
+		t.Fatalf("unmarshaling catalog: %v", err)
+	}
+	if len(cat.Artifacts) != 1 {
+		t.Fatalf("expected 1 harvested artifact, got %d", len(cat.Artifacts))
+	}
+	if cat.TotalFiles != 1 {
+		t.Fatalf("total_files = %d, want 1 candidate file from the readable rig", cat.TotalFiles)
+	}
+	if cat.Summary.WarningCount != len(cat.Warnings) {
+		t.Fatalf("summary.warning_count = %d, want %d", cat.Summary.WarningCount, len(cat.Warnings))
+	}
+
+	foundDiscoveryWarning := false
+	for _, warning := range cat.Warnings {
+		if strings.HasPrefix(warning.Stage, "discover_") {
+			foundDiscoveryWarning = true
+			if warning.Path == "" {
+				t.Fatal("discovery warning should record the failing path")
+			}
+			break
+		}
+	}
+	if !foundDiscoveryWarning {
+		t.Fatalf("expected a persisted discovery warning, got %#v", cat.Warnings)
 	}
 }

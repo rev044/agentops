@@ -14,7 +14,7 @@ import (
 type Catalog struct {
 	Timestamp      time.Time        `json:"timestamp"`
 	RigsScanned    int              `json:"rigs_scanned"`
-	TotalFiles     int              `json:"total_files"`
+	TotalFiles     int              `json:"total_files"` // Candidate files seen across included dirs; BuildCatalog falls back to len(artifacts)
 	Roots          []string         `json:"roots,omitempty"`
 	IncludeDirs    []string         `json:"include_dirs,omitempty"`
 	PromoteTo      string           `json:"promote_to,omitempty"`

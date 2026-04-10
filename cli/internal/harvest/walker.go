@@ -40,7 +40,16 @@ func DefaultWalkOptions() WalkOptions {
 
 // DiscoverRigs walks the configured roots and returns all discovered .agents/ directories.
 func DiscoverRigs(opts WalkOptions) ([]RigInfo, error) {
+	rigs, _, err := DiscoverRigsWithWarnings(opts)
+	return rigs, err
+}
+
+// DiscoverRigsWithWarnings walks the configured roots, returning discovered
+// rigs plus non-fatal discovery warnings that callers can persist in the
+// harvest catalog.
+func DiscoverRigsWithWarnings(opts WalkOptions) ([]RigInfo, []HarvestWarning, error) {
 	var rigs []RigInfo
+	var warnings []HarvestWarning
 
 	for _, root := range opts.Roots {
 		// Nonexistent root is not an error -- return empty results.
@@ -48,11 +57,12 @@ func DiscoverRigs(opts WalkOptions) ([]RigInfo, error) {
 			continue
 		}
 
-		found, err := walkRoot(root, opts)
+		found, rootWarnings, err := walkRoot(root, opts)
 		if err != nil {
-			return nil, fmt.Errorf("walking root %s: %w", root, err)
+			return nil, warnings, fmt.Errorf("walking root %s: %w", root, err)
 		}
 		rigs = append(rigs, found...)
+		warnings = append(warnings, rootWarnings...)
 	}
 
 	// Include ~/.agents/ as global hub if it exists.
@@ -65,23 +75,34 @@ func DiscoverRigs(opts WalkOptions) ([]RigInfo, error) {
 				ri, inspectErr := inspectAgentsDir(globalPath, "global", "hub")
 				if inspectErr == nil {
 					rigs = append(rigs, ri)
+				} else {
+					warnings = append(warnings, newDiscoveryWarning(
+						"discover_inspect",
+						globalPath,
+						fmt.Errorf("inspecting %s: %w", globalPath, inspectErr),
+					))
 				}
 			}
 		}
 	}
 
-	return rigs, nil
+	return rigs, warnings, nil
 }
 
 // walkRoot walks a single root directory for .agents/ directories.
-func walkRoot(root string, opts WalkOptions) ([]RigInfo, error) {
+func walkRoot(root string, opts WalkOptions) ([]RigInfo, []HarvestWarning, error) {
 	var rigs []RigInfo
+	var warnings []HarvestWarning
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			// Permission denied or other access error -- skip, continue.
 			if os.IsPermission(err) {
-				fmt.Fprintf(os.Stderr, "harvest: warning: permission denied: %s\n", path)
+				warnings = append(warnings, newDiscoveryWarning(
+					"discover_permission",
+					path,
+					fmt.Errorf("permission denied at %s: %w", path, err),
+				))
 				return filepath.SkipDir
 			}
 			return err
@@ -110,7 +131,11 @@ func walkRoot(root string, opts WalkOptions) ([]RigInfo, error) {
 		project, crew := extractProvenance(root, path)
 		ri, inspectErr := inspectAgentsDir(path, project, crew)
 		if inspectErr != nil {
-			fmt.Fprintf(os.Stderr, "harvest: warning: inspecting %s: %v\n", path, inspectErr)
+			warnings = append(warnings, newDiscoveryWarning(
+				"discover_inspect",
+				path,
+				fmt.Errorf("inspecting %s: %w", path, inspectErr),
+			))
 			return filepath.SkipDir
 		}
 
@@ -119,9 +144,9 @@ func walkRoot(root string, opts WalkOptions) ([]RigInfo, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("walking %s: %w", root, err)
+		return nil, warnings, fmt.Errorf("walking %s: %w", root, err)
 	}
-	return rigs, nil
+	return rigs, warnings, nil
 }
 
 // inspectAgentsDir builds a RigInfo from an .agents/ directory.
@@ -211,4 +236,12 @@ func containsPath(rigs []RigInfo, path string) bool {
 		}
 	}
 	return false
+}
+
+func newDiscoveryWarning(stage, path string, err error) HarvestWarning {
+	return HarvestWarning{
+		Path:    path,
+		Stage:   stage,
+		Message: err.Error(),
+	}
 }

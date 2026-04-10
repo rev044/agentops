@@ -37,6 +37,14 @@ type HarvestWarning struct {
 	Message string `json:"message"`
 }
 
+// ExtractionResult captures extracted artifacts plus the candidate-file count
+// and any non-fatal warnings encountered while processing a rig.
+type ExtractionResult struct {
+	Artifacts      []Artifact
+	Warnings       []HarvestWarning
+	CandidateFiles int
+}
+
 var (
 	headingRe  = regexp.MustCompile(`(?m)^#\s+(.+)`)
 	datePrefRe = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})`)
@@ -46,14 +54,21 @@ var (
 // and returns parsed Artifact values with provenance metadata plus non-fatal
 // warnings for any files or subdirectories that were skipped.
 func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, []HarvestWarning) {
-	var artifacts []Artifact
-	var warnings []HarvestWarning
+	result := ExtractArtifactsWithStats(rig, opts)
+	return result.Artifacts, result.Warnings
+}
+
+// ExtractArtifactsWithStats reads markdown files from a rig's .agents/
+// subdirectories and returns parsed artifacts, warnings, and the number of
+// candidate files encountered in the included directories.
+func ExtractArtifactsWithStats(rig RigInfo, opts WalkOptions) ExtractionResult {
+	var result ExtractionResult
 
 	warn := func(path, stage string, err error) {
 		if err == nil {
 			return
 		}
-		warnings = append(warnings, HarvestWarning{
+		result.Warnings = append(result.Warnings, HarvestWarning{
 			Rig:     rig.Rig,
 			Path:    path,
 			Stage:   stage,
@@ -87,6 +102,7 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, []HarvestWarni
 			}
 
 			path := filepath.Join(dir, name)
+			result.CandidateFiles++
 
 			if opts.MaxFileSize > 0 {
 				fi, err := e.Info()
@@ -121,7 +137,7 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, []HarvestWarni
 			slug := toSlug(title)
 			id := fmt.Sprintf("%s-%s-%s", artType, date, slug)
 
-			artifacts = append(artifacts, Artifact{
+			result.Artifacts = append(result.Artifacts, Artifact{
 				ID:          id,
 				Title:       title,
 				Summary:     extractString(fm, "summary", ""),
@@ -137,7 +153,7 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, []HarvestWarni
 		}
 	}
 
-	return artifacts, warnings
+	return result
 }
 
 // parseFrontmatter splits YAML frontmatter from body content.
