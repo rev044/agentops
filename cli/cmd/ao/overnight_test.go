@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	ovn "github.com/boshu2/agentops/cli/internal/overnight"
+	v1reader "github.com/boshu2/agentops/cli/cmd/ao/testdata/v1_reader"
 )
 
 func writeExecutable(t *testing.T, dir, name, body string) string {
@@ -372,5 +375,149 @@ func TestRunOvernightReportReadsSummaryJSON(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Dream Council") {
 		t.Fatalf("report output missing Dream Council section: %s", stdout)
+	}
+}
+
+// TestRunOvernight_SchemaV2IsV1BackwardCompatible verifies that a v2
+// Dream report JSON still parses cleanly into the frozen v1 reader
+// struct. This is the pm-008 fix: the compat claim now has a real
+// regression test instead of unmarshaling v2 into itself.
+//
+// The v1 reader lives in cli/cmd/ao/testdata/v1_reader and is a
+// frozen snapshot of overnightSummary as it existed on 2026-04-09.
+// DO NOT edit the v1 reader to pick up v2-only fields — the whole
+// point is that a strict v1 consumer never sees them yet still reads
+// every field it does know about.
+func TestRunOvernight_SchemaV2IsV1BackwardCompatible(t *testing.T) {
+	v2 := overnightSummary{
+		SchemaVersion: 2,
+		Mode:          "dream.local-bedtime",
+		RunID:         "compat-run-2026-04-09",
+		Goal:          "verify v1 reader still parses v2 output",
+		RepoRoot:      "/tmp/repo",
+		OutputDir:     "/tmp/repo/.agents/overnight/compat",
+		Status:        "done",
+		DryRun:        false,
+		StartedAt:     "2026-04-09T00:00:00Z",
+		FinishedAt:    "2026-04-09T00:05:00Z",
+		Duration:      "5m0s",
+		Runtime: overnightRuntimeSummary{
+			KeepAwake:          true,
+			KeepAwakeMode:      "caffeinate",
+			KeepAwakeNote:      "test",
+			RequestedTimeout:   "2h",
+			EffectiveTimeout:   "2h0m0s",
+			LockPath:           "/tmp/repo/.agents/overnight/run.lock",
+			LogPath:            "/tmp/repo/.agents/overnight/compat/overnight.log",
+			ProcessContractDoc: "docs/contracts/dream-process.md",
+			ReportContractDoc:  "docs/contracts/dream-report.md",
+		},
+		Steps: []overnightStepSummary{
+			{
+				Name:     "close-loop",
+				Status:   "done",
+				Command:  "ao learnings close-loop",
+				Artifact: "close-loop.json",
+			},
+			{
+				Name:   "defrag-preview",
+				Status: "done",
+			},
+		},
+		Artifacts: map[string]string{
+			"summary": "summary.json",
+		},
+		Degraded:    []string{"inject-refresh: soft-skipped in test"},
+		Recommended: []string{"promote the top council finding"},
+		NextAction:  "ao overnight report",
+
+		// v2 additive fields — the whole point of this test is
+		// that these DO NOT break the v1 reader.
+		Iterations: []ovn.IterationSummary{
+			{
+				ID:         "compat-run-2026-04-09-iter-1",
+				Index:      1,
+				StartedAt:  time.Date(2026, 4, 9, 0, 0, 0, 0, time.UTC),
+				FinishedAt: time.Date(2026, 4, 9, 0, 2, 30, 0, time.UTC),
+				Duration:   "2m30s",
+				Status:     "done",
+			},
+		},
+		FitnessDelta: map[string]any{
+			"maturity_provisional_or_higher": 0.02,
+		},
+		PlateauReason:    "",
+		RegressionReason: "",
+	}
+
+	data, err := json.Marshal(v2)
+	if err != nil {
+		t.Fatalf("marshal v2 summary: %v", err)
+	}
+
+	var v1 v1reader.OvernightSummaryV1
+	if err := json.Unmarshal(data, &v1); err != nil {
+		t.Fatalf("unmarshal v2 JSON into v1 reader: %v", err)
+	}
+
+	if v1.SchemaVersion != 2 {
+		t.Errorf("SchemaVersion: got %d, want 2", v1.SchemaVersion)
+	}
+	if v1.RunID != "compat-run-2026-04-09" {
+		t.Errorf("RunID: got %q, want %q", v1.RunID, "compat-run-2026-04-09")
+	}
+	if v1.Mode != "dream.local-bedtime" {
+		t.Errorf("Mode: got %q", v1.Mode)
+	}
+	if v1.Goal == "" {
+		t.Error("Goal: unexpectedly empty")
+	}
+	if v1.RepoRoot == "" {
+		t.Error("RepoRoot: unexpectedly empty")
+	}
+	if v1.OutputDir == "" {
+		t.Error("OutputDir: unexpectedly empty")
+	}
+	if v1.Status != "done" {
+		t.Errorf("Status: got %q, want done", v1.Status)
+	}
+	if v1.StartedAt == "" {
+		t.Error("StartedAt: unexpectedly empty")
+	}
+	if v1.FinishedAt == "" {
+		t.Error("FinishedAt: unexpectedly empty")
+	}
+	if v1.Duration == "" {
+		t.Error("Duration: unexpectedly empty")
+	}
+	if v1.Runtime.KeepAwakeMode != "caffeinate" {
+		t.Errorf("Runtime.KeepAwakeMode: got %q, want caffeinate", v1.Runtime.KeepAwakeMode)
+	}
+	if v1.Runtime.RequestedTimeout != "2h" {
+		t.Errorf("Runtime.RequestedTimeout: got %q, want 2h", v1.Runtime.RequestedTimeout)
+	}
+	if v1.Runtime.ProcessContractDoc == "" {
+		t.Error("Runtime.ProcessContractDoc: unexpectedly empty")
+	}
+	if len(v1.Steps) != 2 {
+		t.Fatalf("Steps: got %d, want 2", len(v1.Steps))
+	}
+	if v1.Steps[0].Name != "close-loop" {
+		t.Errorf("Steps[0].Name: got %q", v1.Steps[0].Name)
+	}
+	if v1.Steps[0].Status != "done" {
+		t.Errorf("Steps[0].Status: got %q", v1.Steps[0].Status)
+	}
+	if len(v1.Artifacts) != 1 {
+		t.Errorf("Artifacts: got %d entries, want 1", len(v1.Artifacts))
+	}
+	if len(v1.Degraded) == 0 {
+		t.Error("Degraded: unexpectedly empty")
+	}
+	if len(v1.Recommended) == 0 {
+		t.Error("Recommended: unexpectedly empty")
+	}
+	if v1.NextAction == "" {
+		t.Error("NextAction: unexpectedly empty")
 	}
 }

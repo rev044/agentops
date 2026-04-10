@@ -13,7 +13,7 @@ All future Dream layers must consume this contract instead of inventing parallel
 
 | Field | Type | Meaning |
 |------|------|---------|
-| `schema_version` | integer | Report contract version |
+| `schema_version` | integer | Report contract version (v1 = 1, v2 = 2; see Schema v2 section) |
 | `mode` | string | Run mode identifier |
 | `run_id` | string | Stable run identifier |
 | `goal` | string | Optional goal carried into the run |
@@ -106,3 +106,45 @@ Future consumers of this contract:
 - DreamScape terrain visualization
 
 Those layers must extend the report additively instead of replacing these fields.
+
+## Schema v2
+
+Schema v2 (2026-04-09) introduces the compounding iteration loop. It is **additive only**: all v1 fields remain in place with identical semantics. v1 readers that tolerate unknown fields continue to work unchanged. This backward compatibility is verified by `TestRunOvernight_SchemaV2IsV1BackwardCompatible` in `cli/cmd/ao/overnight_test.go`.
+
+### Bump Policy
+
+- `schema_version` is bumped to `2` when any of the new v2 fields are present.
+- New fields must be optional and ignored by v1 consumers.
+- Never rename, retype, or remove a v1 field.
+
+### New Optional Top-Level Fields
+
+| Field | Type | Example | Meaning |
+|-------|------|---------|---------|
+| `iterations` | array of IterationSummary | `[{...}, {...}]` | Per-iteration sub-summaries, ordered by `index` |
+| `fitness_delta` | object | `{"composite": 0.042, "retrieval_bench": 0.018}` | Composite delta across all iterations (final minus initial) |
+| `plateau_reason` | string | `"2 consecutive iterations below epsilon 0.01"` | Present iff halted on plateau |
+| `regression_reason` | string | `"retrieval_bench dropped 0.08 below floor 0.05"` | Present iff halted on regression |
+
+### IterationSummary Shape
+
+| Field | Type | Example | Meaning |
+|-------|------|---------|---------|
+| `id` | string | `"run-1775776630-iter-1"` | IterationID |
+| `index` | int | `1` | 1-based iteration index |
+| `started_at` | string (RFC3339) | `"2026-04-09T02:15:03Z"` | Iteration start |
+| `finished_at` | string (RFC3339) | `"2026-04-09T02:27:41Z"` | Iteration finish |
+| `duration` | string | `"12m38s"` | Human-readable duration |
+| `status` | string | `"done"` | One of `done`, `degraded`, `rolled-back`, `failed` |
+| `ingest` | object | `{"learnings_added": 14}` | INGEST stage sub-summary |
+| `reduce` | object | `{"deduped": 3, "pruned": 1}` | REDUCE stage sub-summary |
+| `measure` | object | `{"retrieval_bench": {...}}` | MEASURE stage sub-summary |
+| `fitness_before` | object | `{"composite": 0.612}` | Fitness map before this iteration |
+| `fitness_after` | object | `{"composite": 0.631}` | Fitness map after this iteration |
+| `fitness_delta` | float | `0.019` | Numeric composite delta for this iteration |
+| `degraded` | array of strings | `["retrieval_bench"]` | Soft-failed stages |
+| `error` | string (optional) | `"checkpoint integrity failure"` | Present on `failed` or `rolled-back` |
+
+### Backward Compatibility Guarantee
+
+v1 consumers parsing new v2 output must not error on unknown fields. Most JSON parsers (Go's `encoding/json` with default behavior, Python's `json.loads`, `jq`, browsers) ignore unknown fields by default. Parsers that explicitly opt into strict mode (`DisallowUnknownFields()` in Go, Pydantic `extra=forbid`) **will break** on v2 output and must be updated to tolerate the additive fields listed above.

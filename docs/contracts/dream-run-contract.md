@@ -158,3 +158,62 @@ They may share primitive steps and report shapes, but they are not the same oper
 
 `ao overnight setup` helps persist `dream.*` config and generate host-specific
 assistance artifacts. The host scheduler still owns actual scheduling semantics.
+
+## v2 - Iteration Loop (2026-04-09)
+
+Dream v2 replaces the single-pass 5-step script with a bounded outer loop that iterates INGEST -> REDUCE -> MEASURE until a halt condition fires. Each iteration is atomic: checkpointed on entry so any regression or metadata integrity failure can be rolled back cleanly. The v1 step contract above still describes the primitives; v2 re-uses those primitives inside the iteration body.
+
+### Iteration Structure
+
+Each iteration runs three stages in order:
+
+1. INGEST - harvest new signal into the corpus (absorbs `/harvest` overnight work)
+2. REDUCE - defrag, dedup, compile, and prune
+3. MEASURE - `ao retrieval-bench --live --json` and `ao goals measure` to compute composite fitness
+
+### Checkpointed Subpaths
+
+Only these paths are mutated and rolled back as a unit:
+
+- `.agents/learnings/`
+- `.agents/findings/`
+- `.agents/patterns/`
+- `.agents/knowledge/`
+- `.agents/rpi/next-work.jsonl`
+
+### Halt Conditions
+
+| Reason | Exit status | Morning report field |
+|--------|-------------|----------------------|
+| Wall-clock budget exhausted | `finished` | `budget_exhausted: true` |
+| Plateau (K consecutive sub-epsilon deltas) | `finished` | `plateau_reason` |
+| Regression beyond per-metric floor | `finished` | `regression_reason` |
+| Metadata integrity failure | `failed` | `regression_reason` + checkpoint rollback |
+| Crash mid-iteration | `crashed` | Recovery via `.agents/overnight/COMMIT-MARKER.*` on next startup |
+
+### Anti-Goals
+
+- Dream NEVER mutates source code.
+- Dream NEVER invokes `/rpi` or any code-mutating flow.
+- Dream NEVER performs git operations (no commits, branches, push, rebase, checkout, etc.).
+- Dream NEVER creates symlinks anywhere.
+- First-slice scope: no swarm/gc fan-out inside iterations (serial goroutines only).
+
+### New Flags
+
+- `--queue=<file>` - operator-pinned nightly priorities (markdown file; uses evolve pinned-queue format)
+- `--max-iterations=<N>` - cap iteration count (0 = budget-bounded only)
+- `--plateau-epsilon=<F>` - plateau threshold (default 0.01)
+- `--plateau-window=<K>` - plateau window K (default 2, minimum 2)
+- `--warn-only` - ratchet mode: warn on plateau/regression instead of halting (default true for first 2-3 production runs)
+- `--checkpoint-max-mb=<N>` - max checkpoint storage per run (default 512MB)
+
+### Startup Recovery Protocol
+
+- On each Dream startup, before acquiring the lock, `overnight.RecoverFromCrash` scans `.agents/overnight/COMMIT-MARKER.*` and restores clean state.
+- `overnight.LockIsStale` with a 12h threshold + PID liveness check reclaims locks from crashed prior runs.
+- `overnight.WriteLockPID` writes the current PID into `run.lock` on acquisition.
+
+### Concurrency Guard
+
+`ao harvest` refuses to run while Dream holds the overnight lock (pm-011). Operators must wait for the lock to release or explicitly stop the Dream run before manual harvest sweeps.

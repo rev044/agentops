@@ -50,6 +50,18 @@ Map user intent to one of three lanes:
 | run Dream now | `ao overnight start` | Include `--goal` when the user provides one. Use `--runner` and `--creative-lane` only when the user asks for multimodel or wildcard analysis. |
 | inspect a prior run | `ao overnight report` | Use `--from <dir-or-summary.json>` for non-default report paths. |
 
+## Compounding Loop (v2)
+
+Dream v2 runs a bounded outer loop of `INGEST -> REDUCE -> MEASURE` iterations until a halt condition fires: wall-clock budget exhausted, plateau (K sub-epsilon deltas in a row), regression beyond a per-metric floor, or metadata integrity failure. Each iteration is atomic and checkpointed so any rollback leaves the corpus clean. Dream is strictly knowledge-only.
+
+Anti-goals (hard constraints):
+
+- NEVER mutates source code.
+- NEVER invokes `/rpi` or any code-mutating flow.
+- NEVER performs git operations (no commits, branches, push, rebase, checkout).
+- NEVER creates symlinks anywhere.
+- No swarm/gc fan-out inside iterations in the first slice (serial only).
+
 ## Key Rules
 
 - Keep the shared control plane authoritative. Dream settings live under
@@ -108,6 +120,9 @@ Use `ao overnight start` for the actual local run.
 ```bash
 ao overnight start --goal "close the loop on today's auth work"
 ao overnight start --goal "stabilize release follow-ups" --runner codex --runner claude --creative-lane
+/dream start --queue=.agents/dream/tonight.md
+/dream start --max-iterations=3
+/dream start --warn-only=false
 ```
 
 Expected behavior:
@@ -142,6 +157,8 @@ Focus the response on four questions:
   - `.agents/overnight/<run>/summary.md`
 - A concise operator summary with degraded items and the single highest-signal
   next action
+- v2 morning reports also include per-iteration sub-summaries, composite
+  `fitness_delta`, and `plateau_reason` / `regression_reason` when applicable
 
 ## Examples
 
@@ -172,6 +189,15 @@ Read the latest Dream report and tell me the first move.
 | Dream report shows degraded keep-awake | `caffeinate` or the platform helper is unavailable | Continue with the degraded report; do not claim the machine will stay awake |
 | No morning report exists | Dream has not been run yet or the output dir is different | Run `ao overnight start`, or point `ao overnight report --from` at the correct directory |
 | User expects GitHub nightly to replace local Dream | CI proof harness and local Dream are different surfaces | Explain that nightly proves the contract, while Dream operates on the private local corpus |
+
+## Delineation vs /evolve
+
+| Lane | Runs | Mutates code? | Mutates corpus? | Outer loop? | Budget |
+|------|------|---------------|-----------------|-------------|--------|
+| `/dream` | nightly, private local | **No** | **Yes (heavy)** | **Yes (convergence)** | wall-clock + plateau |
+| `/evolve` | daytime, operator-driven | Yes (via `/rpi`) | Yes (light) | Yes | cycle cap |
+
+Dream owns the knowledge compounding layer; `/evolve` owns the code compounding layer. Both share fitness-measurement substrate via `corpus.Compute` / `ao goals measure`. Run Dream overnight, then start each day with `/evolve` against the freshly-compounded corpus with a clean fitness baseline.
 
 ## See Also
 
