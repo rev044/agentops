@@ -49,6 +49,9 @@ These control AO CLI configuration loading and RPI control-plane command customi
 | `AGENTOPS_RPI_AO_COMMAND` | `ao` | `ao` command used for ratchet/checkpoint operations in RPI control plane. |
 | `AGENTOPS_RPI_BD_COMMAND` | `bd` | `bd` command used for epic and child issue queries in RPI control plane. |
 | `AGENTOPS_RPI_TMUX_COMMAND` | `tmux` | `tmux` command used for status liveness probes in RPI control plane. |
+| `AGENTOPS_DREAM_REPORT_DIR` | `.agents/overnight/latest` | Default output directory for private overnight Dream reports. |
+| `AGENTOPS_DREAM_RUN_TIMEOUT` | `8h` | Default maximum duration for a Dream run. |
+| `AGENTOPS_DREAM_KEEP_AWAKE` | `true` | Default keep-awake behavior for Dream runs. Accepts `true/false`, `1/0`, `yes/no`, `on/off`. |
 | `RPI_RUN_ID` | (unset) | When set, `ao lookup --for=<skill>` uses this as the context artifact directory name instead of generating an `adhoc-<timestamp>` ID. Automatically set by the `/rpi` orchestrator during phased runs. |
 
 ## Hooks

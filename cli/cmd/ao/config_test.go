@@ -50,6 +50,9 @@ func TestRunConfig_ShowJSON(t *testing.T) {
 	if parsed.Output.Value == nil {
 		t.Error("expected output value in resolved config")
 	}
+	if parsed.DreamReportDir.Value == nil {
+		t.Error("expected dream_report_dir in resolved config")
+	}
 }
 
 func TestRunConfig_ShowTable(t *testing.T) {
@@ -86,6 +89,9 @@ func TestRunConfig_ShowTable(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "output:") {
 		t.Errorf("expected 'output:' in resolved values, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "dream.report_dir:") {
+		t.Errorf("expected dream.report_dir in resolved values, got: %q", stdout)
 	}
 	if !strings.Contains(stdout, "Environment variables") {
 		t.Errorf("expected 'Environment variables' section, got: %q", stdout)

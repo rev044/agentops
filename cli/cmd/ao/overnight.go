@@ -1,0 +1,705 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
+	"github.com/boshu2/agentops/cli/internal/config"
+)
+
+var (
+	overnightGoal        string
+	overnightOutputDir   string
+	overnightRunTimeout  string
+	overnightKeepAwake   bool
+	overnightNoKeepAwake bool
+	overnightReportFrom  string
+)
+
+type overnightSettings struct {
+	OutputDir     string
+	RunTimeoutRaw string
+	RunTimeout    time.Duration
+	KeepAwake     bool
+}
+
+type overnightRuntimeSummary struct {
+	KeepAwake          bool   `json:"keep_awake" yaml:"keep_awake"`
+	KeepAwakeMode      string `json:"keep_awake_mode" yaml:"keep_awake_mode"`
+	KeepAwakeNote      string `json:"keep_awake_note,omitempty" yaml:"keep_awake_note,omitempty"`
+	RequestedTimeout   string `json:"requested_timeout" yaml:"requested_timeout"`
+	EffectiveTimeout   string `json:"effective_timeout" yaml:"effective_timeout"`
+	LockPath           string `json:"lock_path" yaml:"lock_path"`
+	LogPath            string `json:"log_path" yaml:"log_path"`
+	ProcessContractDoc string `json:"process_contract_doc" yaml:"process_contract_doc"`
+	ReportContractDoc  string `json:"report_contract_doc" yaml:"report_contract_doc"`
+}
+
+type overnightStepSummary struct {
+	Name     string `json:"name" yaml:"name"`
+	Status   string `json:"status" yaml:"status"`
+	Command  string `json:"command,omitempty" yaml:"command,omitempty"`
+	Artifact string `json:"artifact,omitempty" yaml:"artifact,omitempty"`
+	Note     string `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+type overnightSummary struct {
+	SchemaVersion int                     `json:"schema_version" yaml:"schema_version"`
+	Mode          string                  `json:"mode" yaml:"mode"`
+	RunID         string                  `json:"run_id" yaml:"run_id"`
+	Goal          string                  `json:"goal,omitempty" yaml:"goal,omitempty"`
+	RepoRoot      string                  `json:"repo_root" yaml:"repo_root"`
+	OutputDir     string                  `json:"output_dir" yaml:"output_dir"`
+	Status        string                  `json:"status" yaml:"status"`
+	DryRun        bool                    `json:"dry_run" yaml:"dry_run"`
+	StartedAt     string                  `json:"started_at" yaml:"started_at"`
+	FinishedAt    string                  `json:"finished_at,omitempty" yaml:"finished_at,omitempty"`
+	Duration      string                  `json:"duration,omitempty" yaml:"duration,omitempty"`
+	Runtime       overnightRuntimeSummary `json:"runtime" yaml:"runtime"`
+	Steps         []overnightStepSummary  `json:"steps" yaml:"steps"`
+	Artifacts     map[string]string       `json:"artifacts,omitempty" yaml:"artifacts,omitempty"`
+	MetricsHealth map[string]any          `json:"metrics_health,omitempty" yaml:"metrics_health,omitempty"`
+	RetrievalLive map[string]any          `json:"retrieval_live,omitempty" yaml:"retrieval_live,omitempty"`
+	CloseLoop     map[string]any          `json:"close_loop,omitempty" yaml:"close_loop,omitempty"`
+	Briefing      map[string]any          `json:"briefing,omitempty" yaml:"briefing,omitempty"`
+	Degraded      []string                `json:"degraded,omitempty" yaml:"degraded,omitempty"`
+	Recommended   []string                `json:"recommended,omitempty" yaml:"recommended,omitempty"`
+	NextAction    string                  `json:"next_action,omitempty" yaml:"next_action,omitempty"`
+}
+
+var overnightCmd = &cobra.Command{
+	Use:   "overnight",
+	Short: "Dream operator mode for private overnight runs",
+	Long: `Dream is AgentOps' private overnight operator mode.
+
+It is the local-first counterpart to the public nightly CI proof harness:
+  - runs against the real local .agents corpus
+  - writes a normalized morning report contract
+  - keeps process/runtime behavior explicit and auditable
+
+First slice commands:
+  start / run   Start an overnight Dream run now
+  report        Read and render an existing Dream report`,
+}
+
+var overnightStartCmd = &cobra.Command{
+	Use:     "start",
+	Aliases: []string{"run"},
+	Short:   "Run the local Dream maintenance and morning-report path",
+	Long: `Start a private overnight Dream run against the local repository.
+
+The v1 path is deliberately bounded:
+  - close-loop promotion
+  - defrag preview
+  - flywheel health report
+  - live retrieval proof
+  - optional goal briefing
+
+Dream writes both summary.json and summary.md so later layers can consume the
+same report contract without re-inventing output shapes.`,
+	Args: cobra.NoArgs,
+	RunE: runOvernightStart,
+}
+
+var overnightReportCmd = &cobra.Command{
+	Use:   "report",
+	Short: "Render a previously written Dream report",
+	Long: `Read a Dream report from summary.json and render it as JSON, YAML, or
+terminal text. Pass either a directory containing summary.json or the JSON file
+itself via --from.`,
+	Args: cobra.NoArgs,
+	RunE: runOvernightReport,
+}
+
+func init() {
+	overnightCmd.GroupID = "workflow"
+	rootCmd.AddCommand(overnightCmd)
+	overnightCmd.AddCommand(overnightStartCmd)
+	overnightCmd.AddCommand(overnightReportCmd)
+
+	overnightStartCmd.Flags().StringVar(&overnightGoal, "goal", "", "Optional goal to include in the morning report and briefing step")
+	overnightStartCmd.Flags().StringVar(&overnightOutputDir, "output-dir", "", "Directory for overnight artifacts (defaults to dream.report_dir)")
+	overnightStartCmd.Flags().StringVar(&overnightRunTimeout, "run-timeout", "", "Maximum duration for the overnight run (defaults to dream.run_timeout)")
+	overnightStartCmd.Flags().BoolVar(&overnightKeepAwake, "keep-awake", false, "Force keep-awake assistance on for this run")
+	overnightStartCmd.Flags().BoolVar(&overnightNoKeepAwake, "no-keep-awake", false, "Disable keep-awake assistance for this run")
+
+	overnightReportCmd.Flags().StringVar(&overnightReportFrom, "from", "", "Directory containing summary.json, or the summary.json file itself")
+}
+
+func runOvernightStart(cmd *cobra.Command, args []string) error {
+	cwd, err := resolveProjectDir()
+	if err != nil {
+		return err
+	}
+
+	settings, err := resolveOvernightSettings(cmd, cwd)
+	if err != nil {
+		return err
+	}
+
+	startedAt := time.Now().UTC()
+	summary := overnightSummary{
+		SchemaVersion: 1,
+		Mode:          "dream.local-bedtime",
+		RunID:         startedAt.Format("20060102T150405Z"),
+		Goal:          strings.TrimSpace(overnightGoal),
+		RepoRoot:      cwd,
+		OutputDir:     settings.OutputDir,
+		Status:        "planned",
+		DryRun:        GetDryRun(),
+		StartedAt:     startedAt.Format(time.RFC3339),
+		Runtime: overnightRuntimeSummary{
+			KeepAwake:          settings.KeepAwake,
+			KeepAwakeMode:      "disabled",
+			RequestedTimeout:   settings.RunTimeoutRaw,
+			EffectiveTimeout:   settings.RunTimeout.String(),
+			LockPath:           filepath.Join(filepath.Dir(settings.OutputDir), "run.lock"),
+			LogPath:            filepath.Join(settings.OutputDir, "overnight.log"),
+			ProcessContractDoc: "docs/contracts/dream-run-contract.md",
+			ReportContractDoc:  "docs/contracts/dream-report.md",
+		},
+		Steps: []overnightStepSummary{
+			{Name: "close-loop", Status: "pending", Command: "ao flywheel close-loop --threshold 0h --json"},
+			{Name: "defrag-preview", Status: "pending", Command: "ao --dry-run defrag --prune --dedup --oscillation-sweep"},
+			{Name: "metrics-health", Status: "pending", Command: "ao metrics health --json"},
+			{Name: "retrieval-live", Status: "pending", Command: "ao retrieval-bench --live --json"},
+		},
+	}
+	if summary.Goal != "" {
+		summary.Steps = append(summary.Steps, overnightStepSummary{
+			Name:    "knowledge-brief",
+			Status:  "pending",
+			Command: fmt.Sprintf("ao knowledge brief --goal %q --json", summary.Goal),
+		})
+	}
+
+	if GetDryRun() {
+		summary.Status = "dry-run"
+		summary.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+		summary.Duration = time.Since(startedAt).Round(time.Millisecond).String()
+		summary.Recommended = recommendedDreamCommands(summary)
+		summary.NextAction = deriveDreamNextAction(summary)
+		return outputOvernightSummary(summary)
+	}
+
+	if _, err := os.Stat(filepath.Join(cwd, ".agents")); err != nil {
+		return fmt.Errorf("dream run requires a local .agents corpus at %s", filepath.Join(cwd, ".agents"))
+	}
+
+	if err := os.MkdirAll(filepath.Dir(summary.Runtime.LockPath), 0o755); err != nil {
+		return fmt.Errorf("create dream lock dir: %w", err)
+	}
+	lockFile, err := acquireOvernightLock(summary.Runtime.LockPath)
+	if err != nil {
+		return err
+	}
+	defer releaseOvernightLock(lockFile)
+
+	if err := os.MkdirAll(summary.OutputDir, 0o755); err != nil {
+		return fmt.Errorf("create output dir: %w", err)
+	}
+
+	logFile, err := os.OpenFile(summary.Runtime.LogPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("open dream log: %w", err)
+	}
+	defer logFile.Close()
+
+	stopKeepAwake, mode, note := startKeepAwakeHelper(logFile, settings.KeepAwake)
+	defer stopKeepAwake()
+	summary.Runtime.KeepAwakeMode = mode
+	if note != "" {
+		summary.Runtime.KeepAwakeNote = note
+		summary.Degraded = append(summary.Degraded, note)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), settings.RunTimeout)
+	defer cancel()
+
+	baseArtifacts := map[string]string{
+		"close_loop":       filepath.Join(summary.OutputDir, "close-loop.json"),
+		"defrag_report":    filepath.Join(summary.OutputDir, "defrag", "latest.json"),
+		"metrics_health":   filepath.Join(summary.OutputDir, "metrics-health.json"),
+		"retrieval_live":   filepath.Join(summary.OutputDir, "retrieval-bench.json"),
+		"summary_json":     filepath.Join(summary.OutputDir, "summary.json"),
+		"summary_markdown": filepath.Join(summary.OutputDir, "summary.md"),
+	}
+	if summary.Goal != "" {
+		baseArtifacts["briefing"] = filepath.Join(summary.OutputDir, "briefing.json")
+	}
+	summary.Artifacts = baseArtifacts
+
+	if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["close_loop"], "flywheel", "close-loop", "--threshold", "0h", "--json"); err != nil {
+		setOvernightStepStatus(&summary, "close-loop", "failed", summary.Artifacts["close_loop"], err.Error())
+		summary.Status = "failed"
+		_ = finalizeOvernightSummary(&summary, startedAt)
+		return fmt.Errorf("close-loop step failed: %w", err)
+	}
+	setOvernightStepStatus(&summary, "close-loop", "done", summary.Artifacts["close_loop"], "")
+
+	if err := runOvernightCommand(ctx, cwd, logFile, nil, "--dry-run", "defrag", "--prune", "--dedup", "--oscillation-sweep", "--output-dir", filepath.Join(summary.OutputDir, "defrag"), "--quiet"); err != nil {
+		setOvernightStepStatus(&summary, "defrag-preview", "soft-fail", summary.Artifacts["defrag_report"], err.Error())
+		summary.Degraded = append(summary.Degraded, fmt.Sprintf("defrag preview failed: %v", err))
+	} else {
+		setOvernightStepStatus(&summary, "defrag-preview", "done", summary.Artifacts["defrag_report"], "preview-only; prune actions were not applied")
+	}
+
+	if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["metrics_health"], "metrics", "health", "--json"); err != nil {
+		setOvernightStepStatus(&summary, "metrics-health", "failed", summary.Artifacts["metrics_health"], err.Error())
+		summary.Status = "failed"
+		_ = finalizeOvernightSummary(&summary, startedAt)
+		return fmt.Errorf("metrics step failed: %w", err)
+	}
+	setOvernightStepStatus(&summary, "metrics-health", "done", summary.Artifacts["metrics_health"], "")
+
+	if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["retrieval_live"], "retrieval-bench", "--live", "--json"); err != nil {
+		setOvernightStepStatus(&summary, "retrieval-live", "soft-fail", summary.Artifacts["retrieval_live"], err.Error())
+		summary.Degraded = append(summary.Degraded, fmt.Sprintf("live retrieval bench failed: %v", err))
+	} else {
+		setOvernightStepStatus(&summary, "retrieval-live", "done", summary.Artifacts["retrieval_live"], "")
+	}
+
+	if summary.Goal != "" {
+		if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["briefing"], "knowledge", "brief", "--goal", summary.Goal, "--json"); err != nil {
+			setOvernightStepStatus(&summary, "knowledge-brief", "soft-fail", summary.Artifacts["briefing"], err.Error())
+			summary.Degraded = append(summary.Degraded, fmt.Sprintf("goal briefing unavailable: %v", err))
+		} else {
+			setOvernightStepStatus(&summary, "knowledge-brief", "done", summary.Artifacts["briefing"], "")
+		}
+	}
+
+	summary.Status = "done"
+	if err := finalizeOvernightSummary(&summary, startedAt); err != nil {
+		return err
+	}
+	return outputOvernightSummary(summary)
+}
+
+func runOvernightReport(cmd *cobra.Command, args []string) error {
+	summaryPath, err := resolveDreamReportPath(overnightReportFrom)
+	if err != nil {
+		return err
+	}
+	summary, err := loadOvernightSummary(summaryPath)
+	if err != nil {
+		return err
+	}
+	return outputOvernightSummary(summary)
+}
+
+func resolveOvernightSettings(cmd *cobra.Command, cwd string) (overnightSettings, error) {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return overnightSettings{}, fmt.Errorf("load config: %w", err)
+	}
+
+	outputDir := strings.TrimSpace(cfg.Dream.ReportDir)
+	if cmd.Flags().Changed("output-dir") {
+		outputDir = strings.TrimSpace(overnightOutputDir)
+	}
+	if outputDir == "" {
+		outputDir = ".agents/overnight/latest"
+	}
+	if !filepath.IsAbs(outputDir) {
+		outputDir = filepath.Join(cwd, outputDir)
+	}
+
+	runTimeoutRaw := strings.TrimSpace(cfg.Dream.RunTimeout)
+	if cmd.Flags().Changed("run-timeout") {
+		runTimeoutRaw = strings.TrimSpace(overnightRunTimeout)
+	}
+	if runTimeoutRaw == "" {
+		runTimeoutRaw = "8h"
+	}
+	runTimeout, err := time.ParseDuration(runTimeoutRaw)
+	if err != nil {
+		return overnightSettings{}, fmt.Errorf("parse dream timeout %q: %w", runTimeoutRaw, err)
+	}
+
+	keepAwake := true
+	if cfg.Dream.KeepAwake != nil {
+		keepAwake = *cfg.Dream.KeepAwake
+	}
+	if cmd.Flags().Changed("keep-awake") {
+		keepAwake = overnightKeepAwake
+	}
+	if cmd.Flags().Changed("no-keep-awake") && overnightNoKeepAwake {
+		keepAwake = false
+	}
+
+	return overnightSettings{
+		OutputDir:     outputDir,
+		RunTimeoutRaw: runTimeoutRaw,
+		RunTimeout:    runTimeout,
+		KeepAwake:     keepAwake,
+	}, nil
+}
+
+func acquireOvernightLock(lockPath string) (*os.File, error) {
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("open dream lock: %w", err)
+	}
+	if err := flockLockNB(file); err != nil {
+		_ = file.Close()
+		if errors.Is(err, errLockWouldBlock) {
+			return nil, fmt.Errorf("another overnight run already holds %s", lockPath)
+		}
+		return nil, fmt.Errorf("lock dream run: %w", err)
+	}
+	return file, nil
+}
+
+func releaseOvernightLock(file *os.File) {
+	if file == nil {
+		return
+	}
+	_ = flockUnlock(file)
+	_ = file.Close()
+}
+
+func startKeepAwakeHelper(log io.Writer, enabled bool) (func(), string, string) {
+	if !enabled {
+		return func() {}, "disabled", ""
+	}
+	if runtime.GOOS != "darwin" {
+		return func() {}, "unsupported", "keep-awake requested but v1 Dream only auto-manages sleep on macOS"
+	}
+	caffeinatePath, err := exec.LookPath("caffeinate")
+	if err != nil {
+		return func() {}, "missing-caffeinate", "keep-awake requested but caffeinate is unavailable"
+	}
+	cmd := exec.Command(caffeinatePath, "-i", "-w", strconv.Itoa(os.Getpid()))
+	cmd.Stdout = log
+	cmd.Stderr = log
+	if err := cmd.Start(); err != nil {
+		return func() {}, "caffeinate-error", fmt.Sprintf("failed to start caffeinate: %v", err)
+	}
+	stop := func() {
+		if cmd.Process == nil {
+			return
+		}
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
+	}
+	return stop, "caffeinate", ""
+}
+
+func runOvernightJSONStep(ctx context.Context, cwd string, log io.Writer, outputPath string, args ...string) error {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return fmt.Errorf("create parent dir for %s: %w", outputPath, err)
+	}
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", outputPath, err)
+	}
+	defer outFile.Close()
+	return runOvernightCommand(ctx, cwd, log, outFile, args...)
+}
+
+func runOvernightCommand(ctx context.Context, cwd string, log io.Writer, stdout io.Writer, args ...string) error {
+	aoPath := resolveAOExecutable()
+	fullArgs := append([]string{}, overnightGlobalArgs()...)
+	fullArgs = append(fullArgs, args...)
+	cmd := exec.CommandContext(ctx, aoPath, fullArgs...)
+	cmd.Dir = cwd
+	if stdout != nil {
+		cmd.Stdout = stdout
+	} else {
+		cmd.Stdout = log
+	}
+	cmd.Stderr = log
+	return cmd.Run()
+}
+
+func overnightGlobalArgs() []string {
+	args := []string{}
+	if path := strings.TrimSpace(GetConfigFile()); path != "" {
+		args = append(args, "--config", path)
+	}
+	if GetVerbose() {
+		args = append(args, "-v")
+	}
+	return args
+}
+
+func resolveAOExecutable() string {
+	if exe, err := os.Executable(); err == nil && filepath.Base(exe) == "ao" {
+		return exe
+	}
+	return "ao"
+}
+
+func setOvernightStepStatus(summary *overnightSummary, name, status, artifact, note string) {
+	for i := range summary.Steps {
+		if summary.Steps[i].Name == name {
+			summary.Steps[i].Status = status
+			if artifact != "" {
+				summary.Steps[i].Artifact = artifact
+			}
+			if note != "" {
+				summary.Steps[i].Note = note
+			}
+			return
+		}
+	}
+	summary.Steps = append(summary.Steps, overnightStepSummary{
+		Name:     name,
+		Status:   status,
+		Artifact: artifact,
+		Note:     note,
+	})
+}
+
+func finalizeOvernightSummary(summary *overnightSummary, startedAt time.Time) error {
+	summary.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+	summary.Duration = time.Since(startedAt).Round(time.Millisecond).String()
+	summary.Recommended = recommendedDreamCommands(*summary)
+	summary.NextAction = deriveDreamNextAction(*summary)
+
+	if artifact := summary.Artifacts["metrics_health"]; artifact != "" {
+		if data, err := loadJSONMap(artifact); err == nil {
+			summary.MetricsHealth = data
+		}
+	}
+	if artifact := summary.Artifacts["retrieval_live"]; artifact != "" {
+		if data, err := loadJSONMap(artifact); err == nil {
+			summary.RetrievalLive = data
+		}
+	}
+	if artifact := summary.Artifacts["close_loop"]; artifact != "" {
+		if data, err := loadJSONMap(artifact); err == nil {
+			summary.CloseLoop = data
+		}
+	}
+	if artifact := summary.Artifacts["briefing"]; artifact != "" {
+		if data, err := loadJSONMap(artifact); err == nil {
+			summary.Briefing = data
+		}
+	}
+
+	if err := os.MkdirAll(summary.OutputDir, 0o755); err != nil {
+		return fmt.Errorf("ensure dream output dir: %w", err)
+	}
+
+	summaryJSONPath := summary.Artifacts["summary_json"]
+	if summaryJSONPath == "" {
+		summaryJSONPath = filepath.Join(summary.OutputDir, "summary.json")
+	}
+	summaryMDPath := summary.Artifacts["summary_markdown"]
+	if summaryMDPath == "" {
+		summaryMDPath = filepath.Join(summary.OutputDir, "summary.md")
+	}
+	summary.Artifacts["summary_json"] = summaryJSONPath
+	summary.Artifacts["summary_markdown"] = summaryMDPath
+
+	data, err := json.MarshalIndent(summary, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal dream summary: %w", err)
+	}
+	if err := os.WriteFile(summaryJSONPath, data, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", summaryJSONPath, err)
+	}
+	if err := os.WriteFile(summaryMDPath, []byte(renderOvernightSummaryMarkdown(*summary)), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", summaryMDPath, err)
+	}
+	return nil
+}
+
+func loadJSONMap(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return nil, err
+	}
+	return decoded, nil
+}
+
+func resolveDreamReportPath(value string) (string, error) {
+	target := strings.TrimSpace(value)
+	if target == "" {
+		target = filepath.Join(".agents", "overnight", "latest")
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		return "", fmt.Errorf("stat dream report target %s: %w", target, err)
+	}
+	if info.IsDir() {
+		return filepath.Join(target, "summary.json"), nil
+	}
+	return target, nil
+}
+
+func loadOvernightSummary(path string) (overnightSummary, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return overnightSummary{}, fmt.Errorf("read dream summary %s: %w", path, err)
+	}
+	var summary overnightSummary
+	if err := json.Unmarshal(data, &summary); err != nil {
+		return overnightSummary{}, fmt.Errorf("parse dream summary %s: %w", path, err)
+	}
+	return summary, nil
+}
+
+func outputOvernightSummary(summary overnightSummary) error {
+	switch GetOutput() {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(summary)
+	case "yaml":
+		enc := yaml.NewEncoder(os.Stdout)
+		defer enc.Close()
+		return enc.Encode(summary)
+	default:
+		fmt.Print(renderOvernightSummaryMarkdown(summary))
+		return nil
+	}
+}
+
+func renderOvernightSummaryMarkdown(summary overnightSummary) string {
+	var b strings.Builder
+	b.WriteString("# Dream Morning Report\n\n")
+	b.WriteString(fmt.Sprintf("- Status: `%s`\n", summary.Status))
+	b.WriteString(fmt.Sprintf("- Run ID: `%s`\n", summary.RunID))
+	b.WriteString(fmt.Sprintf("- Repo: `%s`\n", summary.RepoRoot))
+	b.WriteString(fmt.Sprintf("- Output: `%s`\n", summary.OutputDir))
+	if summary.Goal != "" {
+		b.WriteString(fmt.Sprintf("- Goal: `%s`\n", summary.Goal))
+	}
+	b.WriteString(fmt.Sprintf("- Started: `%s`\n", summary.StartedAt))
+	if summary.FinishedAt != "" {
+		b.WriteString(fmt.Sprintf("- Finished: `%s`\n", summary.FinishedAt))
+	}
+	if summary.Duration != "" {
+		b.WriteString(fmt.Sprintf("- Duration: `%s`\n", summary.Duration))
+	}
+	b.WriteString(fmt.Sprintf("- Keep awake: `%t` via `%s`\n", summary.Runtime.KeepAwake, summary.Runtime.KeepAwakeMode))
+	b.WriteString(fmt.Sprintf("- Timeout: `%s`\n", summary.Runtime.EffectiveTimeout))
+	b.WriteString("\n## Terrain\n\n")
+	if summary.MetricsHealth != nil {
+		b.WriteString(fmt.Sprintf("- Escape velocity: `%v`\n", lookupPath(summary.MetricsHealth, "escape_velocity")))
+		b.WriteString(fmt.Sprintf("- Sigma: `%v`\n", lookupPath(summary.MetricsHealth, "sigma")))
+		b.WriteString(fmt.Sprintf("- Rho: `%v`\n", lookupPath(summary.MetricsHealth, "rho")))
+		b.WriteString(fmt.Sprintf("- Delta: `%v`\n", lookupPath(summary.MetricsHealth, "delta")))
+	}
+	if summary.RetrievalLive != nil {
+		b.WriteString(fmt.Sprintf("- Retrieval coverage: `%v`\n", lookupPath(summary.RetrievalLive, "coverage")))
+		b.WriteString(fmt.Sprintf("- Queries with hits: `%v/%v`\n", lookupPath(summary.RetrievalLive, "queries_with_hits"), lookupPath(summary.RetrievalLive, "queries")))
+	}
+	b.WriteString("\n## What Ran\n\n")
+	for _, step := range summary.Steps {
+		line := fmt.Sprintf("- `%s`: `%s`", step.Name, step.Status)
+		if step.Artifact != "" {
+			line += fmt.Sprintf(" → `%s`", step.Artifact)
+		}
+		if step.Note != "" {
+			line += fmt.Sprintf(" (%s)", step.Note)
+		}
+		b.WriteString(line + "\n")
+	}
+	if len(summary.Degraded) > 0 {
+		b.WriteString("\n## Degraded\n\n")
+		for _, item := range summary.Degraded {
+			b.WriteString("- " + item + "\n")
+		}
+	}
+	if summary.NextAction != "" {
+		b.WriteString("\n## First Move\n\n")
+		b.WriteString("- " + summary.NextAction + "\n")
+	}
+	if len(summary.Recommended) > 0 {
+		b.WriteString("\n## Recommended\n\n")
+		for _, item := range summary.Recommended {
+			b.WriteString("- `" + item + "`\n")
+		}
+	}
+	return b.String()
+}
+
+func recommendedDreamCommands(summary overnightSummary) []string {
+	recommended := []string{
+		fmt.Sprintf("ao overnight report --from %q", summary.OutputDir),
+	}
+	if summary.Goal != "" {
+		recommended = append(recommended, fmt.Sprintf("ao rpi phased %q", summary.Goal))
+	}
+	if summary.Artifacts != nil {
+		if path := summary.Artifacts["summary_json"]; path != "" {
+			recommended = append(recommended, fmt.Sprintf("cat %q", path))
+		}
+	}
+	sort.Strings(recommended)
+	return recommended
+}
+
+func deriveDreamNextAction(summary overnightSummary) string {
+	if coverage, ok := lookupFloat(summary.RetrievalLive, "coverage"); ok && coverage < 0.50 {
+		return "Retrieval coverage is weak. Start the day by inspecting misses in retrieval-bench.json and promote one missing learning or pattern."
+	}
+	if escape, ok := lookupBool(summary.MetricsHealth, "escape_velocity"); ok && !escape {
+		return "The flywheel is not at escape velocity. Capture or validate one durable learning before starting new implementation work."
+	}
+	if summary.Goal != "" {
+		return fmt.Sprintf("Use the morning packet to resume the goal: `ao rpi phased %q`.", summary.Goal)
+	}
+	return "Review the overnight report and pick the highest-signal next action before opening a new implementation lane."
+}
+
+func lookupPath(m map[string]any, key string) any {
+	if m == nil {
+		return "n/a"
+	}
+	if v, ok := m[key]; ok {
+		return v
+	}
+	return "n/a"
+}
+
+func lookupFloat(m map[string]any, key string) (float64, bool) {
+	if m == nil {
+		return 0, false
+	}
+	v, ok := m[key]
+	if !ok {
+		return 0, false
+	}
+	switch num := v.(type) {
+	case float64:
+		return num, true
+	case int:
+		return float64(num), true
+	default:
+		return 0, false
+	}
+}
+
+func lookupBool(m map[string]any, key string) (bool, bool) {
+	if m == nil {
+		return false, false
+	}
+	v, ok := m[key]
+	if !ok {
+		return false, false
+	}
+	b, ok := v.(bool)
+	return b, ok
+}

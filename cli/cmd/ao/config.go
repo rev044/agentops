@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	configShow       bool
-	modelsSetTier    string
-	modelsSetSkill   string
+	configShow     bool
+	modelsSetTier  string
+	modelsSetSkill string
 )
 
 var configModelsCmd = &cobra.Command{
@@ -69,6 +69,9 @@ Environment variables:
   AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD - Default auto-promote age threshold (e.g. 24h)
   AGENTOPS_MODEL_TIER - Default model cost tier (quality/balanced/budget)
   AGENTOPS_COUNCIL_MODEL_TIER - Council-specific model tier override
+  AGENTOPS_DREAM_REPORT_DIR - Default output directory for overnight Dream reports
+  AGENTOPS_DREAM_RUN_TIMEOUT - Default timeout for overnight Dream runs
+  AGENTOPS_DREAM_KEEP_AWAKE - Default keep-awake behavior for overnight Dream runs
 
 Examples:
   ao config --show           # Show resolved configuration
@@ -135,6 +138,9 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  rpi.ao_command:     %v  (from %s)\n", resolved.RPIAOCommand.Value, resolved.RPIAOCommand.Source)
 	fmt.Printf("  rpi.bd_command:     %v  (from %s)\n", resolved.RPIBDCommand.Value, resolved.RPIBDCommand.Source)
 	fmt.Printf("  rpi.tmux_command:   %v  (from %s)\n", resolved.RPITmuxCommand.Value, resolved.RPITmuxCommand.Source)
+	fmt.Printf("  dream.report_dir:   %v  (from %s)\n", resolved.DreamReportDir.Value, resolved.DreamReportDir.Source)
+	fmt.Printf("  dream.run_timeout:  %v  (from %s)\n", resolved.DreamRunTimeout.Value, resolved.DreamRunTimeout.Source)
+	fmt.Printf("  dream.keep_awake:   %v  (from %s)\n", resolved.DreamKeepAwake.Value, resolved.DreamKeepAwake.Source)
 
 	fmt.Println()
 	fmt.Println("Environment variables (if set):")
@@ -154,6 +160,9 @@ func runConfig(cmd *cobra.Command, args []string) error {
 		"AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD",
 		"AGENTOPS_MODEL_TIER",
 		"AGENTOPS_COUNCIL_MODEL_TIER",
+		"AGENTOPS_DREAM_REPORT_DIR",
+		"AGENTOPS_DREAM_RUN_TIMEOUT",
+		"AGENTOPS_DREAM_KEEP_AWAKE",
 	}
 	anySet := false
 	for _, env := range envVars {

@@ -1767,10 +1767,10 @@ func TestApplyEnv_CouncilModelTier(t *testing.T) {
 
 func TestResolveTier(t *testing.T) {
 	tests := []struct {
-		name       string
-		cfg        Config
-		skillName  string
-		wantTier   string
+		name      string
+		cfg       Config
+		skillName string
+		wantTier  string
 	}{
 		{
 			name: "skill override takes precedence",
@@ -1916,6 +1916,52 @@ func TestResolve_ModelsDefaultTier_EnvOverride(t *testing.T) {
 	if rc.ModelsDefaultTier.Value != "quality" || rc.ModelsDefaultTier.Source != SourceEnv {
 		t.Errorf("Resolve env ModelsDefaultTier = (%v, %v), want (quality, %v)",
 			rc.ModelsDefaultTier.Value, rc.ModelsDefaultTier.Source, SourceEnv)
+	}
+}
+
+func TestResolve_DreamDefaults(t *testing.T) {
+	t.Setenv("AGENTOPS_CONFIG", "")
+	for _, key := range []string{
+		"AGENTOPS_OUTPUT", "AGENTOPS_BASE_DIR", "AGENTOPS_VERBOSE",
+		"AGENTOPS_NO_SC",
+		"AGENTOPS_RPI_WORKTREE_MODE", "AGENTOPS_RPI_RUNTIME",
+		"AGENTOPS_RPI_RUNTIME_MODE", "AGENTOPS_RPI_RUNTIME_COMMAND",
+		"AGENTOPS_RPI_AO_COMMAND", "AGENTOPS_RPI_BD_COMMAND",
+		"AGENTOPS_RPI_TMUX_COMMAND",
+		"AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD",
+		"AGENTOPS_MODEL_TIER", "AGENTOPS_COUNCIL_MODEL_TIER",
+		"AGENTOPS_DREAM_REPORT_DIR", "AGENTOPS_DREAM_RUN_TIMEOUT", "AGENTOPS_DREAM_KEEP_AWAKE",
+	} {
+		t.Setenv(key, "")
+	}
+
+	rc := Resolve("", "", false)
+	if rc.DreamReportDir.Value != ".agents/overnight/latest" || rc.DreamReportDir.Source != SourceDefault {
+		t.Fatalf("DreamReportDir = (%v, %v), want (.agents/overnight/latest, %v)", rc.DreamReportDir.Value, rc.DreamReportDir.Source, SourceDefault)
+	}
+	if rc.DreamRunTimeout.Value != "8h" || rc.DreamRunTimeout.Source != SourceDefault {
+		t.Fatalf("DreamRunTimeout = (%v, %v), want (8h, %v)", rc.DreamRunTimeout.Value, rc.DreamRunTimeout.Source, SourceDefault)
+	}
+	if rc.DreamKeepAwake.Value != true || rc.DreamKeepAwake.Source != SourceDefault {
+		t.Fatalf("DreamKeepAwake = (%v, %v), want (true, %v)", rc.DreamKeepAwake.Value, rc.DreamKeepAwake.Source, SourceDefault)
+	}
+}
+
+func TestApplyEnv_DreamOverrides(t *testing.T) {
+	cfg := Default()
+	t.Setenv("AGENTOPS_DREAM_REPORT_DIR", "/tmp/dream")
+	t.Setenv("AGENTOPS_DREAM_RUN_TIMEOUT", "10h")
+	t.Setenv("AGENTOPS_DREAM_KEEP_AWAKE", "false")
+
+	got := applyEnv(cfg)
+	if got.Dream.ReportDir != "/tmp/dream" {
+		t.Fatalf("Dream.ReportDir = %q, want /tmp/dream", got.Dream.ReportDir)
+	}
+	if got.Dream.RunTimeout != "10h" {
+		t.Fatalf("Dream.RunTimeout = %q, want 10h", got.Dream.RunTimeout)
+	}
+	if got.Dream.KeepAwake == nil || *got.Dream.KeepAwake != false {
+		t.Fatalf("Dream.KeepAwake = %#v, want false", got.Dream.KeepAwake)
 	}
 }
 

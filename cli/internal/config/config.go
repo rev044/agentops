@@ -44,6 +44,9 @@ type Config struct {
 
 	// Models settings
 	Models ModelsConfig `yaml:"models" json:"models"`
+
+	// Dream settings for private overnight runs.
+	Dream DreamConfig `yaml:"dream" json:"dream"`
 }
 
 // RPIConfig holds RPI-specific settings.
@@ -140,6 +143,19 @@ type ModelsConfig struct {
 	SkillOverrides map[string]string `yaml:"skill_overrides" json:"skill_overrides"`
 }
 
+// DreamConfig holds settings for the private overnight Dream operator mode.
+type DreamConfig struct {
+	// ReportDir is where overnight summaries and step artifacts are written.
+	ReportDir string `yaml:"report_dir" json:"report_dir"`
+
+	// RunTimeout is the maximum duration for a single overnight run.
+	RunTimeout string `yaml:"run_timeout" json:"run_timeout"`
+
+	// KeepAwake controls whether local runs should attempt keep-awake assistance.
+	// Nil means "not explicitly configured".
+	KeepAwake *bool `yaml:"keep_awake,omitempty" json:"keep_awake,omitempty"`
+}
+
 // TierConfig holds model names for a tier.
 type TierConfig struct {
 	// Claude is the Claude model name (opus, sonnet, haiku).
@@ -209,6 +225,7 @@ const (
 // Default returns the default configuration.
 func Default() *Config {
 	homeDir, _ := os.UserHomeDir()
+	defaultKeepAwake := true
 	return &Config{
 		Output:  defaultOutput,
 		BaseDir: defaultBaseDir,
@@ -241,14 +258,19 @@ func Default() *Config {
 			},
 			SkillOverrides: map[string]string{},
 		},
+		Dream: DreamConfig{
+			ReportDir:  ".agents/overnight/latest",
+			RunTimeout: "8h",
+			KeepAwake:  &defaultKeepAwake,
+		},
 		Paths: PathsConfig{
-			LearningsDir:   ".agents/learnings",
-			PatternsDir:    ".agents/patterns",
-			RetrosDir:      ".agents/retros",
-			ResearchDir:    ".agents/research",
-			PlansDir:       ".agents/plans",
-			ClaudePlansDir: filepath.Join(homeDir, ".claude", "plans"),
-			CitationsFile:  ".agents/ao/citations.jsonl",
+			LearningsDir:       ".agents/learnings",
+			PatternsDir:        ".agents/patterns",
+			RetrosDir:          ".agents/retros",
+			ResearchDir:        ".agents/research",
+			PlansDir:           ".agents/plans",
+			ClaudePlansDir:     filepath.Join(homeDir, ".claude", "plans"),
+			CitationsFile:      ".agents/ao/citations.jsonl",
 			TranscriptsDir:     filepath.Join(homeDir, ".claude", "projects"),
 			GlobalLearningsDir: filepath.Join(homeDir, ".agents", "learnings"),
 			GlobalPatternsDir:  filepath.Join(homeDir, ".agents", "patterns"),
@@ -375,6 +397,11 @@ func applyEnv(cfg *Config) *Config {
 	applyEnvStr(&cfg.RPI.TmuxCommand, "AGENTOPS_RPI_TMUX_COMMAND")
 	applyEnvStr(&cfg.Flywheel.AutoPromoteThreshold, "AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD")
 	applyEnvStr(&cfg.Models.DefaultTier, "AGENTOPS_MODEL_TIER")
+	applyEnvStr(&cfg.Dream.ReportDir, "AGENTOPS_DREAM_REPORT_DIR")
+	applyEnvStr(&cfg.Dream.RunTimeout, "AGENTOPS_DREAM_RUN_TIMEOUT")
+	if v, ok := getEnvBoolValue("AGENTOPS_DREAM_KEEP_AWAKE"); ok {
+		cfg.Dream.KeepAwake = boolPtr(v)
+	}
 	if v := os.Getenv("AGENTOPS_COUNCIL_MODEL_TIER"); v != "" {
 		if cfg.Models.SkillOverrides == nil {
 			cfg.Models.SkillOverrides = make(map[string]string)
@@ -412,6 +439,7 @@ func merge(dst, src *Config) *Config {
 	mergeRPI(&dst.RPI, &src.RPI)
 	mergeFlywheel(&dst.Flywheel, &src.Flywheel)
 	mergeModels(&dst.Models, &src.Models)
+	mergeDream(&dst.Dream, &src.Dream)
 	mergePaths(&dst.Paths, &src.Paths)
 
 	return dst
@@ -466,6 +494,15 @@ func mergeModels(dst, src *ModelsConfig) {
 		for k, v := range src.SkillOverrides {
 			dst.SkillOverrides[k] = v
 		}
+	}
+}
+
+// mergeDream merges Dream config fields.
+func mergeDream(dst, src *DreamConfig) {
+	mergeStr(&dst.ReportDir, src.ReportDir)
+	mergeStr(&dst.RunTimeout, src.RunTimeout)
+	if src.KeepAwake != nil {
+		dst.KeepAwake = boolPtr(*src.KeepAwake)
 	}
 }
 
@@ -554,6 +591,23 @@ func getEnvBool(key string) (bool, bool) {
 	return false, false
 }
 
+// getEnvBoolValue returns the boolean value and whether the env var was set to
+// a recognized boolean literal.
+func getEnvBoolValue(key string) (bool, bool) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "true", "1", "yes", "on":
+		return true, true
+	case "false", "0", "no", "off":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func boolPtr(v bool) *bool {
+	return &v
+}
+
 // resolveStringField resolves a string through the precedence chain.
 // Returns the resolved value and its source.
 func resolveStringField(home, project, env, flag, def string) resolved {
@@ -595,6 +649,9 @@ type ResolvedConfig struct {
 	RPIBDCommand      resolved `json:"rpi_bd_command"`
 	RPITmuxCommand    resolved `json:"rpi_tmux_command"`
 	ModelsDefaultTier resolved `json:"models_default_tier"`
+	DreamReportDir    resolved `json:"dream_report_dir"`
+	DreamRunTimeout   resolved `json:"dream_run_timeout"`
+	DreamKeepAwake    resolved `json:"dream_keep_awake"`
 }
 
 type resolved struct {
@@ -610,6 +667,9 @@ type configFields struct {
 	rpiRuntimeCommand, rpiAOCommand string
 	rpiBDCommand, rpiTmuxCommand    string
 	modelsDefaultTier               string
+	dreamReportDir, dreamRunTimeout string
+	dreamKeepAwake                  bool
+	dreamKeepAwakeSet               bool
 }
 
 // extractFields pulls resolution-relevant fields from a Config.
@@ -629,6 +689,10 @@ func extractFields(cfg *Config) configFields {
 		rpiBDCommand:      cfg.RPI.BDCommand,
 		rpiTmuxCommand:    cfg.RPI.TmuxCommand,
 		modelsDefaultTier: cfg.Models.DefaultTier,
+		dreamReportDir:    cfg.Dream.ReportDir,
+		dreamRunTimeout:   cfg.Dream.RunTimeout,
+		dreamKeepAwake:    cfg.Dream.KeepAwake != nil && *cfg.Dream.KeepAwake,
+		dreamKeepAwakeSet: cfg.Dream.KeepAwake != nil,
 	}
 }
 
@@ -641,6 +705,9 @@ type envFields struct {
 	rpiRuntimeCommand, rpiAOCommand string
 	rpiBDCommand, rpiTmuxCommand    string
 	modelsDefaultTier               string
+	dreamReportDir, dreamRunTimeout string
+	dreamKeepAwake                  bool
+	dreamKeepAwakeSet               bool
 }
 
 // loadEnvFields reads all resolution-relevant environment variables.
@@ -659,6 +726,9 @@ func loadEnvFields() envFields {
 	ef.rpiBDCommand, _ = getEnvString("AGENTOPS_RPI_BD_COMMAND")
 	ef.rpiTmuxCommand, _ = getEnvString("AGENTOPS_RPI_TMUX_COMMAND")
 	ef.modelsDefaultTier, _ = getEnvString("AGENTOPS_MODEL_TIER")
+	ef.dreamReportDir, _ = getEnvString("AGENTOPS_DREAM_REPORT_DIR")
+	ef.dreamRunTimeout, _ = getEnvString("AGENTOPS_DREAM_RUN_TIMEOUT")
+	ef.dreamKeepAwake, ef.dreamKeepAwakeSet = getEnvBoolValue("AGENTOPS_DREAM_KEEP_AWAKE")
 	return ef
 }
 
@@ -676,6 +746,25 @@ func resolveVerbose(home, project configFields, env envFields, flagVerbose bool)
 	}
 	if flagVerbose {
 		r = resolved{Value: true, Source: SourceFlag}
+	}
+	return r
+}
+
+func resolveBoolField(
+	homeVal bool, homeSet bool,
+	projectVal bool, projectSet bool,
+	envVal bool, envSet bool,
+	def bool,
+) resolved {
+	r := resolved{Value: def, Source: SourceDefault}
+	if homeSet {
+		r = resolved{Value: homeVal, Source: SourceHome}
+	}
+	if projectSet {
+		r = resolved{Value: projectVal, Source: SourceProject}
+	}
+	if envSet {
+		r = resolved{Value: envVal, Source: SourceEnv}
 	}
 	return r
 }
@@ -698,5 +787,13 @@ func Resolve(flagOutput, flagBaseDir string, flagVerbose bool) *ResolvedConfig {
 		RPIBDCommand:      resolveStringField(home.rpiBDCommand, project.rpiBDCommand, env.rpiBDCommand, "", "bd"),
 		RPITmuxCommand:    resolveStringField(home.rpiTmuxCommand, project.rpiTmuxCommand, env.rpiTmuxCommand, "", "tmux"),
 		ModelsDefaultTier: resolveStringField(home.modelsDefaultTier, project.modelsDefaultTier, env.modelsDefaultTier, "", "balanced"),
+		DreamReportDir:    resolveStringField(home.dreamReportDir, project.dreamReportDir, env.dreamReportDir, "", ".agents/overnight/latest"),
+		DreamRunTimeout:   resolveStringField(home.dreamRunTimeout, project.dreamRunTimeout, env.dreamRunTimeout, "", "8h"),
+		DreamKeepAwake: resolveBoolField(
+			home.dreamKeepAwake, home.dreamKeepAwakeSet,
+			project.dreamKeepAwake, project.dreamKeepAwakeSet,
+			env.dreamKeepAwake, env.dreamKeepAwakeSet,
+			true,
+		),
 	}
 }

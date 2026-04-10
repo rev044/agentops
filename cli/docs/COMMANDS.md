@@ -1094,6 +1094,52 @@ ao handoff [summary] [flags]
 
 ---
 
+### `ao overnight`
+
+Dream is AgentOps' private overnight operator mode.
+
+```
+ao overnight [command]
+```
+
+**Subcommands:**
+
+#### `ao overnight report`
+
+Read a Dream report from summary.json and render it as JSON, YAML, or
+
+```
+ao overnight report [flags]
+```
+
+**Flags:**
+
+```
+      --from string   Directory containing summary.json, or the summary.json file itself
+  -h, --help          help for report
+```
+
+#### `ao overnight start`
+
+Start a private overnight Dream run against the local repository.
+
+```
+ao overnight start [flags]
+```
+
+**Flags:**
+
+```
+      --goal string          Optional goal to include in the morning report and briefing step
+  -h, --help                 help for start
+      --keep-awake           Force keep-awake assistance on for this run
+      --no-keep-awake        Disable keep-awake assistance for this run
+      --output-dir string    Directory for overnight artifacts (defaults to dream.report_dir)
+      --run-timeout string   Maximum duration for the overnight run (defaults to dream.run_timeout)
+```
+
+---
+
 ### `ao ratchet`
 
 Track progress through the phased RPI workflow.
