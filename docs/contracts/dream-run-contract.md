@@ -104,6 +104,10 @@ Soft-fail steps:
 
 Soft failures must degrade the report, not delete it.
 
+### Retrieval-bench determinism
+
+`ao retrieval-bench --live --json` is deterministic by construction and Dream's MEASURE stage relies on this contract for plateau detection between nightly runs. The live query set is a hardcoded slice in `cli/cmd/ao/retrieval_bench.go`; the corpus is resolved from a fixed location (`.agents/learnings/`, `--corpus` fixture, or `~/.agents/learnings/` with `--global`); and the retrieval pipeline (`collectLearnings` → `rankLearnings`) uses a stable sort by `CompositeScore` with no random sampling in either `cli/cmd/ao/` or `cli/internal/bench/`. Dream intentionally does not pass a `--seed` flag — there is no RNG to seed, and adding one would be dead code. If a future change introduces non-determinism in the `--live` path (for example, random tie-breaking, sampled sub-corpora, or time-of-day noise beyond the existing freshness score), it is a contract violation: revert it or make the source of randomness explicitly seedable before Dream depends on the affected metric.
+
 ## Crash Behavior
 
 If the Dream process fails after creating the output directory, it must still try to write:

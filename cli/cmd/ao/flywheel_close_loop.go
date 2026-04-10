@@ -8,10 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/lifecycle"
 	"github.com/boshu2/agentops/cli/internal/pool"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
@@ -23,6 +25,11 @@ var (
 	flywheelCloseLoopQuiet      bool
 )
 
+// flywheelCloseLoopResult keeps the pre-refactor JSON shape (using cmd/ao's
+// poolIngestResult / poolAutoPromotePromoteResult) so existing tests and
+// command output stay byte-identical. The orchestration logic now lives in
+// lifecycle.ExecuteCloseLoop; performFlywheelCloseLoop converts at the
+// boundary.
 type flywheelCloseLoopResult struct {
 	Ingest      poolIngestResult             `json:"ingest"`
 	AutoPromote poolAutoPromotePromoteResult `json:"auto_promote"`
@@ -41,7 +48,8 @@ type flywheelCloseLoopResult struct {
 		Rewarded  int `json:"rewarded"`
 		Skipped   int `json:"skipped"`
 	} `json:"citation_feedback"`
-	MemoryPromoted int `json:"memory_promoted"`
+	MemoryPromoted int      `json:"memory_promoted"`
+	Degraded       []string `json:"-"`
 }
 
 var flywheelCloseLoopCmd = &cobra.Command{
@@ -84,76 +92,144 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Render degraded notes to stderr to preserve historical warning behavior,
+	// guarded by quiet mode the same way the pre-refactor helper did. Notes
+	// already prefixed with "info:" are rendered verbatim so the pre-refactor
+	// "info: generated N skill draft(s)" message is byte-identical.
+	if !flywheelCloseLoopQuiet {
+		for _, note := range result.Degraded {
+			if strings.HasPrefix(note, "info:") {
+				fmt.Fprintln(os.Stderr, note)
+				continue
+			}
+			fmt.Fprintf(os.Stderr, "warn: %s\n", note)
+		}
+	}
+
 	return outputFlywheelCloseLoopResult(result)
 }
 
+// performFlywheelCloseLoop is a thin wrapper around lifecycle.ExecuteCloseLoop
+// that wires the package-main helpers (ingest, auto-promote, citation feedback,
+// memory promotion, maturity transitions) into the in-process entry point and
+// then converts the lifecycle result to the cmd/ao-local JSON shape.
 func performFlywheelCloseLoop(cwd, pendingDir string, threshold time.Duration, quiet bool) (flywheelCloseLoopResult, error) {
-	result := flywheelCloseLoopResult{}
+	opts := lifecycle.CloseLoopOpts{
+		PendingDir:  pendingDir,
+		Threshold:   threshold,
+		Quiet:       quiet,
+		DryRun:      GetDryRun(),
+		IncludeGold: true,
 
-	// 1) pool ingest (pending markdown → pool candidates)
-	ingestFiles, err := resolveIngestFiles(cwd, pendingDir, nil)
+		ResolveIngestFiles: resolveIngestFiles,
+		IngestFilesToPool: func(cwd string, files []string) (lifecycle.CloseLoopIngestResult, error) {
+			raw, err := ingestPendingFilesToPool(cwd, files)
+			return lifecycle.CloseLoopIngestResult(raw), err
+		},
+		AutoPromoteFn: func(p *pool.Pool, th time.Duration, includeGold bool) (lifecycle.CloseLoopAutoPromoteResult, error) {
+			raw, err := autoPromoteAndPromoteToArtifacts(p, th, includeGold)
+			return lifecycle.CloseLoopAutoPromoteResult(raw), err
+		},
+		ProcessCitationFeedback: processCitationFeedback,
+		PromoteCitedLearnings:   promoteCitedLearnings,
+		PromoteToMemory:         promoteToMemory,
+		StoreIndexUpsertFn:      storeIndexUpsert,
+		ApplyMaturityFn: func(cwd string) (lifecycle.MaturityTransitionSummary, error) {
+			s, err := applyAllMaturityTransitions(cwd)
+			return lifecycle.MaturityTransitionSummary{
+				Total:        s.Total,
+				Applied:      s.Applied,
+				ChangedPaths: s.ChangedPaths,
+			}, err
+		},
+	}
+
+	res, err := lifecycle.ExecuteCloseLoop(cwd, opts)
 	if err != nil {
-		return result, err
+		return flywheelCloseLoopResult{}, err
 	}
-	result.Ingest, err = ingestPendingFilesToPool(cwd, ingestFiles)
-	if err != nil {
-		return result, err
+	return convertLifecycleCloseLoopResult(res), nil
+}
+
+// convertLifecycleCloseLoopResult re-shapes a lifecycle.CloseLoopResult into
+// the cmd/ao-local flywheelCloseLoopResult type. The shapes are field-identical
+// but the Go type identities differ, so we copy explicitly.
+func convertLifecycleCloseLoopResult(res *lifecycle.CloseLoopResult) flywheelCloseLoopResult {
+	if res == nil {
+		return flywheelCloseLoopResult{}
+	}
+	out := flywheelCloseLoopResult{
+		Ingest:         poolIngestResult(res.Ingest),
+		AutoPromote:    poolAutoPromotePromoteResult(res.AutoPromote),
+		MemoryPromoted: res.MemoryPromoted,
+		Degraded:       res.Degraded,
+	}
+	out.AntiPattern.Eligible = res.AntiPattern.Eligible
+	out.AntiPattern.Promoted = res.AntiPattern.Promoted
+	out.AntiPattern.Paths = res.AntiPattern.Paths
+	out.Store.Categorize = res.Store.Categorize
+	out.Store.Indexed = res.Store.Indexed
+	out.Store.IndexPath = res.Store.IndexPath
+	out.CitationFeedback.Processed = res.CitationFeedback.Processed
+	out.CitationFeedback.Rewarded = res.CitationFeedback.Rewarded
+	out.CitationFeedback.Skipped = res.CitationFeedback.Skipped
+	return out
+}
+
+// maturityTransitionSummary holds the results of applying all maturity
+// transitions. Kept local to cmd/ao so the existing tests in
+// flywheel_close_loop_test.go continue to compile and pass.
+type maturityTransitionSummary struct {
+	Total        int      `json:"total"`
+	Applied      int      `json:"applied"`
+	ChangedPaths []string `json:"changed_paths,omitempty"`
+}
+
+// applyAllMaturityTransitions scans .agents/learnings and .agents/patterns for
+// pending maturity transitions and applies them. Kept here (instead of being
+// moved into internal/lifecycle) so the existing cmd/ao tests in
+// flywheel_close_loop_test.go continue to compile.
+func applyAllMaturityTransitions(cwd string) (maturityTransitionSummary, error) {
+	dirs := []string{
+		filepath.Join(cwd, ".agents", "learnings"),
+		filepath.Join(cwd, ".agents", "patterns"),
 	}
 
-	// 2) auto-promote + promote
-	p := pool.NewPool(cwd)
-	result.AutoPromote, err = autoPromoteAndPromoteToArtifacts(p, threshold, true)
-	if err != nil {
-		return result, err
-	}
-
-	// 3) citation-to-utility feedback: process unprocessed citations
-	// Run BEFORE maturity transitions so utility bumps from citations
-	// are reflected in maturity evaluations within the same cycle.
-	processed, rewarded, skipped := processCitationFeedback(cwd)
-	result.CitationFeedback.Processed = processed
-	result.CitationFeedback.Rewarded = rewarded
-	result.CitationFeedback.Skipped = skipped
-
-	// 4) auto-promote learnings whose utility was bumped by citation feedback
-	promoteCitedLearnings(cwd, quiet)
-
-	// 5) apply ALL maturity transitions (not just anti-patterns)
-	maturityResult, err := applyAllMaturityTransitions(cwd)
-	if err != nil {
-		return result, err
-	}
-	result.AntiPattern.Eligible = maturityResult.Total
-	result.AntiPattern.Promoted = maturityResult.Applied
-	result.AntiPattern.Paths = maturityResult.ChangedPaths
-
-	// 6) store index (categorize) for newly created/changed artifacts
-	pathsToIndex := append([]string{}, result.AutoPromote.Artifacts...)
-	pathsToIndex = append(pathsToIndex, maturityResult.ChangedPaths...)
-	result.Store.Categorize = true
-	indexed, indexPath, err := storeIndexUpsert(cwd, pathsToIndex, true)
-	if err != nil {
-		return result, err
-	}
-	result.Store.Indexed = indexed
-	result.Store.IndexPath = indexPath
-
-	// 7) promote high-value learnings to MEMORY.md
-	memoryPromoted, memErr := promoteToMemory(cwd)
-	if memErr != nil && !quiet {
-		fmt.Fprintf(os.Stderr, "warn: memory promotion: %v\n", memErr)
-	}
-	result.MemoryPromoted = memoryPromoted
-
-	if draftResult, draftErr := ratchet.GenerateSkillDrafts(cwd); draftErr != nil {
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "warn: skill draft generation: %v\n", draftErr)
+	summary := maturityTransitionSummary{}
+	for _, dir := range dirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
 		}
-	} else if draftResult.Generated > 0 && !quiet {
-		fmt.Fprintf(os.Stderr, "info: generated %d skill draft(s)\n", draftResult.Generated)
+
+		results, err := ratchet.ScanForMaturityTransitions(dir)
+		if err != nil {
+			return maturityTransitionSummary{}, fmt.Errorf("scan transitions in %s: %w", dir, err)
+		}
+
+		summary.Total += len(results)
+		if len(results) == 0 || GetDryRun() {
+			continue
+		}
+
+		for _, r := range results {
+			learningPath, ferr := findLearningFile(filepath.Dir(dir), r.LearningID)
+			if ferr != nil {
+				VerbosePrintf("Warning: could not find %s: %v\n", r.LearningID, ferr)
+				continue
+			}
+			applied, aerr := ratchet.ApplyMaturityTransition(learningPath)
+			if aerr != nil {
+				VerbosePrintf("Warning: could not apply transition for %s: %v\n", r.LearningID, aerr)
+				continue
+			}
+			if applied.Transitioned {
+				summary.Applied++
+				summary.ChangedPaths = append(summary.ChangedPaths, learningPath)
+			}
+		}
 	}
 
-	return result, nil
+	return summary, nil
 }
 
 func outputFlywheelCloseLoopResult(res flywheelCloseLoopResult) error {
@@ -313,57 +389,6 @@ func autoPromoteAndPromoteToArtifacts(p *pool.Pool, threshold time.Duration, inc
 	}
 
 	return result, nil
-}
-
-// maturityTransitionSummary holds the results of applying all maturity transitions.
-type maturityTransitionSummary struct {
-	Total        int      `json:"total"`
-	Applied      int      `json:"applied"`
-	ChangedPaths []string `json:"changed_paths,omitempty"`
-}
-
-// applyAllMaturityTransitions scans learnings and patterns, applying all pending transitions.
-func applyAllMaturityTransitions(cwd string) (maturityTransitionSummary, error) {
-	dirs := []string{
-		filepath.Join(cwd, ".agents", "learnings"),
-		filepath.Join(cwd, ".agents", "patterns"),
-	}
-
-	summary := maturityTransitionSummary{}
-	for _, dir := range dirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		}
-
-		results, err := ratchet.ScanForMaturityTransitions(dir)
-		if err != nil {
-			return maturityTransitionSummary{}, fmt.Errorf("scan transitions in %s: %w", dir, err)
-		}
-
-		summary.Total += len(results)
-		if len(results) == 0 || GetDryRun() {
-			continue
-		}
-
-		for _, r := range results {
-			learningPath, ferr := findLearningFile(filepath.Dir(dir), r.LearningID)
-			if ferr != nil {
-				VerbosePrintf("Warning: could not find %s: %v\n", r.LearningID, ferr)
-				continue
-			}
-			applied, aerr := ratchet.ApplyMaturityTransition(learningPath)
-			if aerr != nil {
-				VerbosePrintf("Warning: could not apply transition for %s: %v\n", r.LearningID, aerr)
-				continue
-			}
-			if applied.Transitioned {
-				summary.Applied++
-				summary.ChangedPaths = append(summary.ChangedPaths, learningPath)
-			}
-		}
-	}
-
-	return summary, nil
 }
 
 // loadExistingIndexEntries reads existing entries from a JSONL index file (best-effort).

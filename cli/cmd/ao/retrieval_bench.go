@@ -540,9 +540,28 @@ func defaultBenchQueries() []benchCase {
 }
 
 var retrievalBenchCmd = &cobra.Command{
-	Use:     "retrieval-bench",
-	Short:   "Run retrieval quality benchmarks",
-	Long:    "Measure Precision@K and MRR against a curated corpus of learning artifacts.",
+	Use:   "retrieval-bench",
+	Short: "Run retrieval quality benchmarks",
+	Long: `Measure Precision@K and MRR against a curated corpus of learning artifacts.
+
+Determinism: retrieval-bench --live --json is deterministic by construction.
+The live query set is a hardcoded slice (liveQueries) in this file; the
+corpus is either the real .agents/learnings/ directory, a fixture passed
+via --corpus, or ~/.agents/learnings/ when --global is set. The underlying
+retrieval pipeline (collectLearnings → rankLearnings) uses a stable
+slices.SortFunc by CompositeScore and performs no random sampling — the
+internal/bench package is a set of pure string/math helpers with no RNG.
+For a fixed corpus state, precision@k, MRR, and top_ids are stable across
+runs.
+
+Dream's nightly compounder (ao overnight) relies on this contract in its
+MEASURE stage to detect plateau deltas between runs. No --seed or
+--eval-set flag is provided because the bench is already eval-set based
+and deterministic; adding one would be dead code. If a future change
+introduces randomness anywhere in the --live path (cli/internal/bench or
+the retrieval engine called by collectLearnings), it is a contract
+violation and must be reverted or reseeded to preserve plateau
+detection.`,
 	GroupID: "knowledge",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if benchLive {
