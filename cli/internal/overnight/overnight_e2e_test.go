@@ -151,6 +151,12 @@ func countLines(t *testing.T, path string) int {
 // also calls RunIngest/RunReduce/RunMeasure inline to prove the real
 // stage drivers work against the same fixture.
 func TestRunLoop_L2_FullIteration_CorpusQualityMoves(t *testing.T) {
+	// Isolate HOME: harvest.Promote writes to $HOME/.agents/learnings/ by
+	// default. Without this guard, every L2 run poisons the real user's
+	// global knowledge hub with 150 "unknown-unknown-learning-NNN.md"
+	// fixture files. Confirmed bug during Phase 3 validation.
+	t.Setenv("HOME", t.TempDir())
+
 	restore := stubInjectRefresh(t)
 	defer restore()
 
@@ -288,6 +294,7 @@ func TestRunLoop_L2_FullIteration_CorpusQualityMoves(t *testing.T) {
 // frontmatter key, then verify VerifyMetadataRoundTrip surfaces the
 // drop and rollback restores the live tree.
 func TestRunLoop_L2_MetadataStripDetected(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate global hub writes; see note on sibling test
 	restore := stubInjectRefresh(t)
 	defer restore()
 
@@ -362,6 +369,7 @@ func TestRunLoop_L2_MetadataStripDetected(t *testing.T) {
 // fixture, runs REDUCE, and asserts no corpus metric drops by more
 // than 0.30 between pre- and post-REDUCE corpus.Compute snapshots.
 func TestRunLoop_L2_CompoundFilterCliff_DoesNotSilentlyKillCorpus(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate global hub writes; see note on sibling test
 	restore := stubInjectRefresh(t)
 	defer restore()
 
