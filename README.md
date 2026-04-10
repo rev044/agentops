@@ -136,6 +136,31 @@ Consensus: WARN — add rate limiting to /login before shipping
 
 That ran overnight on this repo. Regression gates auto-reverted anything that broke a passing goal.
 
+**The night-shift endgame** — your agent wakes up smarter, even when you don't touch code:
+
+```text
+> /dream start
+
+[overnight]  RunLoop starting (budget=2h, max_iter=4, K=2, warn_only=true)
+[iter-1]     INGEST   harvest catalog: 152 artifacts (checkpoint preview)
+             REDUCE   dedup → temper → defrag-prune → close-loop
+                      findings-router: 7 new → next-work.jsonl
+                      inject-refresh: in-process
+                      metadata integrity: PASS (0 stripped fields)
+             COMMIT   staging → live (atomic)
+             MEASURE  corpus-quality snapshot captured  (4.2s)
+[iter-2]     INGEST clean · REDUCE clean · MEASURE Δ +0.003 (plateau)
+[halted]     plateau — K=2 consecutive sub-epsilon deltas
+
+Morning report: .agents/overnight/<run-id>/summary.md
+  • 2 committed iterations · 0 rolled back
+  • 7 findings routed into next-work.jsonl
+  • 0 source mutations · 0 git ops · 0 symlinks  (anti-goals enforced)
+  • Inject cache rebuilt — /evolve tomorrow starts against a fresher corpus
+```
+
+`/evolve` is the day loop — fitness-driven code improvement that can touch source. `/dream` is the night loop — fitness-driven *knowledge* compounding that never touches source, runs through a checkpointed overlay, and rolls back on regression. Run Dream overnight, run Evolve in the morning against the compounded corpus, and the environment gets sharper even when you're asleep.
+
 <details>
 <summary><b>More examples</b> — swarm, continuity, and intent-based entry points</summary>
 
@@ -246,7 +271,7 @@ See the full before/after guide: [docs/behavioral-discipline.md](docs/behavioral
 
 AgentOps gives your coding agent four things it does not have by default:
 
-1. **Bookkeeping** — sessions do not just leave behind chat history; AgentOps captures learnings, findings, and reusable context, then resurfaces them through `.agents/`, retrieval, and the flywheel.
+1. **Bookkeeping** — sessions do not just leave behind chat history; AgentOps captures learnings, findings, and reusable context, then resurfaces them through `.agents/`, retrieval, and the flywheel. A bounded overnight compounding loop (`/dream`) runs dedup, defrag, close-loop, findings-routing, and inject refresh through a checkpointed overlay so the morning session starts against a demonstrably better state — never by mutating source code.
 2. **Validation** — `/pre-mortem`, `/vibe`, and `/council` validate plans and code before they ship, and record what worked, what failed, and why.
 3. **Primitives** — individually invocable skills, hooks, and CLI surfaces you can pull from for almost any interaction.
 4. **Flows** — named compositions of those primitives for discovery, implementation, validation, and knowledge extraction that you can run separately, compose together, or automate end to end.
@@ -284,7 +309,7 @@ Every skill works alone. Primitives are the single skills, hooks, and CLI surfac
 | `/rpi` | Full pipeline flow — discovery → implementation → validation → bookkeeping |
 | `/vibe` | Code quality review — complexity + council + domain checklists |
 | `/evolve` | Measure goals, fix the worst gap, regression-gate everything, repeat overnight |
-| `/dream` | Private overnight compounding — setup, bedtime run, and morning report on the local Dream engine |
+| `/dream` | Bounded overnight knowledge-compounding loop — harvest → forge → dedup → defrag → close-loop → findings-router → inject refresh, checkpointed with rollback on regression, halts on plateau or wall-clock budget. Never mutates source, invokes `/rpi`, or touches git. The night-shift companion to `/evolve` |
 
 <details>
 <summary><b>Full catalog</b> — validation, flows, bookkeeping, and supporting skills</summary>
@@ -336,6 +361,19 @@ The explicit operator surface around that line is:
 - `ao factory start` for briefing-first startup
 - `/rpi` or `ao rpi phased` for delivery
 - `ao codex stop` for explicit session closeout
+
+### Day shift + night shift
+
+AgentOps runs two complementary compounding loops. Use both.
+
+| Lane | Runs | Mutates code? | Mutates corpus? | Outer loop? | Budget |
+|------|------|---------------|-----------------|-------------|--------|
+| `/evolve` | daytime, operator-driven | Yes (via `/rpi`) | Light | Yes (cycle cap) | per-cycle |
+| `/dream` | nightly, private local | **No** | **Heavy (checkpointed)** | **Yes (convergence)** | wall-clock + plateau |
+
+Both lanes share the same fitness substrate (`ao corpus fitness` and `ao goals measure`), so Dream's overnight deltas are directly comparable to Evolve's daytime deltas. The cycle that emerges: Dream runs overnight, compounds the knowledge corpus, halts on plateau or regression, and rolls back anything that breaks the metadata round-trip. Evolve starts each day against that freshly-compounded corpus with a clean fitness baseline. The environment gets sharper every 24 hours, whether or not you touched source code.
+
+Dream's hard anti-goals are mechanically enforced by test: it never mutates git-tracked source, never invokes `/rpi` or any code-mutating flow, never creates symlinks, never performs git operations. The compounding lane is a separate machine from the delivery lane.
 
 ### How bookkeeping compounds
 
