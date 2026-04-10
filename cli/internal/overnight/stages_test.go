@@ -321,6 +321,119 @@ func TestRunReduce_CloseLoopCallbacksNil_Skipped(t *testing.T) {
 	}
 }
 
+// TestRunReduce_IncludesInjectRefreshStage pins the Wave 4 Issue 16
+// contract: RunReduce's stage pipeline MUST invoke the inject-refresh
+// stage between findings-router and the metadata integrity check, and
+// the outcome MUST land on ReduceResult. The test installs a stub via
+// refreshInjectCacheFn so it neither touches exec.Command nor requires
+// the `ao` binary on PATH.
+func TestRunReduce_IncludesInjectRefreshStage(t *testing.T) {
+	cwd, cp, ingest := newReduceFixture(t)
+
+	// Install a stub refresh that returns a structured success result.
+	// Restore the default after the test so unrelated tests continue
+	// to exercise the real in-process path.
+	stubCalled := false
+	prev := refreshInjectCacheFn
+	refreshInjectCacheFn = func(ctx context.Context, stubCwd string, log io.Writer) (*InjectRefreshResult, error) {
+		stubCalled = true
+		if stubCwd != cwd {
+			t.Errorf("stub received cwd %q, want %q", stubCwd, cwd)
+		}
+		return &InjectRefreshResult{
+			Attempted: true,
+			Succeeded: true,
+			Method:    "in-process",
+			Duration:  time.Millisecond,
+		}, nil
+	}
+	t.Cleanup(func() { refreshInjectCacheFn = prev })
+
+	rec := &recorder{}
+	res, err := RunReduce(context.Background(), newTestOpts(cwd), ingest, cp, rec.callbacks(), io.Discard)
+	if err != nil {
+		t.Fatalf("RunReduce: %v", err)
+	}
+	if res.RolledBack {
+		t.Fatalf("unexpected rollback: reason=%s", res.RollbackReason)
+	}
+	if !stubCalled {
+		t.Fatal("expected inject-refresh stub to be invoked")
+	}
+	if res.InjectRefreshResult == nil {
+		t.Fatal("expected ReduceResult.InjectRefreshResult to be non-nil")
+	}
+	if !res.InjectRefreshResult.Succeeded {
+		t.Errorf("expected InjectRefreshResult.Succeeded=true, got %+v",
+			res.InjectRefreshResult)
+	}
+	if res.InjectRefreshResult.Method != "in-process" {
+		t.Errorf("expected Method=in-process, got %q",
+			res.InjectRefreshResult.Method)
+	}
+	if !res.InjectRefreshed {
+		t.Error("expected ReduceResult.InjectRefreshed=true")
+	}
+	// Metadata integrity must still pass — inject-refresh runs before
+	// the integrity check and must not interfere with it.
+	if !res.MetadataIntegrity.Pass {
+		t.Errorf("expected MetadataIntegrity.Pass=true, got %+v",
+			res.MetadataIntegrity)
+	}
+}
+
+// TestRefreshInjectCache_SkipsMissingAgentsDir verifies that the
+// stage soft-degrades when .agents/ is absent: no error, no panic,
+// just a "skipped" result with a degraded note. This is the documented
+// honest-degradation path from inject_refresh.go.
+func TestRefreshInjectCache_SkipsMissingAgentsDir(t *testing.T) {
+	cwd := t.TempDir()
+	// No .agents/ created.
+	res, err := RefreshInjectCache(context.Background(), cwd, io.Discard)
+	if err != nil {
+		t.Fatalf("RefreshInjectCache: %v", err)
+	}
+	if res == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if res.Method != "skipped" {
+		t.Errorf("expected Method=skipped, got %q", res.Method)
+	}
+	if res.Succeeded {
+		t.Error("expected Succeeded=false for skipped path")
+	}
+	if !containsSubstring(res.Degraded, "inject-refresh") {
+		t.Errorf("expected inject-refresh degraded note, got %v", res.Degraded)
+	}
+}
+
+// TestRefreshInjectCache_InProcessHappyPath covers the preferred path:
+// a real .agents/ tree with one learning is rebuilt into index.jsonl
+// via search.BuildIndex + search.SaveIndex.
+func TestRefreshInjectCache_InProcessHappyPath(t *testing.T) {
+	cwd := t.TempDir()
+	writeLearning(t, cwd, "2026-04-09-refresh.md", map[string]string{
+		"type":     "learning",
+		"maturity": "provisional",
+	}, "# Refresh\n\nBody about the refresh path.\n")
+
+	res, err := RefreshInjectCache(context.Background(), cwd, io.Discard)
+	if err != nil {
+		t.Fatalf("RefreshInjectCache: %v", err)
+	}
+	if res.Method != "in-process" {
+		t.Errorf("expected Method=in-process, got %q", res.Method)
+	}
+	if !res.Succeeded {
+		t.Errorf("expected Succeeded=true, got %+v", res)
+	}
+	// index.jsonl should exist under .agents/.
+	idxPath := filepath.Join(cwd, ".agents", "index.jsonl")
+	if _, err := os.Stat(idxPath); err != nil {
+		t.Errorf("expected index.jsonl at %s, got %v", idxPath, err)
+	}
+}
+
 func TestRunReduce_CloseLoopStageFailurePropagates(t *testing.T) {
 	cwd, cp, ingest := newReduceFixture(t)
 	rec := &recorder{closeLoopErr: errors.New("synthetic close-loop failure")}

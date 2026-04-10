@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/boshu2/agentops/cli/internal/config"
+	ovn "github.com/boshu2/agentops/cli/internal/overnight"
 )
 
 var (
@@ -31,6 +32,14 @@ var (
 	overnightModels      string
 	overnightCreative    bool
 	overnightReportFrom  string
+
+	// Dream nightly compounder loop flags (schema v2).
+	overnightQueue           string
+	overnightMaxIterations   int
+	overnightPlateauEpsilon  float64
+	overnightPlateauWindowK  int
+	overnightWarnOnly        bool
+	overnightCheckpointMaxMB int64
 )
 
 type overnightSettings struct {
@@ -88,6 +97,14 @@ type overnightSummary struct {
 	Degraded      []string                 `json:"degraded,omitempty" yaml:"degraded,omitempty"`
 	Recommended   []string                 `json:"recommended,omitempty" yaml:"recommended,omitempty"`
 	NextAction    string                   `json:"next_action,omitempty" yaml:"next_action,omitempty"`
+
+	// Dream-report schema v2 fields. These are populated by the nightly
+	// compounder RunLoop (cli/internal/overnight) when v2 mode is active.
+	// Marked omitempty so v1 readers tolerate their absence.
+	Iterations       []ovn.IterationSummary `json:"iterations,omitempty" yaml:"iterations,omitempty"`
+	FitnessDelta     map[string]any         `json:"fitness_delta,omitempty" yaml:"fitness_delta,omitempty"`
+	PlateauReason    string                 `json:"plateau_reason,omitempty" yaml:"plateau_reason,omitempty"`
+	RegressionReason string                 `json:"regression_reason,omitempty" yaml:"regression_reason,omitempty"`
 }
 
 var overnightCmd = &cobra.Command{
@@ -151,6 +168,14 @@ func init() {
 	_ = overnightStartCmd.Flags().MarkDeprecated("models", "use --runner instead")
 	overnightStartCmd.Flags().BoolVar(&overnightCreative, "creative-lane", false, "Enable the bounded wildcard lane when Dream Council is running")
 
+	// Dream nightly compounder loop flags (schema v2).
+	overnightStartCmd.Flags().StringVar(&overnightQueue, "queue", "", "Operator-pinned nightly priorities (markdown file)")
+	overnightStartCmd.Flags().IntVar(&overnightMaxIterations, "max-iterations", 0, "Cap iteration count (0 = budget-bounded only)")
+	overnightStartCmd.Flags().Float64Var(&overnightPlateauEpsilon, "plateau-epsilon", 0.01, "Plateau threshold: |delta| below this counts as plateau")
+	overnightStartCmd.Flags().IntVar(&overnightPlateauWindowK, "plateau-window", 2, "Plateau window K (consecutive sub-epsilon deltas required to halt)")
+	overnightStartCmd.Flags().BoolVar(&overnightWarnOnly, "warn-only", true, "First-N-runs mode: warn on plateau/regression, don't halt. Default true; flip to false once thresholds are calibrated.")
+	overnightStartCmd.Flags().Int64Var(&overnightCheckpointMaxMB, "checkpoint-max-mb", 512, "Max total MB of checkpoint storage per run")
+
 	overnightReportCmd.Flags().StringVar(&overnightReportFrom, "from", "", "Directory containing summary.json, or the summary.json file itself")
 }
 
@@ -167,7 +192,7 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 
 	startedAt := time.Now().UTC()
 	summary := overnightSummary{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		Mode:          "dream.local-bedtime",
 		RunID:         startedAt.Format("20060102T150405Z"),
 		Goal:          strings.TrimSpace(overnightGoal),
@@ -229,14 +254,43 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("dream run requires a local .agents corpus at %s", filepath.Join(cwd, ".agents"))
 	}
 
+	// Crash recovery pass (pm-MISS-01) BEFORE we acquire the lock. Any
+	// stale two-phase commit markers from an interrupted previous run are
+	// either cleaned up (DONE state) or reversed (READY state) so live
+	// .agents/ returns to a consistent shape.
+	if recoveryActions, recErr := ovn.RecoverFromCrash(cwd); recErr != nil {
+		summary.Degraded = append(summary.Degraded, fmt.Sprintf("startup recovery: %v", recErr))
+		for _, action := range recoveryActions {
+			summary.Degraded = append(summary.Degraded, "recovery: "+action)
+		}
+	} else {
+		for _, action := range recoveryActions {
+			summary.Degraded = append(summary.Degraded, "recovery: "+action)
+		}
+	}
+
 	if err := os.MkdirAll(filepath.Dir(summary.Runtime.LockPath), 0o755); err != nil {
 		return fmt.Errorf("create dream lock dir: %w", err)
 	}
+
+	// Stale-lock reclaim (pm-MISS-01): if the previous run crashed without
+	// releasing the lock and the holding PID is gone, remove the lock file
+	// before attempting to acquire it. 12h matches the documented
+	// LockStaleAfter default in internal/overnight.
+	if stale, _ := ovn.LockIsStale(summary.Runtime.LockPath, 12*time.Hour); stale {
+		_ = os.Remove(summary.Runtime.LockPath)
+		summary.Degraded = append(summary.Degraded, "reclaimed stale overnight lock")
+	}
+
 	lockFile, err := acquireOvernightLock(summary.Runtime.LockPath)
 	if err != nil {
 		return err
 	}
 	defer releaseOvernightLock(lockFile)
+
+	// Record our PID inside the lock file so future stale-lock checks can
+	// tell whether the holder is still alive.
+	_ = ovn.WriteLockPID(summary.Runtime.LockPath)
 
 	if err := os.MkdirAll(summary.OutputDir, 0o755); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
@@ -259,43 +313,43 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), settings.RunTimeout)
 	defer cancel()
 
-	if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["close_loop"], "flywheel", "close-loop", "--threshold", "0h", "--json"); err != nil {
-		setOvernightStepStatus(&summary, "close-loop", "failed", summary.Artifacts["close_loop"], err.Error())
-		summary.Status = "failed"
-		_ = finalizeOvernightSummary(&summary, startedAt)
-		return fmt.Errorf("close-loop step failed: %w", err)
+	// Schema v2 path: replace the old 5-step linear script with a single
+	// call into the bounded INGEST → REDUCE → MEASURE compounder loop.
+	// Rollback is `git revert`; there is no --legacy-preview fallback.
+	runOpts := ovn.RunLoopOptions{
+		Cwd:                cwd,
+		OutputDir:          summary.OutputDir,
+		RunTimeout:         settings.RunTimeout,
+		MaxIterations:      overnightMaxIterations,
+		PlateauEpsilon:     overnightPlateauEpsilon,
+		PlateauWindowK:     overnightPlateauWindowK,
+		WarnOnly:           overnightWarnOnly,
+		QueuePath:          overnightQueue,
+		CheckpointMaxBytes: overnightCheckpointMaxMB * 1024 * 1024,
+		LogWriter:          logFile,
 	}
-	setOvernightStepStatus(&summary, "close-loop", "done", summary.Artifacts["close_loop"], "")
+	loopResult, loopErr := ovn.RunLoop(ctx, runOpts)
+	if loopResult != nil {
+		summary.Iterations = loopResult.Iterations
+		summary.FitnessDelta = loopResult.FitnessDelta
+		summary.PlateauReason = loopResult.PlateauReason
+		summary.RegressionReason = loopResult.RegressionReason
+		summary.Degraded = append(summary.Degraded, loopResult.Degraded...)
 
-	if err := runOvernightCommand(ctx, cwd, logFile, nil, "--dry-run", "defrag", "--prune", "--dedup", "--oscillation-sweep", "--output-dir", filepath.Join(summary.OutputDir, "defrag"), "--quiet"); err != nil {
-		setOvernightStepStatus(&summary, "defrag-preview", "soft-fail", summary.Artifacts["defrag_report"], err.Error())
-		summary.Degraded = append(summary.Degraded, fmt.Sprintf("defrag preview failed: %v", err))
-	} else {
-		setOvernightStepStatus(&summary, "defrag-preview", "done", summary.Artifacts["defrag_report"], "preview-only; prune actions were not applied")
-	}
-
-	if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["metrics_health"], "metrics", "health", "--json"); err != nil {
-		setOvernightStepStatus(&summary, "metrics-health", "failed", summary.Artifacts["metrics_health"], err.Error())
-		summary.Status = "failed"
-		_ = finalizeOvernightSummary(&summary, startedAt)
-		return fmt.Errorf("metrics step failed: %w", err)
-	}
-	setOvernightStepStatus(&summary, "metrics-health", "done", summary.Artifacts["metrics_health"], "")
-
-	if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["retrieval_live"], "retrieval-bench", "--live", "--json"); err != nil {
-		setOvernightStepStatus(&summary, "retrieval-live", "soft-fail", summary.Artifacts["retrieval_live"], err.Error())
-		summary.Degraded = append(summary.Degraded, fmt.Sprintf("live retrieval bench failed: %v", err))
-	} else {
-		setOvernightStepStatus(&summary, "retrieval-live", "done", summary.Artifacts["retrieval_live"], "")
-	}
-
-	if summary.Goal != "" {
-		if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["briefing"], "knowledge", "brief", "--goal", summary.Goal, "--json"); err != nil {
-			setOvernightStepStatus(&summary, "knowledge-brief", "soft-fail", summary.Artifacts["briefing"], err.Error())
-			summary.Degraded = append(summary.Degraded, fmt.Sprintf("goal briefing unavailable: %v", err))
-		} else {
-			setOvernightStepStatus(&summary, "knowledge-brief", "done", summary.Artifacts["briefing"], "")
+		// Populate the v1 Steps[] field with one synthesized entry per
+		// iteration so legacy readers of summary.json still see a
+		// non-empty steps list.
+		for i, iter := range loopResult.Iterations {
+			summary.Steps = append(summary.Steps, overnightStepSummary{
+				Name:   fmt.Sprintf("iteration-%d", i+1),
+				Status: iter.Status,
+			})
 		}
+	}
+	if loopErr != nil {
+		summary.Status = "failed"
+		_ = finalizeOvernightSummary(&summary, startedAt)
+		return fmt.Errorf("dream run loop failed: %w", loopErr)
 	}
 
 	if err := runDreamCouncil(ctx, cwd, logFile, &summary, settings); err != nil {
@@ -421,51 +475,6 @@ func startKeepAwakeHelper(log io.Writer, enabled bool) (func(), string, string) 
 		_, _ = cmd.Process.Wait()
 	}
 	return stop, "caffeinate", ""
-}
-
-func runOvernightJSONStep(ctx context.Context, cwd string, log io.Writer, outputPath string, args ...string) error {
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		return fmt.Errorf("create parent dir for %s: %w", outputPath, err)
-	}
-	outFile, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", outputPath, err)
-	}
-	defer outFile.Close()
-	return runOvernightCommand(ctx, cwd, log, outFile, args...)
-}
-
-func runOvernightCommand(ctx context.Context, cwd string, log io.Writer, stdout io.Writer, args ...string) error {
-	aoPath := resolveAOExecutable()
-	fullArgs := append([]string{}, overnightGlobalArgs()...)
-	fullArgs = append(fullArgs, args...)
-	cmd := exec.CommandContext(ctx, aoPath, fullArgs...)
-	cmd.Dir = cwd
-	if stdout != nil {
-		cmd.Stdout = stdout
-	} else {
-		cmd.Stdout = log
-	}
-	cmd.Stderr = log
-	return cmd.Run()
-}
-
-func overnightGlobalArgs() []string {
-	args := []string{}
-	if path := strings.TrimSpace(GetConfigFile()); path != "" {
-		args = append(args, "--config", path)
-	}
-	if GetVerbose() {
-		args = append(args, "-v")
-	}
-	return args
-}
-
-func resolveAOExecutable() string {
-	if exe, err := os.Executable(); err == nil && filepath.Base(exe) == "ao" {
-		return exe
-	}
-	return "ao"
 }
 
 func setOvernightStepStatus(summary *overnightSummary, name, status, artifact, note string) {

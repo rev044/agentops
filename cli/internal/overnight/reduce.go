@@ -45,8 +45,17 @@ type ReduceResult struct {
 	FindingsRouted int
 
 	// InjectRefreshed indicates whether the inject-cache refresh stage
-	// ran. Always false in Wave 3 — Issue 16 (Wave 4) wires it.
+	// ran successfully. Flipped to true by Wave 4 Issue 16 when the
+	// inject-refresh stage completes without error.
 	InjectRefreshed bool
+
+	// InjectRefreshResult is the structured outcome of the
+	// inject-cache refresh stage. Nil when the stage never ran (for
+	// example, when the caller overrode refreshInjectCacheFn in a way
+	// that bypassed the stage). Populated in all other cases — the
+	// stage is best-effort and captures degraded notes rather than
+	// rolling back the iteration.
+	InjectRefreshResult *InjectRefreshResult
 
 	// MetadataIntegrity is the report from checkpoint.VerifyMetadataRoundTrip.
 	MetadataIntegrity MetadataIntegrityReport
@@ -94,7 +103,12 @@ type reduceStage struct {
 //     the callback set is nil so tests can exercise rollback without
 //     wiring the full cmd/ao helper graph.
 //  6. RouteFindings(cwd) — findings → next-work router.
-//  7. (Wave 4 Issue 16 inserts inject-cache refresh here.)
+//  7. RefreshInjectCache(ctx, cwd) — best-effort inject-cache refresh
+//     (Wave 4 Issue 16). Closes PRODUCT.md Gap #1's loop framing
+//     ("harvest → forge → INJECT → report"). Failures here are
+//     captured as degraded notes on the result and do NOT trigger a
+//     rollback: a stale inject cache is less bad than discarding the
+//     compounded corpus this iteration already landed.
 //  8. VerifyMetadataRoundTrip(cp) — frontmatter strip guard (pm-005).
 //
 // If ANY stage (1-6) returns an error OR the integrity check in stage 8
@@ -238,6 +252,34 @@ func RunReduce(
 				for _, d := range degraded {
 					result.Degraded = append(result.Degraded,
 						fmt.Sprintf("findings-router: %s", d))
+				}
+				return nil
+			},
+		},
+		{
+			// inject-refresh is best-effort: an error here is captured
+			// as a degraded note and does NOT trigger a rollback. A
+			// stale inject cache is strictly less bad than discarding
+			// the compounded corpus landed in stages 1-6. See pm-006
+			// in the Wave 4 pre-mortem and PRODUCT.md Gap #1.
+			name: "inject-refresh",
+			run: func() error {
+				ir, err := refreshInjectCacheFn(ctx, opts.Cwd, log)
+				if ir != nil {
+					result.InjectRefreshResult = ir
+					result.InjectRefreshed = ir.Succeeded
+					for _, d := range ir.Degraded {
+						result.Degraded = append(result.Degraded,
+							fmt.Sprintf("inject-refresh: %s", d))
+					}
+				}
+				if err != nil {
+					// Capture as a soft failure: record the error
+					// string on Degraded so the morning report can
+					// surface it, but return nil so the stage loop
+					// does not roll back the iteration.
+					result.Degraded = append(result.Degraded,
+						fmt.Sprintf("inject-refresh: soft-failed: %v", err))
 				}
 				return nil
 			},

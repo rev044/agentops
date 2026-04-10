@@ -5,8 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/harvest"
 )
@@ -338,6 +340,86 @@ func TestRunHarvest_MalformedFileBecomesWarning(t *testing.T) {
 	}
 	if cat.Warnings[0].Stage != "parse_frontmatter" {
 		t.Fatalf("warning stage = %q, want parse_frontmatter", cat.Warnings[0].Stage)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// failIfDreamHoldsLock — pm-011 Dream vs. harvest concurrency guard
+// ---------------------------------------------------------------------------
+
+// writeTestLockFile creates .agents/overnight/run.lock under repoRoot with
+// the given body. It returns the lock file path for follow-up mtime tweaks.
+func writeTestLockFile(t *testing.T, repoRoot, body string) string {
+	t.Helper()
+	lockDir := filepath.Join(repoRoot, ".agents", "overnight")
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatalf("mkdir lock dir: %v", err)
+	}
+	lockPath := filepath.Join(lockDir, "run.lock")
+	if err := os.WriteFile(lockPath, []byte(body), 0o644); err != nil {
+		t.Fatalf("write lock file: %v", err)
+	}
+	return lockPath
+}
+
+func TestHarvest_RefusesDuringDreamRun(t *testing.T) {
+	tmp := t.TempDir()
+	// Use the current process PID so ProcessAlive returns true
+	// deterministically without relying on any external process.
+	writeTestLockFile(t, tmp, strconv.Itoa(os.Getpid())+"\n")
+
+	err := failIfDreamHoldsLock(tmp)
+	if err == nil {
+		t.Fatalf("expected error when Dream holds a live lock, got nil")
+	}
+	if !strings.Contains(err.Error(), "Dream holds the overnight lock") {
+		t.Fatalf("error message = %q, want substring %q", err.Error(), "Dream holds the overnight lock")
+	}
+}
+
+func TestHarvest_ProceedsWhenNoLockFile(t *testing.T) {
+	tmp := t.TempDir()
+
+	if err := failIfDreamHoldsLock(tmp); err != nil {
+		t.Fatalf("expected nil when no lock file exists, got %v", err)
+	}
+}
+
+func TestHarvest_ProceedsWhenLockStale(t *testing.T) {
+	tmp := t.TempDir()
+	// Dead PID (way beyond the valid POSIX range on any normal
+	// system) plus a backdated mtime so LockIsStale returns true.
+	lockPath := writeTestLockFile(t, tmp, "999999999\n")
+
+	old := time.Now().Add(-24 * time.Hour)
+	if err := os.Chtimes(lockPath, old, old); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+
+	if err := failIfDreamHoldsLock(tmp); err != nil {
+		t.Fatalf("expected nil for stale lock, got %v", err)
+	}
+}
+
+func TestHarvest_ProceedsWhenLockPIDDead(t *testing.T) {
+	tmp := t.TempDir()
+	// Fresh mtime (default from WriteFile is now) so we bypass the
+	// stale fast-path and exercise the explicit PID liveness check.
+	writeTestLockFile(t, tmp, "999999999\n")
+
+	if err := failIfDreamHoldsLock(tmp); err != nil {
+		t.Fatalf("expected nil when lock PID is dead, got %v", err)
+	}
+}
+
+func TestHarvest_LockFileCorrupted_ProceedsWithWarning(t *testing.T) {
+	tmp := t.TempDir()
+	// Garbage content — not a decimal PID. ReadLockPID should return
+	// 0 and failIfDreamHoldsLock should proceed without blocking.
+	writeTestLockFile(t, tmp, "this is not a pid file\n")
+
+	if err := failIfDreamHoldsLock(tmp); err != nil {
+		t.Fatalf("expected nil for corrupt lock file, got %v", err)
 	}
 }
 
