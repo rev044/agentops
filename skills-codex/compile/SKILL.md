@@ -290,13 +290,13 @@ compiler script with your host OS:
 
 ```bash
 # Example: external cron entry for nightly compilation
-0 3 * * * cd /path/to/repo && AGENTOPS_COMPILE_RUNTIME=ollama bash skills/compile/scripts/compile.sh --force
+0 3 * * * cd /path/to/repo && AGENTOPS_COMPILE_RUNTIME=ollama bash skills-codex/compile/scripts/compile.sh --force
 ```
 
 AgentOps does **not** currently ship a first-class scheduler subcommand for this
 flow, and the CLI does **not** expose a dedicated compile subcommand. If you
 want unattended compilation today, use your host scheduler (`launchd`, `cron`,
-`systemd`, CI, etc.) to invoke `bash skills/compile/scripts/compile.sh`.
+`systemd`, CI, etc.) to invoke `bash skills-codex/compile/scripts/compile.sh`.
 If you want the broader private overnight loop, use `ao overnight start`
 instead of inventing a parallel Dream wrapper inside `$compile`.
 
@@ -317,7 +317,7 @@ These modes describe the interactive `$compile` skill behavior:
 
 ## Headless Script Flags
 
-For unattended runs, `bash skills/compile/scripts/compile.sh` supports:
+For unattended runs, `bash skills-codex/compile/scripts/compile.sh` supports:
 
 | Flag | Default | Description |
 |------|---------|-------------|
