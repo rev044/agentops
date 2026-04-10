@@ -378,6 +378,170 @@ func TestRunOvernightReportReadsSummaryJSON(t *testing.T) {
 	}
 }
 
+// TestRunOvernight_HardFail_WritesFailedSummary locks the hard-fail
+// contract (na-cdn): when the overnight Dream pipeline aborts on a
+// hard-fail step, finalizeOvernightSummary must still write both
+// summary.json and summary.md with status="failed", preserving the
+// last completed step, the degraded state, and the artifacts map.
+//
+// This mirrors the runOvernightStart hard-fail path where, on
+// ovn.RunLoop error, the command sets summary.Status = "failed" and
+// calls finalizeOvernightSummary(&summary, startedAt) before returning
+// the error. We exercise finalizeOvernightSummary directly (the same
+// pattern TestRunDreamCouncilWithMockRunners uses for its inner
+// helper) so the test is hermetic and does not require a real
+// .agents/ corpus or lock acquisition.
+func TestRunOvernight_HardFail_WritesFailedSummary(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputDir := filepath.Join(tmpDir, "overnight", "latest")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatalf("mkdir output: %v", err)
+	}
+
+	startedAt := time.Now().UTC().Add(-3 * time.Minute)
+	summary := overnightSummary{
+		SchemaVersion: 2,
+		Mode:          "dream.local-bedtime",
+		RunID:         "hardfail-run",
+		Goal:          "lock hard-fail contract",
+		RepoRoot:      tmpDir,
+		OutputDir:     outputDir,
+		// Simulate the state runOvernightStart leaves the summary in
+		// when ovn.RunLoop returns an error: status flipped to
+		// "failed", a last-completed step recorded, degraded entries
+		// accumulated, and the baseline artifacts map populated with
+		// summary_json / summary_markdown paths.
+		Status:    "failed",
+		StartedAt: startedAt.Format(time.RFC3339),
+		Runtime: overnightRuntimeSummary{
+			KeepAwake:          false,
+			KeepAwakeMode:      "disabled",
+			RequestedTimeout:   "8h",
+			EffectiveTimeout:   "8h0m0s",
+			LogPath:            filepath.Join(outputDir, "overnight.log"),
+			ProcessContractDoc: "docs/contracts/dream-run-contract.md",
+			ReportContractDoc:  "docs/contracts/dream-report.md",
+		},
+		Steps: []overnightStepSummary{
+			{
+				Name:     "close-loop",
+				Status:   "done",
+				Command:  "ao flywheel close-loop --threshold 0h --json",
+				Artifact: filepath.Join(outputDir, "close-loop.json"),
+			},
+			{
+				Name:    "metrics-health",
+				Status:  "failed",
+				Command: "ao metrics health --json",
+				Note:    "hard-fail: metrics-health exited non-zero",
+			},
+		},
+		Artifacts: map[string]string{
+			"close_loop":       filepath.Join(outputDir, "close-loop.json"),
+			"metrics_health":   filepath.Join(outputDir, "metrics-health.json"),
+			"summary_json":     filepath.Join(outputDir, "summary.json"),
+			"summary_markdown": filepath.Join(outputDir, "summary.md"),
+		},
+		Degraded: []string{"metrics-health: hard-fail simulated for regression test"},
+	}
+
+	if err := finalizeOvernightSummary(&summary, startedAt); err != nil {
+		t.Fatalf("finalizeOvernightSummary on hard-fail path: %v", err)
+	}
+
+	// Assert 1: summary.json exists and parses with status == "failed".
+	summaryJSONPath := filepath.Join(outputDir, "summary.json")
+	if _, err := os.Stat(summaryJSONPath); err != nil {
+		t.Fatalf("expected summary.json at %s: %v", summaryJSONPath, err)
+	}
+	jsonBytes, err := os.ReadFile(summaryJSONPath)
+	if err != nil {
+		t.Fatalf("read summary.json: %v", err)
+	}
+	var persisted overnightSummary
+	if err := json.Unmarshal(jsonBytes, &persisted); err != nil {
+		t.Fatalf("parse summary.json: %v\npayload=%s", err, string(jsonBytes))
+	}
+	if persisted.Status != "failed" {
+		t.Errorf("summary.json status = %q, want %q", persisted.Status, "failed")
+	}
+
+	// Assert 2: summary.md exists and records the failed status.
+	summaryMDPath := filepath.Join(outputDir, "summary.md")
+	mdBytes, err := os.ReadFile(summaryMDPath)
+	if err != nil {
+		t.Fatalf("read summary.md: %v", err)
+	}
+	md := string(mdBytes)
+	if !strings.Contains(md, "- Status: `failed`") {
+		t.Errorf("summary.md missing failed status line\npayload=%s", md)
+	}
+
+	// Assert 3: the LAST completed step (close-loop) is preserved
+	// verbatim alongside the failed hard-fail step.
+	if len(persisted.Steps) < 2 {
+		t.Fatalf("persisted Steps length = %d, want >= 2", len(persisted.Steps))
+	}
+	var lastDone, hardFail *overnightStepSummary
+	for i := range persisted.Steps {
+		step := &persisted.Steps[i]
+		switch step.Name {
+		case "close-loop":
+			lastDone = step
+		case "metrics-health":
+			hardFail = step
+		}
+	}
+	if lastDone == nil {
+		t.Fatal("expected last-completed step close-loop in persisted summary")
+	}
+	if lastDone.Status != "done" {
+		t.Errorf("close-loop status = %q, want %q", lastDone.Status, "done")
+	}
+	if lastDone.Artifact == "" {
+		t.Error("close-loop artifact was not preserved on hard-fail summary")
+	}
+	if hardFail == nil {
+		t.Fatal("expected hard-fail step metrics-health in persisted summary")
+	}
+	if hardFail.Status != "failed" {
+		t.Errorf("metrics-health status = %q, want %q", hardFail.Status, "failed")
+	}
+
+	// Assert 4: degraded notes and the artifacts map are preserved.
+	if len(persisted.Degraded) == 0 {
+		t.Error("persisted Degraded unexpectedly empty on hard-fail summary")
+	}
+	foundDegraded := false
+	for _, d := range persisted.Degraded {
+		if strings.Contains(d, "metrics-health") {
+			foundDegraded = true
+			break
+		}
+	}
+	if !foundDegraded {
+		t.Errorf("persisted Degraded missing metrics-health entry: %#v", persisted.Degraded)
+	}
+	if got := persisted.Artifacts["summary_json"]; got != summaryJSONPath {
+		t.Errorf("artifacts[summary_json] = %q, want %q", got, summaryJSONPath)
+	}
+	if got := persisted.Artifacts["summary_markdown"]; got != summaryMDPath {
+		t.Errorf("artifacts[summary_markdown] = %q, want %q", got, summaryMDPath)
+	}
+	if got := persisted.Artifacts["close_loop"]; got == "" {
+		t.Error("artifacts[close_loop] unexpectedly empty on hard-fail summary")
+	}
+
+	// Assert 5: finalize populates FinishedAt/Duration so the report
+	// is well-formed even on the failure path.
+	if persisted.FinishedAt == "" {
+		t.Error("persisted FinishedAt unexpectedly empty on hard-fail summary")
+	}
+	if persisted.Duration == "" {
+		t.Error("persisted Duration unexpectedly empty on hard-fail summary")
+	}
+}
+
 // TestRunOvernight_SchemaV2IsV1BackwardCompatible verifies that a v2
 // Dream report JSON still parses cleanly into the frozen v1 reader
 // struct. This is the pm-008 fix: the compat claim now has a real
