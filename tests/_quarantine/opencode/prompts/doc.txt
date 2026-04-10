@@ -1,1 +1,0 @@
-Load the doc skill and check documentation coverage for the skills/research/ directory. List any missing documentation.
