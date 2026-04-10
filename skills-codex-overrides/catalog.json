@@ -95,6 +95,12 @@
       "reason": "Discovery delegates to sub-skills; default generated prompt is enough."
     },
     {
+      "name": "dream",
+      "treatment": "parity_only",
+      "wave": "catalog-parity",
+      "reason": "The first Dream skill is a thin interactive layer over the shipped ao overnight contracts, so converter parity is sufficient."
+    },
+    {
       "name": "design",
       "treatment": "parity_only",
       "wave": "catalog-parity",

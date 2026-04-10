@@ -54,7 +54,8 @@ ao overnight report
 ```
 
 If you prefer the skill-first path, use `/rpi "fix auth startup"` after
-`ao factory start`.
+`ao factory start`, and use `/dream` when you want the same overnight engine
+through an interactive skill surface instead of a headless CLI command.
 
 That's it. In Claude Code, `CLAUDE.md` remains the startup surface. The
 installed hooks stay silent and only prepare runtime state for the higher-level

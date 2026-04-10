@@ -337,7 +337,7 @@ All hooks can be disabled: `AGENTOPS_HOOKS_DISABLED=1` (kill switch) or per-hook
 .
 ├── .claude-plugin/
 │   └── plugin.json      # Plugin manifest
-├── skills/              # 66 skills (57 user-facing, 9 internal)
+├── skills/              # 67 skills (58 user-facing, 9 internal)
 │   ├── rpi/             # orchestration — Full RPI lifecycle orchestrator
 │   ├── council/         # orchestration — Multi-model validation (core primitive)
 │   ├── crank/           # orchestration — Autonomous epic execution
@@ -420,8 +420,9 @@ For full flow orchestration and headless automation, skills integrate with the
 | `/implement` | `ao context assemble`, `ao lookup`, `ao ratchet record` |
 | `/crank` | `ao rpi phased`, `ao ratchet`, `ao flywheel status` |
 
-Dream is binary-first today: `ao overnight setup|start|report` expose the
-overnight flow even before a dedicated `/dream` skill exists.
+Dream now ships both surfaces: `/dream` is the interactive operator layer, and
+`ao overnight setup|start|report` is the automation surface over the same
+contracts and control plane.
 
 ---
 

@@ -212,8 +212,8 @@ Each phase spawns a fresh session — no context bleed. Worktree isolation means
 
 Dream is the overnight expression of the same control-plane model:
 
-- **interactive surface:** `ao overnight setup` today, future `$dream` skill later
-- **automation surface:** `ao overnight start|run` and `ao overnight report`
+- **interactive surface:** `$dream` for setup, bedtime runs, and morning reports
+- **automation surface:** `ao overnight setup|start|run|report`
 - **control plane:** shared `dream.*` config plus explicit output artifacts
 
 The first shipped wave is intentionally bounded. `ao overnight` runs locally against the real `.agents` corpus, writes `summary.json` and `summary.md`, and keeps runtime behavior honest:

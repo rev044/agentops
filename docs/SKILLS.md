@@ -1,6 +1,6 @@
 # Skills Reference
 
-Complete reference for all 66 AgentOps skills (57 user-facing + 9 internal).
+Complete reference for all 67 AgentOps skills (58 user-facing + 9 internal).
 
 Skills are the primitive layer of AgentOps. Higher-level entry points like
 `/implement`, `/validation`, `/rpi`, and `/evolve` compose those primitives
@@ -64,6 +64,7 @@ What are you trying to do?
 │   └─ Changelog + tag ──────────► /release <version>
 │
 ├─ "Session management"
+│   ├─ Prep or review Dream runs ─► /dream
 │   ├─ Where was I? ──────────────► /status
 │   ├─ Save for next session ─────► /handoff
 │   └─ Recover after compaction ──► /recover
@@ -304,6 +305,19 @@ Interactive onboarding — mini RPI cycle for new users.
 /quickstart
 ```
 
+### /dream
+
+Interactive Dream operator surface for setup, bedtime runs, and morning
+reports on top of the shared `ao overnight` engine.
+
+```bash
+/dream setup
+/dream start "close the loop on today's auth work"
+/dream report
+```
+
+**Output:** Dream setup preview or `.agents/overnight/<run>/summary.{json,md}`
+
 ### /trace
 
 Trace design decisions through knowledge artifacts.
@@ -442,7 +456,7 @@ Capture lessons from accepted/rejected PR outcomes.
 Reinstall all AgentOps skills globally from the latest source.
 
 ```bash
-/update                      # Reinstall all 66 skills
+/update                      # Reinstall all 67 skills
 ```
 
 ---

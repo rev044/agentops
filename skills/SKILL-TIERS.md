@@ -183,6 +183,7 @@ What are you trying to do?
 │   └─ Full epic with waves ──────► /crank <epic-id>
 │
 ├─ "Session management"
+│   ├─ Prep or review Dream runs ─► /dream
 │   ├─ Where was I? ──────────────► /status
 │   ├─ Save for next session ─────► /handoff
 │   └─ Recover after compaction ──► /recover
@@ -220,7 +221,7 @@ These are how skills chain in practice:
 
 ## Current Skill Tiers
 
-### User-Facing Skills (57)
+### User-Facing Skills (58)
 
 **Judgment:**
 
@@ -289,6 +290,7 @@ These are how skills chain in practice:
 | **recover** | session | Post-compaction context recovery |
 | **status** | session | Single-screen dashboard |
 | **quickstart** | session | Interactive onboarding |
+| **dream** | session | Private overnight operator surface — setup, bedtime run, and morning report |
 | **bootstrap** | session | One-command full AgentOps setup — fills gaps only |
 
 **Upstream Contributions:**
@@ -353,6 +355,7 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 | doc | standards | required |
 | flywheel | - | - |
 | forge | - | - |
+| **dream** | - | - (standalone, `ao overnight` required) |
 | handoff | - | - |
 | **implement** | beads, standards | optional, required |
 | inject | - | - |

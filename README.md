@@ -284,6 +284,7 @@ Every skill works alone. Primitives are the single skills, hooks, and CLI surfac
 | `/rpi` | Full pipeline flow — discovery → implementation → validation → bookkeeping |
 | `/vibe` | Code quality review — complexity + council + domain checklists |
 | `/evolve` | Measure goals, fix the worst gap, regression-gate everything, repeat overnight |
+| `/dream` | Private overnight compounding — setup, bedtime run, and morning report on the local Dream engine |
 
 <details>
 <summary><b>Full catalog</b> — validation, flows, bookkeeping, and supporting skills</summary>
@@ -294,7 +295,7 @@ Every skill works alone. Primitives are the single skills, hooks, and CLI surfac
 
 **Bookkeeping:** `/retro` · `/forge` · `/flywheel` · `/compile`
 
-**Session:** `/handoff` · `/recover` · `/status` · `/trace` · `/provenance`
+**Session:** `/handoff` · `/recover` · `/status` · `/trace` · `/provenance` · `/dream`
 
 **Product:** `/product` · `/goals` · `/release` · `/readme` · `/doc`
 

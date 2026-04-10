@@ -595,6 +595,12 @@
       "generated_hash": "8a28eb03e22ab4b4a4442402211f4c279283111a699acc7c7426ac2645fa1356"
     },
     {
+      "name": "dream",
+      "source_skill": "skills/dream",
+      "source_hash": "28f5f4412bff2be75b748ecd8fd693a523a8977548506675693a95a1826bf122",
+      "generated_hash": "64871985f50e132a3248343e0d0485ff63131fb0a90dccfb9b2b78e2ddf21e78"
+    },
+    {
       "name": "doc",
       "source_skill": "skills/doc",
       "source_hash": "9359b5c4c0f2f1f13a34e659effbbd359037f3c2391648c74355dca638207d84",
@@ -898,7 +904,7 @@
       "name": "using-agentops",
       "source_skill": "skills/using-agentops",
       "source_hash": "7f5cc28fcf68821caddf4fbb323e630fc3be0c32ad46121086a7be3e2b5752b3",
-      "generated_hash": "4e8492814f18fdc908092614328c898bce72448b87e799c4a619d0af9c346baa"
+      "generated_hash": "9d39642abf0f0a1f9c783edb3b5ca073fb17640946ff52a3712930a15ddcd754"
     },
     {
       "name": "validation",
