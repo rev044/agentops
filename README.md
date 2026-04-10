@@ -142,12 +142,12 @@ That ran overnight on this repo. Regression gates auto-reverted anything that br
 > /dream start
 
 [overnight]  RunLoop starting (budget=2h, max_iter=4, K=2, warn_only=true)
-[iter-1]     INGEST   harvest catalog: 152 artifacts (checkpoint preview)
-             REDUCE   dedup → temper → defrag-prune → close-loop
+[iter-1]     INGEST   harvest catalog: 152 artifacts (dry-run preview)
+             REDUCE   harvest-promote → dedup → defrag-prune → close-loop
                       findings-router: 7 new → next-work.jsonl
                       inject-refresh: in-process
                       metadata integrity: PASS (0 stripped fields)
-             COMMIT   staging → live (atomic)
+             COMMIT   staging → live (per-subpath rename)
              MEASURE  corpus-quality snapshot captured  (4.2s)
 [iter-2]     INGEST clean · REDUCE clean · MEASURE Δ +0.003 (plateau)
 [halted]     plateau — K=2 consecutive sub-epsilon deltas
@@ -309,7 +309,7 @@ Every skill works alone. Primitives are the single skills, hooks, and CLI surfac
 | `/rpi` | Full pipeline flow — discovery → implementation → validation → bookkeeping |
 | `/vibe` | Code quality review — complexity + council + domain checklists |
 | `/evolve` | Measure goals, fix the worst gap, regression-gate everything, repeat overnight |
-| `/dream` | Bounded overnight knowledge-compounding loop — harvest → forge → dedup → defrag → close-loop → findings-router → inject refresh, checkpointed with rollback on regression, halts on plateau or wall-clock budget. Never mutates source, invokes `/rpi`, or touches git. The night-shift companion to `/evolve` |
+| `/dream` | Bounded overnight knowledge-compounding loop — harvest-promote → dedup → defrag-prune → close-loop → findings-router → inject refresh, all inside a two-phase-commit checkpoint with rollback on regression. Halts on plateau or wall-clock budget. Never mutates source, invokes `/rpi`, or touches git. The night-shift companion to `/evolve` |
 
 <details>
 <summary><b>Full catalog</b> — validation, flows, bookkeeping, and supporting skills</summary>
