@@ -8,9 +8,22 @@ CI ensures code quality, security, and release integrity for the AgentOps reposi
 |----------|------|---------|---------|
 | Validate | `validate.yml` | Push to `main`, PRs to `main` | Primary quality gate (29 jobs) |
 | Release Publisher | `release.yml` | Tag push (`v*`), manual dispatch | Build, publish, attest releases |
-| Nightly | `nightly.yml` | Daily 6am UTC, manual | Full test suite + retrieval + security + compile cycle + dream-cycle proof summary |
+| Nightly | `nightly.yml` | Daily 6am UTC, manual | Public proof harness: full test suite + retrieval + security + compile cycle + Dream report-shape validation over repo-visible artifacts |
 | Stale Issues | `stale.yml` | Weekly Monday 9am UTC | Auto-mark/close inactive issues and PRs |
 | Label PRs | `labeler.yml` | PR opened/synced/reopened | Auto-label PRs by changed paths |
+
+## Nightly vs Dream
+
+AgentOps has two different overnight surfaces:
+
+- **GitHub nightly** validates AgentOps the product. It runs in GitHub Actions against the checked-out repository and proves the CI, flywheel, and Dream report contracts still work.
+- **`ao overnight`** is the private local compounding engine. It runs on the operator's machine against the real repo-local `.agents` corpus and writes the morning report defined in [Dream Report Contract](contracts/dream-report.md).
+
+They share primitive steps and report shapes, but they are not the same pipeline.
+
+Important constraint: GitHub Actions cannot see the private `.agents/` corpus when that directory is gitignored. The nightly workflow is therefore a proof harness, not the user's primary Dream runtime.
+
+If you want scheduled private Dream runs today, use an external scheduler such as `launchd`, `cron`, or `systemd` to invoke `ao overnight start`. Dream Setup is tracked separately and is not yet part of the shipped CLI surface.
 
 ## validate.yml Architecture
 

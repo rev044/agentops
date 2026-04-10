@@ -11,6 +11,14 @@ briefings and startup context prepare the work order, RPI phases run the
 delivery lane, and the flywheel closes the learning loop. See
 [Software Factory Surface](software-factory.md).
 
+The same split now applies to Dream:
+
+- skills remain the interactive operator surface
+- the `ao` binary is the headless automation surface
+- shared config is the control plane
+
+That matters most for overnight work. GitHub nightly is the public proof harness. `ao overnight` is the private local compounding engine.
+
 ## The Three Gaps
 
 AgentOps exists because most agent tooling leaves three gaps open after prompt construction and routing are solved. The runtime mechanics described on this page are organized around proving they are actually closed:
@@ -185,6 +193,22 @@ ao rpi parallel --no-merge --manifest m.json # Leave worktrees for manual review
 ```
 
 Each phase spawns a fresh session — no context bleed. Worktree isolation means parallel epics can touch the same files without conflicts. The merge order is configurable (manifest `merge_order` or `--merge-order` flag) so dependency-heavy epics land first.
+
+## Dream — Private Overnight Operator Mode
+
+Dream is the overnight expression of the same control-plane model:
+
+- **interactive surface:** a future `$dream` skill and setup flow
+- **automation surface:** `ao overnight start|run` and `ao overnight report`
+- **control plane:** shared `dream.*` config plus explicit output artifacts
+
+The first shipped slice is intentionally narrow. `ao overnight` runs locally against the real `.agents` corpus, writes `summary.json` and `summary.md`, and keeps runtime behavior honest:
+
+- no fake scheduler guarantees on sleeping laptops
+- no tracked source-code edits by default
+- no multimodel synthesis yet
+
+GitHub nightly remains useful, but for a different job: it proves that Dream's report contract and flywheel primitives still work in CI. It does not replace a private local bedtime run.
 
 ## See Also
 

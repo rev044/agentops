@@ -44,7 +44,27 @@ ao codex status
 the corpus can support it, run Codex startup, then move into RPI. The lower
 level lifecycle commands still exist when you want direct control.
 
-### Option 3: Lower-Level Codex Lifecycle
+### Option 3: Bedtime Dream Run
+
+```bash
+# Start a private overnight run now
+ao overnight start --goal "close the loop on today's auth work"
+
+# In the morning
+ao overnight report --from .agents/overnight/latest
+```
+
+Use this when you want AgentOps to work against the real local `.agents` corpus
+while you are away. This is not the same as the GitHub nightly workflow:
+
+- GitHub nightly is the public CI proof harness
+- `ao overnight` is the private local compounding engine
+
+Today, scheduling is external. If you want Dream to run automatically, point
+`launchd`, `cron`, or another system scheduler at `ao overnight start`. Dream
+Setup is tracked work, not a shipped built-in scheduler surface yet.
+
+### Option 4: Lower-Level Codex Lifecycle
 
 ```bash
 # Start session
@@ -63,7 +83,7 @@ For normal Codex skill usage, entry skills drive the same startup path with
 with `ao codex ensure-stop`, including the post-close maintenance that hook-capable
 SessionEnd would normally run.
 
-### Option 4: Slash Commands (Hook-Capable Power Users)
+### Option 5: Slash Commands (Hook-Capable Power Users)
 
 ```bash
 # Start session
@@ -87,6 +107,7 @@ SessionEnd would normally run.
 | Hook-capable | Natural language, `/session-start`, or startup hooks | Natural language, `/session-end`, or session-end hooks | Best fit for Claude/OpenCode when hooks are installed; `CLAUDE.md` is the startup surface and hooks stage state silently |
 | Codex native hooks (v0.115.0+) | Same as hook-capable — native hooks installed by `scripts/install-codex-plugin.sh` | Same as hook-capable — native SessionEnd/Stop hooks | Full hook surface; same automatic lifecycle as Claude Code |
 | Codex hookless fallback (pre-v0.115.0) | `ao factory start --goal "<goal>"`, `ao codex start`, or skill-driven `ao codex ensure-start` | `ao codex stop` or skill-driven `ao codex ensure-stop` | No startup/session-end hook surface under `~/.codex`; lifecycle is explicit, and closeout owns the same curation hygiene as SessionEnd |
+| Dream overnight run | `ao overnight start --goal "<goal>"` | `ao overnight report --from <dir>` | Private local overnight mode. Scheduling, when desired, comes from the host OS today rather than a built-in `ao schedule` command |
 | Manual fallback | `ao inject`, `ao lookup` | `ao forge transcript`, `ao flywheel close-loop` | Lowest-level portable path |
 
 ---
