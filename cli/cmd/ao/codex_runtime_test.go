@@ -472,6 +472,7 @@ func TestExtractSessionIDFromCodexArchivedPath(t *testing.T) {
 }
 
 func TestResolveCodexSessionID_EmptyHome(t *testing.T) {
+	t.Setenv("CODEX_THREAD_ID", "")
 	tmp := t.TempDir()
 	got := resolveCodexSessionID(tmp)
 	// No .codex directory, should return empty
