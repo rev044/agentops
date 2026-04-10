@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.36.0] - 2026-04-09
+
+### Added
+
+- **Dream operator mode** — `ao overnight start|run|report|setup` adds a private overnight lane with shared `dream.*` config, keep-awake defaults, scheduler/bootstrap guidance, council-ready runner packets, and DreamScape-style morning summaries
+- **Nightly live retrieval proof** — the dream-cycle now runs `ao retrieval-bench --live --json`, emits retrieval proof in nightly summaries, and keeps a visible artifact trail for flywheel health
+- **Pattern-to-skill drafts** — repeated patterns can now generate review-only skill drafts under `.agents/skill-drafts/` during flywheel close-loop
+- **Fresh-repo onboarding welcome** — new session-start routing helps first-time repos enter discovery, implementation, or validation without needing the full RPI lane first
+- **Docs-site and contribution proof surfaces** — GitHub Pages navigation, comparison pages, behavioral-discipline guidance, strategic-doc validation patterns, and a first-skill guide expand the public proof surface
+
+### Changed
+
+- **Operational-layer framing** — README, onboarding, docs, comparisons, and linked surfaces now consistently explain AgentOps as bookkeeping, validation, primitives, and flows for coding agents
+- **Dream runtime positioning** — the public GitHub nightly is now documented as a proof harness, while `ao overnight` is documented as the private local compounding engine
+- **Codex default path** — native hooks, install copy, runtime smoke coverage, and checked-in Codex artifacts are aligned around the native-plugin path on supported Codex versions
+- **Validation guidance** — behavioral-discipline and strategic-doc review are now first-class references alongside code review and runtime validation
+
+### Fixed
+
+- **Release and CI drift** — resolved docs-site Liquid/frontmatter issues, headless runtime smoke portability problems, pre-push shim test drift, and compile-skill headless command drift caught during release prep
+- **Codex install and artifact drift** — fixed stale slash-command references, refreshed checked-in artifact metadata, added a Codex compile wrapper, and corrected plugin/marketplace mismatches exercised by smoke coverage
+- **Runtime proof stability** — promoted Codex runtime smoke into the blocking smoke path and fixed related shellcheck and install-surface rough edges
+
+### Removed
+
+- **DevOps-rooted tagline** — public framing no longer leads with the old DevOps-layer tagline; the Three Ways lineage remains supporting doctrine instead of the category label
+
 ## [2.35.0] - 2026-04-07
 
 ### Added

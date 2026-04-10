@@ -5,14 +5,14 @@
     "email": "fullerbt@users.noreply.github.com"
   },
   "metadata": {
-    "description": "The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions.",
-    "version": "2.35.0"
+    "description": "The operational layer for coding agents. Bookkeeping, validation, and flows that compound knowledge between sessions.",
+    "version": "2.36.0"
   },
   "plugins": [
     {
       "name": "agentops",
-      "description": "The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions.",
-      "version": "2.35.0",
+      "description": "The operational layer for coding agents. Bookkeeping, validation, and flows that compound knowledge between sessions.",
+      "version": "2.36.0",
       "source": "./",
       "author": {
         "name": "Boden Fuller",
