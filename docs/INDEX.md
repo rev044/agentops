@@ -17,7 +17,7 @@
 ## Architecture
 
 - [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Wiggum Pattern, agent backends, hooks, context windowing
-- [Software Factory Surface](software-factory.md) — Explicit operator surface connecting briefings, RPI lanes, and loop closure
+- [Software Factory Surface](software-factory.md) — Explicit automation surface for briefings, RPI flows, and operator-controlled closeout
 - [Architecture](ARCHITECTURE.md) — System design and component overview
 - [Architecture Folder Index](architecture/README.md) — Architecture subdocs overview
 - [Codex Hookless Lifecycle](architecture/codex-hookless-lifecycle.md) — Runtime-aware lifecycle fallback for Codex when hooks are unavailable
@@ -59,7 +59,7 @@
 ## Concepts
 
 - [Philosophy](philosophy.md) — Five validated principles for building with coding agents, with evidence from five months of production use
-- [Context Lifecycle Contract](context-lifecycle.md) — The three-gap contract for judgment validation, durable learning, and loop closure
+- [Context Lifecycle Contract](context-lifecycle.md) — Internal proof contract behind the public bookkeeping, validation, primitives, and flows story
 - [Knowledge Flywheel](knowledge-flywheel.md) — How every session makes the next one smarter
 - [The Science](the-science.md) — Research behind knowledge decay and compounding
 - [Brownian Ratchet](brownian-ratchet.md) — AI-native development philosophy
@@ -104,7 +104,7 @@
 
 ### L2 — Persistence
 
-- [L2 README](levels/L2-persistence/README.md) — Cross-session memory with .agents/
+- [L2 README](levels/L2-persistence/README.md) — Cross-session bookkeeping with `.agents/`
 - [Research](levels/L2-persistence/research.md) — Explore codebase and save findings
 - [Retro](levels/L2-persistence/retro.md) — Extract session learnings
 - [Demo: Research Session](levels/L2-persistence/demo/research-session.md) — Example persistent research

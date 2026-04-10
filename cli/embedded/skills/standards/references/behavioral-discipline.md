@@ -72,6 +72,69 @@ Turn requests into verifiable outcomes.
 - "Improve this skill" becomes "update the contract, validate skill integrity, then check the shipped runtime copy."
 - "Clean up the hook" becomes "preserve the contract, edit only the required files, then run the hook/doc parity gate."
 
+## Before/After Examples
+
+### Example 1: Hidden Assumptions
+
+**Request:** "Make search faster"
+
+**Before**
+
+- picks one meaning of "faster" without clarifying
+- adds caching, async work, and new knobs all at once
+- verifies only that the code still runs
+
+**After**
+
+- asks whether "faster" means latency, throughput, or perceived speed
+- picks the smallest change that matches the answer
+- verifies against the metric that actually mattered
+
+### Example 2: Overbuilt Solution
+
+**Request:** "Add a discount helper"
+
+**Before**
+
+- introduces strategies, factories, and extension points for a one-off need
+- adds flexibility nobody asked for
+
+**After**
+
+- starts with a small helper that solves the current requirement
+- defers abstraction until a real second use case exists
+
+### Example 3: Drive-By Editing
+
+**Request:** "Fix empty emails crashing the validator"
+
+**Before**
+
+- rewrites adjacent validation logic
+- edits comments and formatting unrelated to the bug
+- leaves a large diff for a narrow request
+
+**After**
+
+- adds a reproducer for the empty-email case
+- fixes only the email path plus cleanup caused by that fix
+- records unrelated cleanup separately instead of bundling it into the patch
+
+### Example 4: Weak Proof
+
+**Request:** "Improve this AgentOps skill"
+
+**Before**
+
+- edits the skill doc and stops
+- forgets the mirrored Codex artifact or validation step
+
+**After**
+
+- updates the shared contract and the checked-in Codex copy
+- regenerates affected artifact metadata when needed
+- runs the relevant validation commands before claiming completion
+
 ## Review Questions
 
 Use these four questions when validating a plan, patch, or PR:

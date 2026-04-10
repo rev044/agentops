@@ -8,10 +8,10 @@
 
 This wasn't designed in a vacuum. It came from years of connecting dots across fields:
 
-1. **Knowledge OS** — The insight that git + files = institutional memory
+1. **Knowledge OS** — The insight that git + files can become a durable bookkeeping substrate
 2. **DevOps** — The Three Ways applied to knowledge, not just code
 3. **Cognitive Science** — Why 40% load is optimal (35 years of research)
-4. **MemRL** — Reinforcement learning for memory systems (2026)
+4. **MemRL** — Reinforcement learning for retrieval and utility-scoring systems (2026)
 5. **Thermodynamics** — The Brownian Ratchet as progress model
 
 Each piece validated the intuition. The math fell out naturally.
@@ -46,7 +46,9 @@ Week 4:  47%
 Week 8:  22%
 ```
 
-**Why this matters for AI:** Every Claude session starts at Week 0. There's no memory between sessions. You're always on the left side of the decay curve.
+**Why this matters for AI:** Every Claude session starts close to Week 0 unless
+the environment resurfaces prior work. Without bookkeeping plus retrieval,
+you're always on the left side of the decay curve.
 
 ### The Forgetting Curve
 
@@ -154,7 +156,7 @@ If your retrieval effectiveness times your citation rate exceeds 0.17 in self-su
 
 | Scenario | σ | ρ | σ × ρ | vs δ | Result |
 |----------|---|---|-------|------|--------|
-| No memory | 0 | 0 | 0 | < 0.17 | Decaying |
+| No bookkeeping or retrieval | 0 | 0 | 0 | < 0.17 | Decaying |
 | Store but don't retrieve | 0.1 | 0.1 | 0.01 | < 0.17 | Decaying |
 | Retrieve but don't use | 0.8 | 0.1 | 0.08 | < 0.17 | Decaying |
 | **AgentOps target** | 0.7 | 0.3 | 0.21 | > 0.17 | **Compounding** |

@@ -1,10 +1,14 @@
 # AgentOps Architecture
 
-> Context quality is the primary lever for agent output quality. Orchestrate what enters each window, compound what comes out.
+> AgentOps is the operational layer for coding agents. Publicly it sells bookkeeping, validation, primitives, and flows; technically it compiles raw session signal into better next context.
 
 ## Overview
 
-AgentOps is a skills plugin that orchestrates context across agent windows and compounds results through a knowledge flywheel — each session is smarter than the last.
+AgentOps is a repo-native operating layer that combines interactive skills, the
+`ao` control plane, hooks, and `.agents/` artifacts. The public product story is
+bookkeeping, validation, primitives, and flows. The technical mechanism is a
+context compiler plus knowledge flywheel: capture what happened, validate it,
+store it with provenance, and surface it back when the next task needs it.
 
 The architecture rests on five pillars. Each one is independent — you can use any skill standalone — but together they form a recursive system that gets smarter with every cycle.
 
@@ -33,7 +37,11 @@ Three principles drive every architectural decision:
 
 **Least-privilege context loading.** Each agent receives only the context necessary for its task. Research gets prior knowledge. Plan gets a 500-token research summary. Crank workers get fresh context per wave with zero bleed-through. Vibe gets recent changes only. Phase summaries compress output between phases to prevent signal-to-noise collapse. The context window is treated as a security boundary — nothing enters without scoping.
 
-**The cycle is the product.** No single skill is the value. The compounding loop — discovery, implementation, validation, learn, repeat — makes each successive context window smarter than the last. Post-mortem doesn't just extract learnings; it proposes the next cycle's work. The system feeds itself.
+**The cycle is the product.** No single skill is the value. Bookkeeping,
+validation, primitives, and flows only matter when they turn into a repeatable
+loop: discovery, implementation, validation, learn, repeat. Post-mortem
+doesn't just extract learnings; it proposes the next cycle's work. The system
+feeds itself.
 
 ---
 
@@ -172,7 +180,8 @@ Deep dive: [how-it-works.md](how-it-works.md) — Ralph Wiggum Pattern, agent ba
 
 ## Pillar 4: Knowledge Flywheel
 
-The learning model. Automated extraction → quality gates → tiered storage → retrieval → injection → compounding.
+The bookkeeping and compounding model. Automated extraction -> quality gates ->
+tiered storage -> retrieval -> injection -> compounding.
 
 ```
   Sessions → Transcripts → Forge → Pool → Promote → Knowledge
@@ -236,7 +245,12 @@ The flywheel is curation, not just storage.
 └── tooling/       # Tooling documentation
 ```
 
-Knowledge artifacts are the system's long-term memory. Future `/research` commands discover them via file pattern matching, semantic search (`ao forge`), or Smart Connections MCP (if available). Freshness decay ensures stale artifacts lose priority over time — the system forgets what's no longer relevant. Quality gates prevent low-confidence or context-specific learnings from polluting the shared knowledge base.
+Knowledge artifacts are the system's long-term bookkeeping substrate. Future
+`/research` commands discover them via file pattern matching, semantic search
+(`ao forge`), or Smart Connections MCP (if available). Freshness decay ensures
+stale artifacts lose priority over time, and quality gates prevent
+low-confidence or context-specific learnings from polluting the shared
+knowledge base.
 
 Deep dive: [knowledge-flywheel.md](knowledge-flywheel.md) — flywheel mechanics. [the-science.md](the-science.md) — formal model, decay rates, limits to growth, and the scale-aware condition `ρ·σ(K,t) > δ + φ·K - I(t)/K`.
 
@@ -349,12 +363,12 @@ Skills span six tiers. Each level composes the ones below it.
 
 | Tier | Skills | Purpose |
 |------|--------|---------|
-| **Orchestration** | `/rpi`, `/council`, `/crank`, `/swarm`, `/codex-team`, `/evolve` | Multi-phase workflows |
+| **Orchestration** | `/rpi`, `/council`, `/crank`, `/swarm`, `/codex-team`, `/evolve` | Multi-phase flows |
 | **Team** | `/implement` | Single issue, full lifecycle |
 | **Solo** | `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/retro`, etc. | Standalone use |
 | **Library** | `beads`, `standards`, `shared` | Reference docs loaded by other skills |
 | **Background** | `inject`, `extract`, `forge`, `provenance`, `ratchet`, `flywheel` | Hook-triggered, invisible |
-| **Meta** | `using-agentops` | Workflow guide, auto-injected |
+| **Meta** | `using-agentops` | Flow guide, auto-injected |
 
 ### Subagents
 
@@ -395,7 +409,8 @@ The custom agents fill the gap:
 
 ### ao CLI Integration
 
-For full workflow orchestration, skills integrate with the ao CLI:
+For full flow orchestration and headless automation, skills integrate with the
+`ao` CLI:
 
 | Skill | ao Command |
 |-------|------------|
@@ -404,6 +419,9 @@ For full workflow orchestration, skills integrate with the ao CLI:
 | `/post-mortem` | `ao forge`, `ao flywheel close-loop`, `ao constraint activate` |
 | `/implement` | `ao context assemble`, `ao lookup`, `ao ratchet record` |
 | `/crank` | `ao rpi phased`, `ao ratchet`, `ao flywheel status` |
+
+Dream is binary-first today: `ao overnight setup|start|report` expose the
+overnight flow even before a dedicated `/dream` skill exists.
 
 ---
 

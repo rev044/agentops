@@ -4,7 +4,10 @@
 
 Parallel agents produce noisy output; councils filter it; ratchets lock progress so it can never regress.
 
-Publicly, AgentOps sells bookkeeping, validation, primitives, and flows. This page explains the internal mechanics beneath that story: the three-gap proof contract, the Brownian Ratchet, and the flywheel that makes sessions compound.
+Publicly, AgentOps sells bookkeeping, validation, primitives, and flows. This
+page explains the internal mechanics beneath that story: the proof gaps those
+promises must close, the Brownian Ratchet, and the flywheel that makes sessions
+compound.
 
 Think of the mechanics below as the substrate under the operator surface:
 briefings and startup context prepare the work order, RPI phases run the
@@ -19,13 +22,24 @@ The same split now applies to Dream:
 
 That matters most for overnight work. GitHub nightly is the public proof harness. `ao overnight` is the private local compounding engine.
 
-## The Three Gaps
+## The Proof Gaps
 
-AgentOps exists because most agent tooling leaves three gaps open after prompt construction and routing are solved. The runtime mechanics described on this page are organized around proving they are actually closed:
+AgentOps exists because most agent tooling leaves three gaps open after prompt
+construction and routing are solved. The runtime mechanics described on this
+page are organized around proving they are actually closed:
 
-1. **Judgment validation** — agents ship without risk context. Hooks and skills that challenge plans and implementations before they land (pre-mortem gate, `/vibe`, `/council`, task-validation gate).
-2. **Durable learning** — solved problems recur. The knowledge flywheel extracts, scores, promotes, and retrieves learnings so the same lesson is never re-paid (session-end forging, `ao forge`, `ao lookup`, maturity controls).
-3. **Loop closure** — completed work does not produce better next work. Post-mortems, finding registries, compiled constraints, and the flywheel close hook ensure every session leaves the environment smarter than it found it.
+1. **Validation gap** (internal label: judgment validation) — agents ship
+   without risk context. Hooks and skills challenge plans and implementations
+   before they land (pre-mortem gate, `/vibe`, `/council`, task-validation
+   gate).
+2. **Bookkeeping gap** (internal label: durable learning) — solved problems
+   recur. The knowledge flywheel extracts, scores, promotes, and retrieves
+   learnings so the same lesson is never re-paid (session-end forging,
+   `ao forge`, `ao lookup`, maturity controls).
+3. **Closure gap** (internal label: loop closure) — completed work does not
+   produce better next work. Post-mortems, finding registries, compiled
+   constraints, and the flywheel close hook ensure every session leaves the
+   environment smarter than it found it.
 
 The canonical contract is in [Context Lifecycle Contract](context-lifecycle.md). The sections below show how each runtime mechanism maps to one or more of these gaps.
 

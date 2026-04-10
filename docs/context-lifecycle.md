@@ -1,12 +1,13 @@
 # Context Lifecycle Contract
 
 > Publicly, AgentOps sells bookkeeping, validation, primitives, and flows.
-> This page explains the internal lifecycle contract that proves those claims:
-> judgment validation, durable learning, and loop closure.
+> This page explains the internal proof gaps those promises have to close:
+> validation risk, bookkeeping decay, and loop closure.
 
 ## Internal Proof Contract
 
-Most coding-agent tooling is strong at prompt construction and agent routing. The failure mode comes after that:
+Most coding-agent tooling is strong at prompt construction and agent routing.
+The failure mode comes after that:
 
 1. **Validation** is missing. Internally, this gap is tracked as
    **judgment validation**: the agent chooses an approach without loading the
@@ -14,11 +15,13 @@ Most coding-agent tooling is strong at prompt construction and agent routing. Th
 2. **Bookkeeping** is missing. Internally, this gap is tracked as
    **durable learning**: solved problems come back as if they were never
    solved.
-3. **Closure** is missing. Internally, this gap is tracked as
-   **loop closure**: completed work does not reliably produce better next
-   work, better rules, or better future context.
+3. **Flows** are present, but they do not compound. Internally, this gap is
+   tracked as **loop closure**: completed work does not reliably produce better
+   next work, better rules, or better future context.
 
-AgentOps treats those three gaps as a lifecycle contract, not as separate features.
+AgentOps treats those three gaps as one lifecycle contract. Skills and CLI
+primitives are the operator surface; the proof obligation is that each cycle
+actually closes these gaps.
 
 ## Gap 1: Validation
 
@@ -72,7 +75,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 
 - session amnesia between independent runs
 - stale or contradictory learnings swamping retrieval
-- "memory" systems that store notes without curation or reinforcement
+- bookkeeping systems that store notes without curation or reinforcement
 
 ## Gap 3: Closure
 
@@ -114,14 +117,14 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | Bookkeeping | Compile | `GOALS.md`, Compile checks | Daily maintenance of learning quality |
 | Closure | `/post-mortem` + finding compiler | `skills/post-mortem/SKILL.md`, `docs/contracts/finding-registry.md`, `docs/contracts/finding-compiler.md` | Learnings + next work harvested from completed work; reusable findings re-enter planning/review and compile into preventive artifacts |
 | Closure | task-validation compiled enforcement | `hooks/task-validation-gate.sh`, `.agents/constraints/index.json` | Task-validation executes active compiled constraints before completion is accepted |
-| Closure | flywheel close hook | `hooks/ao-flywheel-close.sh` | Stop-time feedback loop closure |
+| Closure | flywheel close hook | `hooks/ao-flywheel-close.sh` | Stop-time closure of the feedback loop |
 | Closure | goals / evolve | `GOALS.md`, flywheel-proof gate | Proof that the system compounds across sessions |
 
 ## What AgentOps Does Not Claim
 
 - It does not claim that prompt engineering or routing are unimportant.
 - It does not claim that every loop-closing behavior must be fully autonomous.
-- It does not claim that raw memory alone is enough; the contract depends on validation, curation, and re-use.
+- It does not claim that raw recall alone is enough; the contract depends on validation, curation, and re-use.
 - It does not claim that new runtime machinery should be invented when an existing command, hook, or gate already covers the gap.
 
 ## The Knowledge Ledger — Session-to-Session Flow

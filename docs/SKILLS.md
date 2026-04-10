@@ -2,11 +2,16 @@
 
 Complete reference for all 66 AgentOps skills (57 user-facing + 9 internal).
 
+Skills are the primitive layer of AgentOps. Higher-level entry points like
+`/implement`, `/validation`, `/rpi`, and `/evolve` compose those primitives
+into repeatable flows.
+
 **Behavioral Contracts:** Most skills include `scripts/validate.sh` behavioral checks to verify key features remain documented. Run `skills/<name>/scripts/validate.sh` when present, or the GOALS.yaml `behavioral-skill-contracts` goal to validate the full covered set.
 
 ## Skill Router (Start Here)
 
-Use this when you're not sure which skill to run. For a full workflow overview, run `/using-agentops`.
+Use this when you're not sure which skill to run. For a full flow overview, run
+`/using-agentops`.
 
 ```text
 What are you trying to do?
@@ -66,7 +71,7 @@ What are you trying to do?
 └─ "First time here" ────────────► /quickstart
 ```
 
-## Core Workflow Skills
+## Core Flow Skills
 
 ### /research
 

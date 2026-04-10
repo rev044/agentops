@@ -6,7 +6,8 @@
 
 ## The Core Thesis
 
-Treat coding agents as fast, stateless workers inside a disciplined operating system — not as magical coworkers with reliable memory and judgment.
+Treat coding agents as fast, stateless workers inside a disciplined operating
+system — not as magical coworkers with reliable bookkeeping or self-validation.
 
 Good agent work comes from **context, boundaries, validation, and reusable lessons** — not from hoping the agent "just gets it."
 
@@ -14,7 +15,10 @@ Good agent work comes from **context, boundaries, validation, and reusable lesso
 
 ## Five Principles (Validated by Evidence)
 
-These are not opinions. Each principle was learned through failure, refined through iteration, and validated against five months of production use: 1,083 commits, 65 skills, 33 CI gates, and hundreds of agent sessions across multiple runtimes.
+These are not opinions. Each principle was learned through failure, refined
+through iteration, and validated against five months of production use: 1,083
+commits, 66 skills, 33 CI gates, and hundreds of agent sessions across multiple
+runtimes.
 
 ### 1. Context Timing Beats Context Volume
 
@@ -72,7 +76,7 @@ The formula:
 ```
 Capture what happened (post-mortem, forge, retro)
     → Extract what mattered (learnings, findings, patterns)
-    → Promote into beliefs and workflows (rules, playbooks, checks)
+    → Promote into beliefs, playbooks, and checks
     → Feed back into the next task (inject, session intelligence)
     → Repeat
 ```
@@ -85,7 +89,10 @@ This is not a feature. It is the architecture. Every skill, hook, and CLI comman
 
 An honest philosophy acknowledges its failure modes.
 
-AgentOps has 65 skills, 33 CI gates, and a 6-phase post-mortem. The operating system itself can become the bottleneck. Every validation gate that prevents a bug also adds latency. Every knowledge extraction step that feeds the flywheel also adds ceremony.
+AgentOps has 66 skills, 33 CI gates, and a 6-phase post-mortem. The operating
+system itself can become the bottleneck. Every validation gate that prevents a
+bug also adds latency. Every knowledge extraction step that feeds the flywheel
+also adds ceremony.
 
 The discipline is tuning, not adding:
 
@@ -104,4 +111,4 @@ When in doubt, remove. A system that does fewer things reliably compounds faster
 - [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Wiggum Pattern, context windowing
 - [The Science](the-science.md) — Research foundations: MemRL, cache eviction, freshness decay
 - [Knowledge Flywheel](knowledge-flywheel.md) — The extraction and compounding pipeline
-- [Context Lifecycle](context-lifecycle.md) — The three-gap contract
+- [Context Lifecycle](context-lifecycle.md) — The internal proof contract behind bookkeeping, validation, primitives, and flows

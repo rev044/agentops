@@ -2,15 +2,20 @@
 
 ## Why not just use my coding agent directly?
 
-Without AgentOps, every session starts from scratch. Your agent doesn't remember what failed last time, doesn't validate its plan before coding, doesn't check its code with a second opinion, and doesn't capture what it learned. You fill those gaps manually — re-explaining context, reviewing code, tracking what changed. With AgentOps, the system handles context, validation, and memory. You manage the roadmap.
+Without AgentOps, every session starts from scratch. Your agent doesn't remember
+what failed last time, doesn't validate its plan before coding, doesn't check
+its code with a second opinion, and doesn't capture what it learned. You fill
+those gaps manually — re-explaining context, reviewing code, tracking what
+changed. With AgentOps, the system handles bookkeeping, validation, and
+repeatable flows. You manage the roadmap.
 
 ## How does this compare to other approaches?
 
 | Approach | What it does well | What AgentOps adds |
 |----------|------------------|--------------------|
-| **Direct agent use** (Claude Code, Cursor, Copilot) | Full autonomy, simple to start | Multi-model councils, fresh-context waves, and knowledge that compounds across sessions. A bare agent starts fresh each session; ours extracts learnings and applies them next time. |
-| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Static instructions don't compound. The flywheel auto-extracts learnings and injects them back. `/post-mortem` proposes changes to the tools themselves. |
-| **Agent orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-language task scheduling | Those choreograph sequential tasks; we compose parallel waves with validation at every stage. No external state backend — all learnings are git-tracked. |
+| **Direct agent use** (Claude Code, Cursor, Copilot) | Full autonomy, simple to start | Bookkeeping, validation, and flows that compound across sessions. A bare agent starts fresh each session; AgentOps extracts learnings and reuses them next time. |
+| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Static instructions don't compound. AgentOps turns sessions into curated bookkeeping and injects the useful parts back at the right time. |
+| **Agent orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-language task scheduling | Those choreograph sequential tasks; we add repo-native bookkeeping, validation gates, and fresh-context waves without requiring a hosted state backend. |
 | **CI/CD gates** (GitHub Actions, pre-commit) | Automated, industry standard | Gates run after code is written. Ours run before coding (`/pre-mortem`) and before push (`/vibe`). Failures retry with context, not human escalation. |
 
 ## What data leaves my machine?
@@ -30,7 +35,7 @@ Run `/product` to generate a `PRODUCT.md` describing your mission, personas, and
 - **Single primary author so far.** The system works but hasn't been stress-tested across diverse codebases and team sizes. Looking for early adopters willing to break things.
 - **Quality pool can over-promote.** Context-specific patterns sometimes get promoted as general knowledge. Freshness decay helps but doesn't fully solve stale injection.
 - **Retry loops cap at 3.** If a council or crank wave fails three times, the system surfaces the failure to you rather than looping forever. This is intentional but means some edge cases need human judgment.
-- **Knowledge curation is imperfect.** Freshness decay prevents the worst staleness, but the scoring heuristics (specificity, actionability, novelty) are tuned for one author's workflow. Your mileage may vary.
+- **Knowledge curation is imperfect.** Freshness decay prevents the worst staleness, but the scoring heuristics (specificity, actionability, novelty) are tuned for one operator's corpus and working style. Your mileage may vary.
 
 ## How does AgentOps handle subagent nesting?
 
