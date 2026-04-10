@@ -230,11 +230,13 @@ func TestCheckpoint_VerifyMetadataRoundTrip_DropsDetectsNewField(t *testing.T) {
 		t.Fatalf("expected seeded beta to contain holdout_scenario_id, got: %s", body)
 	}
 
-	// Simulate a reducer that strips the unknown field when writing the
-	// "commit result" to the live tree. We bypass Commit to mutate the
-	// live copy directly so VerifyMetadataRoundTrip sees the drop.
-	liveBeta := filepath.Join(live, "learnings", "2026-04-09-beta.md")
-	mustWrite(t, liveBeta, "---\ntitle: beta\n---\nbody beta\n")
+	// Post-V1 fix semantic: LIVE is the pristine baseline and STAGING is
+	// the reducer's output. A key present in LIVE but missing from STAGING
+	// = the reducer stripped it. Simulate a reducer that overwrote the
+	// staged copy and dropped holdout_scenario_id; the live copy (which
+	// still has the key) is the reference point.
+	_ = live // live already contains the seeded key; keep the baseline untouched
+	mustWrite(t, stagedBeta, "---\ntitle: beta\n---\nbody beta\n")
 
 	report := VerifyMetadataRoundTrip(cp)
 	if report.Pass {

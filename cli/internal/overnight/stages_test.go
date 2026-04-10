@@ -262,13 +262,17 @@ func TestRunReduce_StageOrderEnforced(t *testing.T) {
 func TestRunReduce_RollbackOnMetadataStrip(t *testing.T) {
 	cwd, cp, ingest := newReduceFixture(t)
 
-	// After NewCheckpoint clones the current live learnings into
-	// staging, overwrite the live copy with a stripped version (no
-	// frontmatter). VerifyMetadataRoundTrip will detect that every
-	// staged frontmatter key is now missing from the live copy.
-	livePath := filepath.Join(cwd, ".agents", "learnings", "2026-04-09-fixture.md")
-	if err := os.WriteFile(livePath, []byte("# Fixture\n\nNo frontmatter here.\n"), 0o644); err != nil {
-		t.Fatalf("strip live fixture: %v", err)
+	// Post-V1 fix semantic: REDUCE mutates STAGING. Simulate a reducer
+	// that strips frontmatter by overwriting the staged copy BEFORE the
+	// real stages run. When RunReduce reaches VerifyMetadataRoundTrip
+	// it compares LIVE (pristine baseline) against STAGING (our stripped
+	// copy) and reports every key as dropped, triggering rollback.
+	//
+	// Wave 3's buggy pre-V1 version stripped the LIVE copy; that only
+	// worked because the integrity check walked the wrong direction.
+	stagedPath := filepath.Join(cp.StagingDir, ".agents", "learnings", "2026-04-09-fixture.md")
+	if err := os.WriteFile(stagedPath, []byte("# Fixture\n\nNo frontmatter here.\n"), 0o644); err != nil {
+		t.Fatalf("strip staged fixture: %v", err)
 	}
 
 	rec := &recorder{}
@@ -285,9 +289,9 @@ func TestRunReduce_RollbackOnMetadataStrip(t *testing.T) {
 
 func TestRunReduce_RollbackOnMetadataStrip_ResultState(t *testing.T) {
 	cwd, cp, ingest := newReduceFixture(t)
-	livePath := filepath.Join(cwd, ".agents", "learnings", "2026-04-09-fixture.md")
-	if err := os.WriteFile(livePath, []byte("# Fixture\n\nNo frontmatter here.\n"), 0o644); err != nil {
-		t.Fatalf("strip live fixture: %v", err)
+	stagedPath := filepath.Join(cp.StagingDir, ".agents", "learnings", "2026-04-09-fixture.md")
+	if err := os.WriteFile(stagedPath, []byte("# Fixture\n\nNo frontmatter here.\n"), 0o644); err != nil {
+		t.Fatalf("strip staged fixture: %v", err)
 	}
 
 	rec := &recorder{}
@@ -333,12 +337,19 @@ func TestRunReduce_IncludesInjectRefreshStage(t *testing.T) {
 	// Install a stub refresh that returns a structured success result.
 	// Restore the default after the test so unrelated tests continue
 	// to exercise the real in-process path.
+	//
+	// Post-V1 fix: REDUCE stages now target cp.StagingDir (not opts.Cwd)
+	// so every mutation lands inside the checkpoint boundary and is
+	// rolled back or committed atomically. The stub assertion therefore
+	// expects cp.StagingDir, not cwd. Guards against regression to the
+	// buggy opts.Cwd behavior caught in Phase 3 vibe finding V1.
+	_ = cwd // cwd is the repo root; staging is the checkpoint dir we expect
 	stubCalled := false
 	prev := refreshInjectCacheFn
 	refreshInjectCacheFn = func(ctx context.Context, stubCwd string, log io.Writer) (*InjectRefreshResult, error) {
 		stubCalled = true
-		if stubCwd != cwd {
-			t.Errorf("stub received cwd %q, want %q", stubCwd, cwd)
+		if stubCwd != cp.StagingDir {
+			t.Errorf("stub received cwd %q, want cp.StagingDir %q", stubCwd, cp.StagingDir)
 		}
 		return &InjectRefreshResult{
 			Attempted: true,

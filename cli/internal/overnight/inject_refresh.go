@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -146,7 +145,12 @@ func RefreshInjectCache(ctx context.Context, cwd string, log io.Writer) (*Inject
 		defer cancel()
 	}
 
-	aoBin, lookErr := exec.LookPath("ao")
+	// Route the lookup AND the command through the package-level shim
+	// vars (exec_shim.go). Boundary tests intercept these to enforce
+	// the anti-goals mechanically — any regression that adds a git or
+	// rpi subprocess call here would be caught by the shim, not left
+	// to slip through a direct exec.* call.
+	aoBin, lookErr := ExecLookPath("ao")
 	if lookErr != nil {
 		result.Method = "skipped"
 		result.Duration = time.Since(started)
@@ -158,7 +162,7 @@ func RefreshInjectCache(ctx context.Context, cwd string, log io.Writer) (*Inject
 		return result, nil
 	}
 
-	cmd := exec.CommandContext(subCtx, aoBin, "store", "rebuild")
+	cmd := ExecCommandContext(subCtx, aoBin, "store", "rebuild")
 	cmd.Dir = cwd
 	cmd.Stdout = log
 	cmd.Stderr = log

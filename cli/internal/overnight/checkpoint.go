@@ -357,9 +357,21 @@ func (cp *Checkpoint) Rollback() error {
 }
 
 // VerifyMetadataRoundTrip checks that every learning-file frontmatter key
-// present in the staging snapshot still exists in the live tree after
-// Commit. This is the pm-005 regression guard: a reducer that strips
-// frontmatter fields it doesn't know about will fail this check.
+// present in the LIVE (pre-REDUCE) snapshot still exists in the STAGING
+// (post-REDUCE) tree. This is the pm-005 regression guard: a reducer that
+// strips frontmatter fields it doesn't know about will fail this check.
+//
+// Walk direction: live → staging. REDUCE mutates the staging copy (per
+// the V1 fix from Phase 3 vibe), so the comparison asks "did any key
+// from the pristine baseline survive into the reducer's output?" A key
+// in LIVE but missing from STAGING is a silent strip. Extra keys in
+// STAGING that aren't in LIVE (e.g., harvest-promote imported a new
+// file) are additions, NOT strips, and are intentionally ignored.
+//
+// Files that exist in LIVE but are entirely missing from STAGING are
+// treated as LEGITIMATE DELETIONS (defrag-prune, dedup merge). They are
+// not flagged; only in-place key strips on files that exist in both
+// trees count as failures.
 //
 // The check computes a pure set-difference over ALL top-level frontmatter
 // keys — it intentionally does NOT use a hardcoded allowlist, because any
@@ -378,36 +390,30 @@ func VerifyMetadataRoundTrip(cp *Checkpoint) MetadataIntegrityReport {
 	stagedRoot := filepath.Join(cp.StagingDir, ".agents", "learnings")
 	liveRoot := filepath.Join(cp.LiveDir, "learnings")
 
-	stagedMeta := collectFrontmatter(stagedRoot)
-	if len(stagedMeta) == 0 {
+	liveMeta := collectFrontmatter(liveRoot)
+	if len(liveMeta) == 0 {
 		return report
 	}
-	liveMeta := collectFrontmatter(liveRoot)
+	stagedMeta := collectFrontmatter(stagedRoot)
 
 	// Stable iteration for deterministic report ordering.
-	files := make([]string, 0, len(stagedMeta))
-	for f := range stagedMeta {
+	files := make([]string, 0, len(liveMeta))
+	for f := range liveMeta {
 		files = append(files, f)
 	}
 	sort.Strings(files)
 
 	for _, rel := range files {
-		stagedKeys := stagedMeta[rel]
-		liveKeys, ok := liveMeta[rel]
+		liveKeys := liveMeta[rel]
+		stagedKeys, ok := stagedMeta[rel]
 		if !ok {
-			// File vanished entirely on the live side — report every
-			// staged key as stripped.
-			stagedList := sortedKeys(stagedKeys)
-			for _, key := range stagedList {
-				report.StrippedFields = append(report.StrippedFields, StrippedField{
-					File: filepath.ToSlash(filepath.Join("learnings", rel)),
-					Key:  key,
-				})
-			}
+			// File was legitimately deleted by a REDUCE stage (e.g.,
+			// defrag-prune removing stale entries, dedup merging
+			// duplicates). Not a metadata strip.
 			continue
 		}
-		for _, key := range sortedKeys(stagedKeys) {
-			if _, present := liveKeys[key]; !present {
+		for _, key := range sortedKeys(liveKeys) {
+			if _, present := stagedKeys[key]; !present {
 				report.StrippedFields = append(report.StrippedFields, StrippedField{
 					File: filepath.ToSlash(filepath.Join("learnings", rel)),
 					Key:  key,

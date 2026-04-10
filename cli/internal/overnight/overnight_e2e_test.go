@@ -174,13 +174,20 @@ func TestRunLoop_L2_FullIteration_CorpusQualityMoves(t *testing.T) {
 		t.Fatal("baseline FitnessVector is nil")
 	}
 
-	// --- Wave 1 skeleton RunLoop assertion -------------------------
+	// --- Real RunLoop end-to-end -----------------------------------
+	// Snapshot frontmatter before RunLoop mutates anything.
+	beforeFM := frontmatterKeys(t, dir)
+	beforeDigest := frontmatterDigest(beforeFM)
+	if len(beforeFM) < 150 {
+		t.Fatalf("expected >= 150 learnings in fixture, got %d", len(beforeFM))
+	}
+
 	opts := RunLoopOptions{
 		Cwd:            dir,
 		OutputDir:      filepath.Join(dir, ".agents", "overnight", "test-run"),
-		RunTimeout:     5 * time.Second,
+		RunTimeout:     30 * time.Second,
 		MaxIterations:  2,
-		WarnOnly:       true,
+		WarnOnly:       true, // tolerate plateau/regression while exercising the loop
 		LogWriter:      io.Discard,
 	}
 	result, err := RunLoop(context.Background(), opts)
@@ -190,87 +197,56 @@ func TestRunLoop_L2_FullIteration_CorpusQualityMoves(t *testing.T) {
 	if result == nil {
 		t.Fatal("RunLoop returned nil result")
 	}
-	foundSkeletonNote := false
-	for _, d := range result.Degraded {
-		if strings.Contains(d, "skeleton") && strings.Contains(d, "no iterations executed") {
-			foundSkeletonNote = true
-			break
+
+	// Post-V3 fix: RunLoop actually runs iterations instead of a
+	// skeleton no-op. Assert the loop hit MaxIterations and surfaced
+	// iteration sub-summaries.
+	if len(result.Iterations) != 2 {
+		t.Fatalf("expected 2 iterations from RunLoop, got %d (degraded=%v)",
+			len(result.Iterations), result.Degraded)
+	}
+	for i, iter := range result.Iterations {
+		if iter.Status == "rolled-back" || iter.Status == "failed" {
+			t.Errorf("iteration %d ended in status %q (error=%s)", i+1, iter.Status, iter.Error)
+		}
+		if iter.Reduce == nil {
+			t.Errorf("iteration %d missing Reduce sub-summary", i+1)
+		}
+		if iter.Measure == nil {
+			t.Errorf("iteration %d missing Measure sub-summary", i+1)
 		}
 	}
-	if !foundSkeletonNote {
-		t.Errorf("expected Wave 1 skeleton degraded note in result.Degraded, got %v", result.Degraded)
+
+	// Iteration 1 MUST have routed findings (the fixture seeds ~10
+	// unresolved findings that are brand-new to next-work.jsonl).
+	// Iteration 2 may route 0 because iteration 1 already persisted
+	// them via Commit; the dedup is working as intended.
+	iter1Reduce := result.Iterations[0].Reduce
+	if iter1Reduce == nil {
+		t.Fatal("iteration 1 Reduce summary is nil")
 	}
-	if len(result.Iterations) != 0 {
-		t.Errorf("expected no iterations in Wave 1 skeleton result, got %d", len(result.Iterations))
+	routed, _ := iter1Reduce["findings_routed"].(int)
+	if routed <= 0 {
+		t.Errorf("expected iteration 1 to route >0 findings, got %d (reduce=%v)", routed, iter1Reduce)
 	}
 
-	// --- Real stage drivers end-to-end ------------------------------
-	// Snapshot frontmatter before REDUCE mutates anything.
-	beforeFM := frontmatterKeys(t, dir)
-	beforeDigest := frontmatterDigest(beforeFM)
-	if len(beforeFM) < 150 {
-		t.Fatalf("expected >= 150 learnings in fixture, got %d", len(beforeFM))
+	// Post-commit live check: next-work.jsonl should have >0 lines
+	// after the first committed iteration.
+	liveNextWork := filepath.Join(dir, ".agents", "rpi", "next-work.jsonl")
+	if countLines(t, liveNextWork) <= 0 {
+		t.Errorf("expected live next-work.jsonl to contain >0 routed lines after RunLoop, got %d",
+			countLines(t, liveNextWork))
 	}
 
-	// INGEST
-	ctx := context.Background()
-	ingest, err := RunIngest(ctx, opts, io.Discard)
-	if err != nil {
-		t.Fatalf("RunIngest: %v", err)
+	// Fitness metrics check: iteration 1 should have captured a
+	// non-nil fitness snapshot via MEASURE.
+	iter1Measure := result.Iterations[0].Measure
+	if iter1Measure == nil {
+		t.Fatal("iteration 1 Measure summary is nil")
 	}
-	if ingest == nil {
-		t.Fatal("RunIngest returned nil result")
-	}
-	if ingest.HarvestCatalog == nil {
-		t.Fatal("INGEST produced nil HarvestCatalog")
-	}
-	if ingest.HarvestCatalog.Summary.ArtifactsExtracted == 0 {
-		t.Errorf("expected >0 artifacts extracted by INGEST, got %d",
-			ingest.HarvestCatalog.Summary.ArtifactsExtracted)
-	}
-
-	// REDUCE — requires a checkpoint; no close-loop callbacks wired.
-	cp, err := NewCheckpoint(dir, "l2-e2e-iter-1", 128*1024*1024)
-	if err != nil {
-		t.Fatalf("NewCheckpoint: %v", err)
-	}
-	reduce, err := RunReduce(ctx, opts, ingest, cp, lifecycle.CloseLoopOpts{}, io.Discard)
-	if err != nil {
-		t.Fatalf("RunReduce: %v", err)
-	}
-	if reduce.RolledBack {
-		t.Fatalf("unexpected REDUCE rollback: %s", reduce.RollbackReason)
-	}
-	if !reduce.MetadataIntegrity.Pass {
-		t.Errorf("metadata integrity failed: %d stripped fields", len(reduce.MetadataIntegrity.StrippedFields))
-	}
-	if reduce.InjectRefreshResult == nil {
-		t.Error("expected non-nil InjectRefreshResult (inject-refresh stage should have run)")
-	}
-
-	// MEASURE
-	measure, err := RunMeasure(ctx, opts, io.Discard)
-	if err != nil {
-		t.Fatalf("RunMeasure: %v", err)
-	}
-	if measure == nil || measure.Fitness == nil {
-		t.Fatal("RunMeasure produced nil FitnessVector")
-	}
-	// Fixture mix is 50% provisional + 30% accepted + 15% stable +
-	// 5% promoted — MaturityProvisional counts the fraction of
-	// learnings with maturity >= provisional, which is effectively
-	// 100% for our fixture. Guard with >= 0.5 per spec.
-	if measure.Fitness.MaturityProvisional < 0.5 {
-		t.Errorf("expected MaturityProvisional >= 0.5, got %f", measure.Fitness.MaturityProvisional)
-	}
-
-	// Findings router: fixture has 20 findings, ~10 unresolved; expect >0 routed.
-	if reduce.FindingsRouted <= 0 {
-		t.Errorf("expected findings router to route >0 entries, got %d", reduce.FindingsRouted)
-	}
-	nextWork := filepath.Join(dir, ".agents", "rpi", "next-work.jsonl")
-	if countLines(t, nextWork) <= 0 {
-		t.Errorf("expected next-work.jsonl to contain >0 routed lines, got %d", countLines(t, nextWork))
+	fitness, ok := iter1Measure["fitness"]
+	if !ok || fitness == nil {
+		t.Errorf("expected iteration 1 measure.fitness to be non-nil, got %v", iter1Measure)
 	}
 
 	// Metadata round-trip assertion: no frontmatter key disappeared.
@@ -309,7 +285,7 @@ func TestRunLoop_L2_MetadataStripDetected(t *testing.T) {
 	}
 
 	// Confirm the staging copy has the original frontmatter (the
-	// checkpoint cloned it before we corrupt live below).
+	// checkpoint cloned it before we corrupt staging below).
 	stagedTarget := filepath.Join(cp.StagingDir, ".agents", "learnings", "learning-000.md")
 	stagedBefore, err := os.ReadFile(stagedTarget)
 	if err != nil {
@@ -320,13 +296,13 @@ func TestRunLoop_L2_MetadataStripDetected(t *testing.T) {
 			string(stagedBefore))
 	}
 
-	// Strip the LIVE copy of one learning — VerifyMetadataRoundTrip
-	// compares staging (which has the original frontmatter) against
-	// live (which now has none), so every staged key appears as
-	// dropped for this file.
-	target := filepath.Join(dir, ".agents", "learnings", "learning-000.md")
-	if err := os.WriteFile(target, []byte("# Stripped\n\nNo frontmatter here.\n"), 0o644); err != nil {
-		t.Fatalf("strip live fixture: %v", err)
+	// Post-V1 fix semantic: REDUCE mutates STAGING (not LIVE).
+	// To simulate a reducer that strips metadata, overwrite the staged
+	// copy; LIVE (the pristine baseline) still has the original
+	// frontmatter. VerifyMetadataRoundTrip walks LIVE and reports keys
+	// missing from the staged output as stripped.
+	if err := os.WriteFile(stagedTarget, []byte("# Stripped\n\nNo frontmatter here.\n"), 0o644); err != nil {
+		t.Fatalf("strip staged fixture: %v", err)
 	}
 
 	report := VerifyMetadataRoundTrip(cp)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -171,6 +170,16 @@ func RunReduce(
 
 	closeLoopWired := closeLoopCallbacksPresent(closeLoopCallbacks)
 
+	// stagingCwd is the pseudo-cwd every mutative stage targets. The
+	// checkpoint lays out its staging tree so that StagingDir/.agents/<sub>
+	// mirrors opts.Cwd/.agents/<sub>; passing StagingDir as the cwd to
+	// lifecycle.* and RouteFindings routes every mutation into the
+	// checkpoint's staging copy, where it can be rolled back or committed
+	// atomically. Mutating opts.Cwd directly (the pre-Wave-4 bug caught in
+	// vibe finding V1) would invert the Commit semantics and destroy the
+	// corpus on first successful commit.
+	stagingCwd := cp.StagingDir
+
 	stages := []reduceStage{
 		{
 			name: "harvest-promote",
@@ -180,10 +189,12 @@ func RunReduce(
 						"harvest-promote: no catalog from INGEST, skipped")
 					return nil
 				}
-				home, _ := os.UserHomeDir()
-				dest := filepath.Join(home, ".agents", "learnings")
-				// NOTE: destination is a stub default; Wave 4 wires a
-				// caller-supplied destination through RunLoopOptions.
+				// Promote INTO the staging copy of .agents/learnings so
+				// the cross-rig consolidated artifacts land inside the
+				// checkpoint boundary and are subject to Commit/Rollback.
+				// Writing to ~/.agents/learnings from inside REDUCE would
+				// leak outside the checkpoint (vibe finding V2).
+				dest := filepath.Join(stagingCwd, ".agents", "learnings")
 				count, err := harvest.Promote(ingest.HarvestCatalog, dest, false)
 				result.HarvestPromoted = count
 				return err
@@ -192,7 +203,7 @@ func RunReduce(
 		{
 			name: "dedup",
 			run: func() error {
-				dr, err := lifecycle.ExecuteDedup(opts.Cwd, false)
+				dr, err := lifecycle.ExecuteDedup(stagingCwd, false)
 				if err != nil {
 					return err
 				}
@@ -213,7 +224,7 @@ func RunReduce(
 		{
 			name: "defrag-prune",
 			run: func() error {
-				pr, err := lifecycle.ExecutePrune(opts.Cwd, false, 30)
+				pr, err := lifecycle.ExecutePrune(stagingCwd, false, 30)
 				if err != nil {
 					return err
 				}
@@ -231,7 +242,7 @@ func RunReduce(
 						"close-loop: callbacks not wired")
 					return nil
 				}
-				clr, err := lifecycle.ExecuteCloseLoop(opts.Cwd, closeLoopCallbacks)
+				clr, err := lifecycle.ExecuteCloseLoop(stagingCwd, closeLoopCallbacks)
 				if err != nil {
 					return err
 				}
@@ -244,7 +255,7 @@ func RunReduce(
 		{
 			name: "findings-router",
 			run: func() error {
-				routed, degraded, err := RouteFindings(opts.Cwd)
+				routed, degraded, err := RouteFindings(stagingCwd)
 				if err != nil {
 					return err
 				}
@@ -262,9 +273,13 @@ func RunReduce(
 			// stale inject cache is strictly less bad than discarding
 			// the compounded corpus landed in stages 1-6. See pm-006
 			// in the Wave 4 pre-mortem and PRODUCT.md Gap #1.
+			//
+			// Targets stagingCwd so the cache rebuilt pre-commit reflects
+			// the staged corpus; Commit promotes the rebuilt cache along
+			// with the compounded corpus in one atomic swap.
 			name: "inject-refresh",
 			run: func() error {
-				ir, err := refreshInjectCacheFn(ctx, opts.Cwd, log)
+				ir, err := refreshInjectCacheFn(ctx, stagingCwd, log)
 				if ir != nil {
 					result.InjectRefreshResult = ir
 					result.InjectRefreshed = ir.Succeeded
