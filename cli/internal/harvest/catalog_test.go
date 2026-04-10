@@ -38,6 +38,15 @@ func TestBuildCatalog_GroupsDuplicates(t *testing.T) {
 	if cat.TotalFiles != 3 {
 		t.Errorf("expected TotalFiles=3, got %d", cat.TotalFiles)
 	}
+	if cat.Summary.UniqueArtifacts != 2 {
+		t.Errorf("expected summary.unique_artifacts=2, got %d", cat.Summary.UniqueArtifacts)
+	}
+	if cat.Summary.DuplicateGroups != 1 {
+		t.Errorf("expected summary.duplicate_groups=1, got %d", cat.Summary.DuplicateGroups)
+	}
+	if cat.Summary.DuplicateExcess != 1 {
+		t.Errorf("expected summary.duplicate_excess=1, got %d", cat.Summary.DuplicateExcess)
+	}
 }
 
 func TestBuildCatalog_DuplicateTiebreakByDate(t *testing.T) {
@@ -67,6 +76,9 @@ func TestBuildCatalog_PromotionThreshold(t *testing.T) {
 
 	if len(cat.Promoted) != 2 {
 		t.Fatalf("expected 2 promoted artifacts (>= 0.5), got %d", len(cat.Promoted))
+	}
+	if cat.Summary.PromotionCandidates != 2 {
+		t.Fatalf("expected summary.promotion_candidates=2, got %d", cat.Summary.PromotionCandidates)
 	}
 
 	ids := map[string]bool{}
@@ -265,6 +277,9 @@ func TestWriteCatalog_DatedAndLatest(t *testing.T) {
 	}
 	if parsed.RigsScanned != 3 {
 		t.Errorf("expected RigsScanned=3, got %d", parsed.RigsScanned)
+	}
+	if parsed.Summary.ArtifactsExtracted != 1 {
+		t.Errorf("expected summary.artifacts_extracted=1, got %d", parsed.Summary.ArtifactsExtracted)
 	}
 	if len(parsed.Artifacts) != 1 {
 		t.Errorf("expected 1 artifact, got %d", len(parsed.Artifacts))

@@ -12,12 +12,21 @@ import (
 
 // Catalog holds the results of a cross-rig harvest.
 type Catalog struct {
-	Timestamp   time.Time        `json:"timestamp"`
-	RigsScanned int              `json:"rigs_scanned"`
-	TotalFiles  int              `json:"total_files"`
-	Artifacts   []Artifact       `json:"artifacts"`
-	Duplicates  []DuplicateGroup `json:"duplicates"`
-	Promoted    []Artifact       `json:"promoted"`
+	Timestamp      time.Time        `json:"timestamp"`
+	RigsScanned    int              `json:"rigs_scanned"`
+	TotalFiles     int              `json:"total_files"`
+	Roots          []string         `json:"roots,omitempty"`
+	IncludeDirs    []string         `json:"include_dirs,omitempty"`
+	PromoteTo      string           `json:"promote_to,omitempty"`
+	MinConfidence  float64          `json:"min_confidence,omitempty"`
+	DryRun         bool             `json:"dry_run,omitempty"`
+	Rigs           []RigInfo        `json:"rigs,omitempty"`
+	Warnings       []HarvestWarning `json:"warnings,omitempty"`
+	Artifacts      []Artifact       `json:"artifacts"`
+	Duplicates     []DuplicateGroup `json:"duplicates"`
+	Promoted       []Artifact       `json:"promoted"`
+	PromotionCount int              `json:"promotion_count,omitempty"`
+	Summary        CatalogSummary   `json:"summary"`
 }
 
 // DuplicateGroup represents artifacts with identical content across rigs.
@@ -26,6 +35,20 @@ type DuplicateGroup struct {
 	Count     int        `json:"count"`
 	Artifacts []Artifact `json:"artifacts"`
 	Kept      string     `json:"kept"` // ID of the kept artifact
+}
+
+// CatalogSummary exposes the operator-facing counts that downstream skills and
+// humans would otherwise have to reconstruct from the raw artifact lists.
+type CatalogSummary struct {
+	ArtifactsExtracted  int            `json:"artifacts_extracted"`
+	UniqueArtifacts     int            `json:"unique_artifacts"`
+	DuplicateGroups     int            `json:"duplicate_groups"`
+	DuplicateArtifacts  int            `json:"duplicate_artifacts"`
+	DuplicateExcess     int            `json:"duplicate_excess"`
+	PromotionCandidates int            `json:"promotion_candidates"`
+	PromotionWrites     int            `json:"promotion_writes"`
+	WarningCount        int            `json:"warning_count"`
+	ArtifactsByType     map[string]int `json:"artifacts_by_type,omitempty"`
 }
 
 // BuildCatalog groups artifacts by content hash, resolves duplicates by
@@ -88,6 +111,7 @@ func BuildCatalog(artifacts []Artifact, minConfidence float64) *Catalog {
 			cat.Promoted = append(cat.Promoted, w)
 		}
 	}
+	cat.refreshSummary()
 
 	return cat
 }
@@ -226,6 +250,8 @@ func stripFrontmatter(content string) string {
 // WriteCatalog writes the catalog as indented JSON to both a dated file
 // and a latest.json symlink-free copy.
 func WriteCatalog(dir string, cat *Catalog) error {
+	cat.refreshSummary()
+
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creating catalog dir %s: %w", dir, err)
 	}
@@ -247,4 +273,36 @@ func WriteCatalog(dir string, cat *Catalog) error {
 	}
 
 	return nil
+}
+
+func (cat *Catalog) refreshSummary() {
+	if cat == nil {
+		return
+	}
+
+	byType := map[string]int{}
+	for _, art := range cat.Artifacts {
+		byType[art.Type]++
+	}
+
+	duplicateArtifacts := 0
+	duplicateExcess := 0
+	for _, group := range cat.Duplicates {
+		duplicateArtifacts += group.Count
+		if group.Count > 1 {
+			duplicateExcess += group.Count - 1
+		}
+	}
+
+	cat.Summary = CatalogSummary{
+		ArtifactsExtracted:  len(cat.Artifacts),
+		UniqueArtifacts:     len(cat.Artifacts) - duplicateExcess,
+		DuplicateGroups:     len(cat.Duplicates),
+		DuplicateArtifacts:  duplicateArtifacts,
+		DuplicateExcess:     duplicateExcess,
+		PromotionCandidates: len(cat.Promoted),
+		PromotionWrites:     cat.PromotionCount,
+		WarningCount:        len(cat.Warnings),
+		ArtifactsByType:     byType,
+	}
 }

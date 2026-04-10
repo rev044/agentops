@@ -23,9 +23,18 @@ type Artifact struct {
 	SourcePath  string         `json:"source_path"` // Absolute path to source file
 	ContentHash string         `json:"content_hash"`
 	Confidence  float64        `json:"confidence"`
-	Scope       string         `json:"scope"`    // project:X, language:X, global
+	Scope       string         `json:"scope"` // project:X, language:X, global
 	Date        string         `json:"date"`
 	Frontmatter map[string]any `json:"frontmatter,omitempty"`
+}
+
+// HarvestWarning records a non-fatal issue encountered during harvest so the
+// caller can surface it in the catalog instead of dropping a whole rig.
+type HarvestWarning struct {
+	Rig     string `json:"rig,omitempty"`
+	Path    string `json:"path"`
+	Stage   string `json:"stage"`
+	Message string `json:"message"`
 }
 
 var (
@@ -34,9 +43,23 @@ var (
 )
 
 // ExtractArtifacts reads markdown files from a rig's .agents/ subdirectories
-// and returns parsed Artifact values with provenance metadata.
-func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, error) {
+// and returns parsed Artifact values with provenance metadata plus non-fatal
+// warnings for any files or subdirectories that were skipped.
+func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, []HarvestWarning) {
 	var artifacts []Artifact
+	var warnings []HarvestWarning
+
+	warn := func(path, stage string, err error) {
+		if err == nil {
+			return
+		}
+		warnings = append(warnings, HarvestWarning{
+			Rig:     rig.Rig,
+			Path:    path,
+			Stage:   stage,
+			Message: err.Error(),
+		})
+	}
 
 	for _, subdir := range opts.IncludeDirs {
 		dir := filepath.Join(rig.Path, subdir)
@@ -47,7 +70,8 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, error) {
 
 		entries, err := os.ReadDir(dir)
 		if err != nil {
-			return nil, fmt.Errorf("reading subdir %s: %w", dir, err)
+			warn(dir, "read_dir", fmt.Errorf("reading subdir %s: %w", dir, err))
+			continue
 		}
 
 		artType := singularType(subdir)
@@ -67,7 +91,8 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, error) {
 			if opts.MaxFileSize > 0 {
 				fi, err := e.Info()
 				if err != nil {
-					return nil, fmt.Errorf("stat %s: %w", path, err)
+					warn(path, "stat", fmt.Errorf("stat %s: %w", path, err))
+					continue
 				}
 				if fi.Size() > opts.MaxFileSize {
 					continue
@@ -76,13 +101,15 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, error) {
 
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("reading %s: %w", path, err)
+				warn(path, "read_file", fmt.Errorf("reading %s: %w", path, err))
+				continue
 			}
 
 			content := string(data)
 			fm, body, err := parseFrontmatter(content)
 			if err != nil {
-				return nil, fmt.Errorf("parsing frontmatter in %s: %w", path, err)
+				warn(path, "parse_frontmatter", fmt.Errorf("parsing frontmatter in %s: %w", path, err))
+				continue
 			}
 
 			fm = NormalizeFrontmatter(fm)
@@ -110,7 +137,7 @@ func ExtractArtifacts(rig RigInfo, opts WalkOptions) ([]Artifact, error) {
 		}
 	}
 
-	return artifacts, nil
+	return artifacts, warnings
 }
 
 // parseFrontmatter splits YAML frontmatter from body content.

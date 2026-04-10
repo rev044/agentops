@@ -64,6 +64,7 @@ func TestHarvestCmd_Flags(t *testing.T) {
 
 func TestRunHarvest_DryRun(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
 
 	// Create a rig with .agents/learnings containing a markdown file.
 	rigDir := filepath.Join(tmp, "myproject", ".agents", "learnings")
@@ -133,6 +134,18 @@ func TestRunHarvest_DryRun(t *testing.T) {
 	if cat.RigsScanned == 0 {
 		t.Error("expected RigsScanned > 0")
 	}
+	if got := cat.Summary.ArtifactsExtracted; got != len(cat.Artifacts) {
+		t.Errorf("summary.artifacts_extracted = %d, want %d", got, len(cat.Artifacts))
+	}
+	if got := cat.Summary.PromotionCandidates; got != len(cat.Promoted) {
+		t.Errorf("summary.promotion_candidates = %d, want %d", got, len(cat.Promoted))
+	}
+	if got := cat.Summary.WarningCount; got != len(cat.Warnings) {
+		t.Errorf("summary.warning_count = %d, want %d", got, len(cat.Warnings))
+	}
+	if !cat.DryRun {
+		t.Error("expected dry_run=true in catalog")
+	}
 
 	// Promotion directory should NOT exist (dry run).
 	if _, err := os.Stat(promoteDir); !os.IsNotExist(err) {
@@ -142,6 +155,7 @@ func TestRunHarvest_DryRun(t *testing.T) {
 
 func TestRunHarvest_JSONOutput(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
 
 	// Create a rig with a learning.
 	rigDir := filepath.Join(tmp, "proj", ".agents", "learnings")
@@ -217,6 +231,10 @@ func TestRunHarvest_JSONOutput(t *testing.T) {
 	if cat.RigsScanned == 0 {
 		t.Error("expected RigsScanned > 0 in JSON output")
 	}
+	latestPath := filepath.Join(harvestOutputDir, "latest.json")
+	if _, err := os.Stat(latestPath); err != nil {
+		t.Fatalf("expected latest.json to be written in JSON mode: %v", err)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -242,5 +260,76 @@ func TestDuplicateArtifactCount_WithDuplicates(t *testing.T) {
 	got := duplicateArtifactCount(cat)
 	if got != 3 {
 		t.Errorf("duplicateArtifactCount = %d, want 3", got)
+	}
+}
+
+func TestRunHarvest_MalformedFileBecomesWarning(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	rigDir := filepath.Join(tmp, "myproject", ".agents", "learnings")
+	if err := os.MkdirAll(rigDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	valid := "---\ntitle: Valid Learning\nconfidence: 0.8\n---\n\n# Valid Learning\n\nThis artifact should still be harvested.\n"
+	if err := os.WriteFile(filepath.Join(rigDir, "2026-04-10-valid.md"), []byte(valid), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	invalid := "---\ntitle: Broken: value\nbad: still: broken\n---\n"
+	if err := os.WriteFile(filepath.Join(rigDir, "2026-04-10-bad.md"), []byte(invalid), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origRoots := harvestRootsFlag
+	origOutput := harvestOutputDir
+	origPromote := harvestPromoteTo
+	origQuiet := harvestQuiet
+	origDryRun := dryRun
+	origMinConf := harvestMinConfidence
+	origInclude := harvestInclude
+	origMaxSize := harvestMaxFileSize
+	t.Cleanup(func() {
+		harvestRootsFlag = origRoots
+		harvestOutputDir = origOutput
+		harvestPromoteTo = origPromote
+		harvestQuiet = origQuiet
+		dryRun = origDryRun
+		harvestMinConfidence = origMinConf
+		harvestInclude = origInclude
+		harvestMaxFileSize = origMaxSize
+	})
+
+	harvestRootsFlag = tmp
+	harvestOutputDir = filepath.Join(tmp, "harvest-output")
+	harvestPromoteTo = filepath.Join(tmp, "promoted")
+	harvestQuiet = true
+	dryRun = true
+	harvestMinConfidence = 0.5
+	harvestInclude = "learnings"
+	harvestMaxFileSize = 1048576
+
+	if err := runHarvest(harvestCmd, nil); err != nil {
+		t.Fatalf("runHarvest returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(harvestOutputDir, "latest.json"))
+	if err != nil {
+		t.Fatalf("reading catalog: %v", err)
+	}
+	var cat harvest.Catalog
+	if err := json.Unmarshal(data, &cat); err != nil {
+		t.Fatalf("unmarshaling catalog: %v", err)
+	}
+	if len(cat.Artifacts) != 1 {
+		t.Fatalf("expected 1 valid artifact, got %d", len(cat.Artifacts))
+	}
+	if len(cat.Warnings) != 1 {
+		t.Fatalf("expected 1 warning, got %#v", cat.Warnings)
+	}
+	if cat.Summary.WarningCount != 1 {
+		t.Fatalf("summary.warning_count = %d, want 1", cat.Summary.WarningCount)
+	}
+	if cat.Warnings[0].Stage != "parse_frontmatter" {
+		t.Fatalf("warning stage = %q, want parse_frontmatter", cat.Warnings[0].Stage)
 	}
 }

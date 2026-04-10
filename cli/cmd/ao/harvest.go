@@ -94,16 +94,26 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 	}
 
 	var allArtifacts []harvest.Artifact
+	var warnings []harvest.HarvestWarning
 	for _, rig := range rigs {
-		arts, extractErr := harvest.ExtractArtifacts(rig, opts)
-		if extractErr != nil {
-			fmt.Fprintf(os.Stderr, "harvest: warning: extracting from %s: %v\n", rig.Rig, extractErr)
-			continue
+		arts, rigWarnings := harvest.ExtractArtifacts(rig, opts)
+		if len(rigWarnings) > 0 {
+			for _, warning := range rigWarnings {
+				fmt.Fprintf(os.Stderr, "harvest: warning: %s: %s\n", warning.Stage, warning.Message)
+			}
+			warnings = append(warnings, rigWarnings...)
 		}
 		allArtifacts = append(allArtifacts, arts...)
 	}
 
 	catalog := harvest.BuildCatalog(allArtifacts, harvestMinConfidence)
+	catalog.Roots = append([]string{}, roots...)
+	catalog.IncludeDirs = append([]string{}, includeDirs...)
+	catalog.PromoteTo = harvestPromoteTo
+	catalog.MinConfidence = harvestMinConfidence
+	catalog.DryRun = GetDryRun()
+	catalog.Rigs = append([]harvest.RigInfo{}, rigs...)
+	catalog.Warnings = append([]harvest.HarvestWarning{}, warnings...)
 	catalog.RigsScanned = len(rigs)
 
 	totalFiles := 0
@@ -114,18 +124,13 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 	catalog.Timestamp = time.Now().UTC()
 
 	if !harvestQuiet {
-		uniqueCount := len(catalog.Artifacts) - duplicateArtifactCount(catalog)
-		fmt.Printf("Extracted %d artifacts (%d unique, %d duplicates, %d promotion candidates)\n",
-			len(catalog.Artifacts), uniqueCount, duplicateArtifactCount(catalog), len(catalog.Promoted))
-	}
-
-	if GetOutput() == "json" {
-		data, marshalErr := json.MarshalIndent(catalog, "", "  ")
-		if marshalErr != nil {
-			return fmt.Errorf("marshaling catalog: %w", marshalErr)
-		}
-		fmt.Println(string(data))
-		return nil
+		fmt.Printf("Extracted %d artifacts (%d unique, %d duplicate excess, %d promotion candidates, %d warnings)\n",
+			catalog.Summary.ArtifactsExtracted,
+			catalog.Summary.UniqueArtifacts,
+			catalog.Summary.DuplicateExcess,
+			catalog.Summary.PromotionCandidates,
+			catalog.Summary.WarningCount,
+		)
 	}
 
 	promoted := 0
@@ -136,10 +141,20 @@ func runHarvest(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("promoting artifacts: %w", promoteErr)
 		}
 	}
+	catalog.PromotionCount = promoted
 
 	outputDir := harvestOutputDir
 	if err := harvest.WriteCatalog(outputDir, catalog); err != nil {
 		return fmt.Errorf("writing catalog: %w", err)
+	}
+
+	if GetOutput() == "json" {
+		data, marshalErr := json.MarshalIndent(catalog, "", "  ")
+		if marshalErr != nil {
+			return fmt.Errorf("marshaling catalog: %w", marshalErr)
+		}
+		fmt.Println(string(data))
+		return nil
 	}
 
 	if !harvestQuiet {

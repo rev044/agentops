@@ -43,9 +43,9 @@ When retrying HTTP calls, use exponential backoff with jitter.
 		IncludeDirs: []string{"learnings"},
 	}
 
-	artifacts, err := ExtractArtifacts(rig, opts)
-	if err != nil {
-		t.Fatalf("ExtractArtifacts failed: %v", err)
+	artifacts, warnings := ExtractArtifacts(rig, opts)
+	if len(warnings) != 0 {
+		t.Fatalf("ExtractArtifacts warnings = %#v, want none", warnings)
 	}
 
 	if len(artifacts) != 1 {
@@ -111,9 +111,9 @@ Use circuit breakers for external service calls.
 		IncludeDirs: []string{"patterns"},
 	}
 
-	artifacts, err := ExtractArtifacts(rig, opts)
-	if err != nil {
-		t.Fatalf("ExtractArtifacts failed: %v", err)
+	artifacts, warnings := ExtractArtifacts(rig, opts)
+	if len(warnings) != 0 {
+		t.Fatalf("ExtractArtifacts warnings = %#v, want none", warnings)
 	}
 
 	if len(artifacts) != 1 {
@@ -162,9 +162,9 @@ func TestExtractArtifacts_SkipsLargeFiles(t *testing.T) {
 		IncludeDirs: []string{"research"},
 	}
 
-	artifacts, err := ExtractArtifacts(rig, opts)
-	if err != nil {
-		t.Fatalf("ExtractArtifacts failed: %v", err)
+	artifacts, warnings := ExtractArtifacts(rig, opts)
+	if len(warnings) != 0 {
+		t.Fatalf("ExtractArtifacts warnings = %#v, want none", warnings)
 	}
 
 	if len(artifacts) != 1 {
@@ -200,9 +200,9 @@ func TestExtractArtifacts_ComputesContentHash(t *testing.T) {
 		IncludeDirs: []string{"learnings"},
 	}
 
-	artifacts, err := ExtractArtifacts(rig, opts)
-	if err != nil {
-		t.Fatalf("ExtractArtifacts failed: %v", err)
+	artifacts, warnings := ExtractArtifacts(rig, opts)
+	if len(warnings) != 0 {
+		t.Fatalf("ExtractArtifacts warnings = %#v, want none", warnings)
 	}
 
 	if len(artifacts) != 1 {
@@ -224,6 +224,65 @@ func TestExtractArtifacts_ComputesContentHash(t *testing.T) {
 
 	if artifacts[0].ContentHash != expected {
 		t.Errorf("content_hash = %q, want %q", artifacts[0].ContentHash, expected)
+	}
+}
+
+func TestExtractArtifacts_ContinuesAfterMalformedFrontmatter(t *testing.T) {
+	tmp := t.TempDir()
+	agentsDir := filepath.Join(tmp, ".agents")
+	learningsDir := filepath.Join(agentsDir, "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	validContent := `---
+title: Good Learning
+confidence: 0.8
+---
+
+# Good Learning
+
+This file should still be harvested even when another file is malformed.
+`
+	if err := os.WriteFile(filepath.Join(learningsDir, "2026-04-10-good.md"), []byte(validContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	invalidContent := `---
+title: Broken: value
+bad: still: broken
+---
+`
+	if err := os.WriteFile(filepath.Join(learningsDir, "2026-04-10-bad.md"), []byte(invalidContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rig := RigInfo{
+		Path:    agentsDir,
+		Project: "agentops",
+		Crew:    "nami",
+		Rig:     "agentops-nami",
+	}
+	opts := WalkOptions{
+		MaxFileSize: 1048576,
+		IncludeDirs: []string{"learnings"},
+	}
+
+	artifacts, warnings := ExtractArtifacts(rig, opts)
+	if len(artifacts) != 1 {
+		t.Fatalf("expected 1 valid artifact, got %d", len(artifacts))
+	}
+	if artifacts[0].Title != "Good Learning" {
+		t.Fatalf("unexpected artifact title %q", artifacts[0].Title)
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("expected 1 warning, got %#v", warnings)
+	}
+	if warnings[0].Stage != "parse_frontmatter" {
+		t.Fatalf("warning stage = %q, want parse_frontmatter", warnings[0].Stage)
+	}
+	if !strings.Contains(warnings[0].Path, "2026-04-10-bad.md") {
+		t.Fatalf("warning path = %q, want bad.md", warnings[0].Path)
 	}
 }
 

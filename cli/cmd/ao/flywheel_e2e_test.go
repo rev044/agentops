@@ -54,9 +54,9 @@ The content is long enough to pass the quality gate minimum of 50 characters.
 		IncludeDirs: []string{"learnings"},
 	}
 
-	artifacts, err := harvest.ExtractArtifacts(rig, opts)
-	if err != nil {
-		t.Fatalf("ExtractArtifacts: %v", err)
+	artifacts, warnings := harvest.ExtractArtifacts(rig, opts)
+	if len(warnings) != 0 {
+		t.Fatalf("ExtractArtifacts warnings: %#v", warnings)
 	}
 	if len(artifacts) != 1 {
 		t.Fatalf("expected 1 artifact, got %d", len(artifacts))
@@ -185,9 +185,9 @@ func TestFlywheelE2E_StringConfidenceMapping(t *testing.T) {
 		IncludeDirs: []string{"learnings"},
 	}
 
-	artifacts, err := harvest.ExtractArtifacts(rig, opts)
-	if err != nil {
-		t.Fatalf("ExtractArtifacts: %v", err)
+	artifacts, warnings := harvest.ExtractArtifacts(rig, opts)
+	if len(warnings) != 0 {
+		t.Fatalf("ExtractArtifacts warnings: %#v", warnings)
 	}
 	if len(artifacts) != 3 {
 		t.Fatalf("expected 3 artifacts, got %d", len(artifacts))
@@ -247,12 +247,12 @@ that must survive through harvest extraction and promotion to the global store.
 		Crew:    "metacrew",
 		Rig:     "metarig-metacrew",
 	}
-	artifacts, err := harvest.ExtractArtifacts(rig, harvest.WalkOptions{
+	artifacts, warnings := harvest.ExtractArtifacts(rig, harvest.WalkOptions{
 		MaxFileSize: 1048576,
 		IncludeDirs: []string{"learnings"},
 	})
-	if err != nil {
-		t.Fatalf("ExtractArtifacts: %v", err)
+	if len(warnings) != 0 {
+		t.Fatalf("ExtractArtifacts warnings: %#v", warnings)
 	}
 	if len(artifacts) != 1 {
 		t.Fatalf("expected 1 artifact, got %d", len(artifacts))
