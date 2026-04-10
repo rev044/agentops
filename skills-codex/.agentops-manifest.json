@@ -652,7 +652,7 @@
       "name": "implement",
       "source_skill": "skills/implement",
       "source_hash": "2ab197d1810fd3eb56f73aac4645c02edc01aa41e524064b12b993c6861ebc32",
-      "generated_hash": "96e07704749dc8a8202bb6cf1053bc1832697bfb19bece0f9a4a288bad7e4fdd"
+      "generated_hash": "69fa694eaad00ead6eebce2590e981eca07660fba16887eb28f4e833e93eaf21"
     },
     {
       "name": "inject",
@@ -820,7 +820,7 @@
       "name": "review",
       "source_skill": "skills/review",
       "source_hash": "41592e863522cb5476c85e5edc5dfbb021cd62bc1b540ec69e0b8afe76e83d83",
-      "generated_hash": "b37648bc5f4c93b19d9c327817f17e56e38637cde2254eeb5f2b4adb10fb17a0"
+      "generated_hash": "1f9e69836548848fcae06d9fab5e6c8af05a8cc796d671ba813aa896f2d76279"
     },
     {
       "name": "rpi",
@@ -862,7 +862,7 @@
       "name": "standards",
       "source_skill": "skills/standards",
       "source_hash": "837a4c5f624c5de7dbe37193fb1671a97d2f4c9381355c4b3745e247b632577a",
-      "generated_hash": "cc703708e9f3bc108b361094bc549f05b75bb6e675cc72952fe69f83bc0588ee"
+      "generated_hash": "23b155149199a2a717809385cafdcd75214b7e1bfcbe4e47a8e666e5319068dc"
     },
     {
       "name": "status",
