@@ -8,7 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/forge"
 	"github.com/boshu2/agentops/cli/internal/harvest"
+	"github.com/boshu2/agentops/cli/internal/mine"
+	"github.com/boshu2/agentops/cli/internal/provenance"
 )
 
 // IngestResult is the output of a single INGEST stage.
@@ -67,14 +70,16 @@ type IngestResult struct {
 //  1. harvest.DiscoverRigs + harvest.ExtractArtifacts +
 //     harvest.BuildCatalog, scoped to opts.Cwd (load-bearing).
 //  2. harvest.Promote(catalog, dest, dryRun=true) — preview count only.
-//  3. forge mine pass (stub — deferred to follow-up slice).
-//  4. provenance audit (stub — deferred to follow-up slice).
-//  5. ao mine drift/complexity pass (stub — deferred to follow-up slice).
+//  3. forge.RunMinePass — in-process mining of forged session files
+//     under .agents/sessions/ (Wave 2 Issue 5 wiring).
+//  4. provenance.Audit — in-process audit of .agents/learnings/ for
+//     stale/missing citations (Wave 2 Issue 5 wiring).
+//  5. mine.Run — in-process drift/complexity pass with DryRun=true so
+//     INGEST remains read-only (Wave 2 Issue 5 wiring).
 //
-// Substages 3-5 log a degraded note and contribute zero counts. This is
-// honest degradation per pm-003 and skills/dream/SKILL.md — the
-// in-process entry points for forge, provenance, and mine do not yet
-// exist and the plan explicitly defers them.
+// Substages 3-5 soft-fail independently: a single error degrades that
+// substage only and the stage continues. This is honest degradation per
+// pm-003 and skills/dream/SKILL.md.
 func RunIngest(ctx context.Context, opts RunLoopOptions, log io.Writer) (*IngestResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -153,29 +158,75 @@ func RunIngest(ctx context.Context, opts RunLoopOptions, log io.Writer) (*Ingest
 		fmt.Fprintf(log, "overnight/ingest: harvest dry-run promote preview count=%d\n", previewCount)
 	}
 
-	// Substage 3: forge mine pass (deferred).
+	// Substage 3: forge mine pass (Wave 2 Issue 5 wiring — replaces the
+	// Wave 3 stub that logged "deferred to follow-up"). Uses the
+	// in-process entry forge.RunMinePass added in Wave 1.
 	if err := ctxCheck(ctx); err != nil {
 		return result, err
 	}
-	result.Degraded = append(result.Degraded,
-		"forge-mine: in-process entry deferred to follow-up")
-	fmt.Fprintln(log, "overnight/ingest: forge-mine deferred")
+	forgeOpts := forge.MineOpts{
+		SessionsDir: filepath.Join(opts.Cwd, ".agents", "sessions"),
+		Quiet:       true,
+	}
+	minedReport, forgeErr := forge.RunMinePass(opts.Cwd, forgeOpts)
+	if forgeErr != nil {
+		result.StageFailures["forge-mine"] = forgeErr.Error()
+		result.Degraded = append(result.Degraded,
+			fmt.Sprintf("forge-mine: %v", forgeErr))
+	} else if minedReport != nil {
+		result.ForgeArtifactsMined = len(minedReport.Learnings)
+		for _, d := range minedReport.Degraded {
+			result.Degraded = append(result.Degraded,
+				fmt.Sprintf("forge-mine: %s", d))
+		}
+		fmt.Fprintf(log, "overnight/ingest: forge-mine learnings=%d sessions_read=%d\n",
+			len(minedReport.Learnings), minedReport.SessionsRead)
+	}
 
-	// Substage 4: provenance audit (deferred).
+	// Substage 4: provenance audit (Wave 2 Issue 5 wiring — replaces the
+	// Wave 3 stub). Uses provenance.Audit from Wave 1.
 	if err := ctxCheck(ctx); err != nil {
 		return result, err
 	}
-	result.Degraded = append(result.Degraded,
-		"provenance-audit: in-process entry deferred to follow-up")
-	fmt.Fprintln(log, "overnight/ingest: provenance-audit deferred")
+	auditReport, auditErr := provenance.Audit(opts.Cwd)
+	if auditErr != nil {
+		result.StageFailures["provenance-audit"] = auditErr.Error()
+		result.Degraded = append(result.Degraded,
+			fmt.Sprintf("provenance-audit: %v", auditErr))
+	} else if auditReport != nil {
+		result.ProvenanceAudited = auditReport.StaleCitations + auditReport.MissingSources
+		for _, d := range auditReport.Degraded {
+			result.Degraded = append(result.Degraded,
+				fmt.Sprintf("provenance-audit: %s", d))
+		}
+		fmt.Fprintf(log, "overnight/ingest: provenance-audit stale=%d missing=%d\n",
+			auditReport.StaleCitations, auditReport.MissingSources)
+	}
 
-	// Substage 5: ao mine drift/complexity (deferred).
+	// Substage 5: ao mine drift/complexity (Wave 2 Issue 5 wiring —
+	// replaces the Wave 3 stub). Uses mine.Run from Wave 1 with
+	// DryRun=true so INGEST remains read-only (no dated report or
+	// work-item emission). MineEventsFn is nil — INGEST does not drive
+	// the events source; the nil callback is a silent no-op per Wave 1's
+	// dependency-injection contract.
 	if err := ctxCheck(ctx); err != nil {
 		return result, err
 	}
-	result.Degraded = append(result.Degraded,
-		"mine-findings: in-process entry deferred to follow-up")
-	fmt.Fprintln(log, "overnight/ingest: mine-findings deferred")
+	mineOpts := mine.RunOpts{
+		Sources: []string{"git", "agents", "code"},
+		Quiet:   true,
+		DryRun:  true,
+	}
+	mineReport, mineErr := mine.Run(opts.Cwd, mineOpts)
+	if mineErr != nil {
+		result.StageFailures["mine-findings"] = mineErr.Error()
+		result.Degraded = append(result.Degraded,
+			fmt.Sprintf("mine-findings: %v", mineErr))
+	} else if mineReport != nil {
+		result.MineFindingsNew = countMineFindings(mineReport)
+		fmt.Fprintf(log, "overnight/ingest: mine-findings new=%d\n",
+			result.MineFindingsNew)
+	}
 
 	result.Duration = time.Since(started)
 	fmt.Fprintf(log, "overnight/ingest: done in %s\n", result.Duration)
@@ -192,4 +243,31 @@ func ctxCheck(ctx context.Context) error {
 	default:
 		return nil
 	}
+}
+
+// countMineFindings returns the total number of "new findings this pass"
+// extractable from a mine.Report. The count sums code-complexity
+// hotspots, orphaned research files, git co-change clusters, and git
+// recurring-fix patterns — the surfaces mine.Run exposes as actionable
+// signal. Zero-valued sub-reports (e.g. under DryRun) contribute zero.
+func countMineFindings(r *mine.Report) int {
+	if r == nil {
+		return 0
+	}
+	var n int
+	if r.Code != nil {
+		n += len(r.Code.Hotspots)
+	}
+	if r.Agents != nil {
+		n += len(r.Agents.OrphanedResearch)
+	}
+	if r.Git != nil {
+		n += len(r.Git.TopCoChangeFiles)
+		n += len(r.Git.RecurringFixes)
+	}
+	if r.Events != nil {
+		n += len(r.Events.ErrorEvents)
+		n += len(r.Events.GateVerdicts)
+	}
+	return n
 }
