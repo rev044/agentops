@@ -5,6 +5,7 @@
 ## Getting Started
 
 - [README](../README.md) — Project overview and quick start
+- [Behavioral Discipline](behavioral-discipline.md) — Before/after examples of good coding-agent behavior
 - [Newcomer Guide](newcomer-guide.md) — Fast orientation to repo structure, architecture, and contribution path
 - [FAQ](FAQ.md) — Comparisons, limitations, subagent nesting, uninstall
 - [CONTRIBUTING](CONTRIBUTING.md) — How to contribute

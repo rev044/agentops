@@ -10,7 +10,7 @@
 
 The operational layer for coding agents. AgentOps adds bookkeeping, validation, primitives, and flows so every session starts where the last one left off.
 
-[Install](#install) · [See It Work](#see-it-work) · [Start Here](#start-here) · [What You Get](#what-agentops-gives-you) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Docs](docs/INDEX.md) · [Newcomer Guide](docs/newcomer-guide.md)
+[Install](#install) · [See It Work](#see-it-work) · [Start Here](#start-here) · [Behavior](docs/behavioral-discipline.md) · [What You Get](#what-agentops-gives-you) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Docs](docs/INDEX.md) · [Newcomer Guide](docs/newcomer-guide.md)
 
 </div>
 
@@ -210,6 +210,35 @@ ao codex stop
 That path keeps briefing, runtime startup, delivery, and session closeout on one surface.
 
 Full catalog: [docs/SKILLS.md](docs/SKILLS.md) · Unsure which skill to run? [Skill Router](docs/SKILL-ROUTER.md)
+
+---
+
+## What Good Agent Behavior Looks Like
+
+AgentOps is not only about chaining commands together. It also pushes agents toward better behavior during implementation and review.
+
+```text
+User: "Make search faster"
+
+Without behavioral discipline:
+- picks one interpretation silently
+- adds caching, async work, and config knobs
+- claims success when the code compiles
+
+With AgentOps behavioral discipline:
+- clarifies whether "faster" means latency, throughput, or perceived speed
+- chooses the smallest change that matches that goal
+- verifies against the metric that actually mattered
+```
+
+That same discipline shows up in four habits:
+
+- **Think before coding** — surface assumptions and tradeoffs instead of guessing.
+- **Simplicity first** — solve the problem with the smallest change that works.
+- **Surgical changes** — keep the diff tight and avoid drive-by refactors.
+- **Goal-driven execution** — define proof before calling the work done.
+
+See the full before/after guide: [docs/behavioral-discipline.md](docs/behavioral-discipline.md)
 
 ---
 
