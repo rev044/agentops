@@ -204,3 +204,4 @@ Missing gate item → minimum WARN. Critical unverifiable invariant → FAIL.
 - [references/quick-mode.md](references/quick-mode.md)
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/reviewer-config-example.md](references/reviewer-config-example.md)
+- [references/strategic-doc-validation.md](references/strategic-doc-validation.md)
