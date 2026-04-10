@@ -788,3 +788,20 @@ func collectTranscriptCandidates(projectsDir string) ([]fileWithTime, error) {
 	}
 	return out, nil
 }
+
+// runMinePassAdapter is a thin cobra-side adapter over forge.RunMinePass.
+// The cobra command flow (runForgeTranscript) processes raw Claude JSONL
+// transcripts from ~/.claude/projects/ and is independent of RunMinePass,
+// which mines already-forged session files under .agents/sessions/. This
+// adapter exists so non-cobra callers (Dream INGEST, tests) can exercise
+// the in-process entry point from the cmd/ao package without duplicating
+// the forge.MineOpts construction logic. It also anchors the planned
+// extraction pattern (mirror of lifecycle.ExecuteCloseLoop) for future
+// refactors that may fold the raw-transcript flow into the same entry.
+func runMinePassAdapter(cwd string, sessionsDir string, sinceTime time.Time, quiet bool) (*forge.MineReport, error) {
+	return forge.RunMinePass(cwd, forge.MineOpts{
+		SessionsDir: sessionsDir,
+		SinceTime:   sinceTime,
+		Quiet:       quiet,
+	})
+}

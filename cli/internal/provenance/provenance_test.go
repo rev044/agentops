@@ -465,3 +465,51 @@ func BenchmarkGraphGetStats(b *testing.B) {
 		g.GetStats()
 	}
 }
+
+func TestProvenanceAudit_StaleCitation(t *testing.T) {
+	cwd := t.TempDir()
+	learnings := filepath.Join(cwd, ".agents", "learnings")
+	if err := os.MkdirAll(learnings, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	recent := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+	mustWrite := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(learnings, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustWrite("valid.md", "---\ntitle: Valid\nsource_bead: na-123\ndate: "+recent+"\n---\n\nbody\n")
+	mustWrite("missing-source.md", "---\ntitle: No source\ndate: "+recent+"\n---\n\nbody\n")
+	mustWrite("stale.md", "---\ntitle: Stale\nsource_bead: na-999\ndate: 2020-01-01\n---\n\nbody\n")
+
+	report, err := Audit(cwd)
+	if err != nil {
+		t.Fatalf("Audit: %v", err)
+	}
+	if report == nil {
+		t.Fatal("nil report")
+	}
+	if report.MissingSources != 1 {
+		t.Errorf("expected 1 missing source, got %d", report.MissingSources)
+	}
+	if report.StaleCitations < 1 {
+		t.Errorf("expected >= 1 stale citation, got %d", report.StaleCitations)
+	}
+}
+
+func TestProvenanceAudit_NoAgentsDir(t *testing.T) {
+	cwd := t.TempDir()
+	report, err := Audit(cwd)
+	if err != nil {
+		t.Fatalf("Audit on empty dir: %v", err)
+	}
+	if report == nil {
+		t.Fatal("nil report")
+	}
+	if report.StaleCitations != 0 || report.MissingSources != 0 {
+		t.Errorf("expected zero counts, got stale=%d missing=%d",
+			report.StaleCitations, report.MissingSources)
+	}
+}

@@ -309,6 +309,22 @@ else
     skip "command/test pairing"
 fi
 
+# --- 3b. HOME isolation in harvest.*/RunIngest tests ---
+if needs_check go; then
+    if [[ -x scripts/check-home-isolation.sh ]]; then
+        if home_iso_output="$(scripts/check-home-isolation.sh 2>&1)"; then
+            pass "HOME isolation in test files"
+        else
+            fail "HOME isolation in test files"
+            indent_output "$home_iso_output"
+        fi
+    else
+        fail "missing executable: scripts/check-home-isolation.sh"
+    fi
+else
+    skip "HOME isolation in test files"
+fi
+
 # --- 5. Embedded hooks sync (full parity gate) ---
 if [[ -x scripts/validate-embedded-sync.sh ]]; then
     if embed_output="$(./scripts/validate-embedded-sync.sh 2>&1)"; then

@@ -11,9 +11,34 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
+
+// sanitizeIterationID rejects path-traversal and filesystem-unsafe
+// characters in iteration identifiers before they are interpolated
+// into staging/prev/marker paths. Protects NewCheckpoint and
+// RecoverFromCrash against crafted inputs that could escape
+// .agents/overnight/. Closes pre-mortem findings S1/S2 from
+// the Dream parent plan's Phase 3 vibe.
+func sanitizeIterationID(id string) error {
+	if id == "" {
+		return errors.New("overnight: iterationID is empty")
+	}
+	if strings.ContainsAny(id, `/\`) {
+		return fmt.Errorf("overnight: iterationID %q contains path separators", id)
+	}
+	if strings.Contains(id, "..") {
+		return fmt.Errorf("overnight: iterationID %q contains parent-directory reference", id)
+	}
+	for _, r := range id {
+		if !unicode.IsPrint(r) || unicode.IsSpace(r) {
+			return fmt.Errorf("overnight: iterationID %q contains non-printable or whitespace character", id)
+		}
+	}
+	return nil
+}
 
 // CheckpointedSubpaths enumerates the only locations under .agents/ that
 // Dream's REDUCE stage is permitted to mutate.
@@ -132,8 +157,8 @@ func NewCheckpoint(cwd, iterationID string, maxBytes int64) (*Checkpoint, error)
 	if cwd == "" {
 		return nil, errors.New("overnight: NewCheckpoint requires a non-empty cwd")
 	}
-	if iterationID == "" {
-		return nil, errors.New("overnight: NewCheckpoint requires a non-empty iterationID")
+	if err := sanitizeIterationID(iterationID); err != nil {
+		return nil, err
 	}
 	if maxBytes <= 0 {
 		return nil, fmt.Errorf("overnight: NewCheckpoint maxBytes must be positive, got %d", maxBytes)
@@ -654,4 +679,75 @@ func sortedKeys(set map[string]struct{}) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// VerifyMetadataRoundTripPostCommit checks that every learning-file
+// frontmatter key present in the pre-REDUCE baseline (cp.PrevDir —
+// the backup taken during Commit's swap) still exists in the
+// post-Commit live tree. This is the Wave 4 Issue 8 / pm-V7 fix:
+// the pre-commit VerifyMetadataRoundTrip compares staging vs live
+// BEFORE the swap, so it catches reducer strips at the staging
+// write layer. This function runs AFTER Commit and catches any
+// late-stage corruption in the swap itself (e.g., a partial rename
+// or a filesystem quirk that dropped content).
+//
+// Ratchet-forward semantics: failure here cannot unwind the commit
+// (it already landed). The caller (RunLoop) logs a findings entry
+// for the morning report and continues the iteration loop. The
+// next iteration's pre-commit check will catch any cascading
+// corruption.
+//
+// Walk direction: PrevDir (baseline) → LiveDir (post-promote).
+// A key in PrevDir but missing from LiveDir is a silent strip.
+// Extra keys in LiveDir that aren't in PrevDir are additions
+// (e.g., harvest-promote imported a new file) — NOT strips,
+// ignored.
+//
+// Legitimate deletions (defrag-prune, dedup merge) remove files
+// entirely from LiveDir. Those are not flagged; only in-place key
+// strips on files that exist in both trees count as failures.
+func VerifyMetadataRoundTripPostCommit(cp *Checkpoint) MetadataIntegrityReport {
+	report := MetadataIntegrityReport{Pass: true}
+	if cp == nil {
+		return report
+	}
+
+	prevRoot := filepath.Join(cp.PrevDir, "learnings")
+	liveRoot := filepath.Join(cp.LiveDir, "learnings")
+
+	prevMeta := collectFrontmatter(prevRoot)
+	if len(prevMeta) == 0 {
+		// No baseline to compare against (first iteration, or
+		// no learnings subdir in the baseline). Trivially passes.
+		return report
+	}
+	liveMeta := collectFrontmatter(liveRoot)
+
+	// Stable iteration for deterministic report ordering.
+	files := make([]string, 0, len(prevMeta))
+	for f := range prevMeta {
+		files = append(files, f)
+	}
+	sort.Strings(files)
+
+	for _, rel := range files {
+		prevKeys := prevMeta[rel]
+		liveKeys, ok := liveMeta[rel]
+		if !ok {
+			// File was legitimately deleted by a REDUCE stage.
+			// Not a metadata strip.
+			continue
+		}
+		for _, key := range sortedKeys(prevKeys) {
+			if _, present := liveKeys[key]; !present {
+				report.StrippedFields = append(report.StrippedFields, StrippedField{
+					File: filepath.ToSlash(filepath.Join("learnings", rel)),
+					Key:  key,
+				})
+			}
+		}
+	}
+
+	report.Pass = len(report.StrippedFields) == 0
+	return report
 }

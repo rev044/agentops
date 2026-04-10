@@ -1,17 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -64,67 +57,35 @@ func init() {
 		"Append actionable mine findings to .agents/rpi/next-work.jsonl for evolve to pick up")
 }
 
+// ---------------------------------------------------------------------------
+// Type aliases — preserve the historical cmd/ao shape so existing tests
+// and callers keep compiling unchanged. The source of truth is now
+// cli/internal/mine.
+// ---------------------------------------------------------------------------
+
 // MineReport is the top-level output of ao mine.
-type MineReport struct {
-	Timestamp    time.Time       `json:"timestamp"`
-	SinceSeconds int64           `json:"since_seconds"`
-	Sources      []string        `json:"sources"`
-	Git          *GitFindings    `json:"git,omitempty"`
-	Agents       *AgentsFindings `json:"agents,omitempty"`
-	Code         *CodeFindings   `json:"code,omitempty"`
-	Events       *EventsFindings `json:"events,omitempty"`
-}
+type MineReport = minePkg.Report
 
 // GitFindings holds signal extracted from git log.
-type GitFindings struct {
-	CommitCount      int      `json:"commit_count"`
-	TopCoChangeFiles []string `json:"top_co_change_files,omitempty"`
-	RecurringFixes   []string `json:"recurring_fixes,omitempty"`
-}
+type GitFindings = minePkg.GitFindings
 
 // AgentsFindings holds signal from .agents/ directory scanning.
-type AgentsFindings struct {
-	TotalResearch    int      `json:"total_research"`
-	OrphanedResearch []string `json:"orphaned_research,omitempty"`
-}
+type AgentsFindings = minePkg.AgentsFindings
 
 // CodeFindings holds signal from code complexity analysis.
-type CodeFindings struct {
-	Hotspots []ComplexityHotspot `json:"hotspots,omitempty"`
-	Skipped  bool                `json:"skipped,omitempty"`
-}
+type CodeFindings = minePkg.CodeFindings
 
 // ComplexityHotspot represents a high-complexity function with recent edits.
-type ComplexityHotspot struct {
-	File        string `json:"file"`
-	Func        string `json:"func"`
-	Complexity  int    `json:"complexity"`
-	RecentEdits int    `json:"recent_edits"`
-}
+type ComplexityHotspot = minePkg.ComplexityHotspot
 
 // EventsFindings holds signal extracted from RPI C2 event streams.
-type EventsFindings struct {
-	RunsScanned     int                  `json:"runs_scanned"`
-	TotalEvents     int                  `json:"total_events"`
-	EventTypeCounts map[string]int       `json:"event_type_counts,omitempty"`
-	ErrorEvents     []EventErrorSummary  `json:"error_events,omitempty"`
-	GateVerdicts    []GateVerdictSummary `json:"gate_verdicts,omitempty"`
-}
+type EventsFindings = minePkg.EventsFindings
 
 // EventErrorSummary captures an error event from a run.
-type EventErrorSummary struct {
-	RunID     string `json:"run_id"`
-	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"`
-}
+type EventErrorSummary = minePkg.EventErrorSummary
 
 // GateVerdictSummary captures a gate verdict event from a run.
-type GateVerdictSummary struct {
-	RunID   string `json:"run_id"`
-	Phase   int    `json:"phase"`
-	Type    string `json:"type"`
-	Verdict string `json:"verdict"`
-}
+type GateVerdictSummary = minePkg.GateVerdictSummary
 
 // validMineSources enumerates the allowed source names.
 var validMineSources = minePkg.ValidSources
@@ -149,69 +110,19 @@ func runMine(cmd *cobra.Command, args []string) error {
 		return printMineDryRun(cmd.OutOrStdout(), sources, window)
 	}
 
-	report := &MineReport{
-		Timestamp:    time.Now().UTC(),
-		SinceSeconds: int64(window.Seconds()),
-		Sources:      sources,
+	opts := minePkg.RunOpts{
+		Sources:       sources,
+		Window:        window,
+		OutputDir:     mineOutputDir,
+		EmitWorkItems: mineEmitWorkItems,
+		Quiet:         mineQuiet,
+		ErrOut:        cmd.ErrOrStderr(),
+		MineEventsFn:  mineEvents,
 	}
 
-	runMineSources(cwd, sources, window, report, cmd.ErrOrStderr())
-
-	return finalizeMineReport(cmd, cwd, report)
-}
-
-func runMineSources(cwd string, sources []string, window time.Duration, report *MineReport, errW io.Writer) {
-	for _, src := range sources {
-		switch src {
-		case "git":
-			findings, gitErr := mineGitLog(cwd, window)
-			if gitErr != nil {
-				if !mineQuiet {
-					fmt.Fprintf(errW, "warning: git source: %v\n", gitErr)
-				}
-				continue
-			}
-			report.Git = findings
-		case "agents":
-			findings, agErr := mineAgentsDir(cwd)
-			if agErr != nil {
-				if !mineQuiet {
-					fmt.Fprintf(errW, "warning: agents source: %v\n", agErr)
-				}
-				continue
-			}
-			report.Agents = findings
-		case "code":
-			findings, codeErr := mineCodeComplexity(cwd, window)
-			if codeErr != nil {
-				if !mineQuiet {
-					fmt.Fprintf(errW, "warning: code source: %v\n", codeErr)
-				}
-				continue
-			}
-			report.Code = findings
-		case "events":
-			findings, evErr := mineEvents(cwd, window)
-			if evErr != nil {
-				if !mineQuiet {
-					fmt.Fprintf(errW, "warning: events source: %v\n", evErr)
-				}
-				continue
-			}
-			report.Events = findings
-		}
-	}
-}
-
-func finalizeMineReport(cmd *cobra.Command, cwd string, report *MineReport) error {
-	if err := writeMineReport(mineOutputDir, report); err != nil {
+	report, err := minePkg.Run(cwd, opts)
+	if err != nil {
 		return err
-	}
-
-	if mineEmitWorkItems {
-		if err := emitMineWorkItems(cwd, report); err != nil && !mineQuiet {
-			fmt.Fprintf(cmd.ErrOrStderr(), "warning: emit-work-items: %v\n", err)
-		}
 	}
 
 	if GetOutput() == "json" {
@@ -233,183 +144,16 @@ func parseMineWindow(s string) (time.Duration, error) { return minePkg.ParseWind
 // splitSources splits and validates a comma-separated source list.
 func splitSources(s string) ([]string, error) { return minePkg.SplitSources(s) }
 
-// mineGitLog extracts signal from git log within the given time window.
-func mineGitLog(cwd string, window time.Duration) (*GitFindings, error) {
-	sinceArg := fmt.Sprintf("--since=%d seconds ago", int64(window.Seconds()))
-	cmd := exec.Command("git", "log", sinceArg, "--name-only", "--pretty=format:%H %s")
-	cmd.Dir = cwd
-
-	out, err := cmd.Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-			return nil, fmt.Errorf("git log: %s", strings.TrimSpace(string(exitErr.Stderr)))
-		}
-		return nil, fmt.Errorf("git log: %w", err)
-	}
-
-	findings := &GitFindings{}
-	fileFreq := make(map[string]int)
-	var fixPatterns []string
-	fixRe := regexp.MustCompile(`(?i)^[0-9a-f]+ (fix|bugfix|hotfix)`)
-
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		// Commit line: starts with a hash
-		if len(line) >= 41 && line[40] == ' ' {
-			findings.CommitCount++
-			if fixRe.MatchString(line) {
-				// Extract the subject after the hash
-				subject := line[41:]
-				fixPatterns = append(fixPatterns, subject)
-			}
-		} else {
-			// File line
-			fileFreq[line]++
-		}
-	}
-	if scanErr := scanner.Err(); scanErr != nil {
-		return findings, fmt.Errorf("scan git log output: %w", scanErr)
-	}
-
-	// Build co-change clusters: files appearing in >=3 distinct commits
-	type fileCount struct {
-		file  string
-		count int
-	}
-	var frequent []fileCount
-	for f, c := range fileFreq {
-		if c >= 3 {
-			frequent = append(frequent, fileCount{f, c})
-		}
-	}
-	sort.Slice(frequent, func(i, j int) bool {
-		return frequent[i].count > frequent[j].count
-	})
-
-	if len(frequent) > 0 {
-		topFiles := make([]string, len(frequent))
-		for i, fc := range frequent {
-			topFiles[i] = fc.file
-		}
-		findings.TopCoChangeFiles = topFiles
-	}
-
-	findings.RecurringFixes = fixPatterns
-
-	return findings, nil
-}
-
 // mineAgentsDir scans .agents/research/ for files not referenced in learnings.
-func mineAgentsDir(cwd string) (*AgentsFindings, error) {
-	researchDir := filepath.Join(cwd, ".agents", "research")
-	learningsDir := filepath.Join(cwd, ".agents", "learnings")
-
-	findings := &AgentsFindings{}
-
-	researchFiles, err := minePkg.ListMarkdownFiles(researchDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return findings, nil
-		}
-		return findings, fmt.Errorf("read research dir: %w", err)
-	}
-	findings.TotalResearch = len(researchFiles)
-	if len(researchFiles) == 0 {
-		return findings, nil
-	}
-
-	learningsContent, err := readDirContent(learningsDir)
-	if err != nil && !os.IsNotExist(err) {
-		return findings, fmt.Errorf("read learnings dir: %w", err)
-	}
-
-	findings.OrphanedResearch = minePkg.FindOrphanedResearch(researchFiles, learningsContent)
-	return findings, nil
-}
+// Thin wrapper so existing tests keep calling the package-main symbol.
+func mineAgentsDir(cwd string) (*AgentsFindings, error) { return minePkg.MineAgentsDir(cwd) }
 
 // readDirContent reads all .md file contents from a directory.
 func readDirContent(dir string) (map[string]string, error) { return minePkg.ReadDirContent(dir) }
 
-// gocycloLineRe matches gocyclo output lines like "15 main runMine cli/cmd/ao/mine.go:100:1"
-var gocycloLineRe = regexp.MustCompile(`^(\d+)\s+(\S+)\s+(\S+)\s+(\S+):(\d+):\d+$`)
-
-// mineCodeComplexity runs gocyclo and correlates with recent git edits.
-func mineCodeComplexity(cwd string, window time.Duration) (*CodeFindings, error) {
-	findings := &CodeFindings{}
-
-	gocycloPath, err := exec.LookPath("gocyclo")
-	if err != nil {
-		findings.Skipped = true
-		return findings, nil
-	}
-
-	cmd := exec.Command(gocycloPath, "-top", "10", "cli/")
-	cmd.Dir = cwd
-
-	out, err := cmd.Output()
-	if err != nil {
-		// gocyclo may fail if cli/ doesn't exist
-		findings.Skipped = true
-		return findings, nil
-	}
-
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		matches := gocycloLineRe.FindStringSubmatch(line)
-		if matches == nil {
-			continue
-		}
-
-		cc, _ := strconv.Atoi(matches[1])
-		funcName := matches[3]
-		file := matches[4]
-
-		recentEdits := countRecentEdits(cwd, file, window)
-
-		findings.Hotspots = append(findings.Hotspots, ComplexityHotspot{
-			File:        file,
-			Func:        funcName,
-			Complexity:  cc,
-			RecentEdits: recentEdits,
-		})
-	}
-	if scanErr := scanner.Err(); scanErr != nil {
-		return findings, fmt.Errorf("scan gocyclo output: %w", scanErr)
-	}
-
-	return findings, nil
-}
-
 // countRecentEdits counts how many commits touched a file within the given window.
 func countRecentEdits(cwd, file string, window time.Duration) int {
-	sinceArg := fmt.Sprintf("--since=%d seconds ago", int64(window.Seconds()))
-	cmd := exec.Command("git", "log", sinceArg, "--oneline", "--", file)
-	cmd.Dir = cwd
-	out, err := cmd.Output()
-	if err != nil {
-		return 0
-	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) == 1 && lines[0] == "" {
-		return 0
-	}
-	return len(lines)
-}
-
-// writeMineReport writes the mine report as JSON to the output directory.
-func writeMineReport(dir string, r *MineReport) error {
-	data, err := json.MarshalIndent(r, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal mine report: %w", err)
-	}
-	dateStr := r.Timestamp.Format("2006-01-02-15")
-	return minePkg.WriteMineReportJSON(dir, data, dateStr)
+	return minePkg.CountRecentEdits(cwd, file, window)
 }
 
 // printMineDryRun prints what would be extracted without actually doing it.
@@ -424,18 +168,7 @@ func printMineDryRun(w io.Writer, sources []string, window time.Duration) error 
 
 // collectMineWorkItems builds work items from a mine report.
 func collectMineWorkItems(r *MineReport) []mineWorkItemEmit {
-	var items []mineWorkItemEmit
-	if r.Code != nil {
-		hotspots := make([]minePkg.ComplexityHotspot, len(r.Code.Hotspots))
-		for i, h := range r.Code.Hotspots {
-			hotspots[i] = minePkg.ComplexityHotspot{File: h.File, Func: h.Func, Complexity: h.Complexity, RecentEdits: h.RecentEdits}
-		}
-		items = append(items, minePkg.CollectWorkItemsFromHotspots(hotspots)...)
-	}
-	if r.Agents != nil {
-		items = append(items, minePkg.CollectWorkItemsFromOrphans(r.Agents.OrphanedResearch)...)
-	}
-	return items
+	return minePkg.CollectMineWorkItems(r)
 }
 
 // loadExistingMineIDs scans a JSONL file for unconsumed compile-mine item IDs.
@@ -452,31 +185,7 @@ func writeMineWorkItems(path string, items []mineWorkItemEmit, ts string) error 
 // Orphaned research files map to severity:medium; code hotspots map to severity:high.
 // Dedup: item-level — each item gets a stable ID; only new items are emitted.
 func emitMineWorkItems(cwd string, r *MineReport) error {
-	items := collectMineWorkItems(r)
-	if len(items) == 0 {
-		return nil // nothing to emit
-	}
-
-	nextWorkPath := filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl")
-	if err := os.MkdirAll(filepath.Dir(nextWorkPath), 0o750); err != nil {
-		return fmt.Errorf("ensure next-work dir: %w", err)
-	}
-
-	existingIDs, err := loadExistingMineIDs(nextWorkPath)
-	if err != nil {
-		return fmt.Errorf("load existing mine IDs: %w", err)
-	}
-	var newItems []mineWorkItemEmit
-	for _, item := range items {
-		if !existingIDs[item.ID] {
-			newItems = append(newItems, item)
-		}
-	}
-	if len(newItems) == 0 {
-		return nil // all items already present
-	}
-
-	return writeMineWorkItems(nextWorkPath, newItems, r.Timestamp.UTC().Format(time.RFC3339))
+	return minePkg.EmitWorkItems(cwd, r)
 }
 
 // mineWorkItemEmit is a single work item within a next-work.jsonl entry.
@@ -518,7 +227,10 @@ func printMineSummary(w io.Writer, r *MineReport) {
 	}
 }
 
-// mineEvents scans RPI C2 event streams for patterns.
+// mineEvents scans RPI C2 event streams for patterns. This helper stays
+// in cmd/ao because it depends on cmd/ao-internal helpers
+// (scanRegistryRuns, loadRPIC2Events, RPIC2Event). It is wired into
+// mine.Run via RunOpts.MineEventsFn.
 func mineEvents(cwd string, window time.Duration) (*EventsFindings, error) {
 	runs := scanRegistryRuns(cwd)
 	if len(runs) == 0 {

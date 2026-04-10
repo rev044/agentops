@@ -347,6 +347,10 @@ func computeCrossRigDedup(cwd string) (float64, []string) {
 	var degraded []string
 	opts := harvest.DefaultWalkOptions()
 	opts.Roots = []string{cwd}
+	// Hermetic: never let ~/.agents/ bleed into this cwd's fitness
+	// vector. See pm-002/V8 — Compute must report the fitness of
+	// *this* corpus, independent of the global hub.
+	opts.SkipGlobalHub = true
 	rigs, err := harvest.DiscoverRigs(opts)
 	if err != nil {
 		degraded = append(degraded, fmt.Sprintf("cross-rig dedup unavailable: %v", err))

@@ -83,6 +83,10 @@ func RecoverFromCrash(cwd string) ([]string, error) {
 	for _, markerPath := range matches {
 		base := filepath.Base(markerPath)
 		iterationID := strings.TrimPrefix(base, "COMMIT-MARKER.")
+		if err := sanitizeIterationID(iterationID); err != nil {
+			actions = append(actions, fmt.Sprintf("skipped malformed marker %s: %v", base, err))
+			continue
+		}
 
 		data, readErr := os.ReadFile(markerPath)
 		if readErr != nil {

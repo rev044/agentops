@@ -120,6 +120,48 @@ func TestCompute_InjectVisibility_ExcludesSuperseded(t *testing.T) {
 	}
 }
 
+func TestCompute_Hermetic_DespitePopulatedHome(t *testing.T) {
+	// Populate a fake HOME with a well-stocked .agents/learnings tree.
+	// If corpus.Compute were to pick up the global hub, cross-rig dedup
+	// would see two rigs (home + cwd) and produce a non-zero ratio.
+	fakeHome := t.TempDir()
+	writeFile(t, fakeHome, ".agents/learnings/h1.md", "---\nmaturity: provisional\nsource_bead: bd-home-1\n---\nhome one\n")
+	writeFile(t, fakeHome, ".agents/learnings/h2.md", "---\nmaturity: stable\nsource_bead: bd-home-2\n---\nhome two\n")
+	writeFile(t, fakeHome, ".agents/learnings/h3.md", "---\nmaturity: accepted\nsource_bead: bd-home-3\n---\nhome three\n")
+	t.Setenv("HOME", fakeHome)
+
+	// Build a separate cwd with its own .agents/learnings.
+	cwd := t.TempDir()
+	writeFile(t, cwd, ".agents/learnings/a.md", "---\nmaturity: provisional\nsource_bead: bd-cwd-1\n---\ncwd one\n")
+	writeFile(t, cwd, ".agents/learnings/b.md", "---\nmaturity: stable\nsource_bead: bd-cwd-2\n---\ncwd two\n")
+
+	vec, _, err := Compute(cwd)
+	if err != nil {
+		t.Fatalf("compute: %v", err)
+	}
+
+	// Maturity and citation fractions are derived from cwd only: both
+	// should be 1.0. If the home leaked in we'd see 5 files with
+	// different fractions but still 1.0 in this construction; the real
+	// signal is the cross-rig dedup ratio. With cwd as the single rig
+	// root and SkipGlobalHub honored inside fitness.go, fewer than two
+	// rigs are discovered, so the ratio stays at 0 (with a degraded
+	// note). If the home bled in, we would discover 2 rigs and the
+	// ratio would become > 0.
+	if vec.CrossRigDedupRatio != 0 {
+		t.Fatalf("CrossRigDedupRatio = %v, want 0 (home hub must not leak into cwd fitness)",
+			vec.CrossRigDedupRatio)
+	}
+	if vec.MaturityProvisional != 1.0 {
+		t.Fatalf("MaturityProvisional = %v, want 1.0 (derived from cwd only, got home contamination?)",
+			vec.MaturityProvisional)
+	}
+	if vec.CitationCoverage != 1.0 {
+		t.Fatalf("CitationCoverage = %v, want 1.0 (derived from cwd only, got home contamination?)",
+			vec.CitationCoverage)
+	}
+}
+
 func TestCompute_Deterministic(t *testing.T) {
 	tmp := t.TempDir()
 	writeFile(t, tmp, ".agents/learnings/a.md", "---\nmaturity: provisional\nsource_bead: bd-1\n---\nbody\n")

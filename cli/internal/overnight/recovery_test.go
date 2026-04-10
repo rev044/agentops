@@ -394,3 +394,38 @@ func TestProcessAlive_DefinitelyDead(t *testing.T) {
 		t.Error("huge pid should not be alive")
 	}
 }
+
+func TestRecoverFromCrash_RejectsMaliciousMarker(t *testing.T) {
+	cwd := t.TempDir()
+	overnightDir := filepath.Join(cwd, ".agents", "overnight")
+	if err := os.MkdirAll(overnightDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// Write a marker file with a traversal-unsafe iteration ID embedded.
+	marker := filepath.Join(overnightDir, "COMMIT-MARKER...-traversal")
+	if err := os.WriteFile(marker, []byte(`{"state":"READY"}`), 0o644); err != nil {
+		t.Fatalf("write marker: %v", err)
+	}
+	// Seed a sentinel file outside .agents/ that must NOT be touched.
+	sentinel := filepath.Join(cwd, "sentinel.txt")
+	if err := os.WriteFile(sentinel, []byte("untouched"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+	actions, _ := RecoverFromCrash(cwd)
+	// Marker should be skipped (not recovered), sentinel preserved.
+	data, err := os.ReadFile(sentinel)
+	if err != nil || string(data) != "untouched" {
+		t.Errorf("sentinel was touched or removed: err=%v data=%q", err, data)
+	}
+	// At least one action should mention "skipped" or "malformed".
+	found := false
+	for _, a := range actions {
+		if strings.Contains(a, "skipped") || strings.Contains(a, "malformed") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected skip/malformed action, got %v", actions)
+	}
+}

@@ -15,6 +15,7 @@ import (
 // TestFlywheelE2E_CreateHarvestPromoteRetrieveInject validates the full flywheel loop:
 // create learning → harvest extract → catalog + promote → retrieve → quality gate.
 func TestFlywheelE2E_CreateHarvestPromoteRetrieveInject(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate HOME per Wave 1 check-home-isolation gate
 	// Stage 1: Create a learning with proper metadata in a temp rig structure
 	tmpDir := t.TempDir()
 	rigBase := filepath.Join(tmpDir, "testproject", "crew", "testcrew")
@@ -147,6 +148,7 @@ The content is long enough to pass the quality gate minimum of 50 characters.
 // TestFlywheelE2E_StringConfidenceMapping validates that string confidence values
 // survive through the harvest pipeline: "high"→0.9, "medium"→0.6, "low"→0.3.
 func TestFlywheelE2E_StringConfidenceMapping(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate HOME per Wave 1 check-home-isolation gate
 	tmpDir := t.TempDir()
 	rigBase := filepath.Join(tmpDir, "conftest", "crew", "confcrew")
 	learningsDir := filepath.Join(rigBase, ".agents", "learnings")
@@ -215,6 +217,7 @@ func TestFlywheelE2E_StringConfidenceMapping(t *testing.T) {
 // TestFlywheelE2E_MetadataPreservation verifies maturity and utility survive
 // the full harvest → promote pipeline without being stripped or defaulted.
 func TestFlywheelE2E_MetadataPreservation(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate HOME per Wave 1 check-home-isolation gate
 	tmpDir := t.TempDir()
 	rigBase := filepath.Join(tmpDir, "metarig", "crew", "metacrew")
 	learningsDir := filepath.Join(rigBase, ".agents", "learnings")
@@ -292,6 +295,7 @@ that must survive through harvest extraction and promotion to the global store.
 // TestFlywheelE2E_GarbageRejection verifies that low-quality learnings are
 // rejected by the quality gate: short body, missing metadata, low utility.
 func TestFlywheelE2E_GarbageRejection(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate HOME per Wave 1 check-home-isolation gate
 	cases := []struct {
 		name     string
 		learning learning
@@ -364,6 +368,7 @@ func TestFlywheelE2E_GarbageRejection(t *testing.T) {
 // promotion criteria work end-to-end: a candidate with sufficient citations
 // AND utility promotes, while candidates lacking either are rejected.
 func TestFlywheelE2E_CitationPromotionPipeline(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate HOME per Wave 1 check-home-isolation gate
 	minAge := 24 * time.Hour
 
 	cases := []struct {

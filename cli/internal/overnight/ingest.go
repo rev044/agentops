@@ -100,6 +100,9 @@ func RunIngest(ctx context.Context, opts RunLoopOptions, log io.Writer) (*Ingest
 	// Scope to this repo only — see 2026-04-09 dream-slice-substrate-before-surface
 	// learning. We must not eat the global workspace in the private lane.
 	walkOpts.Roots = []string{opts.Cwd}
+	// Private-lane hermeticity: skip the automatic ~/.agents/ global hub
+	// include so Dream's INGEST stage sees only this repo's corpus.
+	walkOpts.SkipGlobalHub = true
 
 	rigs, err := harvest.DiscoverRigs(walkOpts)
 	if err != nil {

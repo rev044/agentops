@@ -409,3 +409,114 @@ func TestRunLoop_L2_CompoundFilterCliff_DoesNotSilentlyKillCorpus(t *testing.T) 
 		}
 	}
 }
+
+// TestRunLoop_PostCommitMetadataCheck_LogsFinding is the Wave 4 Issue 8
+// regression guard: after Commit() swaps staging into live, the
+// post-commit VerifyMetadataRoundTripPostCommit check must walk the
+// PrevDir backup against LiveDir and catch any late-stage strips that
+// the pre-commit check (staging vs live) would have missed. We can't
+// easily inject a hook between Commit and MEASURE inside RunLoop, so
+// this test drives RunIngest + NewCheckpoint + RunReduce + Commit
+// manually (mirroring RunLoop), simulates a post-commit strip by
+// overwriting a file in the live tree, and asserts both the
+// verification function and logPostCommitFinding behave correctly.
+func TestRunLoop_PostCommitMetadataCheck_LogsFinding(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	restore := stubInjectRefresh(t)
+	defer restore()
+
+	dir := t.TempDir()
+	if err := fixture.GenerateFixture(dir, fixture.DefaultOpts()); err != nil {
+		t.Fatalf("GenerateFixture: %v", err)
+	}
+
+	ctx := context.Background()
+	opts := RunLoopOptions{
+		Cwd:       dir,
+		OutputDir: filepath.Join(dir, ".agents", "overnight", "postcommit-test"),
+		WarnOnly:  true,
+		LogWriter: io.Discard,
+	}
+
+	ingest, err := RunIngest(ctx, opts, io.Discard)
+	if err != nil {
+		t.Fatalf("RunIngest: %v", err)
+	}
+
+	cp, err := NewCheckpoint(dir, "postcommit-test-iter-1", 128*1024*1024)
+	if err != nil {
+		t.Fatalf("NewCheckpoint: %v", err)
+	}
+
+	rec := &recorder{}
+	if _, err := RunReduce(ctx, opts, ingest, cp, rec.callbacks(), io.Discard); err != nil {
+		t.Fatalf("RunReduce: %v", err)
+	}
+	if err := cp.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Simulate a post-commit strip by overwriting a learning in LIVE.
+	// After Commit, the pre-REDUCE baseline is in cp.PrevDir and the
+	// post-promote state is in cp.LiveDir, so overwriting the live copy
+	// with stripped content creates the exact (file, key) set-difference
+	// that VerifyMetadataRoundTripPostCommit is designed to detect.
+	stripped := filepath.Join(dir, ".agents", "learnings", "learning-000.md")
+	if err := os.WriteFile(stripped, []byte("# Stripped\n\nNo frontmatter\n"), 0o644); err != nil {
+		t.Fatalf("write stripped: %v", err)
+	}
+
+	report := VerifyMetadataRoundTripPostCommit(cp)
+	if report.Pass {
+		t.Fatal("expected Pass=false after simulated post-commit strip")
+	}
+	if len(report.StrippedFields) == 0 {
+		t.Error("expected non-empty StrippedFields")
+	}
+	// At least one stripped field should point at learning-000.md.
+	foundTarget := false
+	for _, sf := range report.StrippedFields {
+		if strings.HasSuffix(sf.File, "learning-000.md") {
+			foundTarget = true
+			break
+		}
+	}
+	if !foundTarget {
+		t.Errorf("expected a stripped field for learning-000.md, got %+v", report.StrippedFields)
+	}
+
+	// Exercise logPostCommitFinding directly and verify the filename
+	// intentionally does NOT match findingFilenameRe, so the router
+	// will skip it.
+	if err := logPostCommitFinding(dir, 1, report); err != nil {
+		t.Fatalf("logPostCommitFinding: %v", err)
+	}
+
+	findingsDir := filepath.Join(dir, ".agents", "findings")
+	entries, err := os.ReadDir(findingsDir)
+	if err != nil {
+		t.Fatalf("read findings dir: %v", err)
+	}
+	found := false
+	for _, e := range entries {
+		if strings.Contains(e.Name(), "postcommit-iter-1") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected findings file containing 'postcommit-iter-1', got entries=%v", postCommitDirNames(entries))
+	}
+}
+
+// postCommitDirNames is a tiny helper used only by
+// TestRunLoop_PostCommitMetadataCheck_LogsFinding to render directory
+// entries in error messages. Named with a prefix to avoid collisions
+// with any future sibling helper.
+func postCommitDirNames(entries []os.DirEntry) []string {
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.Name())
+	}
+	return out
+}

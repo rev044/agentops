@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/lifecycle"
@@ -215,6 +218,18 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			return result, fmt.Errorf("overnight: iteration %d commit: %w", iterIndex, commitErr)
 		}
 
+		// Post-commit metadata integrity check (ratchet-forward per pm-V7).
+		// Cannot unwind a successful commit; record a findings entry and
+		// surface via degraded so the morning report shows the strip.
+		if postReport := VerifyMetadataRoundTripPostCommit(cp); !postReport.Pass {
+			msg := fmt.Sprintf("post-commit metadata integrity: %d stripped field(s)", len(postReport.StrippedFields))
+			iter.Degraded = append(iter.Degraded, msg)
+			fmt.Fprintf(log, "overnight: iteration %d %s\n", iterIndex, msg)
+			// Log a structured finding the router will intentionally skip
+			// (filename bypasses findingFilenameRe); surfaces in morning report.
+			_ = logPostCommitFinding(opts.Cwd, iterIndex, postReport)
+		}
+
 		// --- MEASURE ---
 		measure, measureErr := RunMeasure(loopCtx, opts, log)
 		if measureErr != nil {
@@ -334,4 +349,34 @@ func regressionNames(rs []MetricRegression) []string {
 		out = append(out, r.Name)
 	}
 	return out
+}
+
+// logPostCommitFinding writes a structured finding to .agents/findings/
+// describing a post-commit metadata integrity failure. The filename
+// intentionally does NOT match findingFilenameRe, so the findings router
+// will skip it — post-commit strips belong in the morning report as
+// warnings, not as auto-routed work.
+func logPostCommitFinding(cwd string, iterIndex int, report MetadataIntegrityReport) error {
+	findingsDir := filepath.Join(cwd, ".agents", "findings")
+	if err := os.MkdirAll(findingsDir, 0o755); err != nil {
+		return err
+	}
+	date := time.Now().Format("2006-01-02")
+	name := fmt.Sprintf("f-%s-postcommit-iter-%d.md", date, iterIndex)
+	path := filepath.Join(findingsDir, name)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "---\ntitle: Post-commit metadata integrity drift (iter %d)\n", iterIndex)
+	fmt.Fprintf(&b, "type: finding\nseverity: high\ndate: %s\n---\n\n", date)
+	fmt.Fprintf(&b, "The post-commit VerifyMetadataRoundTripPostCommit check detected %d stripped field(s) "+
+		"after Dream iteration %d landed. These fields were present in the pre-REDUCE baseline but are "+
+		"missing from the post-commit live tree. This indicates late-stage corruption in the commit swap "+
+		"itself, since the pre-commit check would have caught a reducer-layer strip.\n\n",
+		len(report.StrippedFields), iterIndex)
+	fmt.Fprintln(&b, "## Stripped fields")
+	fmt.Fprintln(&b, "")
+	for _, sf := range report.StrippedFields {
+		fmt.Fprintf(&b, "- `%s`: key `%s`\n", sf.File, sf.Key)
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
 }

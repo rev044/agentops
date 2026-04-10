@@ -8,8 +8,155 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
+
+// staleCitationAge is the threshold at which a learning's cited source
+// is considered stale. Learnings older than this without being refreshed
+// are flagged for review.
+const staleCitationAge = 180 * 24 * time.Hour
+
+// AuditReport describes the outcome of a provenance audit over the
+// local .agents/ corpus. Dream's INGEST stage uses this to detect
+// stale citations and missing source references before the nightly
+// loop runs MEASURE.
+type AuditReport struct {
+	// StaleCitations is the count of learnings whose cited source
+	// bead or file no longer exists or is > 180 days old.
+	StaleCitations int
+
+	// MissingSources is the count of learnings whose frontmatter
+	// source_bead field is empty or references a bead that no
+	// longer exists.
+	MissingSources int
+
+	// Degraded accumulates soft-fail notes (parse errors on
+	// individual learning files, etc.).
+	Degraded []string
+
+	// Duration is the wall-clock time the audit took.
+	Duration time.Duration
+}
+
+// learningFrontmatter mirrors the subset of learning YAML frontmatter
+// fields the audit cares about. Additional fields in the source are
+// ignored.
+type learningFrontmatter struct {
+	Title      string `yaml:"title"`
+	SourceBead string `yaml:"source_bead"`
+	Source     string `yaml:"source"`
+	Date       string `yaml:"date"`
+}
+
+// Audit scans .agents/learnings/ under cwd and returns an
+// AuditReport. Never prints to stdout/stderr. Soft-fails on
+// individual file read/parse errors; returns a hard error only
+// on structural problems (missing .agents/ dir, unreadable
+// learnings subdir).
+//
+// Dream's INGEST stage calls this in-process via RunIngest.
+// The cmd/ao cobra layer (rpi_phased_provenance.go) wraps it for
+// operator invocation.
+func Audit(cwd string) (*AuditReport, error) {
+	start := time.Now()
+	report := &AuditReport{Degraded: make([]string, 0)}
+
+	agentsDir := filepath.Join(cwd, ".agents")
+	info, err := os.Stat(agentsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			report.Duration = time.Since(start)
+			return report, nil
+		}
+		return nil, fmt.Errorf("stat .agents: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf(".agents is not a directory: %s", agentsDir)
+	}
+
+	learningsDir := filepath.Join(agentsDir, "learnings")
+	entries, err := os.ReadDir(learningsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			report.Duration = time.Since(start)
+			return report, nil
+		}
+		return nil, fmt.Errorf("read learnings dir: %w", err)
+	}
+
+	staleCutoff := time.Now().Add(-staleCitationAge)
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		path := filepath.Join(learningsDir, entry.Name())
+		fm, parseErr := parseLearningFrontmatter(path)
+		if parseErr != nil {
+			report.Degraded = append(report.Degraded,
+				fmt.Sprintf("%s: %v", entry.Name(), parseErr))
+			continue
+		}
+
+		// Missing source: empty source_bead AND empty source fields.
+		if strings.TrimSpace(fm.SourceBead) == "" && strings.TrimSpace(fm.Source) == "" {
+			report.MissingSources++
+		}
+
+		// Stale citation: date parses and is older than the cutoff.
+		if fm.Date != "" {
+			if parsedDate, dateErr := parseLearningDate(fm.Date); dateErr == nil {
+				if parsedDate.Before(staleCutoff) {
+					report.StaleCitations++
+				}
+			}
+		}
+	}
+
+	report.Duration = time.Since(start)
+	return report, nil
+}
+
+// parseLearningFrontmatter reads the leading YAML frontmatter block
+// from a learning markdown file. Returns an error if the file cannot
+// be read or the frontmatter block is malformed.
+func parseLearningFrontmatter(path string) (*learningFrontmatter, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read: %w", err)
+	}
+	content := string(data)
+	if !strings.HasPrefix(content, "---\n") {
+		return &learningFrontmatter{}, nil
+	}
+	rest := content[4:]
+	end := strings.Index(rest, "\n---")
+	if end < 0 {
+		return nil, fmt.Errorf("unterminated frontmatter")
+	}
+	fmBlock := rest[:end]
+	var fm learningFrontmatter
+	if err := yaml.Unmarshal([]byte(fmBlock), &fm); err != nil {
+		return nil, fmt.Errorf("yaml: %w", err)
+	}
+	return &fm, nil
+}
+
+// parseLearningDate attempts to parse a learning date string using the
+// two canonical formats: ISO date (2006-01-02) and RFC3339.
+func parseLearningDate(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("unrecognized date format: %q", s)
+}
 
 // absPathFunc is a variable so tests can override it.
 var absPathFunc = filepath.Abs

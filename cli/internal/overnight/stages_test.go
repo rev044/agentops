@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -549,4 +550,40 @@ func containsSubstring(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func TestRunReduce_FullStageOrder_Enforced(t *testing.T) {
+	var order []string
+	prev := reduceStageRecorder
+	reduceStageRecorder = func(name string) { order = append(order, name) }
+	t.Cleanup(func() { reduceStageRecorder = prev })
+
+	cwd, cp, ingest := newReduceFixture(t)
+	rec := &recorder{}
+	// Install a working close-loop stub via the recorder so that stage
+	// actually runs instead of being skipped.
+	_, err := RunReduce(
+		context.Background(),
+		newTestOpts(cwd),
+		ingest,
+		cp,
+		rec.callbacks(),
+		io.Discard,
+	)
+	if err != nil {
+		t.Fatalf("RunReduce: %v", err)
+	}
+
+	want := []string{
+		"harvest-promote",
+		"dedup",
+		"maturity-temper",
+		"defrag-prune",
+		"close-loop",
+		"findings-router",
+		"inject-refresh",
+	}
+	if !reflect.DeepEqual(order, want) {
+		t.Errorf("stage order mismatch:\n got=%v\nwant=%v", order, want)
+	}
 }

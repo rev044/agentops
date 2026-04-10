@@ -8,6 +8,18 @@ description: 'Private overnight operator mode. Routes interactive Dream requests
 `$dream` is the interactive surface for the same Dream engine used by
 `ao overnight`.
 
+## Compounding Loop (v2)
+
+Dream v2 runs a bounded outer loop of `INGEST -> REDUCE -> MEASURE` iterations until a halt condition fires: wall-clock budget exhausted, plateau (K sub-epsilon deltas in a row), regression beyond a per-metric floor, or metadata integrity failure. Each iteration is atomic and checkpointed so any rollback leaves the corpus clean. Dream is strictly knowledge-only.
+
+Anti-goals (hard constraints):
+
+- NEVER mutates source code.
+- NEVER invokes `$rpi` or any code-mutating flow.
+- NEVER performs git operations (no commits, branches, push, rebase, checkout).
+- NEVER creates symlinks anywhere.
+- No swarm/gc fan-out inside iterations in the first slice (serial only).
+
 ## Execution Steps
 
 ### Step 1: Route the request
@@ -36,7 +48,16 @@ Use `ao overnight start` for the actual private local run.
 ```bash
 ao overnight start --goal "close the loop on today's auth work"
 ao overnight start --goal "stabilize release follow-ups" --runner codex --runner claude --creative-lane
+$dream start --queue=.agents/dream/tonight.md
+$dream start --max-iterations=3
+$dream start --warn-only=false
 ```
+
+Expected behavior:
+
+- operates against the real repo-local `.agents` corpus
+- writes `summary.json` and `summary.md` (with per-iteration sub-summary entries for each INGEST -> REDUCE -> MEASURE pass)
+- degrades honestly when soft-fail steps or keep-awake helpers are unavailable
 
 ### Step 4: Morning report lane
 
@@ -60,6 +81,15 @@ When rendering a report, answer four questions fast:
 - Do not promise scheduled execution on a sleeping laptop.
 - Do not imply tracked source-code edits overnight.
 - GitHub nightly is the public proof harness, not the private Dream engine.
+
+## Delineation vs $evolve
+
+| Lane | Runs | Mutates code? | Mutates corpus? | Outer loop? | Budget |
+|------|------|---------------|-----------------|-------------|--------|
+| `$dream` | nightly, private local | **No** | **Yes (heavy)** | **Yes (convergence)** | wall-clock + plateau |
+| `$evolve` | daytime, operator-driven | Yes (via `$rpi`) | Yes (light) | Yes | cycle cap |
+
+Dream owns the knowledge compounding layer; `$evolve` owns the code compounding layer. Both share fitness-measurement substrate via `corpus.Compute` / `ao goals measure`. Run Dream overnight, then start each day with `$evolve` against the freshly-compounded corpus with a clean fitness baseline.
 
 ## See Also
 

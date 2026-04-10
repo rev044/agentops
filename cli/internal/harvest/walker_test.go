@@ -229,6 +229,67 @@ func TestDiscoverRigs_MultipleProjects(t *testing.T) {
 	}
 }
 
+func TestDiscoverRigs_SkipGlobalHub_OmitsHome(t *testing.T) {
+	// Fake HOME with .agents/ present so the global hub would normally
+	// be included.
+	fakeHome := t.TempDir()
+	globalAgents := filepath.Join(fakeHome, ".agents")
+	mustMkdirAll(t, filepath.Join(globalAgents, "learnings"))
+	t.Setenv("HOME", fakeHome)
+
+	// Separate scan root with one rig inside.
+	scanRoot := t.TempDir()
+	scanAgents := filepath.Join(scanRoot, "proj", "crew", "worker", ".agents")
+	mustMkdirAll(t, filepath.Join(scanAgents, "learnings"))
+
+	// SkipGlobalHub=true: only the scan-root rig should appear.
+	optsSkip := WalkOptions{
+		Roots:         []string{scanRoot},
+		MaxFileSize:   1048576,
+		SkipDirs:      []string{"archive"},
+		IncludeDirs:   []string{"learnings"},
+		SkipGlobalHub: true,
+	}
+	rigs, err := DiscoverRigs(optsSkip)
+	if err != nil {
+		t.Fatalf("DiscoverRigs(skip): %v", err)
+	}
+	if len(rigs) != 1 {
+		t.Fatalf("expected 1 rig with SkipGlobalHub=true, got %d: %+v", len(rigs), rigs)
+	}
+	if rigs[0].Path != scanAgents {
+		t.Errorf("rig path = %q, want %q", rigs[0].Path, scanAgents)
+	}
+	for _, ri := range rigs {
+		if ri.Path == globalAgents {
+			t.Errorf("global hub should be omitted when SkipGlobalHub=true, got %q", ri.Path)
+		}
+	}
+
+	// SkipGlobalHub=false: home .agents/ IS included alongside the rig.
+	optsInclude := WalkOptions{
+		Roots:         []string{scanRoot},
+		MaxFileSize:   1048576,
+		SkipDirs:      []string{"archive"},
+		IncludeDirs:   []string{"learnings"},
+		SkipGlobalHub: false,
+	}
+	rigs2, err := DiscoverRigs(optsInclude)
+	if err != nil {
+		t.Fatalf("DiscoverRigs(include): %v", err)
+	}
+	foundHome := false
+	for _, ri := range rigs2 {
+		if ri.Path == globalAgents {
+			foundHome = true
+			break
+		}
+	}
+	if !foundHome {
+		t.Errorf("expected global hub %q to be included when SkipGlobalHub=false, got: %+v", globalAgents, rigs2)
+	}
+}
+
 // --- helpers ---
 
 func mustMkdirAll(t *testing.T, path string) {

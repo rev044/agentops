@@ -25,6 +25,11 @@ type WalkOptions struct {
 	MaxFileSize int64    // Skip files > this (default: 1MB = 1048576)
 	SkipDirs    []string // Directory names to skip
 	IncludeDirs []string // .agents/ subdirs to harvest (learnings, patterns, research)
+	// SkipGlobalHub, when true, disables the automatic ~/.agents/
+	// include at the end of rig discovery. Used by private-lane
+	// callers (Dream, corpus.Compute) that want strictly-scoped
+	// local rig discovery.
+	SkipGlobalHub bool
 }
 
 // DefaultWalkOptions returns sensible defaults.
@@ -65,22 +70,25 @@ func DiscoverRigsWithWarnings(opts WalkOptions) ([]RigInfo, []HarvestWarning, er
 		warnings = append(warnings, rootWarnings...)
 	}
 
-	// Include ~/.agents/ as global hub if it exists.
-	home, err := os.UserHomeDir()
-	if err == nil {
-		globalPath := filepath.Join(home, ".agents")
-		if info, statErr := os.Stat(globalPath); statErr == nil && info.IsDir() {
-			// Only add if not already discovered (e.g., if home was a root).
-			if !containsPath(rigs, globalPath) {
-				ri, inspectErr := inspectAgentsDir(globalPath, "global", "hub")
-				if inspectErr == nil {
-					rigs = append(rigs, ri)
-				} else {
-					warnings = append(warnings, newDiscoveryWarning(
-						"discover_inspect",
-						globalPath,
-						fmt.Errorf("inspecting %s: %w", globalPath, inspectErr),
-					))
+	// Include ~/.agents/ as global hub if it exists, unless the caller
+	// opted out (private-lane callers like Dream and corpus.Compute).
+	if !opts.SkipGlobalHub {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			globalPath := filepath.Join(home, ".agents")
+			if info, statErr := os.Stat(globalPath); statErr == nil && info.IsDir() {
+				// Only add if not already discovered (e.g., if home was a root).
+				if !containsPath(rigs, globalPath) {
+					ri, inspectErr := inspectAgentsDir(globalPath, "global", "hub")
+					if inspectErr == nil {
+						rigs = append(rigs, ri)
+					} else {
+						warnings = append(warnings, newDiscoveryWarning(
+							"discover_inspect",
+							globalPath,
+							fmt.Errorf("inspecting %s: %w", globalPath, inspectErr),
+						))
+					}
 				}
 			}
 		}

@@ -153,9 +153,15 @@ func RouteFindings(cwd string) (routed int, degraded []string, err error) {
 }
 
 // findingID parses a filename like "f-2026-03-22-001.md" and returns
-// "f-2026-03-22-001". Returns "" for non-conforming names.
+// "f-2026-03-22-001". Returns "" for non-conforming names or
+// calendar-invalid dates (e.g. "f-9999-99-99-001.md").
 func findingID(basename string) string {
 	if !findingFilenameRe.MatchString(basename) {
+		return ""
+	}
+	// Extract YYYY-MM-DD portion (chars 2..12 of "f-YYYY-MM-DD-NNN.md").
+	dateStr := basename[2:12]
+	if _, err := time.Parse("2006-01-02", dateStr); err != nil {
 		return ""
 	}
 	return strings.TrimSuffix(basename, ".md")

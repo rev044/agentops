@@ -322,3 +322,22 @@ func TestLoadNextWorkIDs_MultipleLines(t *testing.T) {
 		}
 	}
 }
+
+func TestFindingFilenameRe_RejectsCalendarInvalid(t *testing.T) {
+	cases := []struct {
+		name string
+		want string
+	}{
+		{"f-2026-04-09-001.md", "f-2026-04-09-001"}, // valid
+		{"f-2026-02-29-001.md", ""},                 // 2026 not leap year
+		{"f-9999-99-99-001.md", ""},                 // calendar-invalid
+		{"f-2026-13-01-001.md", ""},                 // month > 12
+		{"f-2026-04-31-001.md", ""},                 // April has 30 days
+	}
+	for _, tc := range cases {
+		got := findingID(tc.name)
+		if got != tc.want {
+			t.Errorf("findingID(%q) = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

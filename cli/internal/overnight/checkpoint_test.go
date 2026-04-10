@@ -323,3 +323,21 @@ func snapshotKeys(m map[string]string) []string {
 	sort.Strings(out)
 	return out
 }
+
+func TestNewCheckpoint_RejectsPathTraversal(t *testing.T) {
+	cwd := t.TempDir()
+	// Seed .agents/ so the rest of NewCheckpoint would succeed.
+	mustMkdir(t, filepath.Join(cwd, ".agents", "learnings"))
+	bad := []string{"../etc/passwd", "a/b", "a\\b", "..", "iter with space", "\x00bad"}
+	for _, id := range bad {
+		_, err := NewCheckpoint(cwd, id, 1<<20)
+		if err == nil {
+			t.Errorf("NewCheckpoint(%q) should have failed, got nil error", id)
+		}
+	}
+	// Positive case: valid ID still works.
+	_, err := NewCheckpoint(cwd, "iter-1", 1<<20)
+	if err != nil {
+		t.Errorf("NewCheckpoint with valid id failed: %v", err)
+	}
+}

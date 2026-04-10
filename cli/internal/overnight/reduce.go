@@ -12,6 +12,11 @@ import (
 	"github.com/boshu2/agentops/cli/internal/lifecycle"
 )
 
+// reduceStageRecorder is an optional test hook called at the start of
+// each REDUCE stage. Tests install it via TestRunReduce_FullStageOrder_Enforced
+// to assert the full execution order. Production leaves it nil.
+var reduceStageRecorder func(stageName string)
+
 // ReduceResult is the output of a single REDUCE stage.
 //
 // REDUCE is the only Dream stage that mutates .agents/, so the result
@@ -184,6 +189,9 @@ func RunReduce(
 		{
 			name: "harvest-promote",
 			run: func() error {
+				if reduceStageRecorder != nil {
+					reduceStageRecorder("harvest-promote")
+				}
 				if ingest == nil || ingest.HarvestCatalog == nil {
 					result.Degraded = append(result.Degraded,
 						"harvest-promote: no catalog from INGEST, skipped")
@@ -203,6 +211,9 @@ func RunReduce(
 		{
 			name: "dedup",
 			run: func() error {
+				if reduceStageRecorder != nil {
+					reduceStageRecorder("dedup")
+				}
 				dr, err := lifecycle.ExecuteDedup(stagingCwd, false)
 				if err != nil {
 					return err
@@ -216,6 +227,9 @@ func RunReduce(
 		{
 			name: "maturity-temper",
 			run: func() error {
+				if reduceStageRecorder != nil {
+					reduceStageRecorder("maturity-temper")
+				}
 				result.Degraded = append(result.Degraded,
 					"maturity-temper: in-process entry deferred to follow-up")
 				return nil
@@ -224,6 +238,9 @@ func RunReduce(
 		{
 			name: "defrag-prune",
 			run: func() error {
+				if reduceStageRecorder != nil {
+					reduceStageRecorder("defrag-prune")
+				}
 				pr, err := lifecycle.ExecutePrune(stagingCwd, false, 30)
 				if err != nil {
 					return err
@@ -237,6 +254,9 @@ func RunReduce(
 		{
 			name: "close-loop",
 			run: func() error {
+				if reduceStageRecorder != nil {
+					reduceStageRecorder("close-loop")
+				}
 				if !closeLoopWired {
 					result.Degraded = append(result.Degraded,
 						"close-loop: callbacks not wired")
@@ -255,6 +275,9 @@ func RunReduce(
 		{
 			name: "findings-router",
 			run: func() error {
+				if reduceStageRecorder != nil {
+					reduceStageRecorder("findings-router")
+				}
 				routed, degraded, err := RouteFindings(stagingCwd)
 				if err != nil {
 					return err
@@ -279,6 +302,9 @@ func RunReduce(
 			// with the compounded corpus in one atomic swap.
 			name: "inject-refresh",
 			run: func() error {
+				if reduceStageRecorder != nil {
+					reduceStageRecorder("inject-refresh")
+				}
 				ir, err := refreshInjectCacheFn(ctx, stagingCwd, log)
 				if ir != nil {
 					result.InjectRefreshResult = ir
