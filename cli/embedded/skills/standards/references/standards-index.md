@@ -21,9 +21,10 @@ JIT loading map for validation agents. Load only what you need based on file typ
 |----------|------|---------|
 | **Vibe-Coding** | `skills/vibe/references/vibe-coding.md` | Trust calibration, metrics, failure patterns |
 | **Common Standards** | `skills/standards/references/common-standards.md` | Cross-language patterns: error handling, testing, security, docs, organization |
+| **Behavioral Discipline** | `skills/standards/references/behavioral-discipline.md` | Assumptions, simplicity bias, blast-radius control, verification discipline |
 | **Skill Structure** | `skills/standards/references/skill-structure.md` | Anthropic-compliant skill structure, frontmatter, quality checklist |
 
-**Always load vibe-coding.md first**, then common-standards.md for universal patterns.
+**Always load vibe-coding.md first**, then common-standards.md and behavioral-discipline.md for universal patterns.
 
 ## Pattern Files (Load When Relevant)
 
@@ -85,5 +86,6 @@ Keep agents lean. Load only what's needed.
 
 1. **vibe-coding.md** (universal — trust calibration, failure patterns)
 2. **common-standards.md** (universal — cross-language error handling, testing, security, docs, organization)
-3. **Language standards** (per detected extensions)
-4. **Pattern files** (if architecture/design review)
+3. **behavioral-discipline.md** (universal — assumptions, simplicity, scope control, verification)
+4. **Language standards** (per detected extensions)
+5. **Pattern files** (if architecture/design review)

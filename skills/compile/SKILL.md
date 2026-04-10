@@ -456,11 +456,11 @@ For full compilation, invoke `/compile` manually or schedule it with your host O
 0 3 * * * AGENTOPS_COMPILE_RUNTIME=ollama ao compile --compile-only
 ```
 
-AgentOps does **not** currently ship a first-class `ao schedule` command. If you
-want unattended compilation today, use your host scheduler (`launchd`, `cron`,
-`systemd`, CI, etc.) to invoke `ao compile --compile-only`. If you want the
-broader private overnight loop, use `ao overnight start` instead of inventing a
-parallel Dream wrapper inside `/compile`.
+AgentOps does **not** currently ship a first-class scheduler subcommand for this
+flow. If you want unattended compilation today, use your host scheduler
+(`launchd`, `cron`, `systemd`, CI, etc.) to invoke `ao compile --compile-only`.
+If you want the broader private overnight loop, use `ao overnight start`
+instead of inventing a parallel Dream wrapper inside `/compile`.
 
 ## Flags
 

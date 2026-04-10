@@ -9,6 +9,7 @@ FAIL=0
 
 pass() { echo "PASS: $1"; PASS=$((PASS + 1)); }
 fail() { echo "FAIL: $1"; FAIL=$((FAIL + 1)); }
+contains_text() { grep -F -q -- "$1" "$2"; }
 
 if [[ ! -f "$SCRIPT" ]]; then
     echo "FAIL: missing script: $SCRIPT" >&2
@@ -265,7 +266,7 @@ test_fails_when_codex_inventory_is_missing_skill() {
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime codex --workdir "$TMP_DIR/workdir-fail" >"$TMP_DIR/fail.log" 2>&1; then
         fail "fails when Codex inventory is missing a skill"
-    elif rg -q 'missing skills: compile' "$TMP_DIR/fail.log"; then
+    elif contains_text 'missing skills: compile' "$TMP_DIR/fail.log"; then
         pass "fails when Codex inventory is missing a skill"
     else
         fail "fails when Codex inventory is missing a skill"
@@ -283,8 +284,8 @@ test_retries_when_codex_inventory_omits_skill_once() {
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime codex --workdir "$TMP_DIR/workdir-codex-retry" \
         >"$TMP_DIR/codex-retry.log" 2>&1; then
-        if rg -q 'Codex inventory mismatch on attempt 1/2; retrying' "$TMP_DIR/codex-retry.log" && \
-            rg -q 'codex: inventory verified' "$TMP_DIR/codex-retry.log"; then
+        if contains_text 'Codex inventory mismatch on attempt 1/2; retrying' "$TMP_DIR/codex-retry.log" && \
+            contains_text 'codex: inventory verified' "$TMP_DIR/codex-retry.log"; then
             pass "retries when Codex inventory omits a skill once"
         else
             fail "retries when Codex inventory omits a skill once"
@@ -304,7 +305,7 @@ test_warns_and_passes_when_claude_inventory_falls_back_to_help() {
     make_mock_claude "$bin_dir" fallback
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-fallback" >"$TMP_DIR/fallback.log" 2>&1; then
-        if rg -q 'load-check fallback passed' "$TMP_DIR/fallback.log"; then
+        if contains_text 'load-check fallback passed' "$TMP_DIR/fallback.log"; then
             pass "warns and passes when Claude inventory falls back to explicit load-check fallback"
         else
             fail "warns and passes when Claude inventory falls back to explicit load-check fallback"
@@ -324,8 +325,8 @@ test_warns_and_passes_when_claude_output_is_malformed() {
     make_mock_claude "$bin_dir" malformed
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-malformed" >"$TMP_DIR/malformed.log" 2>&1; then
-        if rg -q 'assistant output was not a JSON array' "$TMP_DIR/malformed.log" && \
-            rg -q 'load-check fallback passed' "$TMP_DIR/malformed.log"; then
+        if contains_text 'assistant output was not a JSON array' "$TMP_DIR/malformed.log" && \
+            contains_text 'load-check fallback passed' "$TMP_DIR/malformed.log"; then
             pass "warns and passes when Claude output is malformed but load check succeeds"
         else
             fail "warns and passes when Claude output is malformed but load check succeeds"
@@ -346,8 +347,8 @@ test_retries_when_claude_inventory_omits_skill_once() {
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-retry" \
         >"$TMP_DIR/retry.log" 2>&1; then
-        if rg -q 'inventory mismatch on attempt 1/2; retrying' "$TMP_DIR/retry.log" && \
-            rg -q 'claude: inventory verified' "$TMP_DIR/retry.log"; then
+        if contains_text 'inventory mismatch on attempt 1/2; retrying' "$TMP_DIR/retry.log" && \
+            contains_text 'claude: inventory verified' "$TMP_DIR/retry.log"; then
             pass "retries when Claude inventory omits a skill once"
         else
             fail "retries when Claude inventory omits a skill once"
@@ -370,7 +371,7 @@ test_fails_in_strict_mode_when_claude_uses_load_check_fallback() {
         bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-strict" \
         >"$TMP_DIR/strict.log" 2>&1; then
         fail "fails in strict mode when Claude falls back to load-check"
-    elif rg -q 'requires verified Claude inventory' "$TMP_DIR/strict.log"; then
+    elif contains_text 'requires verified Claude inventory' "$TMP_DIR/strict.log"; then
         pass "fails in strict mode when Claude falls back to load-check"
     else
         fail "fails in strict mode when Claude falls back to load-check"

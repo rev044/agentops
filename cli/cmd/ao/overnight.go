@@ -605,6 +605,18 @@ func outputOvernightSummary(summary overnightSummary) error {
 
 func renderOvernightSummaryMarkdown(summary overnightSummary) string {
 	var b strings.Builder
+	appendDreamOverview(&b, summary)
+	appendDreamscapeSection(&b, summary.Dreamscape)
+	appendDreamTerrainSection(&b, summary)
+	appendDreamStepsSection(&b, summary.Steps)
+	appendDreamCouncilSection(&b, summary.Council)
+	appendDreamListSection(&b, "Degraded", summary.Degraded, false)
+	appendDreamListSection(&b, "First Move", nonEmptySlice(summary.NextAction), false)
+	appendDreamListSection(&b, "Recommended", summary.Recommended, true)
+	return b.String()
+}
+
+func appendDreamOverview(b *strings.Builder, summary overnightSummary) {
 	b.WriteString("# Dream Morning Report\n\n")
 	b.WriteString(fmt.Sprintf("- Status: `%s`\n", summary.Status))
 	b.WriteString(fmt.Sprintf("- Run ID: `%s`\n", summary.RunID))
@@ -622,29 +634,55 @@ func renderOvernightSummaryMarkdown(summary overnightSummary) string {
 	}
 	b.WriteString(fmt.Sprintf("- Keep awake: `%t` via `%s`\n", summary.Runtime.KeepAwake, summary.Runtime.KeepAwakeMode))
 	b.WriteString(fmt.Sprintf("- Timeout: `%s`\n", summary.Runtime.EffectiveTimeout))
-	if summary.Dreamscape != nil {
-		b.WriteString("\n## DreamScape\n\n")
-		b.WriteString(fmt.Sprintf("- Weather: `%s`\n", summary.Dreamscape.Weather))
-		b.WriteString(fmt.Sprintf("- Visibility: `%s`\n", summary.Dreamscape.Visibility))
-		b.WriteString(fmt.Sprintf("- Council: `%s`\n", summary.Dreamscape.Council))
-		if summary.Dreamscape.Tension != "" {
-			b.WriteString(fmt.Sprintf("- Tension: %s\n", summary.Dreamscape.Tension))
-		}
-		b.WriteString(fmt.Sprintf("- First move: %s\n", summary.Dreamscape.FirstMove))
+}
+
+func appendDreamscapeSection(b *strings.Builder, dreamscape *overnightDreamscape) {
+	if dreamscape == nil {
+		return
 	}
+	b.WriteString("\n## DreamScape\n\n")
+	b.WriteString(fmt.Sprintf("- Weather: `%s`\n", dreamscape.Weather))
+	b.WriteString(fmt.Sprintf("- Visibility: `%s`\n", dreamscape.Visibility))
+	b.WriteString(fmt.Sprintf("- Council: `%s`\n", dreamscape.Council))
+	if dreamscape.Tension != "" {
+		b.WriteString(fmt.Sprintf("- Tension: %s\n", dreamscape.Tension))
+	}
+	b.WriteString(fmt.Sprintf("- First move: %s\n", dreamscape.FirstMove))
+}
+
+type dreamMetricLine struct {
+	Label string
+	Key   string
+}
+
+func appendDreamTerrainSection(b *strings.Builder, summary overnightSummary) {
 	b.WriteString("\n## Terrain\n\n")
-	if summary.MetricsHealth != nil {
-		b.WriteString(fmt.Sprintf("- Escape velocity: `%v`\n", lookupPath(summary.MetricsHealth, "escape_velocity")))
-		b.WriteString(fmt.Sprintf("- Sigma: `%v`\n", lookupPath(summary.MetricsHealth, "sigma")))
-		b.WriteString(fmt.Sprintf("- Rho: `%v`\n", lookupPath(summary.MetricsHealth, "rho")))
-		b.WriteString(fmt.Sprintf("- Delta: `%v`\n", lookupPath(summary.MetricsHealth, "delta")))
-	}
+	appendDreamMetricLines(b, summary.MetricsHealth, []dreamMetricLine{
+		{Label: "Escape velocity", Key: "escape_velocity"},
+		{Label: "Sigma", Key: "sigma"},
+		{Label: "Rho", Key: "rho"},
+		{Label: "Delta", Key: "delta"},
+	})
+	appendDreamMetricLines(b, summary.RetrievalLive, []dreamMetricLine{
+		{Label: "Retrieval coverage", Key: "coverage"},
+	})
 	if summary.RetrievalLive != nil {
-		b.WriteString(fmt.Sprintf("- Retrieval coverage: `%v`\n", lookupPath(summary.RetrievalLive, "coverage")))
 		b.WriteString(fmt.Sprintf("- Queries with hits: `%v/%v`\n", lookupPath(summary.RetrievalLive, "queries_with_hits"), lookupPath(summary.RetrievalLive, "queries")))
 	}
+}
+
+func appendDreamMetricLines(b *strings.Builder, values map[string]any, lines []dreamMetricLine) {
+	if values == nil {
+		return
+	}
+	for _, line := range lines {
+		b.WriteString(fmt.Sprintf("- %s: `%v`\n", line.Label, lookupPath(values, line.Key)))
+	}
+}
+
+func appendDreamStepsSection(b *strings.Builder, steps []overnightStepSummary) {
 	b.WriteString("\n## What Ran\n\n")
-	for _, step := range summary.Steps {
+	for _, step := range steps {
 		line := fmt.Sprintf("- `%s`: `%s`", step.Name, step.Status)
 		if step.Artifact != "" {
 			line += fmt.Sprintf(" → `%s`", step.Artifact)
@@ -654,52 +692,55 @@ func renderOvernightSummaryMarkdown(summary overnightSummary) string {
 		}
 		b.WriteString(line + "\n")
 	}
-	if summary.Council != nil {
-		b.WriteString("\n## Dream Council\n\n")
-		b.WriteString(fmt.Sprintf("- Requested runners: `%s`\n", strings.Join(summary.Council.RequestedRunners, ", ")))
-		if len(summary.Council.CompletedRunners) > 0 {
-			b.WriteString(fmt.Sprintf("- Completed runners: `%s`\n", strings.Join(summary.Council.CompletedRunners, ", ")))
-		}
-		if len(summary.Council.FailedRunners) > 0 {
-			b.WriteString(fmt.Sprintf("- Failed runners: `%s`\n", strings.Join(summary.Council.FailedRunners, ", ")))
-		}
-		b.WriteString(fmt.Sprintf("- Consensus policy: `%s`\n", summary.Council.ConsensusPolicy))
-		if summary.Council.ConsensusKind != "" {
-			b.WriteString(fmt.Sprintf("- Consensus kind: `%s`\n", summary.Council.ConsensusKind))
-		}
-		if summary.Council.RecommendedFirstAction != "" {
-			b.WriteString(fmt.Sprintf("- Recommended action: %s\n", summary.Council.RecommendedFirstAction))
-		}
-		if len(summary.Council.Disagreements) > 0 {
-			b.WriteString("\n### Disagreements\n\n")
-			for _, item := range summary.Council.Disagreements {
-				b.WriteString("- " + item + "\n")
-			}
-		}
-		if len(summary.Council.WildcardIdeas) > 0 {
-			b.WriteString("\n### Wildcards\n\n")
-			for _, item := range summary.Council.WildcardIdeas {
-				b.WriteString("- " + item + "\n")
-			}
-		}
+}
+
+func appendDreamCouncilSection(b *strings.Builder, council *overnightCouncilSummary) {
+	if council == nil {
+		return
 	}
-	if len(summary.Degraded) > 0 {
-		b.WriteString("\n## Degraded\n\n")
-		for _, item := range summary.Degraded {
-			b.WriteString("- " + item + "\n")
-		}
+	b.WriteString("\n## Dream Council\n\n")
+	b.WriteString(fmt.Sprintf("- Requested runners: `%s`\n", strings.Join(council.RequestedRunners, ", ")))
+	if len(council.CompletedRunners) > 0 {
+		b.WriteString(fmt.Sprintf("- Completed runners: `%s`\n", strings.Join(council.CompletedRunners, ", ")))
 	}
-	if summary.NextAction != "" {
-		b.WriteString("\n## First Move\n\n")
-		b.WriteString("- " + summary.NextAction + "\n")
+	if len(council.FailedRunners) > 0 {
+		b.WriteString(fmt.Sprintf("- Failed runners: `%s`\n", strings.Join(council.FailedRunners, ", ")))
 	}
-	if len(summary.Recommended) > 0 {
-		b.WriteString("\n## Recommended\n\n")
-		for _, item := range summary.Recommended {
+	b.WriteString(fmt.Sprintf("- Consensus policy: `%s`\n", council.ConsensusPolicy))
+	if council.ConsensusKind != "" {
+		b.WriteString(fmt.Sprintf("- Consensus kind: `%s`\n", council.ConsensusKind))
+	}
+	if council.RecommendedFirstAction != "" {
+		b.WriteString(fmt.Sprintf("- Recommended action: %s\n", council.RecommendedFirstAction))
+	}
+	appendDreamListSection(b, "Disagreements", council.Disagreements, false)
+	appendDreamListSection(b, "Wildcards", council.WildcardIdeas, false)
+}
+
+func appendDreamListSection(b *strings.Builder, heading string, items []string, quoteItems bool) {
+	if len(items) == 0 {
+		return
+	}
+	level := "##"
+	if heading == "Disagreements" || heading == "Wildcards" {
+		level = "###"
+	}
+	b.WriteString(fmt.Sprintf("\n%s %s\n\n", level, heading))
+	for _, item := range items {
+		if quoteItems {
 			b.WriteString("- `" + item + "`\n")
+			continue
 		}
+		b.WriteString("- " + item + "\n")
 	}
-	return b.String()
+}
+
+func nonEmptySlice(value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return []string{value}
 }
 
 func recommendedDreamCommands(summary overnightSummary) []string {
