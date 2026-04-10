@@ -2,14 +2,21 @@
 
 `ao overnight` is the headless automation surface for Dream, AgentOps' private overnight operator mode.
 
-This contract defines the minimum behavior required before more advanced layers like Dream Setup, Dream Council, or DreamScape build on top.
+This contract defines the minimum behavior required for the shipped Dream surfaces:
+
+- `ao overnight setup`
+- `ao overnight start|run`
+- `ao overnight report`
 
 ## Scope
 
 V1 covers:
 
+- local setup guidance with honest scheduler assistance artifacts
 - local-first overnight runs against the real repo-local `.agents` corpus
 - machine-readable and markdown morning summaries
+- optional multimodel Dream Council synthesis over bounded runner reports
+- built-in DreamScape terrain rendering inside the report
 - explicit process supervision and lock behavior
 - optional keep-awake assistance on macOS
 
@@ -17,13 +24,14 @@ V1 does not promise:
 
 - guaranteed scheduled execution on sleeping laptops
 - tracked source-code edits overnight
-- multimodel synthesis
-- visualization beyond the report contract
+- free-form model-to-model chat overnight
+- visualization outside the shared report contract
 
 ## Command Surface
 
 Primary commands:
 
+- `ao overnight setup`
 - `ao overnight start`
 - `ao overnight run`
   `run` is an alias for `start`
@@ -36,6 +44,15 @@ Required flags for `start`:
 - `--run-timeout <duration>`
 - `--keep-awake`
 - `--no-keep-awake`
+- `--runner <name>` (repeatable)
+- `--creative-lane`
+
+Required flags for `setup`:
+
+- `--apply`
+- `--scheduler <manual|launchd|cron|systemd|auto>`
+- `--at <HH:MM>`
+- `--runner <name>` (repeatable)
 
 ## Process Model
 
@@ -68,6 +85,9 @@ The first slice runs these steps in order:
 3. `ao metrics health --json`
 4. `ao retrieval-bench --live --json`
 5. optional: `ao knowledge brief --goal <goal> --json`
+6. optional: Dream Council packet generation
+7. optional: one bounded runner pass per configured Dream runner
+8. optional: Dream Council synthesis
 
 Hard-fail steps:
 
@@ -79,6 +99,8 @@ Soft-fail steps:
 - defrag preview
 - retrieval bench
 - knowledge brief
+- Dream Council runner execution
+- Dream Council synthesis when no runner completes
 
 Soft failures must degrade the report, not delete it.
 
@@ -116,6 +138,9 @@ Required artifacts:
 - `<output-dir>/metrics-health.json`
 - `<output-dir>/retrieval-bench.json` when live retrieval succeeds
 - `<output-dir>/briefing.json` when a goal briefing succeeds
+- `<output-dir>/council/packet.json` when Dream Council is configured
+- `<output-dir>/council/<runner>.json` for each successful Dream Council runner
+- `<output-dir>/council/synthesis.json` when Dream Council synthesis succeeds
 - `<output-dir>/summary.json`
 - `<output-dir>/summary.md`
 
@@ -126,3 +151,6 @@ GitHub nightly remains the public proof harness.
 `ao overnight` is the private compounding engine.
 
 They may share primitive steps and report shapes, but they are not the same operational surface.
+
+`ao overnight setup` helps persist `dream.*` config and generate host-specific
+assistance artifacts. The host scheduler still owns actual scheduling semantics.

@@ -198,15 +198,16 @@ Each phase spawns a fresh session — no context bleed. Worktree isolation means
 
 Dream is the overnight expression of the same control-plane model:
 
-- **interactive surface:** a future `$dream` skill and setup flow
+- **interactive surface:** `ao overnight setup` today, future `$dream` skill later
 - **automation surface:** `ao overnight start|run` and `ao overnight report`
 - **control plane:** shared `dream.*` config plus explicit output artifacts
 
-The first shipped slice is intentionally narrow. `ao overnight` runs locally against the real `.agents` corpus, writes `summary.json` and `summary.md`, and keeps runtime behavior honest:
+The first shipped wave is intentionally bounded. `ao overnight` runs locally against the real `.agents` corpus, writes `summary.json` and `summary.md`, and keeps runtime behavior honest:
 
 - no fake scheduler guarantees on sleeping laptops
 - no tracked source-code edits by default
-- no multimodel synthesis yet
+- optional bounded Dream Council synthesis through independent runner reports
+- DreamScape terrain rendering inside the shared report contract
 
 GitHub nightly remains useful, but for a different job: it proves that Dream's report contract and flywheel primitives still work in CI. It does not replace a private local bedtime run.
 

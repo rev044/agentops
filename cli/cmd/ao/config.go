@@ -141,6 +141,11 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  dream.report_dir:   %v  (from %s)\n", resolved.DreamReportDir.Value, resolved.DreamReportDir.Source)
 	fmt.Printf("  dream.run_timeout:  %v  (from %s)\n", resolved.DreamRunTimeout.Value, resolved.DreamRunTimeout.Source)
 	fmt.Printf("  dream.keep_awake:   %v  (from %s)\n", resolved.DreamKeepAwake.Value, resolved.DreamKeepAwake.Source)
+	fmt.Printf("  dream.runners:      %v  (from %s)\n", resolved.DreamRunners.Value, resolved.DreamRunners.Source)
+	fmt.Printf("  dream.scheduler:    %v  (from %s)\n", resolved.DreamScheduler.Value, resolved.DreamScheduler.Source)
+	fmt.Printf("  dream.schedule_at:  %v  (from %s)\n", resolved.DreamScheduleAt.Value, resolved.DreamScheduleAt.Source)
+	fmt.Printf("  dream.consensus:    %v  (from %s)\n", resolved.DreamConsensus.Value, resolved.DreamConsensus.Source)
+	fmt.Printf("  dream.creative:     %v  (from %s)\n", resolved.DreamCreativeLane.Value, resolved.DreamCreativeLane.Source)
 
 	fmt.Println()
 	fmt.Println("Environment variables (if set):")

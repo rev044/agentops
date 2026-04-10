@@ -1119,6 +1119,26 @@ ao overnight report [flags]
   -h, --help          help for report
 ```
 
+#### `ao overnight setup`
+
+Inspect the current machine, detect available Dream runtimes and scheduler
+
+```
+ao overnight setup [flags]
+```
+
+**Flags:**
+
+```
+      --apply              Persist the detected Dream config and generate scheduler assistance artifacts
+      --at string          Preferred local Dream run time in HH:MM (used for scheduler assistance)
+  -h, --help               help for setup
+      --keep-awake         Persist keep-awake on for Dream runs
+      --no-keep-awake      Persist keep-awake off for Dream runs
+      --runner strings     Dream runner to persist (repeatable: --runner codex --runner claude)
+      --scheduler string   Scheduler mode to persist (auto, manual, launchd, cron, systemd) (default "auto")
+```
+
 #### `ao overnight start`
 
 Start a private overnight Dream run against the local repository.
@@ -1130,12 +1150,14 @@ ao overnight start [flags]
 **Flags:**
 
 ```
+      --creative-lane        Enable the bounded wildcard lane when Dream Council is running
       --goal string          Optional goal to include in the morning report and briefing step
   -h, --help                 help for start
       --keep-awake           Force keep-awake assistance on for this run
       --no-keep-awake        Disable keep-awake assistance for this run
       --output-dir string    Directory for overnight artifacts (defaults to dream.report_dir)
       --run-timeout string   Maximum duration for the overnight run (defaults to dream.run_timeout)
+      --runner strings       Dream runner to execute (repeatable: --runner codex --runner claude)
 ```
 
 ---

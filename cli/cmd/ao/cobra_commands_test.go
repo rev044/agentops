@@ -81,6 +81,21 @@ func executeCommand(args ...string) (string, error) {
 	origFindingsPullForce := findingsPullForce
 	origFindingsRetireBy := findingsRetireBy
 	origScenarioListStatus := scenarioListStatus
+	origOvernightGoal := overnightGoal
+	origOvernightOutputDir := overnightOutputDir
+	origOvernightRunTimeout := overnightRunTimeout
+	origOvernightKeepAwake := overnightKeepAwake
+	origOvernightNoKeepAwake := overnightNoKeepAwake
+	origOvernightRunners := append([]string{}, overnightRunners...)
+	origOvernightModels := overnightModels
+	origOvernightCreative := overnightCreative
+	origOvernightReportFrom := overnightReportFrom
+	origOvernightSetupApply := overnightSetupApply
+	origOvernightSetupScheduler := overnightSetupScheduler
+	origOvernightSetupAt := overnightSetupAt
+	origOvernightSetupRunners := append([]string{}, overnightSetupRunners...)
+	origOvernightSetupKeepAwake := overnightSetupKeepAwake
+	origOvernightSetupNoKeepAwake := overnightSetupNoKeepAwake
 	// Struct-type flag vars (fields persist across Execute calls):
 	origContextPacketFlags := contextPacketFlags
 	origContextExplainFlags := contextExplainFlags
@@ -144,6 +159,21 @@ func executeCommand(args ...string) (string, error) {
 		findingsPullForce = origFindingsPullForce
 		findingsRetireBy = origFindingsRetireBy
 		scenarioListStatus = origScenarioListStatus
+		overnightGoal = origOvernightGoal
+		overnightOutputDir = origOvernightOutputDir
+		overnightRunTimeout = origOvernightRunTimeout
+		overnightKeepAwake = origOvernightKeepAwake
+		overnightNoKeepAwake = origOvernightNoKeepAwake
+		overnightRunners = append([]string{}, origOvernightRunners...)
+		overnightModels = origOvernightModels
+		overnightCreative = origOvernightCreative
+		overnightReportFrom = origOvernightReportFrom
+		overnightSetupApply = origOvernightSetupApply
+		overnightSetupScheduler = origOvernightSetupScheduler
+		overnightSetupAt = origOvernightSetupAt
+		overnightSetupRunners = append([]string{}, origOvernightSetupRunners...)
+		overnightSetupKeepAwake = origOvernightSetupKeepAwake
+		overnightSetupNoKeepAwake = origOvernightSetupNoKeepAwake
 		contextPacketFlags = origContextPacketFlags
 		contextExplainFlags = origContextExplainFlags
 		contextPacketStatusFlags = origContextPacketStatusFlags
@@ -202,6 +232,21 @@ func executeCommand(args ...string) (string, error) {
 	findingsPullForce = false
 	findingsRetireBy = ""
 	scenarioListStatus = ""
+	overnightGoal = ""
+	overnightOutputDir = ""
+	overnightRunTimeout = ""
+	overnightKeepAwake = false
+	overnightNoKeepAwake = false
+	overnightRunners = nil
+	overnightModels = ""
+	overnightCreative = false
+	overnightReportFrom = ""
+	overnightSetupApply = false
+	overnightSetupScheduler = "auto"
+	overnightSetupAt = ""
+	overnightSetupRunners = nil
+	overnightSetupKeepAwake = false
+	overnightSetupNoKeepAwake = false
 	doctorJSON = false
 	maturityApply = false
 	maturityScan = false
@@ -328,7 +373,7 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 		"knowledge":  {"activate", "beliefs", "playbooks", "brief", "gaps"},
 		"ratchet":    {"status", "check", "next"},
 		"metrics":    {"baseline", "report"},
-		"overnight":  {"start", "report"},
+		"overnight":  {"start", "report", "setup"},
 		"flywheel":   {"status", "nudge", "gate"},
 		"constraint": {"activate", "retire", "review", "list"},
 		"pool":       {"list", "ingest"},

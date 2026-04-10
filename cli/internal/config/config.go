@@ -154,6 +154,22 @@ type DreamConfig struct {
 	// KeepAwake controls whether local runs should attempt keep-awake assistance.
 	// Nil means "not explicitly configured".
 	KeepAwake *bool `yaml:"keep_awake,omitempty" json:"keep_awake,omitempty"`
+
+	// Runners is the ordered list of Dream runtimes to use for multimodel work.
+	Runners []string `yaml:"runners,omitempty" json:"runners,omitempty"`
+
+	// SchedulerMode is the chosen host scheduler mode (manual, launchd, cron, systemd).
+	SchedulerMode string `yaml:"scheduler_mode,omitempty" json:"scheduler_mode,omitempty"`
+
+	// ScheduleAt is the preferred local time (HH:MM) for host-scheduled Dream runs.
+	ScheduleAt string `yaml:"schedule_at,omitempty" json:"schedule_at,omitempty"`
+
+	// ConsensusPolicy controls how Dream Council synthesizes multiple runner outputs.
+	ConsensusPolicy string `yaml:"consensus_policy,omitempty" json:"consensus_policy,omitempty"`
+
+	// CreativeLane controls whether Dream Council should request wildcard ideas.
+	// Nil means "not explicitly configured".
+	CreativeLane *bool `yaml:"creative_lane,omitempty" json:"creative_lane,omitempty"`
 }
 
 // TierConfig holds model names for a tier.
@@ -259,9 +275,11 @@ func Default() *Config {
 			SkillOverrides: map[string]string{},
 		},
 		Dream: DreamConfig{
-			ReportDir:  ".agents/overnight/latest",
-			RunTimeout: "8h",
-			KeepAwake:  &defaultKeepAwake,
+			ReportDir:       ".agents/overnight/latest",
+			RunTimeout:      "8h",
+			KeepAwake:       &defaultKeepAwake,
+			SchedulerMode:   "manual",
+			ConsensusPolicy: "majority",
 		},
 		Paths: PathsConfig{
 			LearningsDir:       ".agents/learnings",
@@ -504,6 +522,15 @@ func mergeDream(dst, src *DreamConfig) {
 	if src.KeepAwake != nil {
 		dst.KeepAwake = boolPtr(*src.KeepAwake)
 	}
+	if len(src.Runners) > 0 {
+		dst.Runners = append([]string{}, src.Runners...)
+	}
+	mergeStr(&dst.SchedulerMode, src.SchedulerMode)
+	mergeStr(&dst.ScheduleAt, src.ScheduleAt)
+	mergeStr(&dst.ConsensusPolicy, src.ConsensusPolicy)
+	if src.CreativeLane != nil {
+		dst.CreativeLane = boolPtr(*src.CreativeLane)
+	}
 }
 
 // mergePaths merges path config fields (G5: configurable paths, not hardcoded).
@@ -637,6 +664,17 @@ func resolveStringField(home, project, env, flag, def string) resolved {
 	return result
 }
 
+func resolveStringSliceField(home, project []string, def []string) resolved {
+	result := resolved{Value: append([]string{}, def...), Source: SourceDefault}
+	if len(home) > 0 {
+		result = resolved{Value: append([]string{}, home...), Source: SourceHome}
+	}
+	if len(project) > 0 {
+		result = resolved{Value: append([]string{}, project...), Source: SourceProject}
+	}
+	return result
+}
+
 // ResolvedConfig shows config values with their sources.
 type ResolvedConfig struct {
 	Output            resolved `json:"output"`
@@ -652,6 +690,11 @@ type ResolvedConfig struct {
 	DreamReportDir    resolved `json:"dream_report_dir"`
 	DreamRunTimeout   resolved `json:"dream_run_timeout"`
 	DreamKeepAwake    resolved `json:"dream_keep_awake"`
+	DreamRunners      resolved `json:"dream_runners"`
+	DreamScheduler    resolved `json:"dream_scheduler_mode"`
+	DreamScheduleAt   resolved `json:"dream_schedule_at"`
+	DreamConsensus    resolved `json:"dream_consensus_policy"`
+	DreamCreativeLane resolved `json:"dream_creative_lane"`
 }
 
 type resolved struct {
@@ -670,6 +713,12 @@ type configFields struct {
 	dreamReportDir, dreamRunTimeout string
 	dreamKeepAwake                  bool
 	dreamKeepAwakeSet               bool
+	dreamRunners                    []string
+	dreamSchedulerMode              string
+	dreamScheduleAt                 string
+	dreamConsensusPolicy            string
+	dreamCreativeLane               bool
+	dreamCreativeLaneSet            bool
 }
 
 // extractFields pulls resolution-relevant fields from a Config.
@@ -679,20 +728,26 @@ func extractFields(cfg *Config) configFields {
 		return configFields{}
 	}
 	return configFields{
-		output:            cfg.Output,
-		baseDir:           cfg.BaseDir,
-		verbose:           cfg.Verbose,
-		rpiWorktreeMode:   cfg.RPI.WorktreeMode,
-		rpiRuntimeMode:    cfg.RPI.RuntimeMode,
-		rpiRuntimeCommand: cfg.RPI.RuntimeCommand,
-		rpiAOCommand:      cfg.RPI.AOCommand,
-		rpiBDCommand:      cfg.RPI.BDCommand,
-		rpiTmuxCommand:    cfg.RPI.TmuxCommand,
-		modelsDefaultTier: cfg.Models.DefaultTier,
-		dreamReportDir:    cfg.Dream.ReportDir,
-		dreamRunTimeout:   cfg.Dream.RunTimeout,
-		dreamKeepAwake:    cfg.Dream.KeepAwake != nil && *cfg.Dream.KeepAwake,
-		dreamKeepAwakeSet: cfg.Dream.KeepAwake != nil,
+		output:               cfg.Output,
+		baseDir:              cfg.BaseDir,
+		verbose:              cfg.Verbose,
+		rpiWorktreeMode:      cfg.RPI.WorktreeMode,
+		rpiRuntimeMode:       cfg.RPI.RuntimeMode,
+		rpiRuntimeCommand:    cfg.RPI.RuntimeCommand,
+		rpiAOCommand:         cfg.RPI.AOCommand,
+		rpiBDCommand:         cfg.RPI.BDCommand,
+		rpiTmuxCommand:       cfg.RPI.TmuxCommand,
+		modelsDefaultTier:    cfg.Models.DefaultTier,
+		dreamReportDir:       cfg.Dream.ReportDir,
+		dreamRunTimeout:      cfg.Dream.RunTimeout,
+		dreamKeepAwake:       cfg.Dream.KeepAwake != nil && *cfg.Dream.KeepAwake,
+		dreamKeepAwakeSet:    cfg.Dream.KeepAwake != nil,
+		dreamRunners:         append([]string{}, cfg.Dream.Runners...),
+		dreamSchedulerMode:   cfg.Dream.SchedulerMode,
+		dreamScheduleAt:      cfg.Dream.ScheduleAt,
+		dreamConsensusPolicy: cfg.Dream.ConsensusPolicy,
+		dreamCreativeLane:    cfg.Dream.CreativeLane != nil && *cfg.Dream.CreativeLane,
+		dreamCreativeLaneSet: cfg.Dream.CreativeLane != nil,
 	}
 }
 
@@ -794,6 +849,16 @@ func Resolve(flagOutput, flagBaseDir string, flagVerbose bool) *ResolvedConfig {
 			project.dreamKeepAwake, project.dreamKeepAwakeSet,
 			env.dreamKeepAwake, env.dreamKeepAwakeSet,
 			true,
+		),
+		DreamRunners:    resolveStringSliceField(home.dreamRunners, project.dreamRunners, []string{}),
+		DreamScheduler:  resolveStringField(home.dreamSchedulerMode, project.dreamSchedulerMode, "", "", "manual"),
+		DreamScheduleAt: resolveStringField(home.dreamScheduleAt, project.dreamScheduleAt, "", "", ""),
+		DreamConsensus:  resolveStringField(home.dreamConsensusPolicy, project.dreamConsensusPolicy, "", "", "majority"),
+		DreamCreativeLane: resolveBoolField(
+			home.dreamCreativeLane, home.dreamCreativeLaneSet,
+			project.dreamCreativeLane, project.dreamCreativeLaneSet,
+			false, false,
+			false,
 		),
 	}
 }

@@ -23,7 +23,10 @@ They share primitive steps and report shapes, but they are not the same pipeline
 
 Important constraint: GitHub Actions cannot see the private `.agents/` corpus when that directory is gitignored. The nightly workflow is therefore a proof harness, not the user's primary Dream runtime.
 
-If you want scheduled private Dream runs today, use an external scheduler such as `launchd`, `cron`, or `systemd` to invoke `ao overnight start`. Dream Setup is tracked separately and is not yet part of the shipped CLI surface.
+If you want scheduled private Dream runs, use `ao overnight setup` to inspect the
+host, persist `dream.*` config, and generate host-specific `launchd`, `cron`, or
+`systemd` assistance artifacts. The host scheduler still owns the actual wake
+and scheduling semantics.
 
 ## validate.yml Architecture
 

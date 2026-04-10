@@ -1945,6 +1945,18 @@ func TestResolve_DreamDefaults(t *testing.T) {
 	if rc.DreamKeepAwake.Value != true || rc.DreamKeepAwake.Source != SourceDefault {
 		t.Fatalf("DreamKeepAwake = (%v, %v), want (true, %v)", rc.DreamKeepAwake.Value, rc.DreamKeepAwake.Source, SourceDefault)
 	}
+	if rc.DreamScheduler.Value != "manual" || rc.DreamScheduler.Source != SourceDefault {
+		t.Fatalf("DreamScheduler = (%v, %v), want (manual, %v)", rc.DreamScheduler.Value, rc.DreamScheduler.Source, SourceDefault)
+	}
+	if rc.DreamConsensus.Value != "majority" || rc.DreamConsensus.Source != SourceDefault {
+		t.Fatalf("DreamConsensus = (%v, %v), want (majority, %v)", rc.DreamConsensus.Value, rc.DreamConsensus.Source, SourceDefault)
+	}
+	if rc.DreamCreativeLane.Value != false || rc.DreamCreativeLane.Source != SourceDefault {
+		t.Fatalf("DreamCreativeLane = (%v, %v), want (false, %v)", rc.DreamCreativeLane.Value, rc.DreamCreativeLane.Source, SourceDefault)
+	}
+	if got, ok := rc.DreamRunners.Value.([]string); !ok || len(got) != 0 || rc.DreamRunners.Source != SourceDefault {
+		t.Fatalf("DreamRunners = (%#v, %v), want (empty, %v)", rc.DreamRunners.Value, rc.DreamRunners.Source, SourceDefault)
+	}
 }
 
 func TestApplyEnv_DreamOverrides(t *testing.T) {
@@ -1962,6 +1974,36 @@ func TestApplyEnv_DreamOverrides(t *testing.T) {
 	}
 	if got.Dream.KeepAwake == nil || *got.Dream.KeepAwake != false {
 		t.Fatalf("Dream.KeepAwake = %#v, want false", got.Dream.KeepAwake)
+	}
+}
+
+func TestMergeDream_ExtendedFields(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Dream: DreamConfig{
+			Runners:         []string{"codex", "claude"},
+			SchedulerMode:   "launchd",
+			ScheduleAt:      "01:30",
+			ConsensusPolicy: "majority",
+			CreativeLane:    boolPtr(true),
+		},
+	}
+
+	got := merge(dst, src)
+	if want := []string{"codex", "claude"}; len(got.Dream.Runners) != len(want) {
+		t.Fatalf("Dream.Runners = %#v, want %#v", got.Dream.Runners, want)
+	}
+	if got.Dream.SchedulerMode != "launchd" {
+		t.Fatalf("Dream.SchedulerMode = %q, want launchd", got.Dream.SchedulerMode)
+	}
+	if got.Dream.ScheduleAt != "01:30" {
+		t.Fatalf("Dream.ScheduleAt = %q, want 01:30", got.Dream.ScheduleAt)
+	}
+	if got.Dream.ConsensusPolicy != "majority" {
+		t.Fatalf("Dream.ConsensusPolicy = %q, want majority", got.Dream.ConsensusPolicy)
+	}
+	if got.Dream.CreativeLane == nil || !*got.Dream.CreativeLane {
+		t.Fatalf("Dream.CreativeLane = %#v, want true", got.Dream.CreativeLane)
 	}
 }
 

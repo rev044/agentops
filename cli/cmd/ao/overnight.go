@@ -27,6 +27,9 @@ var (
 	overnightRunTimeout  string
 	overnightKeepAwake   bool
 	overnightNoKeepAwake bool
+	overnightRunners     []string
+	overnightModels      string
+	overnightCreative    bool
 	overnightReportFrom  string
 )
 
@@ -35,6 +38,10 @@ type overnightSettings struct {
 	RunTimeoutRaw string
 	RunTimeout    time.Duration
 	KeepAwake     bool
+	Runners       []string
+	RunnerModels  map[string]string
+	Consensus     string
+	CreativeLane  bool
 }
 
 type overnightRuntimeSummary struct {
@@ -58,27 +65,29 @@ type overnightStepSummary struct {
 }
 
 type overnightSummary struct {
-	SchemaVersion int                     `json:"schema_version" yaml:"schema_version"`
-	Mode          string                  `json:"mode" yaml:"mode"`
-	RunID         string                  `json:"run_id" yaml:"run_id"`
-	Goal          string                  `json:"goal,omitempty" yaml:"goal,omitempty"`
-	RepoRoot      string                  `json:"repo_root" yaml:"repo_root"`
-	OutputDir     string                  `json:"output_dir" yaml:"output_dir"`
-	Status        string                  `json:"status" yaml:"status"`
-	DryRun        bool                    `json:"dry_run" yaml:"dry_run"`
-	StartedAt     string                  `json:"started_at" yaml:"started_at"`
-	FinishedAt    string                  `json:"finished_at,omitempty" yaml:"finished_at,omitempty"`
-	Duration      string                  `json:"duration,omitempty" yaml:"duration,omitempty"`
-	Runtime       overnightRuntimeSummary `json:"runtime" yaml:"runtime"`
-	Steps         []overnightStepSummary  `json:"steps" yaml:"steps"`
-	Artifacts     map[string]string       `json:"artifacts,omitempty" yaml:"artifacts,omitempty"`
-	MetricsHealth map[string]any          `json:"metrics_health,omitempty" yaml:"metrics_health,omitempty"`
-	RetrievalLive map[string]any          `json:"retrieval_live,omitempty" yaml:"retrieval_live,omitempty"`
-	CloseLoop     map[string]any          `json:"close_loop,omitempty" yaml:"close_loop,omitempty"`
-	Briefing      map[string]any          `json:"briefing,omitempty" yaml:"briefing,omitempty"`
-	Degraded      []string                `json:"degraded,omitempty" yaml:"degraded,omitempty"`
-	Recommended   []string                `json:"recommended,omitempty" yaml:"recommended,omitempty"`
-	NextAction    string                  `json:"next_action,omitempty" yaml:"next_action,omitempty"`
+	SchemaVersion int                      `json:"schema_version" yaml:"schema_version"`
+	Mode          string                   `json:"mode" yaml:"mode"`
+	RunID         string                   `json:"run_id" yaml:"run_id"`
+	Goal          string                   `json:"goal,omitempty" yaml:"goal,omitempty"`
+	RepoRoot      string                   `json:"repo_root" yaml:"repo_root"`
+	OutputDir     string                   `json:"output_dir" yaml:"output_dir"`
+	Status        string                   `json:"status" yaml:"status"`
+	DryRun        bool                     `json:"dry_run" yaml:"dry_run"`
+	StartedAt     string                   `json:"started_at" yaml:"started_at"`
+	FinishedAt    string                   `json:"finished_at,omitempty" yaml:"finished_at,omitempty"`
+	Duration      string                   `json:"duration,omitempty" yaml:"duration,omitempty"`
+	Runtime       overnightRuntimeSummary  `json:"runtime" yaml:"runtime"`
+	Steps         []overnightStepSummary   `json:"steps" yaml:"steps"`
+	Artifacts     map[string]string        `json:"artifacts,omitempty" yaml:"artifacts,omitempty"`
+	MetricsHealth map[string]any           `json:"metrics_health,omitempty" yaml:"metrics_health,omitempty"`
+	RetrievalLive map[string]any           `json:"retrieval_live,omitempty" yaml:"retrieval_live,omitempty"`
+	CloseLoop     map[string]any           `json:"close_loop,omitempty" yaml:"close_loop,omitempty"`
+	Briefing      map[string]any           `json:"briefing,omitempty" yaml:"briefing,omitempty"`
+	Council       *overnightCouncilSummary `json:"council,omitempty" yaml:"council,omitempty"`
+	Dreamscape    *overnightDreamscape     `json:"dreamscape,omitempty" yaml:"dreamscape,omitempty"`
+	Degraded      []string                 `json:"degraded,omitempty" yaml:"degraded,omitempty"`
+	Recommended   []string                 `json:"recommended,omitempty" yaml:"recommended,omitempty"`
+	NextAction    string                   `json:"next_action,omitempty" yaml:"next_action,omitempty"`
 }
 
 var overnightCmd = &cobra.Command{
@@ -93,7 +102,8 @@ It is the local-first counterpart to the public nightly CI proof harness:
 
 First slice commands:
   start / run   Start an overnight Dream run now
-  report        Read and render an existing Dream report`,
+  report        Read and render an existing Dream report
+  setup         Bootstrap Dream config and scheduler guidance`,
 }
 
 var overnightStartCmd = &cobra.Command{
@@ -136,6 +146,10 @@ func init() {
 	overnightStartCmd.Flags().StringVar(&overnightRunTimeout, "run-timeout", "", "Maximum duration for the overnight run (defaults to dream.run_timeout)")
 	overnightStartCmd.Flags().BoolVar(&overnightKeepAwake, "keep-awake", false, "Force keep-awake assistance on for this run")
 	overnightStartCmd.Flags().BoolVar(&overnightNoKeepAwake, "no-keep-awake", false, "Disable keep-awake assistance for this run")
+	overnightStartCmd.Flags().StringSliceVar(&overnightRunners, "runner", nil, "Dream runner to execute (repeatable: --runner codex --runner claude)")
+	overnightStartCmd.Flags().StringVar(&overnightModels, "models", "", "Deprecated alias for --runner (comma-separated Dream runners)")
+	_ = overnightStartCmd.Flags().MarkDeprecated("models", "use --runner instead")
+	overnightStartCmd.Flags().BoolVar(&overnightCreative, "creative-lane", false, "Enable the bounded wildcard lane when Dream Council is running")
 
 	overnightReportCmd.Flags().StringVar(&overnightReportFrom, "from", "", "Directory containing summary.json, or the summary.json file itself")
 }
@@ -187,10 +201,25 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 		})
 	}
 
+	baseArtifacts := map[string]string{
+		"close_loop":       filepath.Join(summary.OutputDir, "close-loop.json"),
+		"defrag_report":    filepath.Join(summary.OutputDir, "defrag", "latest.json"),
+		"metrics_health":   filepath.Join(summary.OutputDir, "metrics-health.json"),
+		"retrieval_live":   filepath.Join(summary.OutputDir, "retrieval-bench.json"),
+		"summary_json":     filepath.Join(summary.OutputDir, "summary.json"),
+		"summary_markdown": filepath.Join(summary.OutputDir, "summary.md"),
+	}
+	if summary.Goal != "" {
+		baseArtifacts["briefing"] = filepath.Join(summary.OutputDir, "briefing.json")
+	}
+	summary.Artifacts = baseArtifacts
+	appendDreamCouncilPlan(&summary, settings)
+
 	if GetDryRun() {
 		summary.Status = "dry-run"
 		summary.FinishedAt = time.Now().UTC().Format(time.RFC3339)
 		summary.Duration = time.Since(startedAt).Round(time.Millisecond).String()
+		ensureOvernightDerivedViews(&summary)
 		summary.Recommended = recommendedDreamCommands(summary)
 		summary.NextAction = deriveDreamNextAction(summary)
 		return outputOvernightSummary(summary)
@@ -230,19 +259,6 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), settings.RunTimeout)
 	defer cancel()
 
-	baseArtifacts := map[string]string{
-		"close_loop":       filepath.Join(summary.OutputDir, "close-loop.json"),
-		"defrag_report":    filepath.Join(summary.OutputDir, "defrag", "latest.json"),
-		"metrics_health":   filepath.Join(summary.OutputDir, "metrics-health.json"),
-		"retrieval_live":   filepath.Join(summary.OutputDir, "retrieval-bench.json"),
-		"summary_json":     filepath.Join(summary.OutputDir, "summary.json"),
-		"summary_markdown": filepath.Join(summary.OutputDir, "summary.md"),
-	}
-	if summary.Goal != "" {
-		baseArtifacts["briefing"] = filepath.Join(summary.OutputDir, "briefing.json")
-	}
-	summary.Artifacts = baseArtifacts
-
 	if err := runOvernightJSONStep(ctx, cwd, logFile, summary.Artifacts["close_loop"], "flywheel", "close-loop", "--threshold", "0h", "--json"); err != nil {
 		setOvernightStepStatus(&summary, "close-loop", "failed", summary.Artifacts["close_loop"], err.Error())
 		summary.Status = "failed"
@@ -280,6 +296,10 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 		} else {
 			setOvernightStepStatus(&summary, "knowledge-brief", "done", summary.Artifacts["briefing"], "")
 		}
+	}
+
+	if err := runDreamCouncil(ctx, cwd, logFile, &summary, settings); err != nil {
+		return err
 	}
 
 	summary.Status = "done"
@@ -346,6 +366,10 @@ func resolveOvernightSettings(cmd *cobra.Command, cwd string) (overnightSettings
 		RunTimeoutRaw: runTimeoutRaw,
 		RunTimeout:    runTimeout,
 		KeepAwake:     keepAwake,
+		Runners:       resolveDreamRunRunners(cfg.Dream),
+		RunnerModels:  resolveDreamRunnerModels(cfg),
+		Consensus:     resolveDreamConsensusPolicy(cfg.Dream),
+		CreativeLane:  resolveDreamCreativeLane(cfg.Dream),
 	}, nil
 }
 
@@ -468,8 +492,6 @@ func setOvernightStepStatus(summary *overnightSummary, name, status, artifact, n
 func finalizeOvernightSummary(summary *overnightSummary, startedAt time.Time) error {
 	summary.FinishedAt = time.Now().UTC().Format(time.RFC3339)
 	summary.Duration = time.Since(startedAt).Round(time.Millisecond).String()
-	summary.Recommended = recommendedDreamCommands(*summary)
-	summary.NextAction = deriveDreamNextAction(*summary)
 
 	if artifact := summary.Artifacts["metrics_health"]; artifact != "" {
 		if data, err := loadJSONMap(artifact); err == nil {
@@ -491,6 +513,9 @@ func finalizeOvernightSummary(summary *overnightSummary, startedAt time.Time) er
 			summary.Briefing = data
 		}
 	}
+	ensureOvernightDerivedViews(summary)
+	summary.Recommended = recommendedDreamCommands(*summary)
+	summary.NextAction = deriveDreamNextAction(*summary)
 
 	if err := os.MkdirAll(summary.OutputDir, 0o755); err != nil {
 		return fmt.Errorf("ensure dream output dir: %w", err)
@@ -560,6 +585,9 @@ func loadOvernightSummary(path string) (overnightSummary, error) {
 }
 
 func outputOvernightSummary(summary overnightSummary) error {
+	ensureOvernightDerivedViews(&summary)
+	summary.Recommended = recommendedDreamCommands(summary)
+	summary.NextAction = deriveDreamNextAction(summary)
 	switch GetOutput() {
 	case "json":
 		enc := json.NewEncoder(os.Stdout)
@@ -594,6 +622,16 @@ func renderOvernightSummaryMarkdown(summary overnightSummary) string {
 	}
 	b.WriteString(fmt.Sprintf("- Keep awake: `%t` via `%s`\n", summary.Runtime.KeepAwake, summary.Runtime.KeepAwakeMode))
 	b.WriteString(fmt.Sprintf("- Timeout: `%s`\n", summary.Runtime.EffectiveTimeout))
+	if summary.Dreamscape != nil {
+		b.WriteString("\n## DreamScape\n\n")
+		b.WriteString(fmt.Sprintf("- Weather: `%s`\n", summary.Dreamscape.Weather))
+		b.WriteString(fmt.Sprintf("- Visibility: `%s`\n", summary.Dreamscape.Visibility))
+		b.WriteString(fmt.Sprintf("- Council: `%s`\n", summary.Dreamscape.Council))
+		if summary.Dreamscape.Tension != "" {
+			b.WriteString(fmt.Sprintf("- Tension: %s\n", summary.Dreamscape.Tension))
+		}
+		b.WriteString(fmt.Sprintf("- First move: %s\n", summary.Dreamscape.FirstMove))
+	}
 	b.WriteString("\n## Terrain\n\n")
 	if summary.MetricsHealth != nil {
 		b.WriteString(fmt.Sprintf("- Escape velocity: `%v`\n", lookupPath(summary.MetricsHealth, "escape_velocity")))
@@ -615,6 +653,35 @@ func renderOvernightSummaryMarkdown(summary overnightSummary) string {
 			line += fmt.Sprintf(" (%s)", step.Note)
 		}
 		b.WriteString(line + "\n")
+	}
+	if summary.Council != nil {
+		b.WriteString("\n## Dream Council\n\n")
+		b.WriteString(fmt.Sprintf("- Requested runners: `%s`\n", strings.Join(summary.Council.RequestedRunners, ", ")))
+		if len(summary.Council.CompletedRunners) > 0 {
+			b.WriteString(fmt.Sprintf("- Completed runners: `%s`\n", strings.Join(summary.Council.CompletedRunners, ", ")))
+		}
+		if len(summary.Council.FailedRunners) > 0 {
+			b.WriteString(fmt.Sprintf("- Failed runners: `%s`\n", strings.Join(summary.Council.FailedRunners, ", ")))
+		}
+		b.WriteString(fmt.Sprintf("- Consensus policy: `%s`\n", summary.Council.ConsensusPolicy))
+		if summary.Council.ConsensusKind != "" {
+			b.WriteString(fmt.Sprintf("- Consensus kind: `%s`\n", summary.Council.ConsensusKind))
+		}
+		if summary.Council.RecommendedFirstAction != "" {
+			b.WriteString(fmt.Sprintf("- Recommended action: %s\n", summary.Council.RecommendedFirstAction))
+		}
+		if len(summary.Council.Disagreements) > 0 {
+			b.WriteString("\n### Disagreements\n\n")
+			for _, item := range summary.Council.Disagreements {
+				b.WriteString("- " + item + "\n")
+			}
+		}
+		if len(summary.Council.WildcardIdeas) > 0 {
+			b.WriteString("\n### Wildcards\n\n")
+			for _, item := range summary.Council.WildcardIdeas {
+				b.WriteString("- " + item + "\n")
+			}
+		}
 	}
 	if len(summary.Degraded) > 0 {
 		b.WriteString("\n## Degraded\n\n")
@@ -652,6 +719,9 @@ func recommendedDreamCommands(summary overnightSummary) []string {
 }
 
 func deriveDreamNextAction(summary overnightSummary) string {
+	if summary.Council != nil && strings.TrimSpace(summary.Council.RecommendedFirstAction) != "" {
+		return summary.Council.RecommendedFirstAction
+	}
 	if coverage, ok := lookupFloat(summary.RetrievalLive, "coverage"); ok && coverage < 0.50 {
 		return "Retrieval coverage is weak. Start the day by inspecting misses in retrieval-bench.json and promote one missing learning or pattern."
 	}

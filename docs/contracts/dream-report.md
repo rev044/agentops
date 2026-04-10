@@ -68,6 +68,8 @@ These may be embedded when available:
 - `metrics_health`
 - `retrieval_live`
 - `briefing`
+- `council`
+- `dreamscape`
 - `degraded`
 
 The JSON contract must tolerate their absence when the corresponding step soft-fails.
@@ -86,8 +88,10 @@ It must answer four questions fast:
 Minimum sections:
 
 - status header
+- DreamScape, when available
 - terrain or health section
 - what ran
+- Dream Council, when available
 - degraded, when applicable
 - first move
 - recommended commands
