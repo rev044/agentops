@@ -346,7 +346,7 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 	expectedCmds := []string{
 		"anti-patterns", "autodev", "badge", "batch-feedback", "beads", "completion", "config",
 		"constraint", "context", "codex", "contradict", "corpus", "curate", "dedup",
-		"defrag", "demo", "doctor", "extract", "factory", "feedback", "feedback-loop",
+		"defrag", "demo", "doctor", "evolve", "extract", "factory", "feedback", "feedback-loop",
 		"findings", "flywheel", "forge", "gate", "goals", "handoff", "harvest", "hooks",
 		"index", "init", "inject", "knowledge", "lookup", "maturity",
 		"memory", "metrics", "migrate", "mind", "mine", "notebook", "overnight", "plans",
@@ -404,7 +404,7 @@ func TestCobraExpectedCmdsMatchRegistration(t *testing.T) {
 	expectedCmds := []string{
 		"anti-patterns", "autodev", "badge", "batch-feedback", "beads", "completion", "config",
 		"constraint", "context", "codex", "contradict", "corpus", "curate", "dedup",
-		"defrag", "demo", "doctor", "extract", "factory", "feedback", "feedback-loop",
+		"defrag", "demo", "doctor", "evolve", "extract", "factory", "feedback", "feedback-loop",
 		"findings", "flywheel", "forge", "gate", "goals", "handoff", "harvest", "hooks",
 		"index", "init", "inject", "knowledge", "lookup", "maturity",
 		"memory", "metrics", "migrate", "mind", "mine", "notebook", "overnight", "plans",

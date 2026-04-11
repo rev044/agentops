@@ -431,7 +431,8 @@ The `ao` CLI adds repo-native bookkeeping automation, retrieval, decay, maturity
 
 ```bash
 ao seed                                    # Plant AgentOps in any repo
-ao rpi loop --supervisor --max-cycles 1    # Canonical autonomous cycle
+ao evolve --max-cycles 1                   # Canonical autonomous cycle
+ao rpi loop --supervisor --max-cycles 1    # Underlying loop engine
 ao rpi phased --from=implementation ag-058 # Resume a specific phased run
 ao search "query"                          # Search session history and repo-local bookkeeping
 ao lookup --query "topic"                  # Retrieve curated learnings, patterns, and findings

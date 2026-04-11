@@ -31,6 +31,10 @@ output_contract: "code changes, GOALS.md fitness deltas"
 
 > Measure what's wrong. Fix the worst thing. Measure again. Compound.
 
+**V2 command surface:** use `ao evolve` for the terminal-native loop. It is the
+top-level operator entrypoint for `ao rpi loop --supervisor`, preserving the old
+`/evolve` concept while reusing the v2 RPI loop engine.
+
 Always-on autonomous loop over `/rpi`. Work selection order:
 0. **Pinned work queue** (`--queue=<file>` or inline roadmap — see `references/pinned-queue.md`)
 1. **Harvested `.agents/rpi/next-work.jsonl` work** (freshest concrete follow-up)
