@@ -154,6 +154,11 @@ Consensus verdict combination rules, DISAGREE handling, and the finding-extracti
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 |
 | `COUNCIL_R2_TIMEOUT` | 90 |
 
+| Flag | Description |
+|------|-------------|
+| `--technique=<name>` | Brainstorm technique (reverse, scamper, six-hats). See `references/brainstorm-techniques.md`. |
+| `--profile=<name>` | Model quality profile (balanced, budget, fast, inherit, quality, thorough). See `references/model-profiles.md`. |
+
 See [references/flags-reference.md](references/flags-reference.md) for the full flag and environment variable reference (`COUNCIL_TIMEOUT`, `COUNCIL_CODEX_MODEL`, `--deep`, `--mixed`, `--debate`, `--evidence`, `--commit-ready`, `--preset`, `--profile`, and all other flags).
 
 ---

@@ -101,6 +101,46 @@ func TestRPIDiscoveryArtifact_LoadEmptyPath(t *testing.T) {
 	}
 }
 
+func TestRPIDiscoveryArtifact_PreloadUsesArtifactGoalFallback(t *testing.T) {
+	tmp := t.TempDir()
+	artPath := filepath.Join(tmp, "art.md")
+	if err := os.WriteFile(artPath, []byte("# goal from artifact\n"), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	art, args, err := preloadDiscoveryArtifact(artPath, nil)
+	if err != nil {
+		t.Fatalf("preloadDiscoveryArtifact: %v", err)
+	}
+	if art == nil {
+		t.Fatalf("preloadDiscoveryArtifact returned nil artifact")
+	}
+	if !stringSlicesEqual(args, []string{"goal from artifact"}) {
+		t.Fatalf("args = %v, want artifact goal fallback", args)
+	}
+
+	_, args, err = preloadDiscoveryArtifact(artPath, []string{"explicit goal"})
+	if err != nil {
+		t.Fatalf("preloadDiscoveryArtifact with explicit goal: %v", err)
+	}
+	if !stringSlicesEqual(args, []string{"explicit goal"}) {
+		t.Fatalf("args = %v, want explicit goal preserved", args)
+	}
+}
+
+func TestRPIDiscoveryArtifact_ApplyIgnoresDiscoveryStart(t *testing.T) {
+	tmp := t.TempDir()
+	art := &discoveryArtifact{Goal: "goal from artifact", SourcePath: filepath.Join(tmp, "art.md")}
+
+	if err := applyDiscoveryArtifactToPacket(tmp, art, 1, art.Goal); err != nil {
+		t.Fatalf("applyDiscoveryArtifactToPacket: %v", err)
+	}
+	packetPath := filepath.Join(tmp, ".agents", "rpi", "execution-packet.json")
+	if _, err := os.Stat(packetPath); !os.IsNotExist(err) {
+		t.Fatalf("execution packet stat err = %v, want not exist", err)
+	}
+}
+
 // TestRPIDiscoveryArtifact_WritesExecutionPacket is the L2 behavioral test.
 // It produces a fixture artifact on disk, calls the write helper at the
 // same integration point the phased runner uses, and asserts the resulting

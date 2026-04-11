@@ -40,6 +40,11 @@ $council --preset=security-audit validate the auth system      # preset personas
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 |
 | `COUNCIL_R2_TIMEOUT` | 90 |
 
+| Flag | Description |
+|------|-------------|
+| `--technique=<name>` | Brainstorm technique (reverse, scamper, six-hats). See `references/brainstorm-techniques.md`. |
+| `--profile=<name>` | Model quality profile (balanced, budget, fast, inherit, quality, thorough). See `references/model-profiles.md`. |
+
 ## Task Types
 
 | Type | Trigger Words | Focus |

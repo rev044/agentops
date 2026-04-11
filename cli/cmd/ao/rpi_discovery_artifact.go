@@ -64,6 +64,43 @@ func loadDiscoveryArtifact(path string) (*discoveryArtifact, error) {
 	return art, nil
 }
 
+// preloadDiscoveryArtifact loads a caller-provided discovery artifact before
+// phased state initialization. If no explicit goal was passed, the artifact goal
+// becomes the fallback goal for --from=implementation runs.
+func preloadDiscoveryArtifact(path string, args []string) (*discoveryArtifact, []string, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, args, nil
+	}
+	art, err := loadDiscoveryArtifact(path)
+	if err != nil {
+		return nil, args, err
+	}
+	if len(args) == 0 && strings.TrimSpace(art.Goal) != "" {
+		args = []string{art.Goal}
+	}
+	return art, args, nil
+}
+
+// applyDiscoveryArtifactToPacket rewrites the execution packet from the
+// artifact when the run starts at implementation. Discovery-start runs keep the
+// normal discovery behavior and only warn that the flag is ignored.
+func applyDiscoveryArtifactToPacket(cwd string, art *discoveryArtifact, startPhase int, goal string) error {
+	if art == nil {
+		return nil
+	}
+	if startPhase < 2 {
+		fmt.Printf("Warning: --discovery-artifact is only honored with --from=implementation; ignoring.\n")
+		return nil
+	}
+	packetPath, err := writeExecutionPacketFromArtifact(cwd, art, goal)
+	if err != nil {
+		return fmt.Errorf("apply discovery-artifact: %w", err)
+	}
+	fmt.Printf("Phase 1 (discovery) complete — artifact: %s\n", art.SourcePath)
+	VerbosePrintf("Execution packet written from discovery artifact: %s\n", packetPath)
+	return nil
+}
+
 // parseDiscoveryArtifact parses markdown body (with optional YAML frontmatter)
 // into a discoveryArtifact. It is deliberately tolerant: missing sections leave
 // their fields empty. This function is pure so tests can exercise it directly.
