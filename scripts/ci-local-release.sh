@@ -599,6 +599,32 @@ echo "Max parallel jobs: $MAX_JOBS"
 
 run_step "Required tool check" check_required_cmds
 
+# Capture ~/.agents content-hash snapshot before anything that could mutate it.
+# Diffed at the end of the gate (see Phase 6 below). Complements the pre-emptive
+# grep-based scripts/check-home-isolation.sh by catching runtime mutations,
+# including the os.Chtimes mtime-bypass attack.
+HASH_GATE_SNAPSHOT=""
+if [[ -x "$REPO_ROOT/scripts/check-agents-hash-snapshot.sh" ]]; then
+    HASH_GATE_SNAPSHOT="$("$REPO_ROOT/scripts/check-agents-hash-snapshot.sh" capture 2>/dev/null || echo "")"
+fi
+
+check_agents_hash_gate() {
+    if [[ -z "$HASH_GATE_SNAPSHOT" ]]; then
+        echo "snapshot not captured (check-agents-hash-snapshot.sh missing or failed)"
+        return 0
+    fi
+    if [[ ! -x "$REPO_ROOT/scripts/check-agents-hash-snapshot.sh" ]]; then
+        echo "check-agents-hash-snapshot.sh no longer executable"
+        return 1
+    fi
+    if "$REPO_ROOT/scripts/check-agents-hash-snapshot.sh" diff "$HASH_GATE_SNAPSHOT"; then
+        rm -f "$HASH_GATE_SNAPSHOT"
+        return 0
+    fi
+    rm -f "$HASH_GATE_SNAPSHOT"
+    return 1
+}
+
 # ── Phase 2: Parallel independent checks ──
 # These have zero dependencies on each other.
 
@@ -697,6 +723,11 @@ run_step_bg "ao init --hooks + ao rpi smoke" run_init_hooks_rpi_smoke
 run_step_bg "Release smoke test (all commands)" ./scripts/release-smoke-test.sh --skip-build
 
 collect_parallel
+
+# ── Phase 6: Post-hoc ~/.agents content-hash gate ──
+# Fails if any protected subtree under $HOME/.agents was mutated since
+# the snapshot was captured in Phase 1.
+run_step "Agents-hub content-hash gate" check_agents_hash_gate
 
 # ═══════════════════════════════════════════════════════
 #  Summary

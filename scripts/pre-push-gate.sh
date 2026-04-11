@@ -325,6 +325,12 @@ else
     skip "HOME isolation in test files"
 fi
 
+# --- 3c. Capture ~/.agents hash snapshot (diff'd at end of gate) ---
+HASH_GATE_SNAPSHOT=""
+if [[ -x scripts/check-agents-hash-snapshot.sh ]]; then
+    HASH_GATE_SNAPSHOT="$(scripts/check-agents-hash-snapshot.sh capture 2>/dev/null || echo "")"
+fi
+
 # --- 5. Embedded hooks sync (full parity gate) ---
 if [[ -x scripts/validate-embedded-sync.sh ]]; then
     if embed_output="$(./scripts/validate-embedded-sync.sh 2>&1)"; then
@@ -858,6 +864,17 @@ if needs_check docs || needs_check always; then
     else
         skip "CHANGELOG sync (missing file)"
     fi
+fi
+
+# --- 37. ~/.agents content-hash gate (post-hoc mutation detector) ---
+if [[ -n "$HASH_GATE_SNAPSHOT" && -x scripts/check-agents-hash-snapshot.sh ]]; then
+    if hash_gate_output="$(scripts/check-agents-hash-snapshot.sh diff "$HASH_GATE_SNAPSHOT" 2>&1)"; then
+        pass "agents-hub content-hash gate"
+    else
+        fail "agents-hub mutated during tests (content-hash gate)"
+        indent_output "$hash_gate_output"
+    fi
+    rm -f "$HASH_GATE_SNAPSHOT"
 fi
 
 # --- Summary ---
