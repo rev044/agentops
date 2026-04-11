@@ -467,6 +467,8 @@ See [references/finding-extraction.md](references/finding-extraction.md) for the
 | `--deep` | 3 Claude agents instead of 2 |
 | `--mixed` | Add 3 Codex agents |
 | `--debate` | Enable adversarial debate round (2 rounds via backend messaging, same agents). Incompatible with `--quick`. |
+| `--evidence` | **Falsifiable-assertion mode** (alias: `--tdd`). Requires every finding to include `test_assertions` — concrete, mechanical checks (grep, stat, go test, etc.) that would prove the finding is real. Consolidation clamps verdict to at least WARN if any finding lacks assertions. Works with all modes; strongest pairing is `validate`. See [Evidence Mode](#evidence-mode-evidence--tdd). |
+| `--commit-ready` | **Also write the consolidated report to `docs/council-log/YYYY-MM-DD-<mode>-<target-slug>.md`** in addition to the usual `.agents/council/` transient path. Use when the verdict is load-bearing for a merged commit or a decision that should survive rebases. See `docs/council-log/README.md`. |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspective names (each name sets the judge's system prompt to adopt that viewpoint) |
 | `--perspectives-file=<path>` | Load named perspectives from a YAML file (see Named Perspectives below) |
@@ -649,6 +651,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/caching-guidance.md](references/caching-guidance.md)
 - [references/reviewer-config-example.md](references/reviewer-config-example.md)
 - [references/strategic-doc-validation.md](references/strategic-doc-validation.md)
+- [references/evidence-mode.md](references/evidence-mode.md)
 - [../shared/references/backend-background-tasks.md](../shared/references/backend-background-tasks.md)
 - [../shared/references/backend-claude-teams.md](../shared/references/backend-claude-teams.md)
 - [../shared/references/backend-codex-subagents.md](../shared/references/backend-codex-subagents.md)

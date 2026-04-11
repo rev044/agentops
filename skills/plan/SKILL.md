@@ -791,6 +791,7 @@ See [references/examples.md](references/examples.md) for more troubleshooting sc
 ## Reference Documents
 
 - [references/planning-rules.md](references/planning-rules.md) — seven compiled planning rules (mechanical enforcement, external validation, feedback loops, separation, process gates, cross-layer consistency, phased rollout).
+- [references/stale-scope-validation.md](references/stale-scope-validation.md) — re-validate inherited scope estimates against HEAD before acting on deferred beads, handoff docs, or prior-session plans.
 - [references/plan-mutations.md](references/plan-mutations.md)
 - [references/complexity-estimation.md](references/complexity-estimation.md)
 - [references/detail-templates.md](references/detail-templates.md)
