@@ -116,7 +116,11 @@ find skills -type l  # must be empty — zero symlinks allowed
  # 12. Codex-first override coverage (full skill catalog is classified and covered)
  bash scripts/validate-codex-override-coverage.sh
 
- # 13. Codex semantic parity audit (generated skills still match Codex-native tool/runtime semantics)
+ # 13. Codex RPI contract and lifecycle guard checks
+ bash scripts/validate-codex-rpi-contract.sh
+ bash scripts/validate-codex-lifecycle-guards.sh
+
+ # 14. Codex semantic parity audit (generated skills still match Codex-native tool/runtime semantics)
  bash scripts/audit-codex-parity.sh
 
 # Full gate (runs everything above and more):
@@ -164,6 +168,8 @@ When a skill change affects Codex behavior, phrasing, orchestration, or UX:
    bash scripts/validate-codex-override-coverage.sh
    bash scripts/validate-codex-generated-artifacts.sh --scope worktree
    bash scripts/validate-codex-backbone-prompts.sh
+   bash scripts/validate-codex-rpi-contract.sh
+   bash scripts/validate-codex-lifecycle-guards.sh
    bash scripts/validate-headless-runtime-skills.sh
    ```
 
@@ -186,7 +192,7 @@ This repo has a canonical root worktree. It owns the common `.git` directory and
 |-----|-------------------|----------------|
 | **cli-docs-parity** | `cli/docs/COMMANDS.md` matches `ao --help` output | Adding a CLI command without running `scripts/generate-cli-reference.sh` |
 | **cli-integration** | Built CLI runs integration command matrix and hook lifecycle smoke tests | CLI command behavior drift not covered by unit tests |
-| **codex-runtime-sections** | Required Codex runtime sections and ordering remain valid; CI also enforces Codex artifact metadata parity, backbone prompts, and headless runtime smoke in this job | AGENTS/runtime guidance changes drift from required Codex runtime section rules or Codex artifact/runtime checks stop matching the shipped local gate stack |
+| **codex-runtime-sections** | Required Codex runtime sections and ordering remain valid; CI also enforces Codex artifact metadata parity, backbone prompts, override coverage, RPI contract, lifecycle guards, and headless runtime smoke in this job | AGENTS/runtime guidance changes drift from required Codex runtime section rules or Codex artifact/runtime checks stop matching the shipped local gate stack |
 | **contract-compatibility-gate** | INDEX.md contract links resolve; schemas are valid JSON; orphan contracts fail unless allowlisted | Adding a contract file without cataloguing it in `docs/INDEX.md` or allowlist governance |
 | **doc-release-gate** | Skill counts match across SKILL-TIERS.md, PRODUCT.md, README.md, INDEX.md; link validation | Adding/removing a skill without running `scripts/sync-skill-counts.sh` |
 | **doctor-check** | `ao doctor` runs without error on built binary | Non-blocking (`continue-on-error: true`) |

@@ -86,6 +86,20 @@ jobs:
           chmod +x scripts/validate-codex-backbone-prompts.sh
           ./scripts/validate-codex-backbone-prompts.sh
 
+      - name: Validate Codex override coverage
+        run: |
+          chmod +x scripts/validate-codex-override-coverage.sh
+          ./scripts/validate-codex-override-coverage.sh
+
+      - name: Validate Codex RPI contract
+        run: |
+          bash scripts/validate-codex-rpi-contract.sh
+
+      - name: Validate Codex lifecycle guards
+        run: |
+          chmod +x scripts/validate-codex-lifecycle-guards.sh
+          ./scripts/validate-codex-lifecycle-guards.sh
+
       - name: Validate headless runtime skills
         run: |
           chmod +x scripts/validate-headless-runtime-skills.sh
