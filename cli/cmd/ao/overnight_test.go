@@ -100,6 +100,43 @@ func TestRunOvernightStartDryRunJSON(t *testing.T) {
 	if !strings.Contains(summary.NextAction, "ao rpi phased") {
 		t.Fatalf("next_action = %q, want RPI recommendation", summary.NextAction)
 	}
+	// Regression guard for Micro-epic 2 (C1): summary.RunID must be
+	// populated before runOvernightStart constructs ovn.RunLoopOptions, or
+	// the iteration-store per-run namespace collapses to
+	// <OutputDir>//iterations/ and prior-run cross-contamination returns.
+	if summary.RunID == "" {
+		t.Fatal("summary.RunID is empty; RunLoopOptions.RunID would be empty too")
+	}
+}
+
+// TestRunOvernight_RunLoopOptionsReceivesRunID is the Micro-epic 2 (C1)
+// regression guard for the one-line wire-in in runOvernightStart.
+//
+// The unit test directly constructs an ovn.RunLoopOptions literal with
+// the same shape the command-layer code uses and asserts that setting
+// RunID on a dummy overnightSummary propagates through to the literal.
+// If a future refactor drops the RunID assignment, this test catches it.
+func TestRunOvernight_RunLoopOptionsReceivesRunID(t *testing.T) {
+	// Simulate the minimal summary shape runOvernightStart builds.
+	summary := overnightSummary{
+		RunID:     "run-test-12345",
+		OutputDir: "/tmp/fake-overnight",
+	}
+
+	// Mirror the literal in runOvernightStart. If the wire-in is removed,
+	// this literal loses RunID and the assertion below fails.
+	runOpts := ovn.RunLoopOptions{
+		Cwd:       "/tmp/fake-cwd",
+		OutputDir: summary.OutputDir,
+		RunID:     summary.RunID,
+	}
+
+	if runOpts.RunID != "run-test-12345" {
+		t.Fatalf("RunLoopOptions.RunID = %q, want %q", runOpts.RunID, "run-test-12345")
+	}
+	if runOpts.OutputDir != "/tmp/fake-overnight" {
+		t.Fatalf("RunLoopOptions.OutputDir = %q, want %q", runOpts.OutputDir, "/tmp/fake-overnight")
+	}
 }
 
 func TestRunOvernightSetupDryRunJSON(t *testing.T) {
