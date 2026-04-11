@@ -7,27 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **Dream RunLoop live-tree hash invariant coverage** — `TestRunLoop_LiveTreeHashInvariant_AllStatuses` locks the `IsCorpusCompounded()` ↔ live-tree mutation invariant across the deterministically-reproducible statuses available today (StatusDone and StatusHaltedOnRegressionPreCommit), with StatusDegraded / StatusHaltedOnRegressionPostCommit / StatusRolledBackPreCommit / StatusFailed documented as pending fixture work. Advances `na-1iv`.
-- **Dream failed-summary internal contract regression** — `TestDreamFailedSummary_InternalContract` and `TestDreamFailedSummary_DegradedNotesPreserved` lock the upstream contract that `finalizeOvernightSummary` consumes: when the MEASURE consecutive-failure cap trips, `RunLoopResult.MeasureFailureHalt`, `FailureReason`, and the full iteration history (including the last StatusDone step) must round-trip through the persisted `iter-N.json` files. Together with the existing cmd-layer `TestRunOvernight_HardFail_WritesFailedSummary`, closes `na-cdn`.
-
-### Changed
-
-- **Council `--mixed` strict contract documented** — `skills/council/references/cli-spawning.md` documents that `/council --mixed` requires Codex CLI and emits a hard error (with remediation: install Codex or drop `--mixed`) instead of silently falling back to Claude-only. Advances `na-1i9`; the remaining implementation work is to wire the skill path so mixed sessions actually produce Claude and Codex judge artifacts.
-- **plan skill decomposed + stale-scope gate wired** — `skills/plan/SKILL.md` split into focused references (pre-decomposition, implementation-detail, decomposition, wave-matrices, plan-document-template, task-creation) and a new Step 0 auto-invokes `ao beads verify <bead-id>` when `/plan` is fed a bead ID under full complexity, old (>7d), or prior-session origin — enforcing `../shared/references/stale-scope-validation.md` before decomposition.
-- **Pre-mortem SKILL.md decomposed** — extracted compiled-prevention, scope-mode, mandatory-checks (Steps 2.4–2.8), write-pre-mortem-output (Step 4 template + 4.5/4.6 persistence), and examples+troubleshooting into `skills/pre-mortem/references/` so SKILL.md drops from 549 → 201 lines while preserving full semantics
-- **Pre-mortem Step 0 bead-input pre-flight** — auto-invokes `ao beads verify <bead-id>` when the input is a bead ID under full complexity, aged >7 days, or filed by a prior session, blocking on STALE citations per `shared/references/stale-scope-validation.md`
-- **Validation skill lint drift repaired** — trimmed `skills/validation/SKILL.md` back under the meta-tier line cap and restored top-level model/default markers required by the skill tuning smoke.
-
-### Fixed
-
-- **security-toolchain-gate CI** — suppressed a semgrep false-positive in `cli/internal/overnight/fixture/gen_fixture.go` where seeded `math/rand` is used for deterministic L2 e2e fixture generation (not a cryptographic context). Added an inline `nosemgrep` comment with a justification documenting intent.
-
-## [2.36.0] - 2026-04-09
+## [2.36.0] - 2026-04-11
 
 ### Added
 
+- **Evolve operator command** — `ao evolve` now exposes the v2 autonomous improvement loop directly in the CLI, including `--max-cycles`, `--queue`, `--beads-only`, `--quality`, `--compile`, and strict-quality passthrough flags.
+- **Autodev program contract** — root `PROGRAM.md` gives evolve/autodev a repo-local operating contract with mutable and immutable scope, validation commands, escalation policy, and stop conditions.
+- **Beads stale-scope tooling** — `ao beads verify|lint|harvest` adds first-class stale-citation checks for bead-driven planning and RPI recovery.
+- **RPI discovery artifacts** — RPI can now persist and consume discovery artifacts, with tests and docs covering the `--discovery-artifact` path.
+- **Dream RunLoop invariant coverage** — `TestRunLoop_LiveTreeHashInvariant_AllStatuses` locks the `IsCorpusCompounded()` and live-tree mutation invariant across deterministically reproducible terminal statuses, with remaining fixture statuses tracked in `na-1iv`.
+- **Dream failed-summary contract coverage** — regression tests now lock the `finalizeOvernightSummary` contract for MEASURE consecutive-failure halts and persisted iteration history.
 - **Dream operator mode** — `ao overnight start|run|report|setup` adds a private overnight lane with shared `dream.*` config, keep-awake defaults, scheduler/bootstrap guidance, council-ready runner packets, and DreamScape-style morning summaries
 - **Nightly live retrieval proof** — the dream-cycle now runs `ao retrieval-bench --live --json`, emits retrieval proof in nightly summaries, and keeps a visible artifact trail for flywheel health
 - **Pattern-to-skill drafts** — repeated patterns can now generate review-only skill drafts under `.agents/skill-drafts/` during flywheel close-loop
@@ -36,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **RPI wave recovery integrated** — recovered RPI wave work landed across Dream, council, stale-scope planning, discovery artifacts, CI hardening, and Codex runtime surfaces.
+- **Council `--mixed` strict contract documented** — `skills/council/references/cli-spawning.md` documents that `/council --mixed` requires Codex CLI and emits a hard error instead of silently falling back to Claude-only.
+- **Plan and pre-mortem skill bodies decomposed** — focused reference files now carry the detailed pre-decomposition, scope-mode, mandatory-check, output, wave-matrix, and task-creation guidance while keeping the top-level skills within lint budgets.
+- **Bead-input pre-flight wired into planning skills** — `/plan` and `/pre-mortem` invoke `ao beads verify <bead-id>` for full-complexity, aged, or prior-session bead inputs before decomposition or validation.
 - **Operational-layer framing** — README, onboarding, docs, comparisons, and linked surfaces now consistently explain AgentOps as bookkeeping, validation, primitives, and flows for coding agents
 - **Dream runtime positioning** — the public GitHub nightly is now documented as a proof harness, while `ao overnight` is documented as the private local compounding engine
 - **Codex default path** — native hooks, install copy, runtime smoke coverage, and checked-in Codex artifacts are aligned around the native-plugin path on supported Codex versions
@@ -43,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Windows Codex installer** — Codex installation now has a Windows path instead of assuming Unix shell behavior.
+- **golangci-lint v2 contract** — the local lint wrapper and CI configuration now pin the v2 behavior expected by the repository.
+- **security-toolchain-gate CI** — deterministic fixture generation in `cli/internal/overnight/fixture/gen_fixture.go` is annotated as a non-cryptographic seeded-random use, avoiding a false-positive semgrep blocker.
+- **Recovered RPI validation blockers** — validation drift from the recovered RPI wave was cleared before retagging the release.
+- **Stale-scope reference placement** — shared stale-scope validation guidance now lives under `skills/shared/references/` so `heal.sh --strict` can resolve it consistently.
 - **Release and CI drift** — resolved docs-site Liquid/frontmatter issues, headless runtime smoke portability problems, pre-push shim test drift, and compile-skill headless command drift caught during release prep
 - **Codex install and artifact drift** — fixed stale slash-command references, refreshed checked-in artifact metadata, added a Codex compile wrapper, and corrected plugin/marketplace mismatches exercised by smoke coverage
 - **Runtime proof stability** — promoted Codex runtime smoke into the blocking smoke path and fixed related shellcheck and install-surface rough edges
