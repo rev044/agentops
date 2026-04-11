@@ -66,6 +66,18 @@ type RunLoopResult struct {
 	// morning report.
 	WarnOnlyBudgetRemaining int `json:"warn_only_budget_remaining" yaml:"warn_only_budget_remaining"`
 
+	// MeasureFailureHalt is true when the loop halted because
+	// MaxConsecutiveMeasureFailures was reached (C4). Distinct from
+	// plateau/regression halts so the morning report can surface a
+	// "systemic MEASURE breakage" diagnosis rather than claiming the
+	// corpus plateaued.
+	MeasureFailureHalt bool `json:"measure_failure_halt" yaml:"measure_failure_halt"`
+
+	// FailureReason is the human-readable explanation for a
+	// MeasureFailureHalt, including the iteration index, consecutive
+	// count, and configured cap. Empty when MeasureFailureHalt is false.
+	FailureReason string `json:"failure_reason,omitempty" yaml:"failure_reason,omitempty"`
+
 	Degraded []string `json:"degraded,omitempty" yaml:"degraded,omitempty"`
 }
 
@@ -208,6 +220,13 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	}
 
 	iterIndex := len(priorIterations) // Resume from N+1 (incremented at top of loop)
+	// Micro-epic 5 (C4): consecutive MEASURE failure counter. Reset to
+	// zero whenever an iteration completes the DELTA+HALT block (i.e.
+	// MEASURE succeeded and we have a fitness snapshot). Incremented at
+	// the MEASURE failure site below; checked against
+	// opts.MaxConsecutiveMeasureFailures before the `continue` that
+	// skips to the next iteration.
+	consecutiveMeasureFailures := 0
 
 	for {
 		// Budget / cancellation check BEFORE starting a new iteration.
@@ -343,6 +362,7 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		// --- MEASURE ---
 		measure, measureErr := RunMeasure(loopCtx, opts, log)
 		if measureErr != nil {
+			consecutiveMeasureFailures++
 			iter.Status = StatusDegraded
 			iter.Error = fmt.Sprintf("measure: %v", measureErr)
 			iter.FinishedAt = time.Now()
@@ -353,12 +373,30 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 					fmt.Sprintf("persist iter-%d (during measure failure): %v", iterIndex, writeErr))
 			}
 			result.Iterations = append(result.Iterations, iter)
-			// Measure failure is not a rollback trigger (post-commit);
-			// the compounded corpus is already committed. Surface the
-			// error but continue the loop.
-			fmt.Fprintf(log, "overnight: iteration %d MEASURE failed (continuing): %v\n", iterIndex, measureErr)
+			// Micro-epic 5 (C4): consecutive MEASURE failure cap. -1 is
+			// unbounded (legacy behaviour); any non-negative value is a
+			// hard halt after that many back-to-back failures. Because a
+			// MEASURE failure is post-commit, the corpus is already
+			// compounded — halting here does NOT roll anything back, it
+			// just prevents a broken MEASURE from burning the full run
+			// budget on iterations that can never compute a fitness delta.
+			if opts.MaxConsecutiveMeasureFailures != -1 &&
+				consecutiveMeasureFailures >= opts.MaxConsecutiveMeasureFailures {
+				result.MeasureFailureHalt = true
+				result.FailureReason = fmt.Sprintf(
+					"iteration %d: %d consecutive MEASURE failures reached cap %d",
+					iterIndex, consecutiveMeasureFailures, opts.MaxConsecutiveMeasureFailures)
+				fmt.Fprintf(log, "overnight: RunLoop halted — %s\n", result.FailureReason)
+				return result, nil
+			}
+			fmt.Fprintf(log, "overnight: iteration %d MEASURE failed (%d/%d, continuing): %v\n",
+				iterIndex, consecutiveMeasureFailures, opts.MaxConsecutiveMeasureFailures, measureErr)
 			continue
 		}
+		// MEASURE succeeded — reset the consecutive-failure counter so a
+		// transient flake earlier in the run does not poison a later
+		// stretch of good iterations.
+		consecutiveMeasureFailures = 0
 		if measure != nil {
 			iter.Measure = measureSummary(measure)
 			iter.Degraded = append(iter.Degraded, measure.Degraded...)

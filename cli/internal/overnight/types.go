@@ -143,6 +143,30 @@ type RunLoopOptions struct {
 	// in to strict mode once thresholds are calibrated).
 	WarnOnly bool
 
+	// MaxConsecutiveMeasureFailures caps how many consecutive MEASURE
+	// failures the loop tolerates before halting with
+	// MeasureFailureHalt=true. Sentinel disambiguation:
+	//   0  = normalize() substitutes the documented default (3)
+	//   -1 = unbounded (legacy "continue forever" behaviour; degraded
+	//        iterations accumulate without limit)
+	//   >0 = halt after exactly that many consecutive failures
+	//
+	// Because 0 is the zero value for an unset field, callers use
+	// WithMeasureFailureCap(n) to set both this field AND
+	// explicitMeasureFailureCap atomically. This lets normalize()
+	// distinguish "caller explicitly set 0 (halt on first failure)"
+	// from "caller did not touch the field" — same sentinel pattern
+	// used throughout the Go ecosystem for boolean-adjacent ints.
+	MaxConsecutiveMeasureFailures int
+
+	// explicitMeasureFailureCap is the companion sentinel for
+	// MaxConsecutiveMeasureFailures. It is unexported so callers cannot
+	// set it directly — they must go through WithMeasureFailureCap to
+	// keep the two fields in sync. normalize() treats
+	// explicitMeasureFailureCap=false as "apply default", regardless of
+	// the MaxConsecutiveMeasureFailures value.
+	explicitMeasureFailureCap bool
+
 	// WarnOnlyBudget, when non-nil, enables the C3 warn-only ratchet:
 	// warn-only rescues are counted down and once exhausted the loop
 	// reverts to strict halting behaviour for the rest of the run. When
@@ -175,6 +199,17 @@ type RunLoopOptions struct {
 	// existing overnight.log file. Nil is allowed — RunLoop substitutes
 	// io.Discard.
 	LogWriter io.Writer
+}
+
+// WithMeasureFailureCap returns a copy of opts with the consecutive
+// MEASURE failure cap set atomically — both the cap value and the
+// explicit-set flag are written together so normalize() can distinguish
+// a caller-provided cap of 0 (halt on first failure) from the unset
+// default. Pass -1 to disable the cap entirely (unbounded).
+func (opts RunLoopOptions) WithMeasureFailureCap(n int) RunLoopOptions {
+	opts.MaxConsecutiveMeasureFailures = n
+	opts.explicitMeasureFailureCap = true
+	return opts
 }
 
 // WarnOnlyRatchet is the caller-supplied budget for the C3 warn-only
@@ -223,6 +258,15 @@ const defaultCheckpointMaxBytes = int64(512 * 1024 * 1024) // 512 MB
 // defaultLockStaleAfter is the documented default stale-lock reclaim threshold.
 const defaultLockStaleAfter = 12 * time.Hour
 
+// defaultMaxConsecutiveMeasureFailures is the documented default for the
+// C4 MEASURE consecutive-failure cap. Three failures is large enough to
+// absorb a single transient MEASURE flake followed by two retries, and
+// small enough that a systemic MEASURE breakage halts within one minute
+// of wall-clock time rather than silently accumulating degraded
+// iterations for the full run budget. Derived from the 2026-02-22
+// evolve-overnight 115-cycle runaway retrospective.
+const defaultMaxConsecutiveMeasureFailures = 3
+
 // normalize returns a copy of opts with zero/out-of-range values replaced
 // by documented defaults. It never returns an error; every correction is
 // a silent substitution recorded in the RunLoopResult's Degraded list.
@@ -253,6 +297,14 @@ func (opts RunLoopOptions) normalize() (RunLoopOptions, []string) {
 	}
 	if opts.LockStaleAfter <= 0 {
 		opts.LockStaleAfter = defaultLockStaleAfter
+	}
+	// Micro-epic 5 (C4): apply the default cap only when the caller did
+	// not go through WithMeasureFailureCap. A caller-provided 0 is
+	// preserved (halt on first failure); a caller-provided -1 is
+	// preserved (unbounded); any untouched field gets the documented
+	// default.
+	if !opts.explicitMeasureFailureCap {
+		opts.MaxConsecutiveMeasureFailures = defaultMaxConsecutiveMeasureFailures
 	}
 	return opts, degraded
 }

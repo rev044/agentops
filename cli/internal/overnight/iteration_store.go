@@ -290,3 +290,35 @@ func LoadIterations(dir string, expectedRunID string) ([]IterationSummary, []str
 
 	return out, rejected, nil
 }
+
+// LoadLatestUnflaggedIteration returns the most recent iteration whose
+// Status == StatusDone — the only status where MEASURE succeeded
+// post-commit and a valid FitnessAfter snapshot was recorded. Any
+// trailing StatusDegraded, StatusHaltedOnRegressionPostCommit,
+// StatusRolledBackPreCommit, or StatusFailed iterations are walked
+// past, because their fitness data is either missing (Degraded) or
+// unreliable for delta computation (Halted post-commit with a
+// regression floor breach).
+//
+// This is Micro-epic 5's specific rehydration helper: prevSnapshot
+// computation requires a CLEAN baseline. IsCorpusCompounded() still
+// governs general history rehydration (priorIterations slice), but
+// prevSnapshot seeding should use the last unflagged iteration to
+// avoid comparing the next iteration's fitness against a missing or
+// degraded baseline.
+//
+// Returns (nil, nil) when no unflagged iteration exists (fresh run or
+// every prior iteration was degraded/halted/failed).
+func LoadLatestUnflaggedIteration(dir string, expectedRunID string) (*IterationSummary, error) {
+	iters, _, err := LoadIterations(dir, expectedRunID)
+	if err != nil {
+		return nil, err
+	}
+	for i := len(iters) - 1; i >= 0; i-- {
+		if iters[i].Status == StatusDone {
+			result := iters[i]
+			return &result, nil
+		}
+	}
+	return nil, nil
+}

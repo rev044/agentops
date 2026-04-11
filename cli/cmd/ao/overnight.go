@@ -113,6 +113,15 @@ type overnightSummary struct {
 	// the zero-guard to suppress the counter line entirely.
 	WarnOnlyBudgetInitial int `json:"warn_only_budget_initial,omitempty" yaml:"warn_only_budget_initial,omitempty"`
 	WarnOnlyRemaining     int `json:"warn_only_remaining,omitempty" yaml:"warn_only_remaining,omitempty"`
+
+	// Micro-epic 5 (C4): consecutive MEASURE failure halt signal.
+	// MeasureFailureHalt is true when the loop stopped because the
+	// configured cap on back-to-back MEASURE failures was reached.
+	// FailureReason is a human-readable explanation carrying the
+	// iteration index, consecutive count, and configured cap. Both
+	// are omitempty so happy-path runs do not emit noise.
+	MeasureFailureHalt bool   `json:"measure_failure_halt,omitempty" yaml:"measure_failure_halt,omitempty"`
+	FailureReason      string `json:"failure_reason,omitempty" yaml:"failure_reason,omitempty"`
 }
 
 var overnightCmd = &cobra.Command{
@@ -419,6 +428,13 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 			summary.WarnOnlyBudgetInitial = loopResult.WarnOnlyBudgetInitial
 			summary.WarnOnlyRemaining = loopResult.WarnOnlyBudgetRemaining
 		}
+		// Micro-epic 5 (C4): propagate the MEASURE-failure halt signal.
+		// When the loop halted because of repeated MEASURE failures the
+		// morning report renderer uses MeasureFailureHalt to surface a
+		// "systemic MEASURE breakage" diagnosis instead of reading the
+		// absence of a plateau/regression halt as "everything is fine".
+		summary.MeasureFailureHalt = loopResult.MeasureFailureHalt
+		summary.FailureReason = loopResult.FailureReason
 
 		// Populate the v1 Steps[] field with one synthesized entry per
 		// iteration so legacy readers of summary.json still see a
