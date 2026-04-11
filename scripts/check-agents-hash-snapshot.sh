@@ -30,14 +30,56 @@ fi
 AGENTS_HUB="${AGENTS_HUB_OVERRIDE:-$HOME/.agents}"
 SCOPES=(learnings patterns findings rpi/next-work.jsonl)
 
+# --ignore-untracked: exclude git-untracked files from the scoped subtrees
+# so local scratch files (docs/blog/, *_test.txt, etc.) do not trip the gate.
+# Env override: HASH_GATE_IGNORE_UNTRACKED=1 is equivalent to passing the flag.
+IGNORE_UNTRACKED="${HASH_GATE_IGNORE_UNTRACKED:-0}"
+
+args=()
+for arg in "$@"; do
+    case "$arg" in
+        --ignore-untracked) IGNORE_UNTRACKED=1 ;;
+        *) args+=("$arg") ;;
+    esac
+done
+set -- "${args[@]+"${args[@]}"}"
+
+# is_untracked <path> — returns 0 if the path exists inside a git repo and is
+# untracked per `git status`. Returns 1 otherwise (tracked, ignored, or not in
+# a repo). Safe to call with absolute paths; resolves the repo from the path's
+# parent directory.
+is_untracked() {
+    local p="$1"
+    [[ "$IGNORE_UNTRACKED" == "1" ]] || return 1
+    command -v git >/dev/null 2>&1 || return 1
+    local dir
+    dir="$(dirname "$p")"
+    [[ -d "$dir" ]] || return 1
+    # --error-unmatch is noisy; use ls-files with --error-unmatch exit code.
+    if ( cd "$dir" && git rev-parse --is-inside-work-tree >/dev/null 2>&1 ); then
+        if ( cd "$dir" && git ls-files --error-unmatch -- "$p" >/dev/null 2>&1 ); then
+            return 1 # tracked
+        fi
+        return 0 # inside repo, not tracked
+    fi
+    return 1
+}
+
 snapshot() {
     for scope in "${SCOPES[@]}"; do
         local target="$AGENTS_HUB/$scope"
         if [[ -f "$target" ]]; then
+            if is_untracked "$target"; then
+                continue
+            fi
             shasum -a 256 "$target" 2>/dev/null || true
         elif [[ -d "$target" ]]; then
-            find "$target" -type f -print0 2>/dev/null \
-                | xargs -0 shasum -a 256 2>/dev/null \
+            while IFS= read -r -d '' f; do
+                if is_untracked "$f"; then
+                    continue
+                fi
+                shasum -a 256 "$f" 2>/dev/null || true
+            done < <(find "$target" -type f -print0 2>/dev/null) \
                 | sort
         fi
     done
@@ -69,7 +111,8 @@ case "$cmd" in
         rm -f "$current"
         ;;
     *)
-        echo "usage: $0 {capture|diff <snapshot-file>}" >&2
+        echo "usage: $0 [--ignore-untracked] {capture|diff <snapshot-file>}" >&2
+        echo "       HASH_GATE_IGNORE_UNTRACKED=1 $0 capture  # env form" >&2
         exit 2
         ;;
 esac

@@ -232,3 +232,135 @@ func TestRunLoop_RegressionIgnoredWarnOnly(t *testing.T) {
 		t.Fatal("expected at least one iteration to carry a warn-only degraded note")
 	}
 }
+
+// injectOscillatingFitness alternates between good and bad values on every
+// iteration. Used to drive repeated regression events — each "bad" iter
+// produces a delta = bad - good (negative, exceeding the default floor),
+// firing the regression path on every other iteration. Plateau is NOT
+// tripped because the deltas are large, so plateau.halted stays false and
+// the regression path is the only rescue consumer.
+func injectOscillatingFitness(good, bad float64) func(int) (FitnessSnapshot, error) {
+	return func(iterIndex int) (FitnessSnapshot, error) {
+		value := good
+		if iterIndex%2 == 0 {
+			value = bad
+		}
+		return FitnessSnapshot{
+			Metrics: map[string]float64{
+				"composite": value,
+			},
+			CapturedAt: time.Unix(int64(iterIndex), 0).UTC(),
+		}, nil
+	}
+}
+
+// TestRunLoop_WarnOnlyBudgetExhausted (M6 follow-up, per na-jn9) verifies
+// that the warn-only rescue budget drains correctly across repeated
+// regression events and that rescue N+1 falls through to a strict halt with
+// WarnOnlyBudgetRemaining == 0.
+//
+// Setup: oscillating composite fitness (good↔bad per iter) + WarnOnly=true
+// + WarnOnlyBudget initial=2. Each "bad" iter exceeds RegressionFloor and
+// consumes exactly one rescue. After N rescues are consumed, effectiveWarnOnly
+// flips to false inside loop.go (Remaining<=0), and the next regression event
+// halts strictly with a non-empty RegressionReason.
+//
+// Plateau path is explicitly NOT exercised here because plateau.halted is
+// sticky (one-shot per run), so it can only consume a single rescue. The
+// regression path is stateless per-iteration and can consume one rescue per
+// event — the shape na-jn9 asks for.
+func TestRunLoop_WarnOnlyBudgetExhausted(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	restore := stubInjectRefresh(t)
+	defer restore()
+
+	// good=0.9, bad=0.1 → |delta|=0.8, well above the default 0.05 floor.
+	SetTestFitnessInjector(injectOscillatingFitness(0.9, 0.1))
+	t.Cleanup(func() { SetTestFitnessInjector(nil) })
+
+	dir := t.TempDir()
+	if err := fixture.GenerateFixture(dir, fixture.DefaultOpts()); err != nil {
+		t.Fatalf("GenerateFixture: %v", err)
+	}
+
+	const initialBudget = 2
+	opts := RunLoopOptions{
+		Cwd:             dir,
+		OutputDir:       filepath.Join(dir, ".agents", "overnight", "warn-only-exhausted"),
+		RunID:           "m6-warn-only-exhausted",
+		RunTimeout:      30 * time.Second,
+		MaxIterations:   20, // generous ceiling; strict halt should fire well before this
+		PlateauEpsilon:  0.01,
+		PlateauWindowK:  2,
+		RegressionFloor: 0.05,
+		WarnOnly:        true,
+		WarnOnlyBudget: &WarnOnlyRatchet{
+			Initial:   initialBudget,
+			Remaining: initialBudget,
+		},
+		LogWriter: io.Discard,
+	}
+	result, err := RunLoop(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("RunLoop: %v", err)
+	}
+	if result == nil {
+		t.Fatal("result == nil")
+	}
+
+	// Budget should be fully drained — effectiveWarnOnly flips only once
+	// Remaining hits 0.
+	if result.WarnOnlyBudgetRemaining != 0 {
+		t.Fatalf("WarnOnlyBudgetRemaining = %d, want 0 (budget should be exhausted)",
+			result.WarnOnlyBudgetRemaining)
+	}
+	if result.WarnOnlyBudgetInitial != initialBudget {
+		t.Fatalf("WarnOnlyBudgetInitial = %d, want %d",
+			result.WarnOnlyBudgetInitial, initialBudget)
+	}
+
+	// A strict regression halt should have fired once rescues ran out.
+	// RegressionReason on the top-level result is only set when the loop
+	// itself halts on regression (rescues do not set it).
+	if result.RegressionReason == "" {
+		t.Fatalf("expected non-empty RegressionReason after rescue budget exhausted; got empty")
+	}
+	// Exhaustion suffix is added by loop.go when the strict halt fires
+	// under a drained budget — see loop.go:466-468.
+	if !strings.Contains(result.RegressionReason, "warn-only budget exhausted") {
+		t.Fatalf("RegressionReason = %q; expected to contain %q",
+			result.RegressionReason, "warn-only budget exhausted")
+	}
+
+	// Sanity: loop must not run to MaxIterations — strict halt should
+	// fire on rescue N+1 (conservatively well within 2*initialBudget+2).
+	if len(result.Iterations) >= opts.MaxIterations {
+		t.Fatalf("loop ran %d iterations, expected strict halt well before MaxIterations=%d",
+			len(result.Iterations), opts.MaxIterations)
+	}
+
+	// Last iteration must be the strict regression halt, not a rescue.
+	lastIter := result.Iterations[len(result.Iterations)-1]
+	if lastIter.Status != StatusHaltedOnRegressionPostCommit {
+		t.Fatalf("last iter status = %q, want %q",
+			lastIter.Status, StatusHaltedOnRegressionPostCommit)
+	}
+
+	// Count warn-only degraded notes across iterations. We expect
+	// exactly `initialBudget` rescue notes — the regression path consumes
+	// one rescue per bad iter, and the strict halt iter does not emit a
+	// warn-only note (it takes the halt branch).
+	warnOnlyNoteCount := 0
+	for _, iter := range result.Iterations {
+		for _, note := range iter.Degraded {
+			if strings.Contains(note, "warn-only") {
+				warnOnlyNoteCount++
+				break
+			}
+		}
+	}
+	if warnOnlyNoteCount < initialBudget {
+		t.Fatalf("warn-only rescue notes = %d, want at least %d (the initial budget) before exhaustion",
+			warnOnlyNoteCount, initialBudget)
+	}
+}

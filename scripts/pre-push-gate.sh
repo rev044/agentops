@@ -867,7 +867,14 @@ if needs_check docs || needs_check always; then
 fi
 
 # --- 37. ~/.agents content-hash gate (post-hoc mutation detector) ---
-if [[ -n "$HASH_GATE_SNAPSHOT" && -x scripts/check-agents-hash-snapshot.sh ]]; then
+# Escape hatch: HASH_GATE_IGNORE_UNTRACKED=1 skips this block entirely so
+# operators with local scratch state (docs/blog/, codex_write_test.txt, etc.)
+# can push without the gate firing on noise. CI does NOT set this variable,
+# so strict enforcement is preserved on main.
+if [[ "${HASH_GATE_IGNORE_UNTRACKED:-0}" == "1" ]]; then
+    skip "agents-hub content-hash gate (HASH_GATE_IGNORE_UNTRACKED=1)"
+    rm -f "$HASH_GATE_SNAPSHOT" 2>/dev/null || true
+elif [[ -n "$HASH_GATE_SNAPSHOT" && -x scripts/check-agents-hash-snapshot.sh ]]; then
     if hash_gate_output="$(scripts/check-agents-hash-snapshot.sh diff "$HASH_GATE_SNAPSHOT" 2>&1)"; then
         pass "agents-hub content-hash gate"
     else

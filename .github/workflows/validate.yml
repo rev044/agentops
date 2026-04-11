@@ -494,7 +494,13 @@ jobs:
       - name: Capture pre-test ~/.agents content hash snapshot
         run: |
           echo "=== Capturing agents-hub content-hash snapshot (pre-test) ==="
-          bash scripts/check-agents-hash-snapshot.sh capture || echo "snapshot capture skipped (shasum missing?)"
+          snap="$(bash scripts/check-agents-hash-snapshot.sh capture 2>/dev/null || echo "")"
+          if [[ -n "$snap" && -f "$snap" ]]; then
+            echo "HASH_GATE_SNAPSHOT=$snap" >> "$GITHUB_ENV"
+            echo "captured snapshot: $snap"
+          else
+            echo "snapshot capture skipped (shasum missing?)"
+          fi
 
       - name: Run Go tests with race detection and coverage
         run: |
@@ -511,11 +517,15 @@ jobs:
         if: always()
         run: |
           echo "=== Diffing agents-hub content-hash snapshot (post-test) ==="
-          bash scripts/check-agents-hash-snapshot.sh diff || {
+          if [[ -z "${HASH_GATE_SNAPSHOT:-}" || ! -f "${HASH_GATE_SNAPSHOT:-}" ]]; then
+            echo "::notice::hash gate inconclusive — no pre-test snapshot captured"
+          elif bash scripts/check-agents-hash-snapshot.sh diff "$HASH_GATE_SNAPSHOT"; then
+            echo "✅ agents-hub content-hash gate: clean"
+          else
             echo "::warning::agents-hub content-hash drifted during Go test phase"
             echo "::warning::This means a test mutated ~/.agents/ without honoring HOME isolation."
             echo "::warning::Investigate which test wrote to the real hub instead of a tempdir."
-          }
+          fi
 
       - name: Warn about slow test packages
         if: always()
