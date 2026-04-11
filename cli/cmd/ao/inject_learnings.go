@@ -23,6 +23,26 @@ var validPhases = search.ValidPhases
 // sanitizeSourcePhase delegates to search.SanitizeSourcePhase.
 func sanitizeSourcePhase(phase string) string { return search.SanitizeSourcePhase(phase) }
 
+// nowFunc is the package-level clock used by collectLearnings for
+// freshness scoring. Production callers get time.Now; the replay
+// determinism test (C6, Micro-epic 7) overrides it via
+// t.Cleanup(func() { nowFunc = time.Now })` so every run against the
+// frozen-mtime fixture produces byte-identical ranking output.
+//
+// ANTI-GOAL per pre-mortem: do NOT thread a `now time.Time` parameter
+// through collectLearnings / processLearningFile / ApplyFreshnessToLearning.
+// The 8 production callers of collectLearnings (retrieval_bench.go:200
+// and 406,418; lookup.go:101,164; inject.go:340; codex.go:594;
+// context_ranked_intel.go:51; flywheel_gate.go:80) would all need
+// signature updates, inflating the scope way past the Micro-epic 7
+// budget for no real gain. A single package-level var is the minimum
+// change that delivers determinism.
+//
+// The variable is package-private so non-test callers cannot mutate
+// it; only files in package main (which means only in-tree tests) can
+// reach it.
+var nowFunc = time.Now
+
 // collectLearnings finds recent learnings from .agents/learnings/ and optionally ~/.agents/learnings/.
 // Implements MemRL Two-Phase retrieval: Phase A (similarity/freshness) + Phase B (utility-weighted)
 // With CASS integration: applies confidence decay when --apply-decay is set.
@@ -33,7 +53,7 @@ func collectLearnings(cwd, query string, limit int, globalDir string, globalWeig
 		return nil, err
 	}
 
-	now := time.Now()
+	now := nowFunc()
 	tokens := queryTokens(strings.ToLower(query))
 	learnings := make([]learning, 0, len(files))
 
