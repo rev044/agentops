@@ -546,4 +546,4 @@ Tell the user:
 - [references/prediction-tracking.md](references/prediction-tracking.md)
 - [references/spec-verification-checklist.md](references/spec-verification-checklist.md)
 - [references/temporal-interrogation.md](references/temporal-interrogation.md)
-- [../plan/references/stale-scope-validation.md](../plan/references/stale-scope-validation.md) — planning rule: re-validate inherited scope estimates against HEAD before acting on deferred beads or handoff docs.
+- [../shared/references/stale-scope-validation.md](../shared/references/stale-scope-validation.md) — planning rule: re-validate inherited scope estimates against HEAD before acting on deferred beads or handoff docs.
