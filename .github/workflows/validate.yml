@@ -483,6 +483,19 @@ jobs:
           go build -o /tmp/ao-test ./cmd/ao
           echo "✅ ao CLI builds successfully"
 
+      # Micro-epic 9 (C8): content-hash snapshot bracket. Captures the
+      # pre-test state of ~/.agents/ and then diffs after the Go test
+      # phase, catching any test that accidentally mutates the global
+      # hub via a missing HOME override. Defeats the os.Chtimes mtime
+      # bypass that the mtime-only gate could not see. Gate is
+      # warn-only here (|| true) because CI runs on ephemeral
+      # hub content and false positives from uninitialised hub state
+      # should not block the pipeline until a baseline is in place.
+      - name: Capture pre-test ~/.agents content hash snapshot
+        run: |
+          echo "=== Capturing agents-hub content-hash snapshot (pre-test) ==="
+          bash scripts/check-agents-hash-snapshot.sh capture || echo "snapshot capture skipped (shasum missing?)"
+
       - name: Run Go tests with race detection and coverage
         run: |
           echo "=== Running Go tests ==="
@@ -493,6 +506,16 @@ jobs:
           echo "=== Coverage Summary ==="
           go tool cover -func=coverage.out | tail -1
           echo "✅ Go tests passed"
+
+      - name: Diff post-test ~/.agents content hash snapshot
+        if: always()
+        run: |
+          echo "=== Diffing agents-hub content-hash snapshot (post-test) ==="
+          bash scripts/check-agents-hash-snapshot.sh diff || {
+            echo "::warning::agents-hub content-hash drifted during Go test phase"
+            echo "::warning::This means a test mutated ~/.agents/ without honoring HOME isolation."
+            echo "::warning::Investigate which test wrote to the real hub instead of a tempdir."
+          }
 
       - name: Warn about slow test packages
         if: always()
