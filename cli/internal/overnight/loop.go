@@ -360,7 +360,26 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		}
 
 		// --- MEASURE ---
-		measure, measureErr := RunMeasure(loopCtx, opts, log)
+		// Micro-epic 6 (C5): test-only fitness injection bypass. When
+		// SetTestFitnessInjector has been called from a test fixture,
+		// RunLoop skips the real corpus.Compute path and uses the
+		// caller-supplied snapshot directly. This is the only way to
+		// get deterministic plateau/regression behaviour without a
+		// real .agents fixture. The injector returning a non-nil error
+		// is treated exactly as a RunMeasure error (feeds the C4
+		// consecutive-failure cap from Micro-epic 5).
+		var measure *MeasureResult
+		var measureErr error
+		if injector := getTestFitnessInjector(); injector != nil {
+			snap, injectErr := injector(iterIndex)
+			if injectErr != nil {
+				measureErr = injectErr
+			} else {
+				measure = &MeasureResult{FitnessSnapshot: snap}
+			}
+		} else {
+			measure, measureErr = RunMeasure(loopCtx, opts, log)
+		}
 		if measureErr != nil {
 			consecutiveMeasureFailures++
 			iter.Status = StatusDegraded

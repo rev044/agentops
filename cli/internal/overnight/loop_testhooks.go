@@ -5,12 +5,15 @@ package overnight
 // never sees a field they'd have to mentally filter as "production? test?".
 //
 // CONCURRENCY CONTRACT: these globals are NOT safe for parallel tests.
-// Any test that calls SetFaultInjectionAfterIter MUST NOT call t.Parallel(),
-// and MUST call t.Cleanup(func() { SetFaultInjectionAfterIter(0) }) to
-// restore the default before the next test runs. Tests that forget the
-// cleanup will bleed state into sibling tests. (Pre-mortem judge-3 B4 catch.)
+// Any test that calls SetFaultInjectionAfterIter or SetTestFitnessInjector
+// MUST NOT call t.Parallel() and MUST call t.Cleanup to restore the zero
+// value before the next test runs. Tests that forget the cleanup will
+// bleed state into sibling tests. (Pre-mortem judge-3 B4 catch.)
 
-import "sync/atomic"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 // faultInjectionAfterIter, when non-zero, causes RunLoop to panic AFTER
 // persisting iter-<N>.json but BEFORE updating prevSnapshot. This lets
@@ -29,4 +32,39 @@ func SetFaultInjectionAfterIter(n int) {
 // getFaultInjectionAfterIter is the package-internal reader used by RunLoop.
 func getFaultInjectionAfterIter() int {
 	return int(faultInjectionAfterIter.Load())
+}
+
+// testFitnessInjector, when non-nil, causes RunLoop to bypass RunMeasure
+// and invoke the injector directly with the 1-based iteration index. The
+// returned FitnessSnapshot is used verbatim for DELTA+HALT checks; a
+// returned error is treated as a MEASURE failure (feeding the C4
+// consecutive-failure cap added in Micro-epic 5). Wrapped in a mutex
+// because test dispatch/callback ordering is not lock-free on all archs
+// even with atomic.Value.
+var (
+	testFitnessInjectorMu sync.RWMutex
+	testFitnessInjector   func(iterIndex int) (FitnessSnapshot, error)
+)
+
+// SetTestFitnessInjector installs a deterministic fitness-producer for
+// the RunLoop tests. Call with nil inside t.Cleanup to restore the
+// legacy RunMeasure path. Micro-epic 6 (C5) relies on this hook for its
+// three deterministic plateau/regression L2 tests — see
+// loop_fitness_injection_test.go.
+//
+// MUST NOT be used from production code. The hook is package-private to
+// force callers to live in the overnight package (test files).
+func SetTestFitnessInjector(f func(iterIndex int) (FitnessSnapshot, error)) {
+	testFitnessInjectorMu.Lock()
+	defer testFitnessInjectorMu.Unlock()
+	testFitnessInjector = f
+}
+
+// getTestFitnessInjector is the package-internal reader used by RunLoop.
+// Returns nil when no injector is installed — the loop's hot path then
+// falls through to the legacy RunMeasure call unchanged.
+func getTestFitnessInjector() func(iterIndex int) (FitnessSnapshot, error) {
+	testFitnessInjectorMu.RLock()
+	defer testFitnessInjectorMu.RUnlock()
+	return testFitnessInjector
 }
