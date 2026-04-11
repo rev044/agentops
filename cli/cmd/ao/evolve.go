@@ -1,6 +1,20 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/boshu2/agentops/cli/internal/goals"
+	"github.com/spf13/cobra"
+)
+
+const evolveBaselineEraHashLen = 12
 
 var evolveCmd = &cobra.Command{
 	Use:   "evolve [goal]",
@@ -31,6 +45,16 @@ func init() {
 
 func runEvolve(cmd *cobra.Command, args []string) error {
 	applyEvolveDefaults(cmd)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+	if _, err := resolveRPIToolchainDefaults(); err != nil {
+		return err
+	}
+	if err := ensureEvolveEraBaseline(cwd); err != nil {
+		return err
+	}
 	return runRPILoop(cmd, args)
 }
 
@@ -39,4 +63,91 @@ func applyEvolveDefaults(cmd *cobra.Command) {
 		return
 	}
 	rpiSupervisor = true
+}
+
+func ensureEvolveEraBaseline(cwd string) error {
+	if GetDryRun() {
+		return nil
+	}
+
+	goalsPath, err := resolveEvolveGoalsFile(cwd)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	eraID, err := evolveGoalsEraID(goalsPath)
+	if err != nil {
+		return err
+	}
+
+	baselineDir := evolveEraBaselineDir(cwd, eraID)
+	exists, err := hasExistingEvolveEraBaseline(baselineDir)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
+	timeout := time.Duration(goalsTimeout) * time.Second
+	if timeout <= 0 {
+		timeout = 120 * time.Second
+	}
+	if err := goals.RunMeasure(goals.MeasureOptions{
+		GoalsFile: goalsPath,
+		Timeout:   timeout,
+		SnapDir:   baselineDir,
+		Stdout:    io.Discard,
+		Stderr:    os.Stderr,
+	}); err != nil {
+		return fmt.Errorf("capture evolve baseline for %s: %w", eraID, err)
+	}
+
+	fmt.Printf("Evolve baseline captured: %s\n", baselineDir)
+	return nil
+}
+
+func resolveEvolveGoalsFile(cwd string) (string, error) {
+	for _, name := range []string{"GOALS.md", "GOALS.yaml"} {
+		path := filepath.Join(cwd, name)
+		info, err := os.Stat(path)
+		if err == nil && !info.IsDir() {
+			return path, nil
+		}
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("stat goals file %s: %w", path, err)
+		}
+	}
+	return "", os.ErrNotExist
+}
+
+func evolveGoalsEraID(goalsPath string) (string, error) {
+	data, err := os.ReadFile(goalsPath)
+	if err != nil {
+		return "", fmt.Errorf("read goals file %s: %w", goalsPath, err)
+	}
+	sum := sha256.Sum256(data)
+	return "goals-" + hex.EncodeToString(sum[:])[:evolveBaselineEraHashLen], nil
+}
+
+func evolveEraBaselineDir(cwd, eraID string) string {
+	return filepath.Join(cwd, ".agents", "evolve", "fitness-baselines", eraID)
+}
+
+func hasExistingEvolveEraBaseline(dir string) (bool, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("read evolve baseline dir %s: %w", dir, err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".json" {
+			return true, nil
+		}
+	}
+	return false, nil
 }

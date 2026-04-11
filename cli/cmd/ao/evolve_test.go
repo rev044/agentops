@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -82,4 +85,116 @@ func newEvolveDefaultsTestCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "evolve"}
 	cmd.Flags().BoolVar(&rpiSupervisor, "supervisor", false, "")
 	return cmd
+}
+
+func TestEnsureEvolveEraBaselineWritesOncePerGoalsHash(t *testing.T) {
+	prevDryRun := dryRun
+	prevGoalsTimeout := goalsTimeout
+	dryRun = false
+	goalsTimeout = 5
+	t.Cleanup(func() {
+		dryRun = prevDryRun
+		goalsTimeout = prevGoalsTimeout
+	})
+
+	dir := chdirTemp(t)
+	writeFile(t, filepath.Join(dir, "GOALS.md"), evolveBaselineTestGoals("first-gate", "first era"))
+
+	if err := ensureEvolveEraBaseline(dir); err != nil {
+		t.Fatalf("ensureEvolveEraBaseline first run: %v", err)
+	}
+	dirs := evolveBaselineDirs(t, dir)
+	if len(dirs) != 1 {
+		t.Fatalf("baseline dirs after first run = %d, want 1 (%v)", len(dirs), dirs)
+	}
+	files := evolveBaselineSnapshotFiles(t, dirs[0])
+	if len(files) != 1 {
+		t.Fatalf("baseline snapshot files after first run = %d, want 1 (%v)", len(files), files)
+	}
+
+	if err := ensureEvolveEraBaseline(dir); err != nil {
+		t.Fatalf("ensureEvolveEraBaseline second run: %v", err)
+	}
+	files = evolveBaselineSnapshotFiles(t, dirs[0])
+	if len(files) != 1 {
+		t.Fatalf("baseline snapshot files after same-era rerun = %d, want 1 (%v)", len(files), files)
+	}
+
+	writeFile(t, filepath.Join(dir, "GOALS.md"), evolveBaselineTestGoals("second-gate", "second era"))
+	if err := ensureEvolveEraBaseline(dir); err != nil {
+		t.Fatalf("ensureEvolveEraBaseline new era: %v", err)
+	}
+	dirs = evolveBaselineDirs(t, dir)
+	if len(dirs) != 2 {
+		t.Fatalf("baseline dirs after goals change = %d, want 2 (%v)", len(dirs), dirs)
+	}
+}
+
+func TestEnsureEvolveEraBaselineSkipsDryRun(t *testing.T) {
+	prevDryRun := dryRun
+	dryRun = true
+	t.Cleanup(func() { dryRun = prevDryRun })
+
+	dir := chdirTemp(t)
+	writeFile(t, filepath.Join(dir, "GOALS.md"), evolveBaselineTestGoals("dry-run-gate", "dry run"))
+
+	if err := ensureEvolveEraBaseline(dir); err != nil {
+		t.Fatalf("ensureEvolveEraBaseline dry-run: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".agents", "evolve", "fitness-baselines")); !os.IsNotExist(err) {
+		t.Fatalf("dry-run baseline dir stat err = %v, want not exist", err)
+	}
+}
+
+func TestRunEvolveDoesNotWriteBaselineWhenToolchainInvalid(t *testing.T) {
+	prevDryRun := dryRun
+	dryRun = false
+	t.Cleanup(func() { dryRun = prevDryRun })
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "bushido")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "")
+
+	dir := chdirTemp(t)
+	writeFile(t, filepath.Join(dir, "GOALS.md"), evolveBaselineTestGoals("invalid-runtime-gate", "invalid runtime"))
+
+	err := runEvolve(&cobra.Command{Use: "evolve"}, nil)
+	if err == nil {
+		t.Fatal("expected invalid runtime error")
+	}
+	if !strings.Contains(err.Error(), `invalid runtime "bushido"`) {
+		t.Fatalf("error = %q, want invalid runtime", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, ".agents", "evolve", "fitness-baselines")); !os.IsNotExist(statErr) {
+		t.Fatalf("baseline dir stat err = %v, want not exist after invalid runtime", statErr)
+	}
+}
+
+func evolveBaselineTestGoals(id, description string) string {
+	return `# Goals
+
+Mission.
+
+## Gates
+
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| ` + id + ` | ` + "`exit 0`" + ` | 1 | ` + description + ` |
+`
+}
+
+func evolveBaselineDirs(t *testing.T, dir string) []string {
+	t.Helper()
+	dirs, err := filepath.Glob(filepath.Join(dir, ".agents", "evolve", "fitness-baselines", "goals-*"))
+	if err != nil {
+		t.Fatalf("glob baseline dirs: %v", err)
+	}
+	return dirs
+}
+
+func evolveBaselineSnapshotFiles(t *testing.T, dir string) []string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err != nil {
+		t.Fatalf("glob baseline snapshots: %v", err)
+	}
+	return files
 }
