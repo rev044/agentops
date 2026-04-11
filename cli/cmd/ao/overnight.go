@@ -105,6 +105,14 @@ type overnightSummary struct {
 	FitnessDelta     map[string]any         `json:"fitness_delta,omitempty" yaml:"fitness_delta,omitempty"`
 	PlateauReason    string                 `json:"plateau_reason,omitempty" yaml:"plateau_reason,omitempty"`
 	RegressionReason string                 `json:"regression_reason,omitempty" yaml:"regression_reason,omitempty"`
+
+	// Micro-epic 4 (C3): warn-only ratchet counter. WarnOnlyBudgetInitial
+	// is the rescue ceiling in effect for the run; WarnOnlyRemaining is
+	// the live counter at loop exit. Zero initial means the ratchet was
+	// disabled (e.g. --warn-only=false); the morning report renderer uses
+	// the zero-guard to suppress the counter line entirely.
+	WarnOnlyBudgetInitial int `json:"warn_only_budget_initial,omitempty" yaml:"warn_only_budget_initial,omitempty"`
+	WarnOnlyRemaining     int `json:"warn_only_remaining,omitempty" yaml:"warn_only_remaining,omitempty"`
 }
 
 var overnightCmd = &cobra.Command{
@@ -152,11 +160,48 @@ itself via --from.`,
 	RunE: runOvernightReport,
 }
 
+// overnightWarnOnlyCmd is the parent for warn-only ratchet subcommands.
+// Micro-epic 4 (C3): adds the `reset` subcommand that restores the
+// rescue budget to a fresh value after an operator has investigated a
+// run of consumed rescues.
+var overnightWarnOnlyCmd = &cobra.Command{
+	Use:   "warn-only",
+	Short: "Manage Dream's warn-only rescue budget (C3 ratchet)",
+	Long: `Dream's warn-only ratchet protects the first 2-3 production runs
+from halting on transient plateau/regression events, but only for a bounded
+number of rescues. Once the budget is exhausted the loop falls back to
+strict halting behaviour. Use ` + "`ao overnight warn-only reset`" + ` after
+investigating a burned-through budget to restore the rescue count.`,
+}
+
+var (
+	overnightWarnOnlyResetInitial int
+	overnightWarnOnlyResetJSON    bool
+)
+
+var overnightWarnOnlyResetCmd = &cobra.Command{
+	Use:   "reset",
+	Short: "Reset the warn-only rescue budget",
+	Long: `Reset .agents/overnight/warn-only-budget.json to a fresh state.
+
+By default the budget is restored to the built-in ceiling
+(` + fmt.Sprintf("%d", ovn.DefaultWarnOnlyBudget) + `
+rescues). Pass --initial to override. The previous state is overwritten.`,
+	Args: cobra.NoArgs,
+	RunE: runOvernightWarnOnlyReset,
+}
+
 func init() {
 	overnightCmd.GroupID = "workflow"
 	rootCmd.AddCommand(overnightCmd)
 	overnightCmd.AddCommand(overnightStartCmd)
 	overnightCmd.AddCommand(overnightReportCmd)
+	overnightCmd.AddCommand(overnightWarnOnlyCmd)
+	overnightWarnOnlyCmd.AddCommand(overnightWarnOnlyResetCmd)
+	overnightWarnOnlyResetCmd.Flags().IntVar(&overnightWarnOnlyResetInitial, "initial", 0,
+		fmt.Sprintf("Initial rescue ceiling (defaults to %d)", ovn.DefaultWarnOnlyBudget))
+	overnightWarnOnlyResetCmd.Flags().BoolVar(&overnightWarnOnlyResetJSON, "json", false,
+		"Emit the reset result as JSON instead of human-readable text")
 
 	overnightStartCmd.Flags().StringVar(&overnightGoal, "goal", "", "Optional goal to include in the morning report and briefing step")
 	overnightStartCmd.Flags().StringVar(&overnightOutputDir, "output-dir", "", "Directory for overnight artifacts (defaults to dream.report_dir)")
@@ -329,6 +374,37 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 		CheckpointMaxBytes: overnightCheckpointMaxMB * 1024 * 1024,
 		LogWriter:          logFile,
 	}
+
+	// Micro-epic 4 (C3): wire the warn-only ratchet from disk. Only
+	// active in warn-only mode — strict mode never consumes rescues
+	// because every regression/plateau is a hard halt anyway. ReadBudget
+	// implements the rescue matrix (missing/corrupt/out-of-range) and
+	// returns a default state rather than erroring, so a broken budget
+	// file cannot wedge Dream.
+	if overnightWarnOnly {
+		budgetState, rescueReason := ovn.ReadBudget(cwd)
+		if rescueReason != "" {
+			summary.Degraded = append(summary.Degraded, rescueReason)
+		}
+		runOpts.WarnOnlyBudget = &ovn.WarnOnlyRatchet{
+			Initial:   budgetState.InitialBudget,
+			Remaining: budgetState.Remaining,
+			OnConsume: func(newRemaining int) error {
+				// Persist via full Decrement round-trip so LastDecrementAt
+				// is stamped atomically. The loop already decremented its
+				// in-memory Remaining before calling OnConsume, so we do
+				// not re-decrement here — we simply write the authoritative
+				// updated state.
+				state, _ := ovn.ReadBudget(cwd)
+				state.Remaining = newRemaining
+				state.LastDecrementAt = time.Now().UTC().Format(time.RFC3339)
+				return ovn.WriteBudget(cwd, state)
+			},
+		}
+		summary.WarnOnlyBudgetInitial = budgetState.InitialBudget
+		summary.WarnOnlyRemaining = budgetState.Remaining
+	}
+
 	loopResult, loopErr := ovn.RunLoop(ctx, runOpts)
 	if loopResult != nil {
 		summary.Iterations = loopResult.Iterations
@@ -336,6 +412,13 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 		summary.PlateauReason = loopResult.PlateauReason
 		summary.RegressionReason = loopResult.RegressionReason
 		summary.Degraded = append(summary.Degraded, loopResult.Degraded...)
+		// Copy the final warn-only budget counter into the morning report.
+		// When the ratchet was disabled (strict mode) both values stay at
+		// zero and the omitempty JSON tag keeps the counter hidden.
+		if loopResult.WarnOnlyBudgetInitial > 0 {
+			summary.WarnOnlyBudgetInitial = loopResult.WarnOnlyBudgetInitial
+			summary.WarnOnlyRemaining = loopResult.WarnOnlyBudgetRemaining
+		}
 
 		// Populate the v1 Steps[] field with one synthesized entry per
 		// iteration so legacy readers of summary.json still see a
@@ -823,4 +906,41 @@ func lookupBool(m map[string]any, key string) (bool, bool) {
 	}
 	b, ok := v.(bool)
 	return b, ok
+}
+
+// runOvernightWarnOnlyReset resets .agents/overnight/warn-only-budget.json
+// to a fresh state. Implementation delegates to ovn.ResetBudget which
+// writes atomically (CreateTemp → Sync → Rename) so a crash mid-reset
+// cannot corrupt the budget file.
+//
+// Emits either a human-readable confirmation or a JSON payload matching
+// the disk shape, depending on --json.
+func runOvernightWarnOnlyReset(cmd *cobra.Command, args []string) error {
+	cwd, err := resolveProjectDir()
+	if err != nil {
+		return err
+	}
+	state, err := ovn.ResetBudget(cwd, overnightWarnOnlyResetInitial)
+	if err != nil {
+		return fmt.Errorf("reset warn-only budget: %w", err)
+	}
+	path := ovn.WarnOnlyBudgetPath(cwd)
+	if overnightWarnOnlyResetJSON {
+		payload := map[string]any{
+			"path":           path,
+			"initial":        state.InitialBudget,
+			"remaining":      state.Remaining,
+			"last_reset_at":  state.LastResetAt,
+		}
+		raw, marshalErr := json.MarshalIndent(payload, "", "  ")
+		if marshalErr != nil {
+			return fmt.Errorf("marshal reset payload: %w", marshalErr)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(raw))
+		return nil
+	}
+	fmt.Fprintf(cmd.OutOrStdout(),
+		"warn-only budget reset: remaining=%d initial=%d path=%s\n",
+		state.Remaining, state.InitialBudget, path)
+	return nil
 }

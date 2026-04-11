@@ -143,6 +143,19 @@ type RunLoopOptions struct {
 	// in to strict mode once thresholds are calibrated).
 	WarnOnly bool
 
+	// WarnOnlyBudget, when non-nil, enables the C3 warn-only ratchet:
+	// warn-only rescues are counted down and once exhausted the loop
+	// reverts to strict halting behaviour for the rest of the run. When
+	// nil (the default), warn-only is unbounded — the legacy behaviour
+	// preserved for L1 tests that exercise the loop through many
+	// synthetic events.
+	//
+	// Cmd-layer callers wire this up via WarnOnlyRatchetFromDisk so
+	// rescue consumption is persisted to
+	// .agents/overnight/warn-only-budget.json across runs. Tests leave
+	// it nil and get infinite warn-only.
+	WarnOnlyBudget *WarnOnlyRatchet
+
 	// QueuePath optionally points at an operator-pinned roadmap
 	// (markdown) whose items Dream works in order before falling through
 	// to fitness-driven work selection. Reuses the evolve pinned-queue
@@ -162,6 +175,31 @@ type RunLoopOptions struct {
 	// existing overnight.log file. Nil is allowed — RunLoop substitutes
 	// io.Discard.
 	LogWriter io.Writer
+}
+
+// WarnOnlyRatchet is the caller-supplied budget for the C3 warn-only
+// ratchet. The loop reads Remaining to decide whether warn-only protection
+// is still in effect, mutates it in-place when a rescue is consumed, and
+// invokes OnConsume (if non-nil) so the caller can persist the new value.
+//
+// The loop never opens the budget file on its own. All I/O lives in the
+// cmd layer via WriteBudget/DecrementBudget, keeping RunLoop pure and
+// leaving tests free to construct a budget without touching disk.
+type WarnOnlyRatchet struct {
+	// Initial is the rescue ceiling at the start of the loop. Surfaced
+	// into RunLoopResult for the morning report renderer.
+	Initial int
+
+	// Remaining is the live rescue counter. The loop decrements this in
+	// place; when it hits zero, warn-only protection is off for the rest
+	// of the run.
+	Remaining int
+
+	// OnConsume, when non-nil, is called each time the loop consumes one
+	// rescue. It receives the new Remaining value after the decrement.
+	// A returned error is appended to result.Degraded but does not halt
+	// the loop — a persistence failure must not wedge Dream.
+	OnConsume func(newRemaining int) error
 }
 
 // defaultRunTimeout is the documented default wall-clock cap.

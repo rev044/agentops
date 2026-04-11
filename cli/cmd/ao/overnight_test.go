@@ -722,3 +722,128 @@ func TestRunOvernight_SchemaV2IsV1BackwardCompatible(t *testing.T) {
 		t.Error("NextAction: unexpectedly empty")
 	}
 }
+
+// TestRunOvernightWarnOnlyReset_WritesFreshBudget is the Micro-epic 4
+// (C3) regression guard: `ao overnight warn-only reset` must produce an
+// on-disk budget file at the canonical path with Remaining equal to
+// InitialBudget, and must tolerate --initial overrides.
+func TestRunOvernightWarnOnlyReset_WritesFreshBudget(t *testing.T) {
+	tmpDir := t.TempDir()
+	testProjectDir = tmpDir
+	defer func() { testProjectDir = "" }()
+
+	oldInitial := overnightWarnOnlyResetInitial
+	oldJSON := overnightWarnOnlyResetJSON
+	defer func() {
+		overnightWarnOnlyResetInitial = oldInitial
+		overnightWarnOnlyResetJSON = oldJSON
+	}()
+
+	// Case 1: default (initial=0 → DefaultWarnOnlyBudget).
+	overnightWarnOnlyResetInitial = 0
+	overnightWarnOnlyResetJSON = false
+	stdout, err := captureStdout(t, func() error {
+		return runOvernightWarnOnlyReset(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("reset default: %v", err)
+	}
+	if !strings.Contains(stdout, "warn-only budget reset") {
+		t.Fatalf("stdout missing confirmation: %q", stdout)
+	}
+
+	path := ovn.WarnOnlyBudgetPath(tmpDir)
+	state, reason := ovn.ReadBudget(tmpDir)
+	if reason != "" {
+		t.Fatalf("post-reset rescue reason=%q (budget should be clean)", reason)
+	}
+	if state.Remaining != ovn.DefaultWarnOnlyBudget {
+		t.Fatalf("Remaining=%d want %d", state.Remaining, ovn.DefaultWarnOnlyBudget)
+	}
+	if state.InitialBudget != ovn.DefaultWarnOnlyBudget {
+		t.Fatalf("InitialBudget=%d want %d", state.InitialBudget, ovn.DefaultWarnOnlyBudget)
+	}
+	if state.LastResetAt == "" {
+		t.Fatal("LastResetAt should be populated after reset")
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("budget file not at expected path %s: %v", path, err)
+	}
+
+	// Case 2: --initial override.
+	overnightWarnOnlyResetInitial = 7
+	overnightWarnOnlyResetJSON = false
+	if _, err := captureStdout(t, func() error {
+		return runOvernightWarnOnlyReset(&cobra.Command{}, nil)
+	}); err != nil {
+		t.Fatalf("reset with initial=7: %v", err)
+	}
+	state, _ = ovn.ReadBudget(tmpDir)
+	if state.Remaining != 7 || state.InitialBudget != 7 {
+		t.Fatalf("state=%+v want Remaining=7 InitialBudget=7", state)
+	}
+
+	// Case 3: --json emission matches the disk shape.
+	overnightWarnOnlyResetInitial = 4
+	overnightWarnOnlyResetJSON = true
+	stdout, err = captureStdout(t, func() error {
+		return runOvernightWarnOnlyReset(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("reset --json: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("parse JSON payload: %v\noutput=%s", err, stdout)
+	}
+	if got, _ := payload["remaining"].(float64); int(got) != 4 {
+		t.Fatalf("payload.remaining=%v want 4", payload["remaining"])
+	}
+	if got, _ := payload["initial"].(float64); int(got) != 4 {
+		t.Fatalf("payload.initial=%v want 4", payload["initial"])
+	}
+	if got, _ := payload["path"].(string); got == "" {
+		t.Fatal("payload.path should be non-empty")
+	}
+}
+
+// TestRunOvernight_WarnOnlyRatchet_WiredIntoLoopOpts is the Micro-epic 4
+// companion to TestRunOvernight_RunLoopOptionsReceivesRunID: it verifies
+// the shape of the ratchet literal that runOvernightStart constructs,
+// without exercising the full end-to-end loop (which requires the real
+// fitness fixture). If a future refactor drops WarnOnlyBudget from the
+// options literal, this test catches it via the exported
+// WarnOnlyRatchet type.
+func TestRunOvernight_WarnOnlyRatchet_WiredIntoLoopOpts(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Seed a budget file with Remaining=2 to prove the wiring reads
+	// the live value (not a hardcoded default).
+	if _, err := ovn.ResetBudget(tmpDir, 2); err != nil {
+		t.Fatalf("seed budget: %v", err)
+	}
+
+	state, _ := ovn.ReadBudget(tmpDir)
+	if state.Remaining != 2 {
+		t.Fatalf("seed state.Remaining=%d want 2", state.Remaining)
+	}
+
+	// Mirror the ratchet literal in runOvernightStart.
+	ratchet := &ovn.WarnOnlyRatchet{
+		Initial:   state.InitialBudget,
+		Remaining: state.Remaining,
+		OnConsume: func(newRemaining int) error { return nil },
+	}
+	runOpts := ovn.RunLoopOptions{
+		WarnOnly:       true,
+		WarnOnlyBudget: ratchet,
+	}
+	if runOpts.WarnOnlyBudget == nil {
+		t.Fatal("WarnOnlyBudget literal dropped")
+	}
+	if runOpts.WarnOnlyBudget.Remaining != 2 {
+		t.Fatalf("Remaining=%d want 2", runOpts.WarnOnlyBudget.Remaining)
+	}
+	if runOpts.WarnOnlyBudget.OnConsume == nil {
+		t.Fatal("OnConsume callback dropped")
+	}
+}

@@ -1150,14 +1150,44 @@ ao overnight start [flags]
 **Flags:**
 
 ```
-      --creative-lane        Enable the bounded wildcard lane when Dream Council is running
-      --goal string          Optional goal to include in the morning report and briefing step
-  -h, --help                 help for start
-      --keep-awake           Force keep-awake assistance on for this run
-      --no-keep-awake        Disable keep-awake assistance for this run
-      --output-dir string    Directory for overnight artifacts (defaults to dream.report_dir)
-      --run-timeout string   Maximum duration for the overnight run (defaults to dream.run_timeout)
-      --runner strings       Dream runner to execute (repeatable: --runner codex --runner claude)
+      --checkpoint-max-mb int   Max total MB of checkpoint storage per run (default 512)
+      --creative-lane           Enable the bounded wildcard lane when Dream Council is running
+      --goal string             Optional goal to include in the morning report and briefing step
+  -h, --help                    help for start
+      --keep-awake              Force keep-awake assistance on for this run
+      --max-iterations int      Cap iteration count (0 = budget-bounded only)
+      --no-keep-awake           Disable keep-awake assistance for this run
+      --output-dir string       Directory for overnight artifacts (defaults to dream.report_dir)
+      --plateau-epsilon float   Plateau threshold: |delta| below this counts as plateau (default 0.01)
+      --plateau-window int      Plateau window K (consecutive sub-epsilon deltas required to halt) (default 2)
+      --queue string            Operator-pinned nightly priorities (markdown file)
+      --run-timeout string      Maximum duration for the overnight run (defaults to dream.run_timeout)
+      --runner strings          Dream runner to execute (repeatable: --runner codex --runner claude)
+      --warn-only               First-N-runs mode: warn on plateau/regression, don't halt. Default true; flip to false once thresholds are calibrated. (default true)
+```
+
+#### `ao overnight warn-only`
+
+Dream's warn-only ratchet protects the first 2-3 production runs
+
+```
+ao overnight warn-only [command]
+```
+
+##### `ao overnight warn-only reset`
+
+Reset .agents/overnight/warn-only-budget.json to a fresh state.
+
+```
+ao overnight warn-only reset [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help          help for reset
+      --initial int   Initial rescue ceiling (defaults to 3)
+      --json          Emit the reset result as JSON instead of human-readable text
 ```
 
 ---
@@ -1833,6 +1863,33 @@ ao plans update <plan-path> [flags]
       --beads-id string   Update beads ID
   -h, --help              help for update
       --status string     New status for the plan
+```
+
+---
+
+### `ao corpus`
+
+Commands that inspect the local .agents/ corpus quality.
+
+```
+ao corpus [command]
+```
+
+**Subcommands:**
+
+#### `ao corpus fitness`
+
+Compute the corpus-quality fitness vector for the current .agents/
+
+```
+ao corpus fitness [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help   help for fitness
+      --json   Emit the fitness vector as JSON
 ```
 
 ---

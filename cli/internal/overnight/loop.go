@@ -54,7 +54,19 @@ type RunLoopResult struct {
 	PlateauReason    string             `json:"plateau_reason,omitempty" yaml:"plateau_reason,omitempty"`
 	RegressionReason string             `json:"regression_reason,omitempty" yaml:"regression_reason,omitempty"`
 	BudgetExhausted  bool               `json:"budget_exhausted" yaml:"budget_exhausted"`
-	Degraded         []string           `json:"degraded,omitempty" yaml:"degraded,omitempty"`
+
+	// WarnOnlyBudgetInitial is the rescue ceiling observed at loop start
+	// when a WarnOnlyRatchet was supplied. Zero means the ratchet was
+	// disabled (legacy infinite warn-only path) — the morning report
+	// renderer uses zero-guard to suppress the counter line.
+	WarnOnlyBudgetInitial int `json:"warn_only_budget_initial" yaml:"warn_only_budget_initial"`
+
+	// WarnOnlyBudgetRemaining is the live rescue counter at loop exit.
+	// Callers copy this into overnightSummary.WarnOnlyRemaining for the
+	// morning report.
+	WarnOnlyBudgetRemaining int `json:"warn_only_budget_remaining" yaml:"warn_only_budget_remaining"`
+
+	Degraded []string `json:"degraded,omitempty" yaml:"degraded,omitempty"`
 }
 
 // ErrNotImplemented is returned by stage stubs that will be filled in by
@@ -132,6 +144,10 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	result := &RunLoopResult{
 		Iterations: priorIterations, // Resume with history intact
 		Degraded:   degraded,
+	}
+	if opts.WarnOnlyBudget != nil {
+		result.WarnOnlyBudgetInitial = opts.WarnOnlyBudget.Initial
+		result.WarnOnlyBudgetRemaining = opts.WarnOnlyBudget.Remaining
 	}
 
 	if opts.Cwd == "" {
@@ -355,7 +371,19 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			iter.FitnessBefore = snapshotToMap(*prevSnapshot)
 			composite, regressions, regressed := currSnapshot.Delta(prevSnapshot, nil, opts.RegressionFloor)
 			iter.FitnessDelta = composite
-			if regressed && !opts.WarnOnly {
+
+			// effectiveWarnOnly: warn-only protection is active only while
+			// the rescue budget has remaining capacity. When WarnOnlyBudget
+			// is nil (tests, legacy callers) this is a plain pass-through
+			// of opts.WarnOnly. When WarnOnlyBudget is supplied (cmd layer
+			// in production), we honour Remaining==0 as "fall back to
+			// strict halt" so the ratchet actually ratchets.
+			effectiveWarnOnly := opts.WarnOnly
+			if opts.WarnOnlyBudget != nil && opts.WarnOnlyBudget.Remaining <= 0 {
+				effectiveWarnOnly = false
+			}
+
+			if regressed && !effectiveWarnOnly {
 				iter.Status = StatusHaltedOnRegressionPostCommit
 				iter.FinishedAt = time.Now()
 				iter.Duration = iter.FinishedAt.Sub(iterStart).String()
@@ -374,14 +402,18 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 				result.Iterations = append(result.Iterations, iter)
 				result.RegressionReason = fmt.Sprintf("iteration %d: %d metric(s) breached regression floor %g: %v",
 					iterIndex, len(regressions), opts.RegressionFloor, regressionNames(regressions))
+				// Annotate the halt reason when the ratchet was the reason
+				// warn-only protection lapsed, so the morning report can
+				// distinguish "strict mode from flag" from "budget
+				// exhausted mid-run".
+				if opts.WarnOnly && opts.WarnOnlyBudget != nil && opts.WarnOnlyBudget.Remaining <= 0 {
+					result.RegressionReason += " (warn-only budget exhausted)"
+				}
 				fmt.Fprintf(log, "overnight: RunLoop halted — %s\n", result.RegressionReason)
 				return result, nil
 			}
-			if regressed {
-				iter.Degraded = append(iter.Degraded,
-					fmt.Sprintf("regression beyond floor (warn-only): %d metric(s)", len(regressions)))
-			}
-			if plateau.Observe(composite) && !opts.WarnOnly {
+			plateauReached := plateau.Observe(composite)
+			if plateauReached && !effectiveWarnOnly {
 				iter.FinishedAt = time.Now()
 				iter.Duration = iter.FinishedAt.Sub(iterStart).String()
 				iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
@@ -391,8 +423,40 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 				}
 				result.Iterations = append(result.Iterations, iter)
 				result.PlateauReason = plateau.Reason()
+				if opts.WarnOnly && opts.WarnOnlyBudget != nil && opts.WarnOnlyBudget.Remaining <= 0 {
+					result.PlateauReason += " (warn-only budget exhausted)"
+				}
 				fmt.Fprintf(log, "overnight: RunLoop halted — %s\n", result.PlateauReason)
 				return result, nil
+			}
+
+			// Warn-only rescue path. At most ONE rescue is consumed per
+			// iteration regardless of whether only regression, only
+			// plateau, or both fired — otherwise a single pathological
+			// iteration would drain the budget twice as fast as a series
+			// of single-event iterations, which is surprising to operators.
+			consumedRescue := false
+			if regressed {
+				iter.Degraded = append(iter.Degraded,
+					fmt.Sprintf("regression beyond floor (warn-only): %d metric(s)", len(regressions)))
+				consumedRescue = true
+			}
+			if plateauReached {
+				iter.Degraded = append(iter.Degraded,
+					fmt.Sprintf("plateau reached (warn-only): %s", plateau.Reason()))
+				consumedRescue = true
+			}
+			if consumedRescue && opts.WarnOnlyBudget != nil {
+				opts.WarnOnlyBudget.Remaining--
+				result.WarnOnlyBudgetRemaining = opts.WarnOnlyBudget.Remaining
+				if opts.WarnOnlyBudget.OnConsume != nil {
+					if err := opts.WarnOnlyBudget.OnConsume(opts.WarnOnlyBudget.Remaining); err != nil {
+						result.Degraded = append(result.Degraded,
+							fmt.Sprintf("warn-only budget persist: %v", err))
+					}
+				}
+				iter.Degraded = append(iter.Degraded,
+					fmt.Sprintf("warn-only budget remaining: %d", opts.WarnOnlyBudget.Remaining))
 			}
 		}
 
