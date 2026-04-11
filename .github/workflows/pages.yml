@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'docs/comparisons/**'
+      - 'docs/assets/**'
+      - '_layouts/**'
+      - 'index.md'
       - '_config.yml'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
