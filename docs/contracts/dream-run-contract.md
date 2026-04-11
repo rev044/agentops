@@ -166,11 +166,16 @@ Dream v2 replaces the single-pass 5-step script with a bounded outer loop that i
 
 ### Iteration Structure
 
-Each iteration runs three stages in order:
+Each iteration runs four stages in order (Micro-epic 8 / C1 Option A, 2026-04-11):
 
-1. INGEST - harvest new signal into the corpus (absorbs `/harvest` overnight work)
-2. REDUCE - defrag, dedup, compile, and prune
-3. MEASURE - `ao retrieval-bench --live --json` and `ao goals measure` to compute composite fitness
+1. **INGEST** - harvest new signal into the corpus (absorbs `/harvest` overnight work)
+2. **REDUCE** - defrag, dedup, compile, and prune. Mutations are written to the checkpoint's **staging tree** (`cp.StagingDir/.agents/<subpath>/`), NOT the live `.agents/` path.
+3. **MEASURE** - `corpus.Compute(cp.StagingDir)` computes fitness against the staged mutations (pre-commit). Under warn-only mode, a regression consumes a rescue and the iteration still commits; under strict mode, a regression (or plateau) triggers `cp.Rollback()` and the iteration halts with status `halted-on-regression-pre-commit` — the live `.agents/` tree is **never mutated**.
+4. **COMMIT** - `cp.Commit()` atomically promotes the staging tree into live. This is the first point at which external observers of `~/.agents/` see the new state. A post-commit metadata integrity check (`VerifyMetadataRoundTripPostCommit`) runs here as a ratchet-forward second-stage defence (strip detection).
+
+**Semantic invariant:** No external observer of `~/.agents/` ever sees a fitness-regressed state under strict mode. The pre-commit gate holds the line.
+
+**Historical note:** Before M8, the sequence was REDUCE → COMMIT → MEASURE (Option B). A strict regression halt would fire with status `halted-on-regression-post-commit`, but the live tree was already mutated and had to be rolled back imperfectly. That status is retained in types.go for backward compatibility with persisted iterations from pre-M8 runs.
 
 ### Checkpointed Subpaths
 
@@ -184,13 +189,14 @@ Only these paths are mutated and rolled back as a unit:
 
 ### Halt Conditions
 
-| Reason | Exit status | Morning report field |
-|--------|-------------|----------------------|
-| Wall-clock budget exhausted | `finished` | `budget_exhausted: true` |
-| Plateau (K consecutive sub-epsilon deltas) | `finished` | `plateau_reason` |
-| Regression beyond per-metric floor | `finished` | `regression_reason` |
-| Metadata integrity failure | `failed` | `regression_reason` + checkpoint rollback |
-| Crash mid-iteration | `crashed` | Recovery via `.agents/overnight/COMMIT-MARKER.*` on next startup |
+| Reason | Iter status (M8+) | Morning report field |
+|--------|-------------------|----------------------|
+| Wall-clock budget exhausted | `done` on last successful iter | `budget_exhausted: true` |
+| Plateau (K consecutive sub-epsilon deltas), strict mode | `halted-on-regression-pre-commit` | `plateau_reason` |
+| Regression beyond per-metric floor, strict mode | `halted-on-regression-pre-commit` | `regression_reason` |
+| Warn-only budget exhausted then regression fires | `halted-on-regression-pre-commit` | `regression_reason` + `(warn-only budget exhausted)` suffix |
+| Post-commit metadata integrity failure | `degraded` + finding routed to morning report | `post-commit metadata integrity: N stripped field(s)` |
+| Crash mid-iteration | recovered via `.agents/overnight/COMMIT-MARKER.*` on next startup | status depends on marker state |
 
 ### Anti-Goals
 

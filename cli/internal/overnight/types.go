@@ -47,7 +47,29 @@ const (
 	// regression halt site. The old string was a LIE: it claimed
 	// rollback while the corpus stayed committed. Micro-epic 3 is the
 	// fix.
+	//
+	// NOTE (Micro-epic 8 / na-h61): With Option A semantics, strict-mode
+	// regression halts now fire BEFORE commit and use
+	// StatusHaltedOnRegressionPreCommit. This status is retained for:
+	//   (a) warn-only rescue paths that consume a rescue and commit anyway
+	//       but then regress on a SECOND late-stage check (pm-V7 metadata
+	//       integrity), and
+	//   (b) backward compatibility with persisted iterations from pre-M8
+	//       runs.
 	StatusHaltedOnRegressionPostCommit IterationStatus = "halted-on-regression-post-commit"
+
+	// StatusHaltedOnRegressionPreCommit (Micro-epic 8 / na-h61, C1 Option A):
+	// fitness regression was detected BEFORE cp.Commit() and the checkpoint
+	// was rolled back. The live tree is UNCHANGED — external observers of
+	// ~/.agents/ never saw the partial/regressed state. No corpus mutation
+	// happened; rehydration MUST skip this iteration exactly like
+	// StatusRolledBackPreCommit.
+	//
+	// This is distinct from StatusRolledBackPreCommit because the rollback
+	// reason is different (fitness regression, not REDUCE-stage failure),
+	// and downstream reporters (morning report, next-work classifier) need
+	// to distinguish "REDUCE blew up" from "fitness gate held the line".
+	StatusHaltedOnRegressionPreCommit IterationStatus = "halted-on-regression-pre-commit"
 
 	// StatusFailed: any unrecoverable error in INGEST, CHECKPOINT, or
 	// COMMIT itself. Distinct from StatusRolledBackPreCommit because
@@ -67,7 +89,8 @@ const (
 func (s IterationStatus) Validate() error {
 	switch s {
 	case StatusDone, StatusDegraded, StatusRolledBackPreCommit,
-		StatusHaltedOnRegressionPostCommit, StatusFailed:
+		StatusHaltedOnRegressionPostCommit, StatusHaltedOnRegressionPreCommit,
+		StatusFailed:
 		return nil
 	case "":
 		return fmt.Errorf("overnight: IterationStatus is empty")

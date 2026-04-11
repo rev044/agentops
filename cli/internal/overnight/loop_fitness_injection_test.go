@@ -2,7 +2,9 @@ package overnight
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -155,9 +157,14 @@ func TestRunLoop_RegressionHaltStrict(t *testing.T) {
 			len(result.Iterations))
 	}
 	// The halted iter should be the regression-halted one.
+	// Micro-epic 8 Option A: strict-mode regression halts fire BEFORE
+	// cp.Commit(), so the status is now PreCommit. The legacy PostCommit
+	// status is retained in types.go for backward compatibility with
+	// persisted iterations from pre-M8 runs, but live code no longer
+	// emits it on the strict regression-halt path.
 	lastIter := result.Iterations[len(result.Iterations)-1]
-	if lastIter.Status != StatusHaltedOnRegressionPostCommit {
-		t.Fatalf("last iter status=%q want %q", lastIter.Status, StatusHaltedOnRegressionPostCommit)
+	if lastIter.Status != StatusHaltedOnRegressionPreCommit {
+		t.Fatalf("last iter status=%q want %q", lastIter.Status, StatusHaltedOnRegressionPreCommit)
 	}
 }
 
@@ -340,10 +347,12 @@ func TestRunLoop_WarnOnlyBudgetExhausted(t *testing.T) {
 	}
 
 	// Last iteration must be the strict regression halt, not a rescue.
+	// Under Micro-epic 8 Option A semantics, exhausted-warn-only falls
+	// back to a PRE-commit halt (not post-commit like the legacy shape).
 	lastIter := result.Iterations[len(result.Iterations)-1]
-	if lastIter.Status != StatusHaltedOnRegressionPostCommit {
+	if lastIter.Status != StatusHaltedOnRegressionPreCommit {
 		t.Fatalf("last iter status = %q, want %q",
-			lastIter.Status, StatusHaltedOnRegressionPostCommit)
+			lastIter.Status, StatusHaltedOnRegressionPreCommit)
 	}
 
 	// Count warn-only degraded notes across iterations. We expect
@@ -364,3 +373,183 @@ func TestRunLoop_WarnOnlyBudgetExhausted(t *testing.T) {
 			warnOnlyNoteCount, initialBudget)
 	}
 }
+
+// ==========================================================================
+// Micro-epic 8 (C1 Option A) — per na-h61
+//
+// Option A semantic: fitness is measured BEFORE cp.Commit() against the
+// staging tree. On strict-mode regression, cp.Rollback() fires and the
+// live ~/.agents/ tree is NEVER mutated. Operators never see partial or
+// regressed state on the live tree.
+//
+// These tests assert the new wiring. They are written against the NEW
+// StatusHaltedOnRegressionPreCommit status, so they FAIL under Option B
+// (current pre-M8) behaviour and PASS after the loop.go reorder.
+//
+// Approach: drive regressions via the M6 fitness injector (injector
+// bypasses corpus.Compute entirely, so these tests work independently of
+// whether MEASURE reads from staging or live — they test the *halt path*,
+// which is where the Option A semantic lives).
+// ==========================================================================
+
+// TestM8_StrictRegression_HaltsPreCommit (T1) is the core Option A
+// assertion: a strict-mode fitness regression on iter 2 must halt with
+// StatusHaltedOnRegressionPreCommit, not StatusHaltedOnRegressionPostCommit.
+func TestM8_StrictRegression_HaltsPreCommit(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	restore := stubInjectRefresh(t)
+	defer restore()
+
+	// Drop from 0.9 to 0.1 = 0.8 drop, far above the default 0.05 floor.
+	// iter 1 commits normally (no prev snapshot); iter 2 regresses.
+	SetTestFitnessInjector(injectRegressionOnSecondIteration(0.9, 0.1))
+	t.Cleanup(func() { SetTestFitnessInjector(nil) })
+
+	dir := t.TempDir()
+	if err := fixture.GenerateFixture(dir, fixture.DefaultOpts()); err != nil {
+		t.Fatalf("GenerateFixture: %v", err)
+	}
+
+	opts := RunLoopOptions{
+		Cwd:             dir,
+		OutputDir:       filepath.Join(dir, ".agents", "overnight", "m8-strict-precommit"),
+		RunID:           "m8-strict-precommit",
+		RunTimeout:      30 * time.Second,
+		MaxIterations:   5,
+		PlateauEpsilon:  0.01,
+		PlateauWindowK:  2,
+		RegressionFloor: 0.05,
+		WarnOnly:        false, // strict mode: regression halts pre-commit
+		LogWriter:       io.Discard,
+	}
+	result, err := RunLoop(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("RunLoop: %v", err)
+	}
+	if result == nil {
+		t.Fatal("result == nil")
+	}
+	if result.RegressionReason == "" {
+		t.Fatalf("expected RegressionReason to be set; got empty")
+	}
+	if len(result.Iterations) < 2 {
+		t.Fatalf("expected at least 2 iterations (iter 1 commit + iter 2 pre-commit halt), got %d",
+			len(result.Iterations))
+	}
+
+	// The halted iter must carry the NEW pre-commit status, proving the
+	// reorder landed. Under Option B this would be PostCommit.
+	lastIter := result.Iterations[len(result.Iterations)-1]
+	if lastIter.Status != StatusHaltedOnRegressionPreCommit {
+		t.Fatalf("last iter status = %q, want %q (Option A pre-commit halt)",
+			lastIter.Status, StatusHaltedOnRegressionPreCommit)
+	}
+
+	// Invariant: a pre-commit halt must NOT be considered corpus-compounded
+	// for rehydration purposes. The next run should treat the halted iter
+	// as absent, not use it as prevSnapshot.
+	if lastIter.Status.IsCorpusCompounded() {
+		t.Fatalf("StatusHaltedOnRegressionPreCommit.IsCorpusCompounded() = true, want false")
+	}
+}
+
+// TestM8_StagingDiscardedOnPreCommitHalt (T2) proves Rollback() actually
+// fired on the halted iter: the iter-specific staging directory must be
+// absent after the loop returns.
+func TestM8_StagingDiscardedOnPreCommitHalt(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	restore := stubInjectRefresh(t)
+	defer restore()
+
+	SetTestFitnessInjector(injectRegressionOnSecondIteration(0.9, 0.1))
+	t.Cleanup(func() { SetTestFitnessInjector(nil) })
+
+	dir := t.TempDir()
+	if err := fixture.GenerateFixture(dir, fixture.DefaultOpts()); err != nil {
+		t.Fatalf("GenerateFixture: %v", err)
+	}
+
+	runID := "m8-staging-discarded"
+	opts := RunLoopOptions{
+		Cwd:             dir,
+		OutputDir:       filepath.Join(dir, ".agents", "overnight", runID),
+		RunID:           runID,
+		RunTimeout:      30 * time.Second,
+		MaxIterations:   5,
+		PlateauEpsilon:  0.01,
+		PlateauWindowK:  2,
+		RegressionFloor: 0.05,
+		WarnOnly:        false,
+		LogWriter:       io.Discard,
+	}
+	result, err := RunLoop(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("RunLoop: %v", err)
+	}
+	if result == nil {
+		t.Fatal("result == nil")
+	}
+
+	// The halted iter is the last one. Its iterID is <runID>-iter-<N>.
+	lastIter := result.Iterations[len(result.Iterations)-1]
+	iterID := fmt.Sprintf("%s-iter-%d", runID, lastIter.Index)
+	stagingPath := filepath.Join(dir, ".agents", "overnight", "staging", iterID)
+
+	if _, statErr := os.Stat(stagingPath); !os.IsNotExist(statErr) {
+		t.Fatalf("staging dir %s still exists after pre-commit halt (statErr=%v); Rollback() did not fire",
+			stagingPath, statErr)
+	}
+}
+
+// TestM8_HappyPath_CommitsNormally (T4) proves the reorder did not break
+// the no-regression commit path. Constant high fitness → no regression,
+// no plateau (single iter), iter.Status == StatusDone, corpus compounded.
+func TestM8_HappyPath_CommitsNormally(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	restore := stubInjectRefresh(t)
+	defer restore()
+
+	// Single iteration, no prev snapshot on iter 1 so no delta check fires.
+	// This is the narrowest possible happy-path test.
+	SetTestFitnessInjector(injectConstantFitness(0.8))
+	t.Cleanup(func() { SetTestFitnessInjector(nil) })
+
+	dir := t.TempDir()
+	if err := fixture.GenerateFixture(dir, fixture.DefaultOpts()); err != nil {
+		t.Fatalf("GenerateFixture: %v", err)
+	}
+
+	opts := RunLoopOptions{
+		Cwd:            dir,
+		OutputDir:      filepath.Join(dir, ".agents", "overnight", "m8-happy"),
+		RunID:          "m8-happy",
+		RunTimeout:     30 * time.Second,
+		MaxIterations:  1, // single iter — no delta check
+		PlateauEpsilon: 0.01,
+		PlateauWindowK: 2,
+		WarnOnly:       false,
+		LogWriter:      io.Discard,
+	}
+	result, err := RunLoop(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("RunLoop: %v", err)
+	}
+	if result == nil || len(result.Iterations) != 1 {
+		t.Fatalf("expected exactly 1 iteration; got %d", len(result.Iterations))
+	}
+	iter := result.Iterations[0]
+	if iter.Status != StatusDone {
+		t.Fatalf("iter 1 status = %q, want %q (happy path must still commit)",
+			iter.Status, StatusDone)
+	}
+	if !iter.Status.IsCorpusCompounded() {
+		t.Fatal("StatusDone.IsCorpusCompounded() = false, want true (happy path commits)")
+	}
+}
+
+// Note: TestRunLoop_WarnOnlyBudgetExhausted above was updated in the
+// same M8 wave to assert StatusHaltedOnRegressionPreCommit, so a dedicated
+// TestM8_WarnOnlyBudgetExhausted_UsesPreCommit would be a duplicate. The
+// Option A consistency invariant (every strict halt is pre-commit,
+// regardless of how strict mode was entered) is proven by that test plus
+// TestM8_StrictRegression_HaltsPreCommit above.

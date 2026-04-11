@@ -329,45 +329,20 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			iter.Degraded = append(iter.Degraded, reduce.Degraded...)
 		}
 
-		// --- COMMIT ---
-		// REDUCE succeeded. Promote the staging tree into live so the
-		// next iteration (and MEASURE below) sees the compounded corpus.
-		if commitErr := cp.Commit(); commitErr != nil {
-			iter.Status = StatusFailed
-			iter.Error = fmt.Sprintf("commit: %v", commitErr)
-			iter.FinishedAt = time.Now()
-			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
-			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
-			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
-				result.Degraded = append(result.Degraded,
-					fmt.Sprintf("persist iter-%d (during commit failure): %v", iterIndex, writeErr))
-			}
-			result.Iterations = append(result.Iterations, iter)
-			fmt.Fprintf(log, "overnight: iteration %d commit failed: %v\n", iterIndex, commitErr)
-			return result, fmt.Errorf("overnight: iteration %d commit: %w", iterIndex, commitErr)
-		}
-
-		// Post-commit metadata integrity check (ratchet-forward per pm-V7).
-		// Cannot unwind a successful commit; record a findings entry and
-		// surface via degraded so the morning report shows the strip.
-		if postReport := VerifyMetadataRoundTripPostCommit(cp); !postReport.Pass {
-			msg := fmt.Sprintf("post-commit metadata integrity: %d stripped field(s)", len(postReport.StrippedFields))
-			iter.Degraded = append(iter.Degraded, msg)
-			fmt.Fprintf(log, "overnight: iteration %d %s\n", iterIndex, msg)
-			// Log a structured finding the router will intentionally skip
-			// (filename bypasses findingFilenameRe); surfaces in morning report.
-			_ = logPostCommitFinding(opts.Cwd, iterIndex, postReport)
-		}
-
-		// --- MEASURE ---
-		// Micro-epic 6 (C5): test-only fitness injection bypass. When
-		// SetTestFitnessInjector has been called from a test fixture,
-		// RunLoop skips the real corpus.Compute path and uses the
-		// caller-supplied snapshot directly. This is the only way to
-		// get deterministic plateau/regression behaviour without a
-		// real .agents fixture. The injector returning a non-nil error
-		// is treated exactly as a RunMeasure error (feeds the C4
-		// consecutive-failure cap from Micro-epic 5).
+		// --- MEASURE (Micro-epic 8 C1 Option A — moved pre-commit) ---
+		// Fitness is now computed against the STAGING tree so a regression
+		// halt can unwind the checkpoint BEFORE the live ~/.agents/ tree
+		// is ever mutated. Under the legacy Option B shape this block lived
+		// after cp.Commit() — see
+		// .agents/council/2026-04-11-m8-assumption-validation-consolidated.md
+		// for the rationale.
+		//
+		// Micro-epic 6 (C5) test injector path is unchanged: when a test
+		// sets SetTestFitnessInjector it bypasses the real corpus.Compute
+		// call entirely, so the staging redirect is a no-op for injected
+		// fitness. Production runs honour the staging redirect by aliasing
+		// opts.Cwd → cp.StagingDir for the measure call only (measure
+		// never mutates, so the alias is safe).
 		var measure *MeasureResult
 		var measureErr error
 		if injector := getTestFitnessInjector(); injector != nil {
@@ -378,7 +353,11 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 				measure = &MeasureResult{FitnessSnapshot: snap}
 			}
 		} else {
-			measure, measureErr = RunMeasure(loopCtx, opts, log)
+			// Point the measure at the staging tree. RunLoopOptions is
+			// passed by value so this local override does not leak.
+			measureOpts := opts
+			measureOpts.Cwd = cp.StagingDir
+			measure, measureErr = RunMeasure(loopCtx, measureOpts, log)
 		}
 		if measureErr != nil {
 			consecutiveMeasureFailures++
@@ -386,6 +365,15 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			iter.Error = fmt.Sprintf("measure: %v", measureErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+			// Micro-epic 8: measure failed before commit — staging is
+			// still live and must be cleaned up. Under Option B this block
+			// was post-commit so rollback was a no-op on the live tree;
+			// under Option A the live tree is still pristine and we must
+			// drop staging so the next iter gets a clean slate.
+			if rbErr := cp.Rollback(); rbErr != nil {
+				result.Degraded = append(result.Degraded,
+					fmt.Sprintf("iter-%d rollback after measure failure: %v", iterIndex, rbErr))
+			}
 			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
 			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
 				result.Degraded = append(result.Degraded,
@@ -394,11 +382,10 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			result.Iterations = append(result.Iterations, iter)
 			// Micro-epic 5 (C4): consecutive MEASURE failure cap. -1 is
 			// unbounded (legacy behaviour); any non-negative value is a
-			// hard halt after that many back-to-back failures. Because a
-			// MEASURE failure is post-commit, the corpus is already
-			// compounded — halting here does NOT roll anything back, it
-			// just prevents a broken MEASURE from burning the full run
-			// budget on iterations that can never compute a fitness delta.
+			// hard halt after that many back-to-back failures. Under
+			// Option A a MEASURE failure is pre-commit so the corpus is
+			// NOT compounded — halting here leaves the live tree in the
+			// last known-good state.
 			if opts.MaxConsecutiveMeasureFailures != -1 &&
 				consecutiveMeasureFailures >= opts.MaxConsecutiveMeasureFailures {
 				result.MeasureFailureHalt = true
@@ -441,21 +428,28 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			}
 
 			if regressed && !effectiveWarnOnly {
-				iter.Status = StatusHaltedOnRegressionPostCommit
+				// Micro-epic 8 Option A: strict-mode regression halts
+				// BEFORE cp.Commit() — rollback discards staging and the
+				// live tree is never mutated. The iter carries the new
+				// StatusHaltedOnRegressionPreCommit, which
+				// IsCorpusCompounded() correctly reports as false.
+				iter.Status = StatusHaltedOnRegressionPreCommit
 				iter.FinishedAt = time.Now()
 				iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+				if rbErr := cp.Rollback(); rbErr != nil {
+					result.Degraded = append(result.Degraded,
+						fmt.Sprintf("iter-%d rollback after pre-commit regression halt: %v", iterIndex, rbErr))
+				}
 				iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
 				if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
 					result.Degraded = append(result.Degraded,
-						fmt.Sprintf("persist iter-%d (during regression halt): %v", iterIndex, writeErr))
+						fmt.Sprintf("persist iter-%d (during pre-commit regression halt): %v", iterIndex, writeErr))
 				}
-				// Write the committed-but-flagged marker so operators can
-				// find flagged iterations by directory listing without
-				// parsing iter-<N>.json. Marker-write failure is soft.
-				if markErr := writeCommittedButFlaggedMarker(iterDir, iterIndex); markErr != nil {
-					result.Degraded = append(result.Degraded,
-						fmt.Sprintf("committed-but-flagged marker iter-%d: %v", iterIndex, markErr))
-				}
+				// NOTE (M8): writeCommittedButFlaggedMarker is NOT called
+				// on the pre-commit halt path — the iter never committed
+				// so there is nothing "committed but flagged" to mark.
+				// The legacy Option B path wrote that marker; Option A
+				// removes the concept on the regression-halt branch.
 				result.Iterations = append(result.Iterations, iter)
 				result.RegressionReason = fmt.Sprintf("iteration %d: %d metric(s) breached regression floor %g: %v",
 					iterIndex, len(regressions), opts.RegressionFloor, regressionNames(regressions))
@@ -471,8 +465,16 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			}
 			plateauReached := plateau.Observe(composite)
 			if plateauReached && !effectiveWarnOnly {
+				// Micro-epic 8: plateau halts also roll back pre-commit.
+				// A plateau is a strict-mode "no compounding" signal; no
+				// point committing a mutation that doesn't move fitness.
+				iter.Status = StatusHaltedOnRegressionPreCommit
 				iter.FinishedAt = time.Now()
 				iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+				if rbErr := cp.Rollback(); rbErr != nil {
+					result.Degraded = append(result.Degraded,
+						fmt.Sprintf("iter-%d rollback after pre-commit plateau halt: %v", iterIndex, rbErr))
+				}
 				iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
 				if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
 					result.Degraded = append(result.Degraded,
@@ -515,6 +517,42 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 				iter.Degraded = append(iter.Degraded,
 					fmt.Sprintf("warn-only budget remaining: %d", opts.WarnOnlyBudget.Remaining))
 			}
+		}
+
+		// --- COMMIT (Micro-epic 8 — moved post-MEASURE/DELTA) ---
+		// Fitness passed (or was tolerated under warn-only). Promote the
+		// staging tree into live so the next iteration sees the compounded
+		// corpus. Under Option A this is the first point at which the live
+		// ~/.agents/ tree is mutated — strict-mode regressions never reach
+		// this line because they rolled back and returned above.
+		if commitErr := cp.Commit(); commitErr != nil {
+			iter.Status = StatusFailed
+			iter.Error = fmt.Sprintf("commit: %v", commitErr)
+			iter.FinishedAt = time.Now()
+			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+				result.Degraded = append(result.Degraded,
+					fmt.Sprintf("persist iter-%d (during commit failure): %v", iterIndex, writeErr))
+			}
+			result.Iterations = append(result.Iterations, iter)
+			fmt.Fprintf(log, "overnight: iteration %d commit failed: %v\n", iterIndex, commitErr)
+			return result, fmt.Errorf("overnight: iteration %d commit: %w", iterIndex, commitErr)
+		}
+
+		// Post-commit metadata integrity check (ratchet-forward per pm-V7).
+		// Cannot unwind a successful commit; record a findings entry and
+		// surface via degraded so the morning report shows the strip.
+		// Under Option A this runs AFTER the pre-commit fitness gate, so a
+		// metadata strip on a fitness-passing iter is a distinct second-
+		// stage defect (not a fitness regression).
+		if postReport := VerifyMetadataRoundTripPostCommit(cp); !postReport.Pass {
+			msg := fmt.Sprintf("post-commit metadata integrity: %d stripped field(s)", len(postReport.StrippedFields))
+			iter.Degraded = append(iter.Degraded, msg)
+			fmt.Fprintf(log, "overnight: iteration %d %s\n", iterIndex, msg)
+			// Log a structured finding the router will intentionally skip
+			// (filename bypasses findingFilenameRe); surfaces in morning report.
+			_ = logPostCommitFinding(opts.Cwd, iterIndex, postReport)
 		}
 
 		iter.FinishedAt = time.Now()
