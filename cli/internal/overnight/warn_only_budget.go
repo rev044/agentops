@@ -112,7 +112,7 @@ func ReadBudget(repoRoot string) (WarnOnlyBudgetState, string) {
 	// schema. Clamp into [0, InitialBudget] and record a rescue reason.
 	if state.Remaining < 0 {
 		state.Remaining = 0
-		return state, fmt.Sprintf("warn-only budget out-of-range (negative), clamped to 0")
+		return state, "warn-only budget out-of-range (negative), clamped to 0"
 	}
 	if state.Remaining > state.InitialBudget {
 		remaining := state.Remaining

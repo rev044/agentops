@@ -105,12 +105,16 @@ func appendRPIC2Command(root string, input rpiC2CommandInput) (RPIC2Command, err
 	if err != nil {
 		return RPIC2Command{}, fmt.Errorf("open command log: %w", err)
 	}
-	defer file.Close()
 	if err := json.NewEncoder(file).Encode(record); err != nil {
+		_ = file.Close()
 		return RPIC2Command{}, fmt.Errorf("append command: %w", err)
 	}
 	if err := file.Sync(); err != nil {
+		_ = file.Close()
 		return RPIC2Command{}, fmt.Errorf("sync command log: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return RPIC2Command{}, fmt.Errorf("close command log: %w", err)
 	}
 
 	return record, nil
@@ -128,7 +132,7 @@ func loadRPIC2Commands(root, runID string) ([]RPIC2Command, error) {
 		}
 		return nil, fmt.Errorf("open command log: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 128*1024), 2*1024*1024)

@@ -36,7 +36,7 @@ func createTestCitation(t *testing.T, citationsPath, artifactPath string, citedA
 	if err != nil {
 		t.Fatalf("open citations file: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := f.Write(append(line, '\n')); err != nil {
 		t.Fatalf("write citation: %v", err)
 	}

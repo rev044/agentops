@@ -164,30 +164,18 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 		if state.TrackerMode == "tasklist" {
 			gateVerdict = "WARN"
 		}
-		if artifact, err := emitPhaseEvaluatorArtifact(cwd, state, 2, gateVerdict, nil); err != nil {
-			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", err)
-		} else if artifact != nil {
-			state.Verdicts["implementation_evaluator"] = artifact.Verdict
-		}
+		recordImplementationEvaluator(cwd, state, gateVerdict, nil)
 		return nil
 	}
 	// Plan-file mode: skip bd-dependent completion check
 	if isPlanFileEpic(state.EpicID) {
-		if artifact, err := emitPhaseEvaluatorArtifact(cwd, state, 2, "PASS", nil); err != nil {
-			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", err)
-		} else if artifact != nil {
-			state.Verdicts["implementation_evaluator"] = artifact.Verdict
-		}
+		recordImplementationEvaluator(cwd, state, "PASS", nil)
 		return nil
 	}
 	if isEpic, err := isEpicIssue(state.EpicID, state.Opts.BDCommand); err == nil && !isEpic {
 		fmt.Printf("Crank status: SKIP (non-epic issue %s)\n", state.EpicID)
 		logPhaseTransition(logPath, state.RunID, "implementation", fmt.Sprintf("crank status: SKIP (non-epic issue %s)", state.EpicID))
-		if artifact, evalErr := emitPhaseEvaluatorArtifact(cwd, state, 2, "SKIP", nil); evalErr != nil {
-			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", evalErr)
-		} else if artifact != nil {
-			state.Verdicts["implementation_evaluator"] = artifact.Verdict
-		}
+		recordImplementationEvaluator(cwd, state, "SKIP", nil)
 		return nil
 	} else if err != nil {
 		VerbosePrintf("Warning: could not determine issue type for %s (continuing with crank completion check): %v\n", state.EpicID, err)
@@ -200,11 +188,7 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 			Fix:         "Inspect the implementation artifacts and tracker state before treating implementation as finished.",
 			Ref:         latestRelativeArtifact(cwd, filepath.Join(".agents", "rpi", "execution-packet.json")),
 		}}
-		if artifact, evalErr := emitPhaseEvaluatorArtifact(cwd, state, 2, "WARN", findings); evalErr != nil {
-			VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", evalErr)
-		} else if artifact != nil {
-			state.Verdicts["implementation_evaluator"] = artifact.Verdict
-		}
+		recordImplementationEvaluator(cwd, state, "WARN", findings)
 		return nil
 	}
 	fmt.Printf("Crank status: %s\n", status)
@@ -217,25 +201,38 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 	})
 	logPhaseTransition(logPath, state.RunID, "implementation", fmt.Sprintf("crank status: %s", status))
 	findings := []finding{}
-	if status == "BLOCKED" || status == "PARTIAL" {
+	if implementationStatusBlocksValidation(status) {
 		findings = append(findings, finding{
 			Description: fmt.Sprintf("Crank reported %s for %s", status, state.EpicID),
 			Fix:         "Resolve the remaining blocked or incomplete work before validation continues.",
 			Ref:         latestRelativeArtifact(cwd, filepath.Join(".agents", "rpi", "execution-packet.json")),
 		})
 	}
-	if artifact, err := emitPhaseEvaluatorArtifact(cwd, state, 2, status, findings); err != nil {
-		VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", err)
-	} else if artifact != nil {
-		state.Verdicts["implementation_evaluator"] = artifact.Verdict
-		if status == "BLOCKED" || status == "PARTIAL" {
-			findings = artifact.Findings
-		}
-	}
-	if status == "BLOCKED" || status == "PARTIAL" {
+	findings = recordImplementationEvaluator(cwd, state, status, findings)
+	if implementationStatusBlocksValidation(status) {
 		return &gateFailError{Phase: 2, Verdict: status, Findings: findings, Report: "bd children " + state.EpicID}
 	}
 	return nil
+}
+
+func recordImplementationEvaluator(cwd string, state *phasedState, verdict string, findings []finding) []finding {
+	artifact, err := emitPhaseEvaluatorArtifact(cwd, state, 2, verdict, findings)
+	if err != nil {
+		VerbosePrintf("Warning: could not write implementation evaluator artifact: %v\n", err)
+		return findings
+	}
+	if artifact == nil {
+		return findings
+	}
+	state.Verdicts["implementation_evaluator"] = artifact.Verdict
+	if implementationStatusBlocksValidation(verdict) {
+		return artifact.Findings
+	}
+	return findings
+}
+
+func implementationStatusBlocksValidation(status string) bool {
+	return status == "BLOCKED" || status == "PARTIAL"
 }
 
 // processValidationPhase handles post-processing for the validation phase.

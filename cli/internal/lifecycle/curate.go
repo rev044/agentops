@@ -103,13 +103,14 @@ func FrontmatterString(fm map[string]any, key string) string {
 // GenerateArtifactID creates a unique ID based on artifact type, date, and content hash.
 func GenerateArtifactID(artifactType, date, content string) string {
 	var prefix string
-	if artifactType == "learning" {
+	switch artifactType {
+	case "learning":
 		prefix = "learn"
-	} else if artifactType == "decision" {
+	case "decision":
 		prefix = "decis"
-	} else if artifactType == "failure" {
+	case "failure":
 		prefix = "fail"
-	} else if artifactType == "pattern" {
+	case "pattern":
 		prefix = "patt"
 	}
 

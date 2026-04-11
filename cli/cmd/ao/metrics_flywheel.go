@@ -241,8 +241,7 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 
 	case "yaml":
 		enc := yaml.NewEncoder(w)
-		defer enc.Close()
-		return enc.Encode(map[string]any{
+		if err := enc.Encode(map[string]any{
 			"metric_namespace":            metricNamespace,
 			"status":                      metrics.HealthStatus(),
 			"delta":                       metrics.Delta,
@@ -255,7 +254,11 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 			"escape_velocity_compounding": metrics.AboveEscapeVelocity,
 			"scorecard":                   metrics.StigmergicScorecard,
 			"golden_signals":              metrics.GoldenSignals,
-		})
+		}); err != nil {
+			_ = enc.Close()
+			return err
+		}
+		return enc.Close()
 
 	default:
 		printFlywheelStatus(w, metrics)

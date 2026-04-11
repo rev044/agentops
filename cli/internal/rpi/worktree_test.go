@@ -1882,7 +1882,7 @@ func TestGenerateRunID_FormatContract(t *testing.T) {
 			t.Fatalf("expected 12-char ID, got %d chars: %q", len(id), id)
 		}
 		for _, c := range id {
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 				t.Fatalf("non-hex character %q in ID %q", c, id)
 			}
 		}

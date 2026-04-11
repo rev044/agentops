@@ -364,7 +364,7 @@ func RenderPlaybooksIndex(rows []PlaybookRow) string {
 		if row.Canonical {
 			canonical = "yes"
 		}
-		b.WriteString(fmt.Sprintf("| [%s](%s) | `%s` | `%s` |\n", row.Topic, row.Path, row.Health, canonical))
+		fmt.Fprintf(&b, "| [%s](%s) | `%s` | `%s` |\n", row.Topic, row.Path, row.Health, canonical)
 	}
 	return b.String()
 }
@@ -375,11 +375,11 @@ func RenderBeliefBook(outputPath, sourcePath string, coreBeliefs, operatingPrinc
 	datePrefix := time.Now().Format("2006-01-02")
 	var b strings.Builder
 	b.WriteString("---\n")
-	b.WriteString(fmt.Sprintf("id: knowledge-book-of-beliefs-%s\n", datePrefix))
+	fmt.Fprintf(&b, "id: knowledge-book-of-beliefs-%s\n", datePrefix)
 	b.WriteString("type: principle-book\n")
-	b.WriteString(fmt.Sprintf("date: %s\n", datePrefix))
+	fmt.Fprintf(&b, "date: %s\n", datePrefix)
 	if sourcePath != "" {
-		b.WriteString(fmt.Sprintf("source: %s\n", sourcePath))
+		fmt.Fprintf(&b, "source: %s\n", sourcePath)
 	}
 	b.WriteString("status: generated\n")
 	b.WriteString("---\n\n")
@@ -395,18 +395,18 @@ func RenderBeliefBook(outputPath, sourcePath string, coreBeliefs, operatingPrinc
 		"evolutionary promotion",
 		"governance",
 	} {
-		b.WriteString(fmt.Sprintf("- %s\n", primitive))
+		fmt.Fprintf(&b, "- %s\n", primitive)
 	}
 	b.WriteString("## Core Beliefs\n\n")
 	for idx, belief := range coreBeliefs {
-		b.WriteString(fmt.Sprintf("%d. %s\n", idx+1, belief))
+		fmt.Fprintf(&b, "%d. %s\n", idx+1, belief)
 	}
 	if len(coreBeliefs) == 0 {
 		b.WriteString("1. Promoted topic packets have not surfaced stable beliefs yet.\n")
 	}
 	b.WriteString("\n## Operating Principles\n\n")
 	for _, principle := range operatingPrinciples {
-		b.WriteString(fmt.Sprintf("- %s\n", principle))
+		fmt.Fprintf(&b, "- %s\n", principle)
 	}
 	if len(operatingPrinciples) == 0 {
 		b.WriteString("- No operating principles surfaced from the current topic packets.\n")
@@ -418,19 +418,19 @@ func RenderBeliefBook(outputPath, sourcePath string, coreBeliefs, operatingPrinc
 		"stigmergy -> stigmergic traces in the environment",
 		"flywheel -> evolutionary promotion after selection gates",
 	} {
-		b.WriteString(fmt.Sprintf("- %s\n", item))
+		fmt.Fprintf(&b, "- %s\n", item)
 	}
 	b.WriteString("\n## Thin-Topic Cautions\n\n")
 	if len(thinTopics) == 0 {
 		b.WriteString("- None surfaced\n")
 	} else {
 		for _, title := range thinTopics {
-			b.WriteString(fmt.Sprintf("- %s\n", title))
+			fmt.Fprintf(&b, "- %s\n", title)
 		}
 	}
 	b.WriteString("\n## Source Surfaces\n\n")
 	for _, source := range sourceSurfaces {
-		b.WriteString(fmt.Sprintf("- `%s`\n", source))
+		fmt.Fprintf(&b, "- `%s`\n", source)
 	}
 	if len(sourceSurfaces) == 0 {
 		b.WriteString("- No index surfaces were found.\n")

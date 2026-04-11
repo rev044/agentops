@@ -322,7 +322,7 @@ func dreamRunClaudeCouncil(ctx context.Context, cwd, model, schemaPath, prompt, 
 	if err != nil {
 		return err
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	args := []string{"-p", "--json-schema", schemaPath}
 	if model != "" {

@@ -178,7 +178,7 @@ func IsHashNamed(name string) bool {
 		return false
 	}
 	for _, c := range last {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 			return false
 		}
 	}
@@ -281,7 +281,7 @@ func SweepOscillatingGoals(cwd string) (*OscillationResult, error) {
 		}
 		return nil, fmt.Errorf("open cycle history: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	targetRecords := make(map[string][]CycleRecord)
 	scanner := bufio.NewScanner(f)

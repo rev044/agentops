@@ -27,8 +27,8 @@ func renderKnowledgeIndex(k *injectedKnowledge) string {
 		for _, l := range k.Learnings {
 			age := formatLookupAge(l.AgeWeeks)
 			title := truncateText(l.Title, 60)
-			sb.WriteString(fmt.Sprintf("| %s | %s | %s | %.2f |\n",
-				l.ID, title, age, l.CompositeScore))
+			fmt.Fprintf(&sb, "| %s | %s | %s | %.2f |\n",
+				l.ID, title, age, l.CompositeScore)
 		}
 		sb.WriteString("\n")
 	}
@@ -41,8 +41,8 @@ func renderKnowledgeIndex(k *injectedKnowledge) string {
 		sb.WriteString("|------|-------------|-------|\n")
 		for _, p := range k.Patterns {
 			desc := truncateText(p.Description, 60)
-			sb.WriteString(fmt.Sprintf("| %s | %s | %.2f |\n",
-				p.Name, desc, p.CompositeScore))
+			fmt.Fprintf(&sb, "| %s | %s | %.2f |\n",
+				p.Name, desc, p.CompositeScore)
 		}
 		sb.WriteString("\n")
 	}
@@ -52,7 +52,7 @@ func renderKnowledgeIndex(k *injectedKnowledge) string {
 	}
 
 	sb.WriteString("*Use `ao lookup <id>` to read full content. Use `ao lookup --query \"topic\"` to search.*\n")
-	sb.WriteString(fmt.Sprintf("*Last injection: %s*\n", k.Timestamp.Format(time.RFC3339)))
+	fmt.Fprintf(&sb, "*Last injection: %s*\n", k.Timestamp.Format(time.RFC3339))
 	return sb.String()
 }
 

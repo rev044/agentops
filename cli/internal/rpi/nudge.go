@@ -103,6 +103,9 @@ func AppendNudgeAudit(runDir string, record NudgeRecord) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	return json.NewEncoder(file).Encode(record)
+	if err := json.NewEncoder(file).Encode(record); err != nil {
+		_ = file.Close()
+		return err
+	}
+	return file.Close()
 }

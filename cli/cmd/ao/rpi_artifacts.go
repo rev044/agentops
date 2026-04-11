@@ -159,7 +159,7 @@ func readRunArtifactContent(root string, ref rpiArtifactRef, limit int64) (*rpiA
 	if err != nil {
 		return nil, fmt.Errorf("open artifact %s: %w", ref.Path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	data, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil {

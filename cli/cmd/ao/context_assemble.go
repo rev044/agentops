@@ -230,7 +230,7 @@ func gatherGoals(cwd string, budget int) string {
 	}
 
 	// Format goal summaries — failing gates first for priority.
-	sb.WriteString(fmt.Sprintf("Mission: %s\n\n", gf.Mission))
+	fmt.Fprintf(&sb, "Mission: %s\n\n", gf.Mission)
 
 	for _, g := range gf.Goals {
 		line := fmt.Sprintf("- **%s** (w:%d, type:%s): %s\n  Check: `%s`\n",
@@ -254,7 +254,7 @@ func gatherHistory(cwd string, budget int) string {
 		sb.WriteString("_No cycle history found._\n")
 		return truncateToCharBudget(sb.String(), budget)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Read all lines, keep last N.
 	var allLines []string
@@ -358,7 +358,7 @@ func readIntelDir(dir, kind string) []intelEntry {
 	for _, e := range entries {
 		name := e.Name()
 		lowerName := strings.ToLower(name)
-		if e.IsDir() || !(strings.HasSuffix(lowerName, ".md") || strings.HasSuffix(lowerName, ".json")) {
+		if e.IsDir() || (!strings.HasSuffix(lowerName, ".md") && !strings.HasSuffix(lowerName, ".json")) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(dir, name))
@@ -453,7 +453,7 @@ func logRedactions(cwd string, count int) {
 	if err != nil {
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	entry := fmt.Sprintf("%s: redacted %d item(s) during context assemble\n",
 		time.Now().UTC().Format(time.RFC3339), count)

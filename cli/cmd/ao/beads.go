@@ -708,13 +708,13 @@ func emitLintHuman(w *os.File, r *LintReport) {
 // each materialised learning file. Intentionally minimal — downstream
 // reducers handle enrichment.
 type LearningFrontmatter struct {
-	Title     string   `json:"title" yaml:"title"`
-	BeadID    string   `json:"bead_id" yaml:"bead_id"`
-	Source    string   `json:"source" yaml:"source"` // "bd-close"
-	Date      string   `json:"date" yaml:"date"`
-	Tags      []string `json:"tags,omitempty" yaml:"tags,omitempty"`
-	Maturity  string   `json:"maturity" yaml:"maturity"` // "provisional" — fresh harvest
-	Provenance string  `json:"provenance" yaml:"provenance"`
+	Title      string   `json:"title" yaml:"title"`
+	BeadID     string   `json:"bead_id" yaml:"bead_id"`
+	Source     string   `json:"source" yaml:"source"` // "bd-close"
+	Date       string   `json:"date" yaml:"date"`
+	Tags       []string `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Maturity   string   `json:"maturity" yaml:"maturity"` // "provisional" — fresh harvest
+	Provenance string   `json:"provenance" yaml:"provenance"`
 }
 
 func runBeadsHarvest(cmd *cobra.Command, args []string) error {
@@ -776,19 +776,19 @@ func runBeadsHarvest(cmd *cobra.Command, args []string) error {
 func renderLearningBody(fm LearningFrontmatter, parsed *bdShowParsed) string {
 	var b strings.Builder
 	b.WriteString("---\n")
-	b.WriteString(fmt.Sprintf("title: %q\n", fm.Title))
-	b.WriteString(fmt.Sprintf("bead_id: %s\n", fm.BeadID))
-	b.WriteString(fmt.Sprintf("source: %s\n", fm.Source))
-	b.WriteString(fmt.Sprintf("date: %s\n", fm.Date))
-	b.WriteString(fmt.Sprintf("maturity: %s\n", fm.Maturity))
-	b.WriteString(fmt.Sprintf("provenance: %q\n", fm.Provenance))
+	fmt.Fprintf(&b, "title: %q\n", fm.Title)
+	fmt.Fprintf(&b, "bead_id: %s\n", fm.BeadID)
+	fmt.Fprintf(&b, "source: %s\n", fm.Source)
+	fmt.Fprintf(&b, "date: %s\n", fm.Date)
+	fmt.Fprintf(&b, "maturity: %s\n", fm.Maturity)
+	fmt.Fprintf(&b, "provenance: %q\n", fm.Provenance)
 	b.WriteString("tags:\n")
 	for _, t := range fm.Tags {
-		b.WriteString(fmt.Sprintf("  - %s\n", t))
+		fmt.Fprintf(&b, "  - %s\n", t)
 	}
 	b.WriteString("---\n\n")
-	b.WriteString(fmt.Sprintf("# %s\n\n", fm.Title))
-	b.WriteString(fmt.Sprintf("Harvested from closed bead [%s] on %s.\n\n", fm.BeadID, fm.Date))
+	fmt.Fprintf(&b, "# %s\n\n", fm.Title)
+	fmt.Fprintf(&b, "Harvested from closed bead [%s] on %s.\n\n", fm.BeadID, fm.Date)
 	b.WriteString("## Closure reason\n\n")
 	b.WriteString(parsed.Body())
 	b.WriteString("\n")

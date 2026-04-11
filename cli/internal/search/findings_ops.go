@@ -224,7 +224,7 @@ func WriteFindingFileAtomic(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()

@@ -265,12 +265,12 @@ func writeLearning(root string, idx int, maturity string, opts FixtureOpts, rng 
 	// and the fixture seed; trigram overlap between two such bodies
 	// is far below the threshold.
 	var bodySb strings.Builder
-	bodySb.WriteString(fmt.Sprintf("# Synthetic Learning %03d\n\n", idx))
+	fmt.Fprintf(&bodySb, "# Synthetic Learning %03d\n\n", idx)
 	for line := 0; line < 12; line++ {
-		bodySb.WriteString(fmt.Sprintf("token-%d: %08x %08x %08x %08x\n",
-			line, rng.Uint32(), rng.Uint32(), rng.Uint32(), rng.Uint32()))
+		fmt.Fprintf(&bodySb, "token-%d: %08x %08x %08x %08x\n",
+			line, rng.Uint32(), rng.Uint32(), rng.Uint32(), rng.Uint32())
 	}
-	bodySb.WriteString(fmt.Sprintf("\nStable anchor: fixture-learning-%03d\n", idx))
+	fmt.Fprintf(&bodySb, "\nStable anchor: fixture-learning-%03d\n", idx)
 
 	content := fmt.Sprintf(`---
 title: Synthetic Learning %03d

@@ -29,7 +29,7 @@ var rpiWatchHTML []byte
 var (
 	rpiServePort        int
 	rpiServeRunID       string
-	rpiServeNoOpen bool
+	rpiServeNoOpen      bool
 	rpiServeOrchestrate bool
 	rpiServeRuntimeMode string
 	rpiServeRuntimeCmd  string
@@ -671,6 +671,6 @@ func openBrowserURL(url string) {
 		cmd = exec.Command("xdg-open", url)
 	}
 	if err := cmd.Start(); err == nil {
-		go cmd.Wait()
+		go func() { _ = cmd.Wait() }()
 	}
 }

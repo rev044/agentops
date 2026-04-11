@@ -130,6 +130,8 @@ type reduceStage struct {
 // callback field is nil, stage 5 is skipped with a degraded note; this
 // allows Wave 3 tests to exercise the rollback logic without needing
 // the full cmd/ao wiring (that lands in Wave 4).
+//
+//nolint:gocyclo // RunReduce keeps the REDUCE stage table and rollback boundary together.
 func RunReduce(
 	ctx context.Context,
 	opts RunLoopOptions,

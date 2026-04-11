@@ -323,7 +323,7 @@ func (s *Summarizer) GenerateResumptionContext(state SummarizeState) string {
 	writeBulletSection(&b, "## Critical Findings", state.CriticalFindings)
 	if state.CurrentTask != "" {
 		b.WriteString("## Current Task\n")
-		b.WriteString(fmt.Sprintf("%s\n\n", state.CurrentTask))
+		fmt.Fprintf(&b, "%s\n\n", state.CurrentTask)
 	}
 	writeChecklistSection(&b, "## Completed Tasks", state.CompletedTasks)
 	if state.Notes != "" {
@@ -339,7 +339,7 @@ func writeFilesSection(b *strings.Builder, files []string) {
 	b.WriteString("## Files Changed\n")
 	if len(files) > 0 {
 		for _, f := range files {
-			b.WriteString(fmt.Sprintf("- %s\n", f))
+			fmt.Fprintf(b, "- %s\n", f)
 		}
 	} else {
 		b.WriteString("No files changed yet.\n")
@@ -350,11 +350,11 @@ func writeFilesSection(b *strings.Builder, files []string) {
 // writeTestSection writes the test-status section including any failing tests.
 func writeTestSection(b *strings.Builder, status string, failing []string) {
 	b.WriteString("## Test Status\n")
-	b.WriteString(fmt.Sprintf("%s\n", status))
+	fmt.Fprintf(b, "%s\n", status)
 	if len(failing) > 0 {
 		b.WriteString("\nFailing tests:\n")
 		for _, t := range failing {
-			b.WriteString(fmt.Sprintf("- %s\n", t))
+			fmt.Fprintf(b, "- %s\n", t)
 		}
 	}
 	b.WriteString("\n")
@@ -367,7 +367,7 @@ func writeBulletSection(b *strings.Builder, heading string, items []string) {
 	}
 	b.WriteString(heading + "\n")
 	for _, item := range items {
-		b.WriteString(fmt.Sprintf("- %s\n", item))
+		fmt.Fprintf(b, "- %s\n", item)
 	}
 	b.WriteString("\n")
 }
@@ -379,7 +379,7 @@ func writeChecklistSection(b *strings.Builder, heading string, items []string) {
 	}
 	b.WriteString(heading + "\n")
 	for _, item := range items {
-		b.WriteString(fmt.Sprintf("- [x] %s\n", item))
+		fmt.Fprintf(b, "- [x] %s\n", item)
 	}
 	b.WriteString("\n")
 }

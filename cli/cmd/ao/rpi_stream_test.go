@@ -56,7 +56,7 @@ func TestWriteStreamEvent_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	event := RPIC2Event{
 		EventID:   "evt-001",
@@ -93,7 +93,7 @@ func TestWriteStreamEvent_SSE(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	event := RPIC2Event{
 		EventID:   "evt-002",
@@ -128,7 +128,7 @@ func TestWriteStreamEvent_Human(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	event := RPIC2Event{
 		EventID:   "evt-003",
@@ -168,7 +168,7 @@ func TestWriteStreamEvent_HumanDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Event with zero phase, empty worker, empty message, empty source
 	event := RPIC2Event{

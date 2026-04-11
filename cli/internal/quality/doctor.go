@@ -196,7 +196,7 @@ func CountFileLines(path string) int {
 	if err != nil {
 		return 0
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	count := 0
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 256*1024), 1024*1024)
@@ -273,7 +273,7 @@ func SHA256File(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err

@@ -44,11 +44,14 @@ func AppendTimeBoxedMarker(spawnCwd string, phaseNum int, phaseName string, budg
 	if err != nil {
 		return fmt.Errorf("open phase summary for marker: %w", err)
 	}
-	defer f.Close()
 
 	marker := fmt.Sprintf("[TIME-BOXED] Phase %s time-boxed at %ds (budget: %ds)\n", phaseName, int(budget.Seconds()), int(budget.Seconds()))
 	if _, err := f.WriteString(marker); err != nil {
+		_ = f.Close()
 		return fmt.Errorf("write time-box marker: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close phase summary marker: %w", err)
 	}
 	return nil
 }

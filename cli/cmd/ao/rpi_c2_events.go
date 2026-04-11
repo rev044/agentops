@@ -117,13 +117,16 @@ func appendRPIC2EventRecord(root string, ev RPIC2Event) error {
 	if err != nil {
 		return fmt.Errorf("open events log: %w", err)
 	}
-	defer file.Close()
-
 	if err := json.NewEncoder(file).Encode(ev); err != nil {
+		_ = file.Close()
 		return fmt.Errorf("append event: %w", err)
 	}
 	if err := file.Sync(); err != nil {
+		_ = file.Close()
 		return fmt.Errorf("sync event log: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close event log: %w", err)
 	}
 	return nil
 }
@@ -161,7 +164,7 @@ func loadRPIC2Events(root, runID string) ([]RPIC2Event, error) {
 		}
 		return nil, fmt.Errorf("open events log: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 128*1024), 2*1024*1024)
@@ -193,7 +196,7 @@ func appendRPIC2WorkerLogEvents(root, runID string, phaseNum int, backend, worke
 		}
 		return fmt.Errorf("open worker log %s: %w", logPath, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 128*1024), 2*1024*1024)

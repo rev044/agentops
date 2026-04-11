@@ -110,7 +110,7 @@ func renderRankedIntelSectionFromBundle(bundle rankedContextBundle, phase string
 		if len(section.Bullets) == 0 {
 			continue
 		}
-		sb.WriteString(fmt.Sprintf("### %s\n", section.Title))
+		fmt.Fprintf(&sb, "### %s\n", section.Title)
 		for _, bullet := range section.Bullets {
 			sb.WriteString("- ")
 			sb.WriteString(bullet)

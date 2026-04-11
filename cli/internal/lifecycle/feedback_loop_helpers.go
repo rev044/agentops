@@ -75,7 +75,7 @@ func LoadFeedbackLoopEvents(baseDir string) ([]FeedbackLoopEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close() //nolint:errcheck // read-only file, Close error non-actionable
+	defer func() { _ = f.Close() }() //nolint:errcheck // read-only file, Close error non-actionable
 
 	var events []FeedbackLoopEvent
 	decoder := json.NewDecoder(f)
@@ -167,7 +167,7 @@ func WriteFeedbackLoopEvents(baseDir string, events []FeedbackLoopEvent) error {
 	if err != nil {
 		return fmt.Errorf("open feedback file: %w", err)
 	}
-	defer f.Close() //nolint:errcheck // write-only file, Close error non-actionable
+	defer func() { _ = f.Close() }() //nolint:errcheck // write-only file, Close error non-actionable
 
 	for _, event := range events {
 		data, err := json.Marshal(event)

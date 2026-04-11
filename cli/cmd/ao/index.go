@@ -377,14 +377,14 @@ func writeIndex(dirPath, relDir string, entries []indexEntry, dryRun bool) error
 	today := time.Now().Format("2006-01-02")
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# Index: %s\n\n", dirName))
-	sb.WriteString(fmt.Sprintf("> Last rebuilt: %s | %d entries\n\n", today, len(entries)))
+	fmt.Fprintf(&sb, "# Index: %s\n\n", dirName)
+	fmt.Fprintf(&sb, "> Last rebuilt: %s | %d entries\n\n", today, len(entries))
 	sb.WriteString("## Entries\n\n")
 	sb.WriteString("| File | Date | Summary | Tags |\n")
 	sb.WriteString("|------|------|---------|------|\n")
 
 	for _, e := range entries {
-		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", e.Filename, e.Date, e.Summary, e.Tags))
+		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", e.Filename, e.Date, e.Summary, e.Tags)
 	}
 
 	if dryRun {
@@ -469,14 +469,14 @@ func parseIndexTableRows(content []byte) map[string]bool {
 // buildIndexDiffMessage formats a STALE message listing missing and extra files.
 func buildIndexDiffMessage(relDir string, missing, extra []string) string {
 	var msg strings.Builder
-	msg.WriteString(fmt.Sprintf("STALE %s:", relDir))
+	fmt.Fprintf(&msg, "STALE %s:", relDir)
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		msg.WriteString(fmt.Sprintf(" missing=[%s]", strings.Join(missing, ", ")))
+		fmt.Fprintf(&msg, " missing=[%s]", strings.Join(missing, ", "))
 	}
 	if len(extra) > 0 {
 		sort.Strings(extra)
-		msg.WriteString(fmt.Sprintf(" extra=[%s]", strings.Join(extra, ", ")))
+		fmt.Fprintf(&msg, " extra=[%s]", strings.Join(extra, ", "))
 	}
 	return msg.String()
 }

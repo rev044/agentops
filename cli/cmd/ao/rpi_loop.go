@@ -57,16 +57,16 @@ var (
 
 // Type aliases — canonical definitions live in internal/rpi.
 type (
-	nextWorkEntry              = rpi.NextWorkEntry
-	nextWorkProofRef           = rpi.NextWorkProofRef
-	nextWorkItem               = rpi.NextWorkItem
-	queueSelection             = rpi.QueueSelection
-	queuePreflightDecision     = rpi.QueuePreflightDecision
-	nextWorkProofDecision      = rpi.NextWorkProofDecision
-	evidenceOnlyClosureProof   = rpi.EvidenceOnlyClosureProof
-	evidenceOnlyClosurePacket  = rpi.EvidenceOnlyClosurePacket
-	loopCycleResult            = rpi.LoopCycleResult
-	compileProducerState       = rpi.CompileProducerState
+	nextWorkEntry             = rpi.NextWorkEntry
+	nextWorkProofRef          = rpi.NextWorkProofRef
+	nextWorkItem              = rpi.NextWorkItem
+	queueSelection            = rpi.QueueSelection
+	queuePreflightDecision    = rpi.QueuePreflightDecision
+	nextWorkProofDecision     = rpi.NextWorkProofDecision
+	evidenceOnlyClosureProof  = rpi.EvidenceOnlyClosureProof
+	evidenceOnlyClosurePacket = rpi.EvidenceOnlyClosurePacket
+	loopCycleResult           = rpi.LoopCycleResult
+	compileProducerState      = rpi.CompileProducerState
 )
 
 var errQueueClaimConflict = rpi.ErrQueueClaimConflict
@@ -763,7 +763,7 @@ func readQueueEntries(path string) ([]nextWorkEntry, error) {
 		}
 		return nil, fmt.Errorf("open next-work.jsonl: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var entries []nextWorkEntry
 	scanner := bufio.NewScanner(f)
@@ -846,14 +846,18 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 	return rpi.SelectHighestSeverityEntry(entries, repoFilter)
 }
 
-func freshnessRank(item nextWorkItem) int                          { return rpi.FreshnessRank(item) }
-func repoAffinityRank(item nextWorkItem, repoFilter string) int   { return rpi.RepoAffinityRank(item, repoFilter) }
-func workTypeRank(item nextWorkItem) int                           { return rpi.WorkTypeRank(item) }
-func selectHighestSeverityItem(items []nextWorkItem) string        { return rpi.SelectHighestSeverityItem(items) }
-func severityRank(s string) int                                    { return rpi.SeverityRank(s) }
-func isFullyConsumed(entry *nextWorkEntry) bool                    { return rpi.IsFullyConsumed(entry) }
-func entryConsumedTime(entry *nextWorkEntry) time.Time             { return rpi.EntryConsumedTime(entry) }
-func recomputeEntryLifecycle(entry *nextWorkEntry)                 { rpi.RecomputeEntryLifecycle(entry) }
+func freshnessRank(item nextWorkItem) int { return rpi.FreshnessRank(item) }
+func repoAffinityRank(item nextWorkItem, repoFilter string) int {
+	return rpi.RepoAffinityRank(item, repoFilter)
+}
+func workTypeRank(item nextWorkItem) int { return rpi.WorkTypeRank(item) }
+func selectHighestSeverityItem(items []nextWorkItem) string {
+	return rpi.SelectHighestSeverityItem(items)
+}
+func severityRank(s string) int                        { return rpi.SeverityRank(s) }
+func isFullyConsumed(entry *nextWorkEntry) bool        { return rpi.IsFullyConsumed(entry) }
+func entryConsumedTime(entry *nextWorkEntry) time.Time { return rpi.EntryConsumedTime(entry) }
+func recomputeEntryLifecycle(entry *nextWorkEntry)     { rpi.RecomputeEntryLifecycle(entry) }
 
 func ensureQueueItemClaimable(status string, currentClaimedBy *string, claimedBy string) error {
 	return rpi.EnsureQueueItemClaimable(status, currentClaimedBy, claimedBy)

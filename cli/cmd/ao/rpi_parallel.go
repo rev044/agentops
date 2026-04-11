@@ -393,7 +393,7 @@ func runParallelEpic(epic parallelEpic, worktreePath, branch, runtimeCmd, logFil
 		result.Error = fmt.Errorf("create log file: %w", err)
 		return result
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Build the phased command. Use `ao rpi phased` if ao is on PATH,
 	// otherwise fall back to spawning the runtime directly.

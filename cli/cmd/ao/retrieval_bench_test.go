@@ -53,7 +53,7 @@ func seedCorpus(t *testing.T) string {
 	}
 
 	for _, e := range entries {
-		if e.IsDir() || !(strings.HasSuffix(e.Name(), ".md") || strings.HasSuffix(e.Name(), ".json")) {
+		if e.IsDir() || (!strings.HasSuffix(e.Name(), ".md") && !strings.HasSuffix(e.Name(), ".json")) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(corpusDir, e.Name()))

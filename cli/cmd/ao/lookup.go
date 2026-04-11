@@ -211,10 +211,10 @@ func outputLearning(cwd string, l learning) error {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("## %s\n\n", l.ID))
-	sb.WriteString(fmt.Sprintf("**%s**\n", l.Title))
-	sb.WriteString(fmt.Sprintf("Utility: %.2f | Age: %s | Score: %.2f\n\n",
-		l.Utility, formatLookupAge(l.AgeWeeks), l.CompositeScore))
+	fmt.Fprintf(&sb, "## %s\n\n", l.ID)
+	fmt.Fprintf(&sb, "**%s**\n", l.Title)
+	fmt.Fprintf(&sb, "Utility: %.2f | Age: %s | Score: %.2f\n\n",
+		l.Utility, formatLookupAge(l.AgeWeeks), l.CompositeScore)
 	if l.Summary != "" {
 		sb.WriteString(l.Summary + "\n\n")
 	}
@@ -229,11 +229,11 @@ func outputLearning(cwd string, l learning) error {
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("\nSource: %s\n", relPath(cwd, l.Source)))
+	fmt.Fprintf(&sb, "\nSource: %s\n", relPath(cwd, l.Source))
 	if l.SourceBead != "" {
-		sb.WriteString(fmt.Sprintf("Source bead: %s", l.SourceBead))
+		fmt.Fprintf(&sb, "Source bead: %s", l.SourceBead)
 		if l.SourcePhase != "" {
-			sb.WriteString(fmt.Sprintf(" | Phase: %s", l.SourcePhase))
+			fmt.Fprintf(&sb, " | Phase: %s", l.SourcePhase)
 		}
 		sb.WriteString("\n")
 	}
@@ -270,12 +270,12 @@ func outputPattern(cwd string, p pattern) error {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("## %s\n\n", p.Name))
+	fmt.Fprintf(&sb, "## %s\n\n", p.Name)
 	if p.Description != "" {
 		sb.WriteString(p.Description + "\n\n")
 	}
-	sb.WriteString(fmt.Sprintf("Utility: %.2f | Age: %s | Score: %.2f\n\n",
-		p.Utility, formatLookupAge(p.AgeWeeks), p.CompositeScore))
+	fmt.Fprintf(&sb, "Utility: %.2f | Age: %s | Score: %.2f\n\n",
+		p.Utility, formatLookupAge(p.AgeWeeks), p.CompositeScore)
 
 	if p.FilePath != "" {
 		content, err := os.ReadFile(p.FilePath)
@@ -283,7 +283,7 @@ func outputPattern(cwd string, p pattern) error {
 			sb.WriteString("---\n")
 			sb.WriteString(string(content))
 		}
-		sb.WriteString(fmt.Sprintf("\nSource: %s\n", relPath(cwd, p.FilePath)))
+		fmt.Fprintf(&sb, "\nSource: %s\n", relPath(cwd, p.FilePath))
 	}
 
 	fmt.Println(sb.String())
@@ -311,16 +311,16 @@ func outputFinding(cwd string, f knowledgeFinding) error {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("## %s\n\n", f.ID))
+	fmt.Fprintf(&sb, "## %s\n\n", f.ID)
 	if f.Title != "" {
-		sb.WriteString(fmt.Sprintf("**%s**\n", f.Title))
+		fmt.Fprintf(&sb, "**%s**\n", f.Title)
 	}
 	if f.Severity != "" || f.Detectability != "" || f.Status != "" {
-		sb.WriteString(fmt.Sprintf("Severity: %s | Detectability: %s | Status: %s\n",
-			emptyIfMissing(f.Severity), emptyIfMissing(f.Detectability), emptyIfMissing(f.Status)))
+		fmt.Fprintf(&sb, "Severity: %s | Detectability: %s | Status: %s\n",
+			emptyIfMissing(f.Severity), emptyIfMissing(f.Detectability), emptyIfMissing(f.Status))
 	}
-	sb.WriteString(fmt.Sprintf("Utility: %.2f | Age: %s | Score: %.2f\n\n",
-		f.Utility, formatLookupAge(f.AgeWeeks), f.CompositeScore))
+	fmt.Fprintf(&sb, "Utility: %.2f | Age: %s | Score: %.2f\n\n",
+		f.Utility, formatLookupAge(f.AgeWeeks), f.CompositeScore)
 	if f.Summary != "" {
 		sb.WriteString(f.Summary + "\n\n")
 	}
@@ -330,7 +330,7 @@ func outputFinding(cwd string, f knowledgeFinding) error {
 			sb.WriteString("---\n")
 			sb.WriteString(string(content))
 		}
-		sb.WriteString(fmt.Sprintf("\nSource: %s\n", relPath(cwd, f.Source)))
+		fmt.Fprintf(&sb, "\nSource: %s\n", relPath(cwd, f.Source))
 	}
 
 	fmt.Println(sb.String())
@@ -527,7 +527,7 @@ func formatLearningEvidenceBlock(l learning) string {
 			sb.WriteString(")")
 		}
 		if l.MatchConfidence > 0 {
-			sb.WriteString(fmt.Sprintf(" | Match: %.2f", l.MatchConfidence))
+			fmt.Fprintf(&sb, " | Match: %.2f", l.MatchConfidence)
 		}
 		sb.WriteString("\n")
 	}

@@ -284,7 +284,7 @@ func WriteLockPID(lockPath string) error {
 	if err != nil {
 		return fmt.Errorf("overnight: open lock for write: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := fmt.Fprintf(f, "%d\n", os.Getpid()); err != nil {
 		return fmt.Errorf("overnight: write pid to lock: %w", err)
 	}

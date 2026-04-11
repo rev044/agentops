@@ -1272,7 +1272,7 @@ func writeMDLearning(t *testing.T, dir, name string, frontMatter map[string]stri
 	var sb strings.Builder
 	sb.WriteString("---\n")
 	for k, v := range frontMatter {
-		sb.WriteString(fmt.Sprintf("%s: %s\n", k, v))
+		fmt.Fprintf(&sb, "%s: %s\n", k, v)
 	}
 	sb.WriteString("---\n")
 	sb.WriteString(body)
@@ -1682,4 +1682,3 @@ func TestMergeJSONData_UnmarshalError(t *testing.T) {
 		t.Errorf("expected 'parse learning for update' in error, got: %v", err)
 	}
 }
-

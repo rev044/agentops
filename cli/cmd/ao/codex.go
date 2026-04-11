@@ -865,13 +865,13 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 	sourceLinks := codexStartupSourceLinks(cwd, agentsRoot, briefings, playbooks)
 	var sb strings.Builder
 	sb.WriteString("# Codex Startup Context\n\n")
-	sb.WriteString(fmt.Sprintf("- Runtime: %s\n", profile.Runtime))
-	sb.WriteString(fmt.Sprintf("- Lifecycle mode: %s\n", profile.Mode))
+	fmt.Fprintf(&sb, "- Runtime: %s\n", profile.Runtime)
+	fmt.Fprintf(&sb, "- Lifecycle mode: %s\n", profile.Mode)
 	if profile.ThreadName != "" {
-		sb.WriteString(fmt.Sprintf("- Thread: %s\n", profile.ThreadName))
+		fmt.Fprintf(&sb, "- Thread: %s\n", profile.ThreadName)
 	}
 	if query != "" {
-		sb.WriteString(fmt.Sprintf("- Query: %s\n", query))
+		fmt.Fprintf(&sb, "- Query: %s\n", query)
 	}
 	if showNewUserWelcome {
 		sb.WriteString("\n## New Here?\n")
@@ -881,11 +881,11 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 	}
 	sb.WriteString("\n## Briefings\n")
 	if len(briefings) == 0 {
-		sb.WriteString(fmt.Sprintf("- No recent knowledge briefing surfaced. Build one with `ao knowledge brief --goal %q` when workspace builders are available.\n", query))
+		fmt.Fprintf(&sb, "- No recent knowledge briefing surfaced. Build one with `ao knowledge brief --goal %q` when workspace builders are available.\n", query)
 	} else {
 		sb.WriteString("- Treat matched knowledge briefings as the primary dynamic surface for this thread; use the ranked context below as supporting operator state.\n")
 		for _, item := range briefings {
-			sb.WriteString(fmt.Sprintf("- %s\n", item.Title))
+			fmt.Fprintf(&sb, "- %s\n", item.Title)
 		}
 	}
 	sb.WriteString("\n## Operator Model\n")
@@ -893,7 +893,7 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 	sb.WriteString("- Treat the control plane as the product; actors are replaceable executors and the environment carries memory, coordination, trust, and adaptation.\n")
 	operatorModelPath := filepath.Join(agentsRoot, "knowledge", "operator-model.md")
 	if fileExists(operatorModelPath) {
-		sb.WriteString(fmt.Sprintf("- Doctrine: `%s`\n", displayKnowledgeContextPath(cwd, operatorModelPath)))
+		fmt.Fprintf(&sb, "- Doctrine: `%s`\n", displayKnowledgeContextPath(cwd, operatorModelPath))
 	}
 	sb.WriteString("\n## Startup Slots\n")
 	sb.WriteString("This startup surface is fixed-slot and file-backed: a few beliefs, one healthy playbook, concrete blockers, and source links.\n\n")
@@ -902,7 +902,7 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 		sb.WriteString("- No stable beliefs surfaced yet.\n")
 	} else {
 		for _, belief := range beliefs {
-			sb.WriteString(fmt.Sprintf("- %s\n", belief))
+			fmt.Fprintf(&sb, "- %s\n", belief)
 		}
 	}
 	sb.WriteString("\n### Relevant Playbook\n")
@@ -914,7 +914,7 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 			if summary == "" {
 				summary = "Use the healthy operator playbook for bounded execution."
 			}
-			sb.WriteString(fmt.Sprintf("- %s: %s (`%s`)\n", playbook.Title, summary, displayKnowledgeContextPath(cwd, playbook.Path)))
+			fmt.Fprintf(&sb, "- %s: %s (`%s`)\n", playbook.Title, summary, displayKnowledgeContextPath(cwd, playbook.Path))
 		}
 	}
 	sb.WriteString("\n### Warnings / Blockers\n")
@@ -922,7 +922,7 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 		sb.WriteString("- No high-signal blockers surfaced from current operator artifacts.\n")
 	} else {
 		for _, warning := range warnings {
-			sb.WriteString(fmt.Sprintf("- %s\n", warning))
+			fmt.Fprintf(&sb, "- %s\n", warning)
 		}
 	}
 	sb.WriteString("\n### Source Links\n")
@@ -930,7 +930,7 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 		sb.WriteString("- No source links surfaced.\n")
 	} else {
 		for _, source := range sourceLinks {
-			sb.WriteString(fmt.Sprintf("- %s\n", source))
+			fmt.Fprintf(&sb, "- %s\n", source)
 		}
 	}
 	sb.WriteString("\n## Degraded Mode\n")
@@ -938,7 +938,7 @@ func writeCodexStartupContext(cwd string, profile lifecycleRuntimeProfile, query
 	sb.WriteString("- Startup context assembly stays file-backed and does not silently depend on a healthy CAS index.\n")
 	sb.WriteString("\n## Excluded By Default\n")
 	for _, bullet := range codexStartupExclusionBullets() {
-		sb.WriteString(fmt.Sprintf("- %s\n", bullet))
+		fmt.Fprintf(&sb, "- %s\n", bullet)
 	}
 
 	path := filepath.Join(cwd, ".agents", "ao", "codex", "startup-context.md")

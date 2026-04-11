@@ -278,10 +278,10 @@ func UpdateMarkdownUtility(path string, reward, alpha float64, explicitHelpful, 
 
 	var sb strings.Builder
 	sb.WriteString("---\n")
-	sb.WriteString(fmt.Sprintf("utility: %.4f\n", newUtility))
-	sb.WriteString(fmt.Sprintf("last_reward: %.2f\n", reward))
+	fmt.Fprintf(&sb, "utility: %.4f\n", newUtility)
+	fmt.Fprintf(&sb, "last_reward: %.2f\n", reward)
 	sb.WriteString("reward_count: 1\n")
-	sb.WriteString(fmt.Sprintf("last_reward_at: %s\n", time.Now().Format(time.RFC3339)))
+	fmt.Fprintf(&sb, "last_reward_at: %s\n", time.Now().Format(time.RFC3339))
 	sb.WriteString("---\n")
 	sb.WriteString(text)
 	return oldUtility, newUtility, os.WriteFile(path, []byte(sb.String()), 0600)
@@ -301,7 +301,7 @@ func NeedsUtilityMigration(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer f.Close() //nolint:errcheck
+	defer func() { _ = f.Close() }() //nolint:errcheck
 
 	scanner := bufio.NewScanner(f)
 	if scanner.Scan() {

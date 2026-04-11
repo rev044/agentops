@@ -32,7 +32,7 @@ func (g *gcExecutor) Execute(ctx context.Context, prompt, cwd, runID string, pha
 		return fmt.Errorf("gc executor: not ready: %s", reason)
 	}
 
-	gcEmitPhaseEvent(cityPath, phaseNum, "started", runID, g.execCommand, g.lookPath)
+	_ = gcEmitPhaseEvent(cityPath, phaseNum, "started", runID, g.execCommand, g.lookPath)
 
 	sessionAlias := fmt.Sprintf("rpi-%s-p%d", runID, phaseNum)
 	if err := gcRunCommand(g.execCommand, cityPath, "session", "new", "--alias", sessionAlias, "--template", "worker"); err != nil {
@@ -71,7 +71,7 @@ func (g *gcExecutor) pollSessionCompletion(ctx context.Context, cityPath, sessio
 	for {
 		select {
 		case <-ctx.Done():
-			gcEmitPhaseEvent(cityPath, phaseNum, "cancelled", runID, g.execCommand, g.lookPath)
+			_ = gcEmitPhaseEvent(cityPath, phaseNum, "cancelled", runID, g.execCommand, g.lookPath)
 			return ctx.Err()
 		case <-deadline:
 			return fmt.Errorf("gc executor: phase %d timed out after %v", phaseNum, timeout)
@@ -81,7 +81,7 @@ func (g *gcExecutor) pollSessionCompletion(ctx context.Context, cityPath, sessio
 				continue // transient error, retry on next tick
 			}
 			if done {
-				gcEmitPhaseEvent(cityPath, phaseNum, "complete", runID, g.execCommand, g.lookPath)
+				_ = gcEmitPhaseEvent(cityPath, phaseNum, "complete", runID, g.execCommand, g.lookPath)
 				return nil
 			}
 		}

@@ -499,7 +499,7 @@ func copyFile(src, dst string, mode os.FileMode) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	// Ensure regular permissions at minimum; preserve src mode bits.
 	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode.Perm())

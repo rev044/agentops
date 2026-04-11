@@ -271,7 +271,7 @@ func setupGitignore(cwd string, dryRun, stealth bool) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close() //nolint:errcheck // best-effort close
+	defer func() { _ = f.Close() }() //nolint:errcheck // best-effort close
 
 	// Check if file is non-empty and doesn't end with newline
 	info, _ := f.Stat()
@@ -315,7 +315,7 @@ func fileContainsLine(path, text string) bool {
 	if err != nil {
 		return false
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {

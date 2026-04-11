@@ -170,7 +170,7 @@ func readLatestCodexSessionIndexEntry(homeDir string) (*codexSessionIndexEntry, 
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var latest *codexSessionIndexEntry
 	var latestAt time.Time
@@ -211,7 +211,7 @@ func readCodexSessionIndexEntry(homeDir, sessionID string) (*codexSessionIndexEn
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 128*1024), 1024*1024)
@@ -241,7 +241,7 @@ func readAllCodexHistoryEntries(homeDir string) ([]codexHistoryEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var entries []codexHistoryEntry
 	scanner := bufio.NewScanner(f)

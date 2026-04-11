@@ -224,7 +224,7 @@ func defaultEvaluatorFindings(phaseNum int, state *phasedState, gateVerdict stri
 	rpiFindings := rpi.DefaultEvaluatorFindings(phaseNum, trackerMode, gateVerdict, hasTranscript, reward, transcriptPath, ref)
 	out := make([]finding, len(rpiFindings))
 	for i, f := range rpiFindings {
-		out[i] = finding{Description: f.Description, Fix: f.Fix, Ref: f.Ref}
+		out[i] = finding(f)
 	}
 	return out
 }
@@ -232,12 +232,12 @@ func defaultEvaluatorFindings(phaseNum int, state *phasedState, gateVerdict stri
 func uniqueFindings(items []finding) []finding {
 	rpiItems := make([]rpi.Finding, len(items))
 	for i, f := range items {
-		rpiItems[i] = rpi.Finding{Description: f.Description, Fix: f.Fix, Ref: f.Ref}
+		rpiItems[i] = rpi.Finding(f)
 	}
 	deduped := rpi.UniqueFindings(rpiItems)
 	out := make([]finding, len(deduped))
 	for i, f := range deduped {
-		out[i] = finding{Description: f.Description, Fix: f.Fix, Ref: f.Ref}
+		out[i] = finding(f)
 	}
 	return out
 }

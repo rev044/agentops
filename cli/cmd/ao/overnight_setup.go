@@ -506,7 +506,7 @@ WantedBy=timers.target
 func recommendedDreamSetupCommands(summary dreamSetupSummary) []string {
 	cmds := []string{
 		`ao overnight start`,
-		fmt.Sprintf(`ao config --show --json`),
+		`ao config --show --json`,
 	}
 	for _, path := range []string{summary.GeneratedFiles["launchd"], summary.GeneratedFiles["cron"], summary.GeneratedFiles["systemd_timer"]} {
 		if path != "" {
@@ -531,34 +531,37 @@ func outputDreamSetupSummary(summary dreamSetupSummary) error {
 		return enc.Encode(summary)
 	case "yaml":
 		enc := yaml.NewEncoder(os.Stdout)
-		defer enc.Close()
-		return enc.Encode(summary)
+		if err := enc.Encode(summary); err != nil {
+			_ = enc.Close()
+			return err
+		}
+		return enc.Close()
 	default:
 		var b strings.Builder
 		b.WriteString("# Dream Setup\n\n")
-		b.WriteString(fmt.Sprintf("- Status: `%s`\n", summary.Status))
-		b.WriteString(fmt.Sprintf("- Repo: `%s`\n", summary.RepoRoot))
-		b.WriteString(fmt.Sprintf("- Config: `%s`\n", summary.ConfigPath))
-		b.WriteString(fmt.Sprintf("- Host: `%s` / `%s`\n", summary.Host.OS, summary.Host.DeviceClass))
-		b.WriteString(fmt.Sprintf("- Recommended mode: `%s`\n", summary.Host.RecommendedMode))
+		fmt.Fprintf(&b, "- Status: `%s`\n", summary.Status)
+		fmt.Fprintf(&b, "- Repo: `%s`\n", summary.RepoRoot)
+		fmt.Fprintf(&b, "- Config: `%s`\n", summary.ConfigPath)
+		fmt.Fprintf(&b, "- Host: `%s` / `%s`\n", summary.Host.OS, summary.Host.DeviceClass)
+		fmt.Fprintf(&b, "- Recommended mode: `%s`\n", summary.Host.RecommendedMode)
 		b.WriteString("\n## Runtimes\n\n")
 		for _, rt := range summary.Runtimes {
-			b.WriteString(fmt.Sprintf("- `%s`: available=%t supported=%t", rt.Name, rt.Available, rt.Supported))
+			fmt.Fprintf(&b, "- `%s`: available=%t supported=%t", rt.Name, rt.Available, rt.Supported)
 			if rt.Note != "" {
-				b.WriteString(fmt.Sprintf(" (%s)", rt.Note))
+				fmt.Fprintf(&b, " (%s)", rt.Note)
 			}
 			b.WriteString("\n")
 		}
 		b.WriteString("\n## Dream Config Preview\n\n")
-		b.WriteString(fmt.Sprintf("- runners: `%v`\n", summary.DreamConfig.Runners))
-		b.WriteString(fmt.Sprintf("- scheduler_mode: `%s`\n", summary.DreamConfig.SchedulerMode))
+		fmt.Fprintf(&b, "- runners: `%v`\n", summary.DreamConfig.Runners)
+		fmt.Fprintf(&b, "- scheduler_mode: `%s`\n", summary.DreamConfig.SchedulerMode)
 		if summary.DreamConfig.ScheduleAt != "" {
-			b.WriteString(fmt.Sprintf("- schedule_at: `%s`\n", summary.DreamConfig.ScheduleAt))
+			fmt.Fprintf(&b, "- schedule_at: `%s`\n", summary.DreamConfig.ScheduleAt)
 		}
 		if summary.DreamConfig.KeepAwake != nil {
-			b.WriteString(fmt.Sprintf("- keep_awake: `%t`\n", *summary.DreamConfig.KeepAwake))
+			fmt.Fprintf(&b, "- keep_awake: `%t`\n", *summary.DreamConfig.KeepAwake)
 		}
-		b.WriteString(fmt.Sprintf("- consensus_policy: `%s`\n", summary.DreamConfig.ConsensusPolicy))
+		fmt.Fprintf(&b, "- consensus_policy: `%s`\n", summary.DreamConfig.ConsensusPolicy)
 		if len(summary.GeneratedFiles) > 0 {
 			b.WriteString("\n## Generated Files\n\n")
 			keys := make([]string, 0, len(summary.GeneratedFiles))
@@ -567,13 +570,13 @@ func outputDreamSetupSummary(summary dreamSetupSummary) error {
 			}
 			sort.Strings(keys)
 			for _, key := range keys {
-				b.WriteString(fmt.Sprintf("- `%s`: `%s`\n", key, summary.GeneratedFiles[key]))
+				fmt.Fprintf(&b, "- `%s`: `%s`\n", key, summary.GeneratedFiles[key])
 			}
 		}
 		if len(summary.Warnings) > 0 {
 			b.WriteString("\n## Warnings\n\n")
 			for _, warning := range summary.Warnings {
-				b.WriteString(fmt.Sprintf("- %s\n", warning))
+				fmt.Fprintf(&b, "- %s\n", warning)
 			}
 		}
 		b.WriteString("\n## Next Action\n\n")

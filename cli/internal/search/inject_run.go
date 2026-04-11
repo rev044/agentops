@@ -136,7 +136,7 @@ func FormatKnowledgeMarkdown(k *InjectedKnowledge, compactText func(string) stri
 	if k.Predecessor == nil && len(k.Learnings) == 0 && len(k.Patterns) == 0 && len(k.Sessions) == 0 && len(k.OLConstraints) == 0 {
 		sb.WriteString("*No prior knowledge found.*\n\n")
 	}
-	sb.WriteString(fmt.Sprintf("*Last injection: %s*\n", k.Timestamp.Format(time.RFC3339)))
+	fmt.Fprintf(&sb, "*Last injection: %s*\n", k.Timestamp.Format(time.RFC3339))
 	return sb.String()
 }
 
@@ -174,7 +174,7 @@ func WriteLearningsSection(sb *strings.Builder, learnings []Learning, compactTex
 			}
 			text += ")"
 		}
-		sb.WriteString(fmt.Sprintf("- **%s**: %s\n", l.ID, text))
+		fmt.Fprintf(sb, "- **%s**: %s\n", l.ID, text)
 	}
 	sb.WriteString("\n")
 }
@@ -187,9 +187,9 @@ func WritePatternsSection(sb *strings.Builder, patterns []Pattern) {
 	sb.WriteString("### Active Patterns\n")
 	for _, p := range patterns {
 		if p.Description != "" {
-			sb.WriteString(fmt.Sprintf("- **%s**: %s\n", p.Name, p.Description))
+			fmt.Fprintf(sb, "- **%s**: %s\n", p.Name, p.Description)
 		} else {
-			sb.WriteString(fmt.Sprintf("- **%s**\n", p.Name))
+			fmt.Fprintf(sb, "- **%s**\n", p.Name)
 		}
 	}
 	sb.WriteString("\n")
@@ -202,7 +202,7 @@ func WriteSessionsSection(sb *strings.Builder, sessions []Session) {
 	}
 	sb.WriteString("### Recent Sessions\n")
 	for _, s := range sessions {
-		sb.WriteString(fmt.Sprintf("- [%s] %s\n", s.Date, s.Summary))
+		fmt.Fprintf(sb, "- [%s] %s\n", s.Date, s.Summary)
 	}
 	sb.WriteString("\n")
 }
@@ -214,7 +214,7 @@ func WriteConstraintsSection(sb *strings.Builder, constraints []OLConstraint) {
 	}
 	sb.WriteString("### Olympus Constraints\n")
 	for _, c := range constraints {
-		sb.WriteString(fmt.Sprintf("- **[olympus constraint]** %s: %s\n", c.Pattern, c.Detection))
+		fmt.Fprintf(sb, "- **[olympus constraint]** %s: %s\n", c.Pattern, c.Detection)
 	}
 	sb.WriteString("\n")
 }
@@ -226,23 +226,23 @@ func WritePredecessorSection(sb *strings.Builder, pred *PredecessorContext) {
 	}
 	sb.WriteString("### Predecessor Context")
 	if pred.SessionAge != "" {
-		sb.WriteString(fmt.Sprintf(" (%s ago)", pred.SessionAge))
+		fmt.Fprintf(sb, " (%s ago)", pred.SessionAge)
 	}
 	sb.WriteString("\n")
 	if pred.WorkingOn != "" {
-		sb.WriteString(fmt.Sprintf("- **Working on:** %s\n", pred.WorkingOn))
+		fmt.Fprintf(sb, "- **Working on:** %s\n", pred.WorkingOn)
 	}
 	if pred.Progress != "" {
-		sb.WriteString(fmt.Sprintf("- **Progress:** %s\n", pred.Progress))
+		fmt.Fprintf(sb, "- **Progress:** %s\n", pred.Progress)
 	}
 	if pred.Blocker != "" {
-		sb.WriteString(fmt.Sprintf("- **Blocker:** %s\n", pred.Blocker))
+		fmt.Fprintf(sb, "- **Blocker:** %s\n", pred.Blocker)
 	}
 	if pred.NextStep != "" {
-		sb.WriteString(fmt.Sprintf("- **Next step:** %s\n", pred.NextStep))
+		fmt.Fprintf(sb, "- **Next step:** %s\n", pred.NextStep)
 	}
 	if pred.RawSummary != "" && pred.Progress == "" {
-		sb.WriteString(fmt.Sprintf("- %s\n", pred.RawSummary))
+		fmt.Fprintf(sb, "- %s\n", pred.RawSummary)
 	}
 	sb.WriteString("\n")
 }

@@ -349,7 +349,7 @@ func parseOrchestrationLog(logPath string) ([]rpiRun, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open log: %w", err)
 	}
-	defer f.Close() //nolint:errcheck
+	defer func() { _ = f.Close() }() //nolint:errcheck
 
 	state := cliRPI.NewOrchestrationLogState()
 

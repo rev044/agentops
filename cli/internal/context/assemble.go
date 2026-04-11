@@ -12,7 +12,7 @@ import (
 // FormatHistoryEntry formats a cycle-history JSON entry into a numbered Markdown section.
 func FormatHistoryEntry(entry map[string]interface{}, index int) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("### Entry %d\n", index))
+	fmt.Fprintf(&sb, "### Entry %d\n", index)
 
 	type historyField struct {
 		label   string
@@ -37,7 +37,7 @@ func FormatHistoryEntry(entry map[string]interface{}, index int) string {
 
 	for _, field := range fields {
 		if v, ok := LookupHistoryField(entry, field.primary, field.aliases...); ok && v != nil {
-			sb.WriteString(fmt.Sprintf("- **%s**: %v\n", field.label, FormatHistoryValue(v)))
+			fmt.Fprintf(&sb, "- **%s**: %v\n", field.label, FormatHistoryValue(v))
 		}
 	}
 	sb.WriteString("\n")
@@ -166,7 +166,7 @@ type AssembledSection struct {
 func ComposeBriefingMarkdown(sections []AssembledSection) string {
 	var sb strings.Builder
 	sb.WriteString("# Context Briefing\n\n")
-	sb.WriteString(fmt.Sprintf("_Generated: %s_\n\n", time.Now().UTC().Format(time.RFC3339)))
+	fmt.Fprintf(&sb, "_Generated: %s_\n\n", time.Now().UTC().Format(time.RFC3339))
 
 	for _, s := range sections {
 		sb.WriteString(s.Content)

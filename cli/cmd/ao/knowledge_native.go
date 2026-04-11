@@ -520,48 +520,48 @@ func renderKnowledgePlaybook(topic knowledgeTopicDetail, agentsRoot string) stri
 	primitives := knowledgePrimitivesForTopic(topic)
 	primitiveDescriptions := knowledgePrimitiveDescriptions()
 
-	b.WriteString(fmt.Sprintf("# Playbook Candidate: %s\n\n", topic.Title))
+	fmt.Fprintf(&b, "# Playbook Candidate: %s\n\n", topic.Title)
 	b.WriteString("## When To Use\n\n")
 	b.WriteString(knowledgeWhenToUse(topic))
 	b.WriteString("\n\n## Summary\n\n")
 	if topic.Summary != "" {
 		b.WriteString(topic.Summary)
 	} else {
-		b.WriteString(fmt.Sprintf("%s has an eligible topic packet but no summary text yet.", topic.Title))
+		fmt.Fprintf(&b, "%s has an eligible topic packet but no summary text yet.", topic.Title)
 	}
 	b.WriteString("\n\n## Primitives Covered\n\n")
 	for _, primitive := range primitives {
-		b.WriteString(fmt.Sprintf("- `%s`: %s\n", primitive, primitiveDescriptions[primitive]))
+		fmt.Fprintf(&b, "- `%s`: %s\n", primitive, primitiveDescriptions[primitive])
 	}
 	b.WriteString("\n## Operator Policy\n\n")
 	if len(rules) == 0 {
 		b.WriteString("- No durable operator policy surfaced yet.\n")
 	} else {
 		for _, rule := range rules {
-			b.WriteString(fmt.Sprintf("- %s\n", rule))
+			fmt.Fprintf(&b, "- %s\n", rule)
 		}
 	}
 	b.WriteString("\n## Stigmergic Traces\n\n")
-	b.WriteString(fmt.Sprintf("- Topic packet: `%s`\n", topic.Path))
-	b.WriteString(fmt.Sprintf("- Chunk bundle: `%s`\n", chunksPath))
-	b.WriteString(fmt.Sprintf("- Promoted packet: `%s`\n", promotedPath))
+	fmt.Fprintf(&b, "- Topic packet: `%s`\n", topic.Path)
+	fmt.Fprintf(&b, "- Chunk bundle: `%s`\n", chunksPath)
+	fmt.Fprintf(&b, "- Promoted packet: `%s`\n", promotedPath)
 	b.WriteString("\n## Selection Gates\n\n")
 	b.WriteString("- Validate the chosen path against current repo or workspace reality before promotion.\n")
 	b.WriteString("- Keep thin topics discovery-only; only healthy topics and promoted packets may define default behavior.\n")
 	b.WriteString("- Prefer planning rules, pre-mortem checks, and direct artifact lineage over conversational confidence.\n")
 	b.WriteString("\n## Trust Status\n\n")
-	b.WriteString(fmt.Sprintf("- Topic health: `%s`\n", topic.Health))
-	b.WriteString(fmt.Sprintf("- Promoted packet present: `%s`\n", yesNo(knowledgePathExists(promotedPath))))
+	fmt.Fprintf(&b, "- Topic health: `%s`\n", topic.Health)
+	fmt.Fprintf(&b, "- Promoted packet present: `%s`\n", yesNo(knowledgePathExists(promotedPath)))
 	if topic.Health != "healthy" {
 		b.WriteString("- Treat this playbook as non-canonical until the topic health improves.\n")
 	}
 	b.WriteString("\n## Source Surfaces\n\n")
-	b.WriteString(fmt.Sprintf("- `%s`\n", topic.Path))
+	fmt.Fprintf(&b, "- `%s`\n", topic.Path)
 	if knowledgePathExists(chunksPath) {
-		b.WriteString(fmt.Sprintf("- `%s`\n", chunksPath))
+		fmt.Fprintf(&b, "- `%s`\n", chunksPath)
 	}
 	if knowledgePathExists(promotedPath) {
-		b.WriteString(fmt.Sprintf("- `%s`\n", promotedPath))
+		fmt.Fprintf(&b, "- `%s`\n", promotedPath)
 	}
 	return b.String()
 }
@@ -572,23 +572,23 @@ func renderKnowledgePlaybooksIndex(rows []knowledgePlaybookRow) string {
 
 func renderKnowledgeBriefing(goal string, topics []knowledgeTopicDetail, beliefs []string, evidence []knowledgeBriefEvidence, warnings, sourceSurfaces []string, playbookPath, operatorModelPath string) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("# Briefing: %s\n\n", goal))
-	b.WriteString(fmt.Sprintf("**Date:** %s\n\n", time.Now().Format("2006-01-02")))
+	fmt.Fprintf(&b, "# Briefing: %s\n\n", goal)
+	fmt.Fprintf(&b, "**Date:** %s\n\n", time.Now().Format("2006-01-02"))
 	b.WriteString("## Objective + Fitness Gradient\n\n")
-	b.WriteString(fmt.Sprintf("- Objective: %s\n", goal))
+	fmt.Fprintf(&b, "- Objective: %s\n", goal)
 	b.WriteString("- Fitness gradient: prefer the smallest change that improves the environment for this objective and survives explicit proof surfaces.\n")
 	b.WriteString("\n## Environment State\n\n")
 	if knowledgePathExists(operatorModelPath) {
-		b.WriteString(fmt.Sprintf("- Canonical doctrine: `%s`\n", operatorModelPath))
+		fmt.Fprintf(&b, "- Canonical doctrine: `%s`\n", operatorModelPath)
 	}
 	for _, belief := range beliefs {
-		b.WriteString(fmt.Sprintf("- Core belief: %s\n", belief))
+		fmt.Fprintf(&b, "- Core belief: %s\n", belief)
 	}
 	if len(topics) == 0 {
 		b.WriteString("- Healthy topics in scope: none selected from the current taxonomy.\n")
 	} else {
 		for _, topic := range topics {
-			b.WriteString(fmt.Sprintf("- Healthy topic in scope: `%s`\n", topic.ID))
+			fmt.Fprintf(&b, "- Healthy topic in scope: `%s`\n", topic.ID)
 		}
 	}
 	b.WriteString("- Retrieval mode: file-backed operator surfaces remain authoritative; lexical truth beats semantic drift when freshness is degraded.\n")
@@ -596,26 +596,26 @@ func renderKnowledgeBriefing(goal string, topics []knowledgeTopicDetail, beliefs
 	b.WriteString("- Primary actor: the current Codex session operating on one objective at a time.\n")
 	b.WriteString("- Replaceable actors: use the briefing for local state and healthy playbooks for behavior policy instead of conversational memory.\n")
 	if strings.TrimSpace(playbookPath) != "" {
-		b.WriteString(fmt.Sprintf("- Reusable behavior policy: `%s`\n", playbookPath))
+		fmt.Fprintf(&b, "- Reusable behavior policy: `%s`\n", playbookPath)
 	} else {
 		b.WriteString("- Reusable behavior policy: no healthy playbook matched this objective yet.\n")
 	}
 	b.WriteString("- Surface ownership: briefing=local state, playbook=policy, planning rules=selection pressure, packets/provenance=evidence.\n")
 	b.WriteString("\n## Stigmergic Traces + Source Surfaces\n\n")
 	for _, item := range evidence {
-		b.WriteString(fmt.Sprintf("- Trace `%s` `%s`: %s\n", item.TopicID, item.ChunkID, item.Claim))
+		fmt.Fprintf(&b, "- Trace `%s` `%s`: %s\n", item.TopicID, item.ChunkID, item.Claim)
 	}
 	if len(evidence) == 0 {
 		b.WriteString("- Trace: no matching chunk claims were found in healthy topics.\n")
 	}
 	for _, source := range sourceSurfaces {
-		b.WriteString(fmt.Sprintf("- Source surface: `%s`\n", source))
+		fmt.Fprintf(&b, "- Source surface: `%s`\n", source)
 	}
 	b.WriteString("\n## Selection Gates / Proof Surfaces\n\n")
 	b.WriteString("- Gate: planning rules and pre-mortem checks outrank preference when they disagree with the current plan.\n")
 	b.WriteString("- Gate: promote only changes backed by direct artifacts, promoted packets, or runnable validation.\n")
 	if strings.TrimSpace(playbookPath) != "" {
-		b.WriteString(fmt.Sprintf("- Proof surface: healthy playbook at `%s`\n", playbookPath))
+		fmt.Fprintf(&b, "- Proof surface: healthy playbook at `%s`\n", playbookPath)
 	}
 	if len(evidence) > 0 {
 		b.WriteString("- Proof surface: use the chunk claims above as candidate evidence, then confirm against the linked topic or promoted packet.\n")
@@ -625,11 +625,11 @@ func renderKnowledgeBriefing(goal string, topics []knowledgeTopicDetail, beliefs
 		b.WriteString("- No promotion warnings surfaced for the selected healthy topics.\n")
 	} else {
 		for _, warning := range warnings {
-			b.WriteString(fmt.Sprintf("- %s\n", warning))
+			fmt.Fprintf(&b, "- %s\n", warning)
 		}
 	}
 	b.WriteString("\n## Refresh Command\n\n")
-	b.WriteString(fmt.Sprintf("`ao knowledge brief --goal %q`\n", goal))
+	fmt.Fprintf(&b, "`ao knowledge brief --goal %q`\n", goal)
 	return b.String()
 }
 

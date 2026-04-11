@@ -120,7 +120,7 @@ func logPhaseTransition(logPath, runID, phase, details string) {
 		VerbosePrintf("Warning: could not write orchestration log: %v\n", err)
 		return
 	}
-	defer f.Close() //nolint:errcheck
+	defer func() { _ = f.Close() }() //nolint:errcheck
 
 	if _, err := f.WriteString(entry); err != nil {
 		VerbosePrintf("Warning: could not write log entry: %v\n", err)

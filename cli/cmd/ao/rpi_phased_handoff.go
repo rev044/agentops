@@ -316,7 +316,7 @@ func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) strin
 	if fieldAllowed(manifest, "goal") {
 		for i := len(handoffs) - 1; i >= 0; i-- {
 			if handoffs[i].Goal != "" {
-				sb.WriteString(fmt.Sprintf("Goal: %s\n\n", handoffs[i].Goal))
+				fmt.Fprintf(&sb, "Goal: %s\n\n", handoffs[i].Goal)
 				break
 			}
 		}
@@ -352,9 +352,9 @@ func resolveNarrativeCap(manifest phaseManifest) int {
 
 // renderHandoffEntry writes a single phase handoff block to the builder.
 func renderHandoffEntry(sb *strings.Builder, h *phaseHandoff, manifest phaseManifest, narrativeCap int) {
-	sb.WriteString(fmt.Sprintf("[Phase %d: %s — %s (source: phase-%d-handoff.json)", h.Phase, h.PhaseName, h.Status, h.Phase))
+	fmt.Fprintf(sb, "[Phase %d: %s — %s (source: phase-%d-handoff.json)", h.Phase, h.PhaseName, h.Status, h.Phase)
 	if h.DurationSeconds > 0 {
-		sb.WriteString(fmt.Sprintf(" in %.0fs", h.DurationSeconds))
+		fmt.Fprintf(sb, " in %.0fs", h.DurationSeconds)
 	}
 	sb.WriteString("]\n")
 
@@ -388,7 +388,7 @@ func renderHandoffEntry(sb *strings.Builder, h *phaseHandoff, manifest phaseMani
 		if len(narrative) > narrativeCap {
 			narrative = truncateRunes(narrative, narrativeCap)
 		}
-		sb.WriteString(fmt.Sprintf("Narrative (from phase-%d-summary): %s\n", h.Phase, narrative))
+		fmt.Fprintf(sb, "Narrative (from phase-%d-summary): %s\n", h.Phase, narrative)
 	}
 
 	sb.WriteString("\n")
@@ -410,12 +410,12 @@ func buildPhaseHandoffFromState(state *phasedState, phaseNum int, cwd string) *p
 	phaseNames := map[int]string{1: "discovery", 2: "implementation", 3: "validation"}
 
 	h := &phaseHandoff{
-		SchemaVersion: 1,
-		RunID:         state.RunID,
-		Phase:         phaseNum,
-		PhaseName:     phaseNames[phaseNum],
-		Status:        "completed",
-		Goal:          state.Goal,
+		SchemaVersion:      1,
+		RunID:              state.RunID,
+		Phase:              phaseNum,
+		PhaseName:          phaseNames[phaseNum],
+		Status:             "completed",
+		Goal:               state.Goal,
 		EpicID:             state.EpicID,
 		Verdicts:           make(map[string]string),
 		MixedModeRequested: state.Opts.Mixed,

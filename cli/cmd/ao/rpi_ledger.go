@@ -376,7 +376,7 @@ func syncDirectory(dir string) error {
 	if err != nil {
 		return fmt.Errorf("open directory for fsync: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if err := f.Sync(); err != nil {
 		return nil // silently ignore directory sync errors
 	}

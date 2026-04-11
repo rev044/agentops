@@ -195,7 +195,7 @@ func ResolveNarrativeCap(narrativeCap int, handoffFields []string) int {
 // phaseNumbers is a list of phase numbers that have context degradation.
 func RenderDegradationWarnings(sb *strings.Builder, degradedPhases []int) {
 	for _, phase := range degradedPhases {
-		sb.WriteString(fmt.Sprintf("⚠️ CONTEXT DEGRADATION: Phase %d handoff was missing — context may be incomplete\n\n", phase-1))
+		fmt.Fprintf(sb, "⚠️ CONTEXT DEGRADATION: Phase %d handoff was missing — context may be incomplete\n\n", phase-1)
 	}
 }
 

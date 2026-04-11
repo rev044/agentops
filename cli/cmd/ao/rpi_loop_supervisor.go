@@ -51,10 +51,10 @@ type rpiLoopSupervisorConfig struct {
 	CycleRetries          int
 	RetryBackoff          time.Duration
 	CycleDelay            time.Duration
-	CompileEnabled         bool
-	CompileInterval        time.Duration
-	CompileSince           string
-	CompileDefrag          bool
+	CompileEnabled        bool
+	CompileInterval       time.Duration
+	CompileSince          string
+	CompileDefrag         bool
 	LeaseEnabled          bool
 	LeasePath             string
 	LeaseTTL              time.Duration
@@ -121,10 +121,10 @@ func buildBaseLoopConfig() rpiLoopSupervisorConfig {
 		CycleRetries:          rpiCycleRetries,
 		RetryBackoff:          rpiRetryBackoff,
 		CycleDelay:            rpiCycleDelay,
-		CompileEnabled:         rpiCompile,
-		CompileInterval:        rpiCompileInterval,
-		CompileSince:           strings.TrimSpace(rpiCompileSince),
-		CompileDefrag:          rpiCompileDefrag,
+		CompileEnabled:        rpiCompile,
+		CompileInterval:       rpiCompileInterval,
+		CompileSince:          strings.TrimSpace(rpiCompileSince),
+		CompileDefrag:         rpiCompileDefrag,
 		LeaseEnabled:          rpiLease,
 		LeasePath:             rpiLeasePath,
 		LeaseTTL:              rpiLeaseTTL,

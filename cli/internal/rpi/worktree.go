@@ -244,7 +244,9 @@ func acquireMergeLock(repoRoot string) (*os.File, error) {
 		return nil, fmt.Errorf("open merge lock: %w", err)
 	}
 	if err := lockFile(f); err != nil {
-		f.Close()
+		if closeErr := f.Close(); closeErr != nil {
+			return nil, errors.Join(fmt.Errorf("acquire merge lock: %w", err), fmt.Errorf("close merge lock: %w", closeErr))
+		}
 		return nil, fmt.Errorf("acquire merge lock: %w", err)
 	}
 	return f, nil

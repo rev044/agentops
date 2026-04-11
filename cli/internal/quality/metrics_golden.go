@@ -547,7 +547,7 @@ func ReadJSONLFile(path string) []json.RawMessage {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var results []json.RawMessage
 	scanner := bufio.NewScanner(f)

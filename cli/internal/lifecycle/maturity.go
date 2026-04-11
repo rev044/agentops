@@ -35,7 +35,7 @@ func ParseFrontmatterFields(path string, fields ...string) (map[string]string, e
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	result := make(map[string]string)
 	scanner := bufio.NewScanner(f)
@@ -291,7 +291,7 @@ func BuildMarkdownFrontmatterPrefix() string {
 	var sb strings.Builder
 	sb.WriteString("---\n")
 	for _, key := range LearningMetadataFieldOrder() {
-		sb.WriteString(fmt.Sprintf("%s: %s\n", key, defaults[key]))
+		fmt.Fprintf(&sb, "%s: %s\n", key, defaults[key])
 	}
 	sb.WriteString("---\n")
 	return sb.String()

@@ -220,9 +220,10 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 
 	// Count pass/fail
 	for _, m := range snap.Goals {
-		if m.Result == "pass" {
+		switch m.Result {
+		case "pass":
 			result.GatesPassed++
-		} else if m.Result == "fail" {
+		case "fail":
 			result.GatesFailed++
 		}
 	}

@@ -93,8 +93,11 @@ func runFlywheelGate(cmd *cobra.Command, args []string) error {
 		}
 	case "yaml":
 		enc := yaml.NewEncoder(cmd.OutOrStdout())
-		defer enc.Close()
 		if err := enc.Encode(result); err != nil {
+			_ = enc.Close()
+			return err
+		}
+		if err := enc.Close(); err != nil {
 			return err
 		}
 	default:
@@ -130,9 +133,10 @@ func evaluateFlywheelGate(metrics *types.FlywheelMetrics, report benchReport, co
 		result.Benchmark.HoldoutMRR = holdout.AvgMRR
 	}
 
-	if result.ClosureVerdict == "" {
+	switch result.ClosureVerdict {
+	case "":
 		result.Reasons = append(result.Reasons, "missing research-closure verdict")
-	} else if result.ClosureVerdict == "unmined" || result.ClosureVerdict == "starved" {
+	case "unmined", "starved":
 		result.Reasons = append(result.Reasons, "research closure still unmined")
 	}
 

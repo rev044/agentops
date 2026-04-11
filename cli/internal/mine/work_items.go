@@ -142,7 +142,6 @@ func WriteWorkItems(path string, items []WorkItemEmit, ts string) error {
 	if err != nil {
 		return fmt.Errorf("open next-work.jsonl: %w", err)
 	}
-	defer f.Close()
 
 	for _, item := range items {
 		entry := emitEntry{
@@ -158,8 +157,12 @@ func WriteWorkItems(path string, items []WorkItemEmit, ts string) error {
 		}
 		data = append(data, '\n')
 		if _, writeErr := f.Write(data); writeErr != nil {
+			_ = f.Close()
 			return writeErr
 		}
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close next-work.jsonl: %w", err)
 	}
 	return nil
 }

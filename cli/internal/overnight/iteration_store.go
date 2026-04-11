@@ -92,8 +92,8 @@ func fsyncDir(dir string) error {
 	if err != nil {
 		return err
 	}
-	defer d.Close()
 	if err := d.Sync(); err != nil {
+		_ = d.Close()
 		// Linux/Darwin: real durability signal.
 		// Windows: may return EINVAL on directory handles; swallow it.
 		if runtime.GOOS == "windows" {
@@ -101,7 +101,7 @@ func fsyncDir(dir string) error {
 		}
 		return err
 	}
-	return nil
+	return d.Close()
 }
 
 // writeCommittedButFlaggedMarker writes a sentinel file next to

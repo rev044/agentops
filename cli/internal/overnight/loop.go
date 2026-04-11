@@ -19,12 +19,12 @@ import (
 // Persisted into overnightSummary.Iterations (dream-report schema v2) for
 // downstream inspection by the morning report renderer and council judges.
 type IterationSummary struct {
-	ID           IterationID `json:"id" yaml:"id"`
-	Index        int         `json:"index" yaml:"index"` // 1-based
-	StartedAt    time.Time   `json:"started_at" yaml:"started_at"`
-	FinishedAt   time.Time   `json:"finished_at" yaml:"finished_at"`
-	Duration     string      `json:"duration" yaml:"duration"`
-	Status       IterationStatus `json:"status" yaml:"status"` // See IterationStatus in types.go — exhaustive enum
+	ID         IterationID     `json:"id" yaml:"id"`
+	Index      int             `json:"index" yaml:"index"` // 1-based
+	StartedAt  time.Time       `json:"started_at" yaml:"started_at"`
+	FinishedAt time.Time       `json:"finished_at" yaml:"finished_at"`
+	Duration   string          `json:"duration" yaml:"duration"`
+	Status     IterationStatus `json:"status" yaml:"status"` // See IterationStatus in types.go — exhaustive enum
 
 	// Stage sub-summaries. Each is an opaque map so v1 readers can ignore
 	// them without schema awareness.
@@ -112,6 +112,8 @@ var ErrNotImplemented = errors.New("overnight: stage not implemented yet (skelet
 // Returning (non-nil, non-nil) is explicitly allowed: a partial result
 // with a non-nil error describes "we ran N iterations, then hit error E."
 // The caller should persist the partial result AND surface the error.
+//
+//nolint:gocyclo // RunLoop owns the durable overnight state machine and checkpoint boundary.
 func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	if ctx == nil {
 		ctx = context.Background()

@@ -139,7 +139,7 @@ func RouteFindings(cwd string) (routed int, degraded []string, err error) {
 	if openErr != nil {
 		return 0, degraded, fmt.Errorf("open next-work.jsonl: %w", openErr)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	payload := append(encoded, '\n')
 	if _, writeErr := f.Write(payload); writeErr != nil {
@@ -184,7 +184,7 @@ func loadNextWorkIDs(path string) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	// Allow long JSONL lines; default 64KB is too small for dense batches.

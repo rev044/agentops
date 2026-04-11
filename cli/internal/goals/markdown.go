@@ -191,14 +191,14 @@ func buildGateColumnMap(cells []string) map[string]int {
 	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
 	for j, cell := range cells {
 		lower := strings.ToLower(strings.TrimSpace(cell))
-		switch {
-		case lower == "id":
+		switch lower {
+		case "id":
 			colMap["id"] = j
-		case lower == "check":
+		case "check":
 			colMap["check"] = j
-		case lower == "weight":
+		case "weight":
 			colMap["weight"] = j
-		case lower == "description":
+		case "description":
 			colMap["description"] = j
 		}
 	}

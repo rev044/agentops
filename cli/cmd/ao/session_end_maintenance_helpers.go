@@ -74,7 +74,7 @@ func withSuppressedOutput(fn func() error) error {
 	if err != nil {
 		return fn()
 	}
-	defer devNull.Close()
+	defer func() { _ = devNull.Close() }()
 
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr

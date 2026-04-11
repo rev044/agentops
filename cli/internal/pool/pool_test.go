@@ -4573,7 +4573,7 @@ func TestOpenIfExistsErrors(t *testing.T) {
 		if f == nil {
 			t.Fatal("expected non-nil file")
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 	})
 
 	t.Run("permission denied returns error", func(t *testing.T) {
@@ -4611,7 +4611,7 @@ func TestScanChainEventsEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	events, err := scanChainEvents(f)
 	if err != nil {

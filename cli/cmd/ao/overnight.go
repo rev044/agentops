@@ -354,7 +354,7 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("open dream log: %w", err)
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 
 	stopKeepAwake, mode, note := startKeepAwakeHelper(logFile, settings.KeepAwake)
 	defer stopKeepAwake()
@@ -704,8 +704,11 @@ func outputOvernightSummary(summary overnightSummary) error {
 		return enc.Encode(summary)
 	case "yaml":
 		enc := yaml.NewEncoder(os.Stdout)
-		defer enc.Close()
-		return enc.Encode(summary)
+		if err := enc.Encode(summary); err != nil {
+			_ = enc.Close()
+			return err
+		}
+		return enc.Close()
 	default:
 		fmt.Print(renderOvernightSummaryMarkdown(summary))
 		return nil
@@ -727,22 +730,22 @@ func renderOvernightSummaryMarkdown(summary overnightSummary) string {
 
 func appendDreamOverview(b *strings.Builder, summary overnightSummary) {
 	b.WriteString("# Dream Morning Report\n\n")
-	b.WriteString(fmt.Sprintf("- Status: `%s`\n", summary.Status))
-	b.WriteString(fmt.Sprintf("- Run ID: `%s`\n", summary.RunID))
-	b.WriteString(fmt.Sprintf("- Repo: `%s`\n", summary.RepoRoot))
-	b.WriteString(fmt.Sprintf("- Output: `%s`\n", summary.OutputDir))
+	fmt.Fprintf(b, "- Status: `%s`\n", summary.Status)
+	fmt.Fprintf(b, "- Run ID: `%s`\n", summary.RunID)
+	fmt.Fprintf(b, "- Repo: `%s`\n", summary.RepoRoot)
+	fmt.Fprintf(b, "- Output: `%s`\n", summary.OutputDir)
 	if summary.Goal != "" {
-		b.WriteString(fmt.Sprintf("- Goal: `%s`\n", summary.Goal))
+		fmt.Fprintf(b, "- Goal: `%s`\n", summary.Goal)
 	}
-	b.WriteString(fmt.Sprintf("- Started: `%s`\n", summary.StartedAt))
+	fmt.Fprintf(b, "- Started: `%s`\n", summary.StartedAt)
 	if summary.FinishedAt != "" {
-		b.WriteString(fmt.Sprintf("- Finished: `%s`\n", summary.FinishedAt))
+		fmt.Fprintf(b, "- Finished: `%s`\n", summary.FinishedAt)
 	}
 	if summary.Duration != "" {
-		b.WriteString(fmt.Sprintf("- Duration: `%s`\n", summary.Duration))
+		fmt.Fprintf(b, "- Duration: `%s`\n", summary.Duration)
 	}
-	b.WriteString(fmt.Sprintf("- Keep awake: `%t` via `%s`\n", summary.Runtime.KeepAwake, summary.Runtime.KeepAwakeMode))
-	b.WriteString(fmt.Sprintf("- Timeout: `%s`\n", summary.Runtime.EffectiveTimeout))
+	fmt.Fprintf(b, "- Keep awake: `%t` via `%s`\n", summary.Runtime.KeepAwake, summary.Runtime.KeepAwakeMode)
+	fmt.Fprintf(b, "- Timeout: `%s`\n", summary.Runtime.EffectiveTimeout)
 }
 
 func appendDreamscapeSection(b *strings.Builder, dreamscape *overnightDreamscape) {
@@ -750,13 +753,13 @@ func appendDreamscapeSection(b *strings.Builder, dreamscape *overnightDreamscape
 		return
 	}
 	b.WriteString("\n## DreamScape\n\n")
-	b.WriteString(fmt.Sprintf("- Weather: `%s`\n", dreamscape.Weather))
-	b.WriteString(fmt.Sprintf("- Visibility: `%s`\n", dreamscape.Visibility))
-	b.WriteString(fmt.Sprintf("- Council: `%s`\n", dreamscape.Council))
+	fmt.Fprintf(b, "- Weather: `%s`\n", dreamscape.Weather)
+	fmt.Fprintf(b, "- Visibility: `%s`\n", dreamscape.Visibility)
+	fmt.Fprintf(b, "- Council: `%s`\n", dreamscape.Council)
 	if dreamscape.Tension != "" {
-		b.WriteString(fmt.Sprintf("- Tension: %s\n", dreamscape.Tension))
+		fmt.Fprintf(b, "- Tension: %s\n", dreamscape.Tension)
 	}
-	b.WriteString(fmt.Sprintf("- First move: %s\n", dreamscape.FirstMove))
+	fmt.Fprintf(b, "- First move: %s\n", dreamscape.FirstMove)
 }
 
 type dreamMetricLine struct {
@@ -776,7 +779,7 @@ func appendDreamTerrainSection(b *strings.Builder, summary overnightSummary) {
 		{Label: "Retrieval coverage", Key: "coverage"},
 	})
 	if summary.RetrievalLive != nil {
-		b.WriteString(fmt.Sprintf("- Queries with hits: `%v/%v`\n", lookupPath(summary.RetrievalLive, "queries_with_hits"), lookupPath(summary.RetrievalLive, "queries")))
+		fmt.Fprintf(b, "- Queries with hits: `%v/%v`\n", lookupPath(summary.RetrievalLive, "queries_with_hits"), lookupPath(summary.RetrievalLive, "queries"))
 	}
 }
 
@@ -785,7 +788,7 @@ func appendDreamMetricLines(b *strings.Builder, values map[string]any, lines []d
 		return
 	}
 	for _, line := range lines {
-		b.WriteString(fmt.Sprintf("- %s: `%v`\n", line.Label, lookupPath(values, line.Key)))
+		fmt.Fprintf(b, "- %s: `%v`\n", line.Label, lookupPath(values, line.Key))
 	}
 }
 
@@ -808,19 +811,19 @@ func appendDreamCouncilSection(b *strings.Builder, council *overnightCouncilSumm
 		return
 	}
 	b.WriteString("\n## Dream Council\n\n")
-	b.WriteString(fmt.Sprintf("- Requested runners: `%s`\n", strings.Join(council.RequestedRunners, ", ")))
+	fmt.Fprintf(b, "- Requested runners: `%s`\n", strings.Join(council.RequestedRunners, ", "))
 	if len(council.CompletedRunners) > 0 {
-		b.WriteString(fmt.Sprintf("- Completed runners: `%s`\n", strings.Join(council.CompletedRunners, ", ")))
+		fmt.Fprintf(b, "- Completed runners: `%s`\n", strings.Join(council.CompletedRunners, ", "))
 	}
 	if len(council.FailedRunners) > 0 {
-		b.WriteString(fmt.Sprintf("- Failed runners: `%s`\n", strings.Join(council.FailedRunners, ", ")))
+		fmt.Fprintf(b, "- Failed runners: `%s`\n", strings.Join(council.FailedRunners, ", "))
 	}
-	b.WriteString(fmt.Sprintf("- Consensus policy: `%s`\n", council.ConsensusPolicy))
+	fmt.Fprintf(b, "- Consensus policy: `%s`\n", council.ConsensusPolicy)
 	if council.ConsensusKind != "" {
-		b.WriteString(fmt.Sprintf("- Consensus kind: `%s`\n", council.ConsensusKind))
+		fmt.Fprintf(b, "- Consensus kind: `%s`\n", council.ConsensusKind)
 	}
 	if council.RecommendedFirstAction != "" {
-		b.WriteString(fmt.Sprintf("- Recommended action: %s\n", council.RecommendedFirstAction))
+		fmt.Fprintf(b, "- Recommended action: %s\n", council.RecommendedFirstAction)
 	}
 	appendDreamListSection(b, "Disagreements", council.Disagreements, false)
 	appendDreamListSection(b, "Wildcards", council.WildcardIdeas, false)
@@ -834,7 +837,7 @@ func appendDreamListSection(b *strings.Builder, heading string, items []string, 
 	if heading == "Disagreements" || heading == "Wildcards" {
 		level = "###"
 	}
-	b.WriteString(fmt.Sprintf("\n%s %s\n\n", level, heading))
+	fmt.Fprintf(b, "\n%s %s\n\n", level, heading)
 	for _, item := range items {
 		if quoteItems {
 			b.WriteString("- `" + item + "`\n")
@@ -943,10 +946,10 @@ func runOvernightWarnOnlyReset(cmd *cobra.Command, args []string) error {
 	path := ovn.WarnOnlyBudgetPath(cwd)
 	if overnightWarnOnlyResetJSON {
 		payload := map[string]any{
-			"path":           path,
-			"initial":        state.InitialBudget,
-			"remaining":      state.Remaining,
-			"last_reset_at":  state.LastResetAt,
+			"path":          path,
+			"initial":       state.InitialBudget,
+			"remaining":     state.Remaining,
+			"last_reset_at": state.LastResetAt,
 		}
 		raw, marshalErr := json.MarshalIndent(payload, "", "  ")
 		if marshalErr != nil {

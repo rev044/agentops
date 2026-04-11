@@ -163,28 +163,14 @@ func buildBenchReport(cwd, corpusDir string, k int) (benchReport, error) {
 	if err != nil {
 		return benchReport{}, fmt.Errorf("creating temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
 	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
 		return benchReport{}, fmt.Errorf("creating learnings dir: %w", err)
 	}
-
-	entries, err := os.ReadDir(corpusDir)
-	if err != nil {
-		return benchReport{}, fmt.Errorf("reading corpus: %w", err)
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(corpusDir, e.Name()))
-		if err != nil {
-			return benchReport{}, fmt.Errorf("reading %s: %w", e.Name(), err)
-		}
-		if err := os.WriteFile(filepath.Join(learningsDir, e.Name()), data, 0o644); err != nil {
-			return benchReport{}, fmt.Errorf("writing %s: %w", e.Name(), err)
-		}
+	if err := copyBenchCorpusLearnings(corpusDir, learningsDir); err != nil {
+		return benchReport{}, err
 	}
 
 	report := benchReport{
@@ -286,6 +272,26 @@ func buildBenchReport(cwd, corpusDir string, k int) (benchReport, error) {
 	})
 
 	return report, nil
+}
+
+func copyBenchCorpusLearnings(corpusDir, learningsDir string) error {
+	entries, err := os.ReadDir(corpusDir)
+	if err != nil {
+		return fmt.Errorf("reading corpus: %w", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(corpusDir, e.Name()))
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", e.Name(), err)
+		}
+		if err := os.WriteFile(filepath.Join(learningsDir, e.Name()), data, 0o644); err != nil {
+			return fmt.Errorf("writing %s: %w", e.Name(), err)
+		}
+	}
+	return nil
 }
 
 func loadBenchCases(corpusDir string) ([]benchCase, error) {
@@ -396,7 +402,7 @@ func benchSectionScore(tokens []string, section string) float64 {
 	return score
 }
 
-func benchSectionHeading(section string) string  { return bench.SectionHeading(section) }
+func benchSectionHeading(section string) string   { return bench.SectionHeading(section) }
 func normalizeBenchSection(section string) string { return bench.NormalizeSection(section) }
 func stripBenchFrontMatter(content string) string { return bench.StripFrontMatter(content) }
 
@@ -472,7 +478,7 @@ func runLiveBench(k int, asJSON, global bool, corpusDir string) error {
 		if err != nil {
 			return fmt.Errorf("creating temp dir: %w", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer func() { _ = os.RemoveAll(tmpDir) }()
 		benchCwd = tmpDir
 		globalDir = corpusDir
 		mode = "live-corpus"

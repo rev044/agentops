@@ -389,7 +389,7 @@ func writePendingFile(path string, entries []PendingExtraction) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	for _, entry := range entries {
 		line, err := json.Marshal(entry)

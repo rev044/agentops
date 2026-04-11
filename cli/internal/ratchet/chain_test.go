@@ -1082,7 +1082,7 @@ func TestFileLock_lockAndUnlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := lockFile(f); err != nil {
 		t.Fatalf("lockFile: %v", err)
@@ -1676,4 +1676,3 @@ func BenchmarkChainAppend(b *testing.B) {
 		_ = chain.Append(entry)
 	}
 }
-
