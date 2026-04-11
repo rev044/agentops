@@ -164,7 +164,7 @@ func GenerateFixture(dir string, opts FixtureOpts) error {
 		return fmt.Errorf("testdata: write next-work.jsonl: %w", err)
 	}
 
-	rng := rand.New(rand.NewSource(opts.Seed))
+	rng := rand.New(rand.NewSource(opts.Seed)) // #nosec G404 -- deterministic fixture data needs reproducible pseudo-randomness, not secrecy.
 	now := time.Now().UTC()
 
 	// Build a deterministic maturity bucket list by repeating each

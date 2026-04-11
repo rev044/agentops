@@ -10,7 +10,7 @@ import (
 
 // openFile opens a file but ignores the error — Issue 1: missing error handling.
 func openFile(path string) *os.File {
-	f, _ := os.Open(path) //nolint:errcheck — intentional bad practice for proof
+	f, _ := os.Open(path) //nolint:errcheck // intentional bad practice for proof
 	return f
 }
 
@@ -43,7 +43,7 @@ func parseConfig(input string) map[string]string {
 func main() {
 	f := openFile("nonexistent.txt")
 	if f != nil {
-		defer f.Close()
+		defer f.Close() //nolint:errcheck // intentional bad practice for proof
 	}
 
 	result := processData("hello")

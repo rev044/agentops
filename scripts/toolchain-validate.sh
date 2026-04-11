@@ -664,10 +664,17 @@ run_trivy() {
         db_flag=(--db-repository "$db_repo")
     fi
 
+    local trivy_skip_args=(
+        --skip-dirs "$REPO_ROOT/.tmp"
+        --skip-dirs "$REPO_ROOT/.claude/worktrees"
+        --skip-dirs "$REPO_ROOT/.git"
+    )
+
     DOCKER_CONFIG="$docker_cfg" TRIVY_CACHE_DIR="$cache_dir" trivy fs "$REPO_ROOT" \
         --severity CRITICAL,HIGH \
         --format json \
         "${db_flag[@]}" \
+        "${trivy_skip_args[@]}" \
         > "$output_file" 2> "$stderr_file" || true
     rm -rf "$docker_cfg"
 
