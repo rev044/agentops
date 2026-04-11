@@ -61,7 +61,8 @@ else
   info "Downloading AgentOps bundle..."
   curl -fsSL "$ARCHIVE_URL" -o "$ARCHIVE_FILE"
 
-  ARCHIVE_ROOT="$(tar -tzf "$ARCHIVE_FILE" | head -1 | cut -d/ -f1)"
+  tar -tzf "$ARCHIVE_FILE" > "${TMP_DIR}/archive-files.txt"
+  ARCHIVE_ROOT="$(awk -F/ 'NR == 1 { print $1 }' "${TMP_DIR}/archive-files.txt")"
   [ -n "$ARCHIVE_ROOT" ] || fail "Could not determine archive root directory"
   tar -xzf "$ARCHIVE_FILE" -C "$TMP_DIR"
   SRC_ROOT="${TMP_DIR}/${ARCHIVE_ROOT}"

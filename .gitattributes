@@ -1,3 +1,6 @@
 
 # Use bd merge for beads JSONL files
 .beads/issues.jsonl merge=beads
+
+# Keep executable scripts runnable when cloned on Windows.
+*.sh text eol=lf

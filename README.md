@@ -23,8 +23,11 @@ The operational layer for coding agents. AgentOps adds bookkeeping, validation, 
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (v0.115.0+ native hooks by default)
+# Codex CLI on macOS/Linux/WSL (v0.115.0+ native hooks by default)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
+
+# Codex CLI on Windows PowerShell
+irm https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.ps1 | iex
 
 # OpenCode
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
@@ -35,8 +38,9 @@ npx skills@latest add boshu2/agentops --cursor -g
 
 Then type `/quickstart` in your agent chat.
 
-For Codex, that installer stages the native plugin, installs `~/.codex/hooks.json`,
-archives stale raw mirrors when found, and makes native hooks the default path.
+For Codex, use the shell installer on macOS/Linux/WSL and the PowerShell installer
+on native Windows. The installer stages the native plugin, installs
+`~/.codex/hooks.json`, archives stale raw mirrors when found, and makes native hooks the default path.
 Restart Codex after install.
 
 | Concern | Answer |
