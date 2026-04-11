@@ -239,6 +239,7 @@ run_ruff() {
 # ============================================================================
 run_golangci() {
     local output_file="$OUTPUT_DIR/golangci-lint.txt"
+    local golangci_cmd="$REPO_ROOT/scripts/golangci-lint-v2.sh"
 
     if [[ "$GATE" == "true" ]] && ! target_has_any_ext go mod sum; then
         echo "NO_GO_CHANGES_IN_TARGET" > "$output_file"
@@ -247,7 +248,7 @@ run_golangci() {
         return 0
     fi
 
-    if ! run_tool "golangci-lint" golangci-lint; then return 0; fi
+    if ! run_tool "golangci-lint" "$golangci_cmd"; then return 0; fi
 
     local modules
     modules="$(discover_go_modules)"
@@ -271,7 +272,7 @@ run_golangci() {
             echo "== golangci-lint: $module_dir =="
         } >> "$output_file"
 
-        if (cd "$module_dir" && GOLANGCI_LINT_CACHE="$cache_dir" GOCACHE="$go_cache_dir" golangci-lint run ./...) >> "$output_file" 2>&1; then
+        if (cd "$module_dir" && GOLANGCI_LINT_CACHE="$cache_dir" GOCACHE="$go_cache_dir" "$golangci_cmd" run ./...) >> "$output_file" 2>&1; then
             echo "" >> "$output_file"
         else
             echo "" >> "$output_file"

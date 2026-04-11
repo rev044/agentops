@@ -1,29 +1,30 @@
+version: "2"
+
 linters:
+  default: none
   enable:
     - errcheck
     - gocyclo
     - govet
     - misspell
     - staticcheck
-
-linters-settings:
-  gocyclo:
-    min-complexity: 25
-  errcheck:
-    # Don't check return values of fmt.Fprint*/fmt.Fprintln (stdout writes)
-    exclude-functions:
-      - fmt.Fprint
-      - fmt.Fprintf
-      - fmt.Fprintln
-      - (io.Writer).Write
-
-issues:
-  exclude-dirs:
-    - ../tests/fixtures
-  exclude-rules:
-    # Test files: defer cleanup and env manipulation don't need error checks;
-    # test functions naturally have high cyclomatic complexity from subtests.
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gocyclo
+  settings:
+    gocyclo:
+      min-complexity: 25
+    errcheck:
+      # Don't check return values of fmt.Fprint*/fmt.Fprintln (stdout writes)
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Writer).Write
+  exclusions:
+    paths:
+      - ../tests/fixtures
+    rules:
+      # Test files: defer cleanup and env manipulation don't need error checks;
+      # test functions naturally have high cyclomatic complexity from subtests.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gocyclo

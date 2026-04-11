@@ -6,6 +6,7 @@ BUILD_DIR=bin
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
 IDENTIFIER=com.12factoragentops.ao
+GOLANGCI_LINT ?= ../scripts/golangci-lint-v2.sh
 
 # Default target
 all: build
@@ -37,7 +38,7 @@ test-coverage: build
 
 # Run linter
 lint:
-	golangci-lint run ./...
+	$(GOLANGCI_LINT) run ./...
 
 # Clean build artifacts
 clean:

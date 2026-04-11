@@ -32,46 +32,44 @@ Create `.golangci.yml` at repo root:
 
 ```yaml
 # .golangci.yml
+version: "2"
+
 run:
   timeout: 5m
   go: "1.24"
 
 linters:
+  default: none
   enable:
     - errcheck      # Check error returns
     - govet         # Vet examines Go source
     - staticcheck   # Static analysis
-    - gosimple      # Simplify code
     - ineffassign   # Detect ineffective assignments
     - unused        # Check for unused code
     - misspell      # Find misspellings
-    - gofmt         # Check formatting
-    - goimports     # Check imports
     - revive        # Replacement for golint
     - gocritic      # Opinionated linter
     - errname       # Error naming conventions
     - errorlint     # Error wrapping checks
-
-linters-settings:
-  revive:
+  settings:
+    revive:
+      rules:
+        - name: exported
+          arguments: [checkPrivateReceivers]
+        - name: var-naming
+        - name: blank-imports
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    errcheck:
+      check-blank: true
+  exclusions:
     rules:
-      - name: exported
-        arguments: [checkPrivateReceivers]
-      - name: var-naming
-      - name: blank-imports
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-  errcheck:
-    check-blank: true
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
+      - path: _test\.go
+        linters:
+          - errcheck
 ```
 
 **Usage:**
