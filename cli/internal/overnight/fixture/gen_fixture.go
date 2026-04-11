@@ -12,6 +12,14 @@ package fixture
 
 import (
 	"fmt"
+	// This package is a TEST FIXTURE GENERATOR, not production code. It
+	// uses math/rand (seeded, not crypto/rand) for byte-identical L2
+	// e2e reproducibility: the same Seed MUST produce the same files
+	// across runs and machines, which rules out crypto/rand. No
+	// generated value is ever used in an authentication, authorization,
+	// token, key, nonce, or other security-sensitive context — the
+	// output is .md files inside a caller-supplied temp dir.
+	// nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"math/rand"
 	"os"
 	"path/filepath"

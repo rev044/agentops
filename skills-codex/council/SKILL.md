@@ -31,6 +31,15 @@ $council --preset=security-audit validate the auth system      # preset personas
 
 **Note:** `--profile=<name>` follows the shared model-profile contract: `balanced`, `budget`, `fast`, `inherit`, `quality`, `thorough`. See `references/model-profiles.md`.
 
+| Env var | Default |
+|---------|---------|
+| `COUNCIL_CLAUDE_MODEL` | sonnet |
+| `COUNCIL_EXPLORER_MODEL` | sonnet |
+| `COUNCIL_CODEX_MODEL` | gpt-5.3-codex |
+| `COUNCIL_TIMEOUT` | 120 |
+| `COUNCIL_EXPLORER_TIMEOUT` | 60 |
+| `COUNCIL_R2_TIMEOUT` | 90 |
+
 ## Task Types
 
 | Type | Trigger Words | Focus |

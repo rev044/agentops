@@ -1498,6 +1498,7 @@ ao rpi phased <goal> [flags]
       --auto-clean-stale                  Run stale-run cleanup before starting phased execution
       --auto-clean-stale-after duration   Only clean stale runs older than this age when auto-clean is enabled (default 24h0m0s)
       --budget string                     Override phase budgets in seconds (<phase>:<seconds>, comma-separated), e.g. discovery:300,validation:120
+      --discovery-artifact string         Path to a pre-validated discovery artifact (markdown) used to skip Phase 1 when combined with --from=implementation
       --fast-path                         Force fast path (--quick for gates)
       --from string                       Start from phase (discovery, implementation, validation; aliases: research, plan, pre-mortem, crank, vibe, post-mortem) (default "discovery")
   -h, --help                              help for phased

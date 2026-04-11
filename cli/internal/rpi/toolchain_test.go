@@ -1,6 +1,20 @@
 package rpi
 
-import "testing"
+import (
+	"os"
+	"strings"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	for _, env := range os.Environ() {
+		key, _, _ := strings.Cut(env, "=")
+		if strings.HasPrefix(key, "AGENTOPS_RPI_") {
+			_ = os.Unsetenv(key)
+		}
+	}
+	os.Exit(m.Run())
+}
 
 func TestResolveToolchain_Defaults(t *testing.T) {
 	tc, err := ResolveToolchain(ResolveToolchainOptions{})
@@ -299,12 +313,14 @@ func TestResolveToolchain_WhitespaceOnlyFlagValues(t *testing.T) {
 }
 
 func TestResolveToolchain_NilEnvLookupUsesOsGetenv(t *testing.T) {
-	// nil EnvLookup should use os.Getenv (just verify no panic)
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "stream")
+
+	// nil EnvLookup should use os.Getenv.
 	tc, err := ResolveToolchain(ResolveToolchainOptions{})
 	if err != nil {
 		t.Fatalf("ResolveToolchain() with nil EnvLookup: %v", err)
 	}
-	if tc.RuntimeMode != DefaultRuntimeMode {
-		t.Errorf("RuntimeMode = %q, want %q", tc.RuntimeMode, DefaultRuntimeMode)
+	if tc.RuntimeMode != "stream" {
+		t.Errorf("RuntimeMode = %q, want stream", tc.RuntimeMode)
 	}
 }

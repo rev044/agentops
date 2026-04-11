@@ -60,6 +60,11 @@ setup() {
     make_stub "$FAKE_REPO/scripts/validate-ci-policy-parity.sh"
     make_stub "$FAKE_REPO/scripts/validate-embedded-sync.sh"
     make_stub "$FAKE_REPO/tests/hooks/test-orphan-hooks.sh"
+    # Check 3b (HOME isolation) and 3c (agents hash snapshot) run unconditionally
+    # in non-fast mode. Both must exist as executables so the gate does not fail
+    # with "missing executable" before it reaches the checks under test.
+    make_stub "$FAKE_REPO/scripts/check-home-isolation.sh"
+    make_stub "$FAKE_REPO/scripts/check-agents-hash-snapshot.sh"
 }
 
 teardown() {

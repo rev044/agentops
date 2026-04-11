@@ -37,7 +37,7 @@ type phasedEngineOptions struct {
 	BDCommand            string
 	TmuxCommand          string
 	TmuxWorkers          int
-	GCCityPath           string    // explicit city.toml directory for gc backend; empty = auto-discover
+	GCCityPath           string   // explicit city.toml directory for gc backend; empty = auto-discover
 	ExecCommand          gcExecFn `json:"-"` // nil = exec.Command; injectable for testing
 	LookPath             gcLookFn `json:"-"` // nil = exec.LookPath; injectable for testing
 	Mixed                bool     // opt-in cross-vendor mixed-model execution
@@ -46,6 +46,7 @@ type phasedEngineOptions struct {
 	WorkingDir           string `json:"-"` // runtime-only; base directory for repo/worktree resolution
 	RunID                string // Pre-seeded run ID (serve mode); empty = auto-generate
 	NoDashboard          bool
+	DiscoveryArtifact    string                // path to pre-validated discovery artifact; skips Phase 1 when set with --from=implementation
 	StdoutWriter         io.Writer             `json:"-"` // runtime-only; suppresses raw Claude output when dashboard active
 	OnSpawnCwdReady      func(spawnCwd string) `json:"-"` // called after worktree resolved; serve mode uses this to update mux root
 }
@@ -115,10 +116,10 @@ type finding = cliRPI.Finding
 
 // Instruction constants and phase context budgets delegate to internal/rpi.
 var (
-	phaseSummaryInstruction          = cliRPI.PhaseSummaryInstruction
-	contextDisciplineInstruction     = cliRPI.ContextDisciplineInstruction
-	autodevProgramInstruction        = cliRPI.AutodevProgramInstruction
-	phaseContextBudgets              = cliRPI.PhaseContextBudgets
+	phaseSummaryInstruction      = cliRPI.PhaseSummaryInstruction
+	contextDisciplineInstruction = cliRPI.ContextDisciplineInstruction
+	autodevProgramInstruction    = cliRPI.AutodevProgramInstruction
+	phaseContextBudgets          = cliRPI.PhaseContextBudgets
 )
 
 // phasePrompts delegates to internal/rpi.
@@ -389,7 +390,6 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 
 	return prompt.String(), nil
 }
-
 
 // worktreeTimeout is the timeout for git worktree operations (matches Olympus DefaultTimeout).
 const worktreeTimeout = 30 * time.Second

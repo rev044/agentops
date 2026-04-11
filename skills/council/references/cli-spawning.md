@@ -19,6 +19,9 @@ Council requires these runtime capabilities. Map them to whatever your agent har
 
 If **spawn** is unavailable, degrade to `--quick` (inline single-agent).
 If **messaging** is unavailable, `--debate` degrades to single-round review.
+If **Codex CLI** is unavailable AND `--mixed` is set, emit a hard error and
+exit without spawning judges (strict — see "Strict Codex Requirement" below).
+`--mixed` never silently degrades to Claude-only.
 
 ## Spawning Flow
 
@@ -73,13 +76,48 @@ Shut down all judges via runtime's shutdown mechanism. Cleanup MUST succeed even
 
 ## Codex CLI Judges (--mixed mode)
 
-For cross-vendor consensus, run Codex CLI processes alongside runtime-native judges:
+For cross-vendor consensus, run Codex CLI processes alongside runtime-native judges.
+
+### Strict Codex Requirement (no silent fallback)
+
+When `--mixed` is set, Codex CLI availability is **REQUIRED**. This is a strict,
+hard-error contract — `--mixed` exists precisely to get cross-vendor validation,
+so silently degrading to Claude-only would mask the intent the caller explicitly
+paid for (see `na-1i9`: a pre-mortem session ran with `--mixed` and produced
+Claude-only judges because the Codex path wasn't wired, and the operator never
+saw that the cross-vendor check never happened).
+
+Pre-flight (before spawning any judges):
+
+1. `command -v codex` must resolve. If not: **hard error**, exit non-zero,
+   do **not** spawn any judges.
+2. `codex --version` must succeed. If not: **hard error**, same treatment.
+3. If `COUNCIL_CODEX_MODEL` is set, verify the model is reachable with a
+   dry `codex exec` smoke call. If not: **hard error**.
+
+Required remediation message on any of the above failures:
+
+```
+error: council --mixed requires Codex CLI, but codex was not found (or not runnable).
+  Fix one of:
+    1. Install Codex CLI:   https://github.com/openai/codex
+    2. Drop --mixed and re-run with Claude-only judges:   /council validate <target>
+  Aborting without spawning judges.
+```
+
+**Do NOT silently fall back to Claude-only when `--mixed` is set.** That would
+defeat the cross-vendor validation intent. The only acceptable degradation is
+explicit operator action (dropping `--mixed`). This rule is strict by design.
+
+Once Codex is confirmed available, spawn Codex judges alongside runtime-native
+judges:
 
 ```bash
 # With structured output (preferred)
 codex exec -s read-only -C "$(pwd)" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-{N}.json "{PACKET}"
 
-# Fallback (if --output-schema unsupported)
+# Fallback (if --output-schema unsupported — this is an output-format fallback,
+# NOT a vendor fallback; Codex is still required)
 codex exec --full-auto -C "$(pwd)" -o .agents/council/codex-{N}.md "{PACKET}"
 ```
 

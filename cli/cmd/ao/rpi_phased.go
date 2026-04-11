@@ -42,6 +42,7 @@ var (
 	phasedBudgetSpec           string
 	phasedNoDashboard          bool
 	phasedMixed                bool
+	phasedDiscoveryArtifact    string
 )
 
 // phaseFailureReason is a thin alias for the internal PhaseFailureReason type.
@@ -105,6 +106,7 @@ Examples:
 	phasedCmd.Flags().IntVar(&phasedTmuxWorkers, "tmux-workers", 1, "When --runtime tmux, number of worker sessions spawned per phase")
 	phasedCmd.Flags().BoolVar(&phasedNoDashboard, "no-dashboard", false, "Disable auto-opening the web dashboard")
 	phasedCmd.Flags().BoolVar(&phasedMixed, "mixed", false, "Enable cross-vendor mixed-model execution (planner and reviewer from different vendors)")
+	phasedCmd.Flags().StringVar(&phasedDiscoveryArtifact, "discovery-artifact", "", "Path to a pre-validated discovery artifact (markdown) used to skip Phase 1 when combined with --from=implementation")
 
 	rpiCmd.AddCommand(phasedCmd)
 }
@@ -148,6 +150,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		BudgetSpec:           phasedBudgetSpec,
 		NoDashboard:          phasedNoDashboard,
 		Mixed:                phasedMixed,
+		DiscoveryArtifact:    phasedDiscoveryArtifact,
 	}
 	if phasedNoTestFirst {
 		opts.TestFirst = false
@@ -291,6 +294,22 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 	}
 	maybeAutoCleanStale(opts, cwd)
 
+	// When --discovery-artifact is set, pre-load the artifact so we have a
+	// fallback goal for the `--from=implementation` (no bead, no goal arg)
+	// case. We do not yet write the execution packet here — that happens
+	// after initPhasedState so we can resolve spawnCwd and RunID first.
+	var preloadedArtifact *discoveryArtifact
+	if strings.TrimSpace(opts.DiscoveryArtifact) != "" {
+		art, loadErr := loadDiscoveryArtifact(opts.DiscoveryArtifact)
+		if loadErr != nil {
+			return loadErr
+		}
+		preloadedArtifact = art
+		if len(args) == 0 && strings.TrimSpace(art.Goal) != "" {
+			args = []string{art.Goal}
+		}
+	}
+
 	originalCwd := cwd
 	state, startPhase, spawnCwd, err := initPhasedState(cwd, opts, args)
 	if err != nil {
@@ -323,6 +342,20 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 	logPath = runLogPath
 	if err := writeExecutionPacketSeed(spawnCwd, state); err != nil {
 		return err
+	}
+	// If --discovery-artifact was supplied alongside --from=implementation,
+	// rewrite the execution packet from the artifact. This replaces the
+	// Phase 1 / discovery output with a caller-validated equivalent.
+	if preloadedArtifact != nil && startPhase >= 2 {
+		packetPath, artErr := writeExecutionPacketFromArtifact(spawnCwd, preloadedArtifact, state.Goal)
+		if artErr != nil {
+			return fmt.Errorf("apply discovery-artifact: %w", artErr)
+		}
+		fmt.Printf("Phase 1 (discovery) complete — artifact: %s\n", preloadedArtifact.SourcePath)
+		VerbosePrintf("Execution packet written from discovery artifact: %s\n", packetPath)
+	} else if preloadedArtifact != nil {
+		// Flag set but --from is still discovery — warn and continue normally.
+		fmt.Printf("Warning: --discovery-artifact is only honored with --from=implementation; ignoring.\n")
 	}
 	if err := updateExecutionPacketProof(spawnCwd, state); err != nil {
 		VerbosePrintf("Warning: could not initialize execution packet proof: %v\n", err)

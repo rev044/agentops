@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dream RunLoop live-tree hash invariant coverage** — `TestRunLoop_LiveTreeHashInvariant_AllStatuses` locks the `IsCorpusCompounded()` ↔ live-tree mutation invariant across the deterministically-reproducible statuses available today (StatusDone and StatusHaltedOnRegressionPreCommit), with StatusDegraded / StatusHaltedOnRegressionPostCommit / StatusRolledBackPreCommit / StatusFailed documented as pending fixture work. Advances `na-1iv`.
+- **Dream failed-summary internal contract regression** — `TestDreamFailedSummary_InternalContract` and `TestDreamFailedSummary_DegradedNotesPreserved` lock the upstream contract that `finalizeOvernightSummary` consumes: when the MEASURE consecutive-failure cap trips, `RunLoopResult.MeasureFailureHalt`, `FailureReason`, and the full iteration history (including the last StatusDone step) must round-trip through the persisted `iter-N.json` files. Together with the existing cmd-layer `TestRunOvernight_HardFail_WritesFailedSummary`, closes `na-cdn`.
+
+### Changed
+
+- **Council `--mixed` strict contract documented** — `skills/council/references/cli-spawning.md` documents that `/council --mixed` requires Codex CLI and emits a hard error (with remediation: install Codex or drop `--mixed`) instead of silently falling back to Claude-only. Advances `na-1i9`; the remaining implementation work is to wire the skill path so mixed sessions actually produce Claude and Codex judge artifacts.
+- **plan skill decomposed + stale-scope gate wired** — `skills/plan/SKILL.md` split into focused references (pre-decomposition, implementation-detail, decomposition, wave-matrices, plan-document-template, task-creation) and a new Step 0 auto-invokes `ao beads verify <bead-id>` when `/plan` is fed a bead ID under full complexity, old (>7d), or prior-session origin — enforcing `../shared/references/stale-scope-validation.md` before decomposition.
+- **Pre-mortem SKILL.md decomposed** — extracted compiled-prevention, scope-mode, mandatory-checks (Steps 2.4–2.8), write-pre-mortem-output (Step 4 template + 4.5/4.6 persistence), and examples+troubleshooting into `skills/pre-mortem/references/` so SKILL.md drops from 549 → 201 lines while preserving full semantics
+- **Pre-mortem Step 0 bead-input pre-flight** — auto-invokes `ao beads verify <bead-id>` when the input is a bead ID under full complexity, aged >7 days, or filed by a prior session, blocking on STALE citations per `shared/references/stale-scope-validation.md`
+- **Validation skill lint drift repaired** — trimmed `skills/validation/SKILL.md` back under the meta-tier line cap and restored top-level model/default markers required by the skill tuning smoke.
+
+### Fixed
+
+- **security-toolchain-gate CI** — suppressed a semgrep false-positive in `cli/internal/overnight/fixture/gen_fixture.go` where seeded `math/rand` is used for deterministic L2 e2e fixture generation (not a cryptographic context). Added an inline `nosemgrep` comment with a justification documenting intent.
+
 ## [2.36.0] - 2026-04-09
 
 ### Added

@@ -568,7 +568,7 @@
       "name": "council",
       "source_skill": "skills/council",
       "source_hash": "ffc20fd7f42b63af231a2d1a44df2edc33d78e4b6dd8cf0c7f2ee07e2ecf9f0d",
-      "generated_hash": "c5f30832bf6ecfc740460df76adb022d97ba206c37f264c409dd772c0fb6f129"
+      "generated_hash": "aa6bfa82569e84a576d72156fd8148b35252ff280b370073a9bf2a3fc473b380"
     },
     {
       "name": "crank",
@@ -694,7 +694,7 @@
       "name": "plan",
       "source_skill": "skills/plan",
       "source_hash": "1a60effff3f0e9380dc55a0816dfb3256d0f5ad6d72d1a269c210668860184d9",
-      "generated_hash": "111773b9675383d03ae1208754a56f99f2d8acffcb5e8bf7a8ba77bd204d7bae"
+      "generated_hash": "ab60699eaef20eb5a0a0d1a1444ade6a369b6f2b721f647c5c820e2aa4ba04d5"
     },
     {
       "name": "post-mortem",
@@ -742,7 +742,7 @@
       "name": "pre-mortem",
       "source_skill": "skills/pre-mortem",
       "source_hash": "9ed2f0290ccc16ce45a79d0a22b2dae54f525875fa2a8375bf470de54c08912d",
-      "generated_hash": "5864f9edd205eebe053fbae60ad27fecb0c856768e76077c859739d09aa89c5d"
+      "generated_hash": "d148d2fa2f358ef3dd76f677e240f0fdeee63bb3f23d85d3f8ee5fa107d0332f"
     },
     {
       "name": "product",
@@ -910,7 +910,7 @@
       "name": "validation",
       "source_skill": "skills/validation",
       "source_hash": "2e71f8dbe94c65971f0dff7f82ac83396649ff036bbea388060174945f660c5c",
-      "generated_hash": "ed3e999c9ef4ff67f3d4e9e4a9220224f82e3a94cb997a60bd09fcade15de526"
+      "generated_hash": "04c7521bc6e5d801f05092c41794ebbd3bd00b6f89b83f366a5201bdb46f874a"
     },
     {
       "name": "vibe",
