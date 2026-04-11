@@ -185,6 +185,7 @@ func TestRunLoop_L2_FullIteration_CorpusQualityMoves(t *testing.T) {
 	opts := RunLoopOptions{
 		Cwd:            dir,
 		OutputDir:      filepath.Join(dir, ".agents", "overnight", "test-run"),
+		RunID:          "test-run",
 		RunTimeout:     30 * time.Second,
 		MaxIterations:  2,
 		WarnOnly:       true, // tolerate plateau/regression while exercising the loop
@@ -366,6 +367,7 @@ func TestRunLoop_L2_CompoundFilterCliff_DoesNotSilentlyKillCorpus(t *testing.T) 
 	runOpts := RunLoopOptions{
 		Cwd:       dir,
 		OutputDir: filepath.Join(dir, ".agents", "overnight", "cliff-run"),
+		RunID:     "cliff-run",
 		WarnOnly:  true,
 		LogWriter: io.Discard,
 	}
@@ -434,6 +436,7 @@ func TestRunLoop_PostCommitMetadataCheck_LogsFinding(t *testing.T) {
 	opts := RunLoopOptions{
 		Cwd:       dir,
 		OutputDir: filepath.Join(dir, ".agents", "overnight", "postcommit-test"),
+		RunID:     "postcommit-test",
 		WarnOnly:  true,
 		LogWriter: io.Discard,
 	}

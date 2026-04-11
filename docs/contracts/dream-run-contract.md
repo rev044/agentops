@@ -145,6 +145,7 @@ Required artifacts:
 - `<output-dir>/council/packet.json` when Dream Council is configured
 - `<output-dir>/council/<runner>.json` for each successful Dream Council runner
 - `<output-dir>/council/synthesis.json` when Dream Council synthesis succeeds
+- `<output-dir>/<runID>/iterations/iter-<N>.json` per-iteration cycle history (Micro-epic 2). Written atomically after each iteration finishes so a crash never truncates history; on resume, `RunLoop` rehydrates prior iterations from this directory rather than starting from memory.
 - `<output-dir>/summary.json`
 - `<output-dir>/summary.md`
 

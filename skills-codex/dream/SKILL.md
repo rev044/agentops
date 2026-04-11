@@ -57,6 +57,7 @@ Expected behavior:
 
 - operates against the real repo-local `.agents` corpus
 - writes `summary.json` and `summary.md` (with per-iteration sub-summary entries for each INGEST -> REDUCE -> MEASURE pass)
+- persists each iteration atomically to `<output-dir>/<runID>/iterations/iter-<N>.json`; resumed runs rehydrate prior iterations from disk instead of starting from a clean slate (Micro-epic 2)
 - degrades honestly when soft-fail steps or keep-awake helpers are unavailable
 
 ### Step 4: Morning report lane

@@ -24,6 +24,14 @@ type RunLoopOptions struct {
 	// ".agents/overnight/<run-id>/".
 	OutputDir string
 
+	// RunID is the caller-assigned identifier for this Dream run. Used to
+	// namespace per-iteration persistence under <OutputDir>/<RunID>/iterations/
+	// so two runs sharing an OutputDir (the default `.agents/overnight/latest`
+	// is shared by every run) cannot cross-contaminate each other's history.
+	// Also used as the "<run-id>" prefix in IterationID values per the contract
+	// at line 10. Required; RunLoop returns an error if empty.
+	RunID string
+
 	// RunTimeout caps the outer loop's wall-clock. Default: 2h.
 	// Capped at 6h regardless of flag value.
 	RunTimeout time.Duration

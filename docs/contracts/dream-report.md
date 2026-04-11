@@ -145,6 +145,16 @@ Schema v2 (2026-04-09) introduces the compounding iteration loop. It is **additi
 | `degraded` | array of strings | `["retrieval_bench"]` | Soft-failed stages |
 | `error` | string (optional) | `"checkpoint integrity failure"` | Present on `failed` or `rolled-back` |
 
+### Per-Iteration Persistence (Micro-epic 2, 2026-04-10)
+
+Each `IterationSummary` is also written to disk atomically as soon as the iteration finishes, under:
+
+```
+<outputDir>/<runID>/iterations/iter-<N>.json
+```
+
+Writes use `os.CreateTemp` → `f.Sync` → `os.Rename` → directory `fsync` so a crash during a write can never leave a half-written file. On resume, `RunLoop` rehydrates prior iterations from this directory and the morning report's `summary.iterations` array is populated from both in-memory state AND the persisted files on disk — a crashed run that previously returned an empty iteration list now surfaces every completed iteration's history. Pre–Micro-epic 2 code never persisted these files, so "resume after upgrade" has no legacy files to migrate.
+
 ### Backward Compatibility Guarantee
 
 v1 consumers parsing new v2 output must not error on unknown fields. Most JSON parsers (Go's `encoding/json` with default behavior, Python's `json.loads`, `jq`, browsers) ignore unknown fields by default. Parsers that explicitly opt into strict mode (`DisallowUnknownFields()` in Go, Pydantic `extra=forbid`) **will break** on v2 output and must be updated to tolerate the additive fields listed above.

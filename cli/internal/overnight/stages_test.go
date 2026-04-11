@@ -65,6 +65,7 @@ func newTestOpts(cwd string) RunLoopOptions {
 	return RunLoopOptions{
 		Cwd:       cwd,
 		OutputDir: filepath.Join(cwd, ".agents", "overnight", "test-run"),
+		RunID:     "test-run",
 	}
 }
 

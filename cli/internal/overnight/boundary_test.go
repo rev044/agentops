@@ -46,6 +46,7 @@ func newBoundaryOpts(t *testing.T, repoRoot string) RunLoopOptions {
 	return RunLoopOptions{
 		Cwd:            repoRoot,
 		OutputDir:      outDir,
+		RunID:          "test-boundary-run",
 		RunTimeout:     30 * time.Second,
 		MaxIterations:  1,
 		PlateauEpsilon: 0.01,

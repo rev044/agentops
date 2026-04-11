@@ -2,12 +2,12 @@ package overnight
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -98,8 +98,39 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		log = io.Discard
 	}
 
+	// Rehydrate from prior persisted iterations so a resumed run sees the
+	// full history and picks up prevSnapshot correctly. This lives here
+	// (NOT in recovery.go) because:
+	//   1. recovery.go's RecoverFromCrash returns ([]string, error) and
+	//      runs BEFORE RunLoop at cli/cmd/ao/overnight.go:261 — it cannot
+	//      hand prevSnapshot across the call boundary.
+	//   2. prevSnapshot is local to RunLoop and must be set before the
+	//      first loop iteration runs.
+	//   3. Rehydration is RunLoop's concern, not crash recovery's.
+	//
+	// Known limitation (see Micro-epic 3 — C2 status lie fix): the
+	// Status == "done" filter below correctly skips pre-commit rollbacks
+	// (loop.go REDUCE failure path) but also skips post-commit regression
+	// halts, whose corpus DID compound on disk. This is acceptable for
+	// Micro-epic 2 because the compounded corpus is still on disk and the
+	// rehydrated prevSnapshot is at worst slightly stale (not corrupted).
+	var priorIterations []IterationSummary
+	if opts.OutputDir != "" && opts.RunID != "" {
+		iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+		prior, rejected, loadErr := LoadIterations(iterDir, opts.RunID)
+		if loadErr != nil {
+			// Structural error (e.g., readdir failure with permission denied).
+			// Surface via degraded and proceed with empty history — never halt.
+			degraded = append(degraded, fmt.Sprintf("rehydrate: %v", loadErr))
+		}
+		for _, rej := range rejected {
+			degraded = append(degraded, fmt.Sprintf("rehydrate rejected: %s", rej))
+		}
+		priorIterations = prior
+	}
+
 	result := &RunLoopResult{
-		Iterations: nil,
+		Iterations: priorIterations, // Resume with history intact
 		Degraded:   degraded,
 	}
 
@@ -108,6 +139,9 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	}
 	if opts.OutputDir == "" {
 		return result, fmt.Errorf("overnight: RunLoopOptions.OutputDir is required")
+	}
+	if opts.RunID == "" {
+		return result, fmt.Errorf("overnight: RunLoopOptions.RunID is required")
 	}
 
 	fmt.Fprintf(log, "overnight: RunLoop starting (budget=%s, max_iter=%d, epsilon=%g, K=%d, warn_only=%v)\n",
@@ -119,8 +153,45 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 
 	startedAt := time.Now()
 	plateau := NewPlateauState(opts.PlateauWindowK, opts.PlateauEpsilon)
+
+	// Initialize prevSnapshot from the last SUCCESSFUL prior iteration's
+	// fitness_after. Iterations with Status != "done" are skipped during
+	// rehydration (see Micro-epic 3 for the status enum cleanup).
 	var prevSnapshot *FitnessSnapshot
-	iterIndex := 0
+	if len(priorIterations) > 0 {
+		for i := len(priorIterations) - 1; i >= 0; i-- {
+			if priorIterations[i].Status == "done" {
+				if snap := mapToSnapshot(priorIterations[i].FitnessAfter); snap != nil {
+					prevSnapshot = snap
+				}
+				break
+			}
+		}
+	}
+
+	// Replay prior deltas through the plateau window so a resumed run
+	// preserves the prior streak. Only successful iterations contribute —
+	// an iteration whose Status is not "done" either never committed
+	// (pre-commit rollback) or did commit but had no valid delta
+	// (post-commit regression halt). Walk the LAST K successful iterations
+	// in chronological order so the window reflects the most recent state.
+	//
+	// If the PRIOR run had already plateaued, the operator would have
+	// halted and not resumed. Resuming implies plateau did NOT fire in
+	// the prior run, so the boolean return from Observe is ignored.
+	if len(priorIterations) > 0 && opts.PlateauWindowK > 0 {
+		var successfulTail []IterationSummary
+		for i := len(priorIterations) - 1; i >= 0 && len(successfulTail) < opts.PlateauWindowK; i-- {
+			if priorIterations[i].Status == "done" {
+				successfulTail = append([]IterationSummary{priorIterations[i]}, successfulTail...)
+			}
+		}
+		for _, it := range successfulTail {
+			_ = plateau.Observe(it.FitnessDelta)
+		}
+	}
+
+	iterIndex := len(priorIterations) // Resume from N+1 (incremented at top of loop)
 
 	for {
 		// Budget / cancellation check BEFORE starting a new iteration.
@@ -142,7 +213,7 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		}
 
 		iterIndex++
-		iterID := IterationID("iter-" + strconv.Itoa(iterIndex))
+		iterID := IterationID(fmt.Sprintf("%s-iter-%d", opts.RunID, iterIndex))
 		iterStart := time.Now()
 		fmt.Fprintf(log, "overnight: iteration %d starting (id=%s)\n", iterIndex, iterID)
 
@@ -160,6 +231,14 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			iter.Error = fmt.Sprintf("ingest: %v", ingestErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+			// Best-effort persist of the failed iteration summary. Do NOT
+			// override the original error; append a Degraded note so the
+			// morning report shows both failures.
+			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+				result.Degraded = append(result.Degraded,
+					fmt.Sprintf("persist iter-%d (during ingest failure): %v", iterIndex, writeErr))
+			}
 			result.Iterations = append(result.Iterations, iter)
 			fmt.Fprintf(log, "overnight: iteration %d INGEST failed: %v\n", iterIndex, ingestErr)
 			return result, fmt.Errorf("overnight: iteration %d ingest: %w", iterIndex, ingestErr)
@@ -176,6 +255,11 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			iter.Error = fmt.Sprintf("checkpoint: %v", cpErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+				result.Degraded = append(result.Degraded,
+					fmt.Sprintf("persist iter-%d (during checkpoint failure): %v", iterIndex, writeErr))
+			}
 			result.Iterations = append(result.Iterations, iter)
 			fmt.Fprintf(log, "overnight: iteration %d checkpoint failed: %v\n", iterIndex, cpErr)
 			return result, fmt.Errorf("overnight: iteration %d checkpoint: %w", iterIndex, cpErr)
@@ -195,6 +279,11 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			}
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+				result.Degraded = append(result.Degraded,
+					fmt.Sprintf("persist iter-%d (during reduce failure): %v", iterIndex, writeErr))
+			}
 			result.Iterations = append(result.Iterations, iter)
 			// Checkpoint is already rolled back by RunReduce itself.
 			fmt.Fprintf(log, "overnight: iteration %d REDUCE failed (rolled back): %v\n", iterIndex, reduceErr)
@@ -213,6 +302,11 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			iter.Error = fmt.Sprintf("commit: %v", commitErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+				result.Degraded = append(result.Degraded,
+					fmt.Sprintf("persist iter-%d (during commit failure): %v", iterIndex, writeErr))
+			}
 			result.Iterations = append(result.Iterations, iter)
 			fmt.Fprintf(log, "overnight: iteration %d commit failed: %v\n", iterIndex, commitErr)
 			return result, fmt.Errorf("overnight: iteration %d commit: %w", iterIndex, commitErr)
@@ -237,6 +331,11 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			iter.Error = fmt.Sprintf("measure: %v", measureErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+			iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+			if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+				result.Degraded = append(result.Degraded,
+					fmt.Sprintf("persist iter-%d (during measure failure): %v", iterIndex, writeErr))
+			}
 			result.Iterations = append(result.Iterations, iter)
 			// Measure failure is not a rollback trigger (post-commit);
 			// the compounded corpus is already committed. Surface the
@@ -260,6 +359,11 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 				iter.Status = "rolled-back"
 				iter.FinishedAt = time.Now()
 				iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+				iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+				if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+					result.Degraded = append(result.Degraded,
+						fmt.Sprintf("persist iter-%d (during regression halt): %v", iterIndex, writeErr))
+				}
 				result.Iterations = append(result.Iterations, iter)
 				result.RegressionReason = fmt.Sprintf("iteration %d: %d metric(s) breached regression floor %g: %v",
 					iterIndex, len(regressions), opts.RegressionFloor, regressionNames(regressions))
@@ -273,6 +377,11 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			if plateau.Observe(composite) && !opts.WarnOnly {
 				iter.FinishedAt = time.Now()
 				iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+				iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+				if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+					result.Degraded = append(result.Degraded,
+						fmt.Sprintf("persist iter-%d (during plateau halt): %v", iterIndex, writeErr))
+				}
 				result.Iterations = append(result.Iterations, iter)
 				result.PlateauReason = plateau.Reason()
 				fmt.Fprintf(log, "overnight: RunLoop halted — %s\n", result.PlateauReason)
@@ -282,12 +391,38 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 
 		iter.FinishedAt = time.Now()
 		iter.Duration = iter.FinishedAt.Sub(iterStart).String()
+
+		// Persist BEFORE appending to in-memory state. Order matters: if
+		// we append first and then persist, a write failure would leave
+		// result.Iterations holding N entries while disk holds N-1, making
+		// the morning report lie about what happened.
+		//
+		// A persist failure in the HAPPY path is NOT a hard halt — the
+		// corpus on disk is correct (commit already succeeded), we just
+		// lost the ability to record this iteration's summary for the
+		// morning report or resume. Degrade + continue. The operator sees
+		// the strip via result.Degraded.
+		iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
+		if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
+			msg := fmt.Sprintf("persist iter-%d: %v", iterIndex, writeErr)
+			iter.Degraded = append(iter.Degraded, msg)
+			result.Degraded = append(result.Degraded, msg)
+			fmt.Fprintf(log, "overnight: iteration %d persist failed (degraded, continuing): %v\n",
+				iterIndex, writeErr)
+		}
+
 		result.Iterations = append(result.Iterations, iter)
 		snap := currSnapshot
 		prevSnapshot = &snap
 
 		fmt.Fprintf(log, "overnight: iteration %d done (elapsed=%s, total=%s)\n",
 			iterIndex, iter.Duration, time.Since(startedAt))
+
+		// Test-only fault injection: panic after persist, before the next
+		// iter starts. Used by TestRunLoop_CrashAtIter2_ResumeRehydrates.
+		if fi := getFaultInjectionAfterIter(); fi > 0 && iterIndex == fi {
+			panic(fmt.Sprintf("overnight: test fault injection at iter %d", iterIndex))
+		}
 	}
 }
 
@@ -339,6 +474,41 @@ func snapshotToMap(s FitnessSnapshot) map[string]any {
 		out[k] = v
 	}
 	return out
+}
+
+// mapToSnapshot is the inverse of snapshotToMap. Returns nil if the input
+// is nil or does not contain a valid metric map. Used during resume to
+// rehydrate prevSnapshot from the last persisted iteration.
+//
+// json.Unmarshal of a numeric metric through a map[string]any yields
+// float64, so the common case is handled by the float64 branch. int and
+// json.Number are accepted for forward-compatibility with non-default
+// decoders. Non-numeric values are silently dropped — Dream does not
+// write non-numeric metrics today; if that changes, this helper should
+// be updated in lock-step.
+func mapToSnapshot(m map[string]any) *FitnessSnapshot {
+	if m == nil {
+		return nil
+	}
+	snap := FitnessSnapshot{Metrics: make(map[string]float64, len(m))}
+	for k, v := range m {
+		switch n := v.(type) {
+		case float64:
+			snap.Metrics[k] = n
+		case int:
+			snap.Metrics[k] = float64(n)
+		case int64:
+			snap.Metrics[k] = float64(n)
+		case json.Number:
+			if f, err := n.Float64(); err == nil {
+				snap.Metrics[k] = f
+			}
+		}
+	}
+	if len(snap.Metrics) == 0 {
+		return nil
+	}
+	return &snap
 }
 
 // regressionNames extracts the metric names from a MetricRegression slice

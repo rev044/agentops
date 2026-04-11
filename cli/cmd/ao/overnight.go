@@ -319,6 +319,7 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 	runOpts := ovn.RunLoopOptions{
 		Cwd:                cwd,
 		OutputDir:          summary.OutputDir,
+		RunID:              summary.RunID, // required; namespaces iter-*.json persistence
 		RunTimeout:         settings.RunTimeout,
 		MaxIterations:      overnightMaxIterations,
 		PlateauEpsilon:     overnightPlateauEpsilon,
