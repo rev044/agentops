@@ -343,7 +343,7 @@ func runOvernightStart(cmd *cobra.Command, args []string) error {
 		for i, iter := range loopResult.Iterations {
 			summary.Steps = append(summary.Steps, overnightStepSummary{
 				Name:   fmt.Sprintf("iteration-%d", i+1),
-				Status: iter.Status,
+				Status: string(iter.Status),
 			})
 		}
 	}

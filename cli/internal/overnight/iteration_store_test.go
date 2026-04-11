@@ -289,3 +289,97 @@ func TestWriteIterationAtomic_RoundTripsFields(t *testing.T) {
 		t.Errorf("FitnessAfter citation_coverage missing")
 	}
 }
+
+// TestCommittedButFlaggedMarker_WriteAndList writes two markers and
+// confirms ListCommittedButFlaggedMarkers returns them in ascending
+// index order. This is the happy-path lifecycle for the sentinel file
+// that operators use to find post-commit halted iterations.
+func TestCommittedButFlaggedMarker_WriteAndList(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeCommittedButFlaggedMarker(dir, 3); err != nil {
+		t.Fatalf("write marker 3: %v", err)
+	}
+	if err := writeCommittedButFlaggedMarker(dir, 5); err != nil {
+		t.Fatalf("write marker 5: %v", err)
+	}
+	// Confirm the sentinel files actually exist on disk (not just the
+	// return value — we want the rename to have landed).
+	for _, idx := range []int{3, 5} {
+		path := filepath.Join(dir, fmt.Sprintf("committed-but-flagged.iter-%d.marker", idx))
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("marker iter-%d missing on disk: %v", idx, err)
+		}
+	}
+	markers, err := ListCommittedButFlaggedMarkers(dir)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(markers) != 2 || markers[0] != 3 || markers[1] != 5 {
+		t.Errorf("markers = %v, want [3 5]", markers)
+	}
+}
+
+// TestCommittedButFlaggedMarker_EmptyDir confirms an existing but
+// empty directory returns an empty slice and no error (not a nil
+// error from readdir, not a spurious entry from a temp file that
+// didn't exist).
+func TestCommittedButFlaggedMarker_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	markers, err := ListCommittedButFlaggedMarkers(dir)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(markers) != 0 {
+		t.Errorf("markers = %v, want empty", markers)
+	}
+}
+
+// TestCommittedButFlaggedMarker_MissingDir asserts a non-existent
+// directory is treated as "no flagged iterations" rather than a
+// propagated error — the operator CLI calls this helper with a
+// path that may not exist yet on a fresh run.
+func TestCommittedButFlaggedMarker_MissingDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "does-not-exist")
+	markers, err := ListCommittedButFlaggedMarkers(dir)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(markers) != 0 {
+		t.Errorf("markers = %v, want empty", markers)
+	}
+}
+
+// TestCommittedButFlaggedMarker_IgnoresUnrelatedFiles guards against
+// directory listing collisions: iter-<N>.json and arbitrary other
+// files must not be reported as markers.
+func TestCommittedButFlaggedMarker_IgnoresUnrelatedFiles(t *testing.T) {
+	dir := t.TempDir()
+	// Drop a real iter-<N>.json alongside the marker.
+	iter := makeIter("r-marker", 1)
+	if err := writeIterationAtomic(dir, iter); err != nil {
+		t.Fatalf("writeIterationAtomic: %v", err)
+	}
+	if err := writeCommittedButFlaggedMarker(dir, 1); err != nil {
+		t.Fatalf("writeCommittedButFlaggedMarker: %v", err)
+	}
+	// Drop an unrelated file.
+	if err := os.WriteFile(filepath.Join(dir, "unrelated.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("unrelated write: %v", err)
+	}
+	markers, err := ListCommittedButFlaggedMarkers(dir)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(markers) != 1 || markers[0] != 1 {
+		t.Errorf("markers = %v, want [1]", markers)
+	}
+	// Guard: LoadIterations should still see the iter-<N>.json file
+	// and not be confused by the marker.
+	iters, _, err := LoadIterations(dir, "r-marker")
+	if err != nil {
+		t.Fatalf("LoadIterations: %v", err)
+	}
+	if len(iters) != 1 {
+		t.Errorf("LoadIterations = %d iters, want 1", len(iters))
+	}
+}

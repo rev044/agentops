@@ -24,7 +24,7 @@ type IterationSummary struct {
 	StartedAt    time.Time   `json:"started_at" yaml:"started_at"`
 	FinishedAt   time.Time   `json:"finished_at" yaml:"finished_at"`
 	Duration     string      `json:"duration" yaml:"duration"`
-	Status       string      `json:"status" yaml:"status"` // done, degraded, rolled-back, failed
+	Status       IterationStatus `json:"status" yaml:"status"` // See IterationStatus in types.go — exhaustive enum
 
 	// Stage sub-summaries. Each is an opaque map so v1 readers can ignore
 	// them without schema awareness.
@@ -108,12 +108,12 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	//      first loop iteration runs.
 	//   3. Rehydration is RunLoop's concern, not crash recovery's.
 	//
-	// Known limitation (see Micro-epic 3 — C2 status lie fix): the
-	// Status == "done" filter below correctly skips pre-commit rollbacks
-	// (loop.go REDUCE failure path) but also skips post-commit regression
-	// halts, whose corpus DID compound on disk. This is acceptable for
-	// Micro-epic 2 because the compounded corpus is still on disk and the
-	// rehydrated prevSnapshot is at worst slightly stale (not corrupted).
+	// Micro-epic 3 (C2 status lie fix, 2026-04-10): the rehydration
+	// predicate is now IsCorpusCompounded(), not Status == "done". This
+	// correctly includes post-commit regression halts (whose corpus DID
+	// compound on disk) as valid rehydration baselines, while still
+	// skipping pre-commit rollbacks. See types.go for the enum and
+	// docs/contracts/dream-report.md's Status Precedence Truth Table.
 	var priorIterations []IterationSummary
 	if opts.OutputDir != "" && opts.RunID != "" {
 		iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
@@ -154,13 +154,14 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	startedAt := time.Now()
 	plateau := NewPlateauState(opts.PlateauWindowK, opts.PlateauEpsilon)
 
-	// Initialize prevSnapshot from the last SUCCESSFUL prior iteration's
-	// fitness_after. Iterations with Status != "done" are skipped during
-	// rehydration (see Micro-epic 3 for the status enum cleanup).
+	// Initialize prevSnapshot from the last iteration whose corpus is on
+	// disk (IsCorpusCompounded). Pre-commit rollbacks and failed
+	// iterations are skipped; post-commit regression halts are NOT
+	// skipped because their corpus compounded before the halt fired.
 	var prevSnapshot *FitnessSnapshot
 	if len(priorIterations) > 0 {
 		for i := len(priorIterations) - 1; i >= 0; i-- {
-			if priorIterations[i].Status == "done" {
+			if priorIterations[i].Status.IsCorpusCompounded() {
 				if snap := mapToSnapshot(priorIterations[i].FitnessAfter); snap != nil {
 					prevSnapshot = snap
 				}
@@ -170,11 +171,10 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	}
 
 	// Replay prior deltas through the plateau window so a resumed run
-	// preserves the prior streak. Only successful iterations contribute —
-	// an iteration whose Status is not "done" either never committed
-	// (pre-commit rollback) or did commit but had no valid delta
-	// (post-commit regression halt). Walk the LAST K successful iterations
-	// in chronological order so the window reflects the most recent state.
+	// preserves the prior streak. Only compounded iterations contribute
+	// (IsCorpusCompounded) — an iteration that never committed has no
+	// valid delta to replay. Walk the LAST K compounded iterations in
+	// chronological order so the window reflects the most recent state.
 	//
 	// If the PRIOR run had already plateaued, the operator would have
 	// halted and not resumed. Resuming implies plateau did NOT fire in
@@ -182,7 +182,7 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 	if len(priorIterations) > 0 && opts.PlateauWindowK > 0 {
 		var successfulTail []IterationSummary
 		for i := len(priorIterations) - 1; i >= 0 && len(successfulTail) < opts.PlateauWindowK; i-- {
-			if priorIterations[i].Status == "done" {
+			if priorIterations[i].Status.IsCorpusCompounded() {
 				successfulTail = append([]IterationSummary{priorIterations[i]}, successfulTail...)
 			}
 		}
@@ -221,13 +221,13 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			ID:        iterID,
 			Index:     iterIndex,
 			StartedAt: iterStart,
-			Status:    "done",
+			Status:    StatusDone,
 		}
 
 		// --- INGEST ---
 		ingest, ingestErr := RunIngest(loopCtx, opts, log)
 		if ingestErr != nil {
-			iter.Status = "failed"
+			iter.Status = StatusFailed
 			iter.Error = fmt.Sprintf("ingest: %v", ingestErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
@@ -251,7 +251,7 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		// --- CHECKPOINT ---
 		cp, cpErr := NewCheckpoint(opts.Cwd, string(iterID), opts.CheckpointMaxBytes)
 		if cpErr != nil {
-			iter.Status = "failed"
+			iter.Status = StatusFailed
 			iter.Error = fmt.Sprintf("checkpoint: %v", cpErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
@@ -272,7 +272,7 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		var emptyCloseLoop lifecycle.CloseLoopOpts
 		reduce, reduceErr := RunReduce(loopCtx, opts, ingest, cp, emptyCloseLoop, log)
 		if reduceErr != nil {
-			iter.Status = "rolled-back"
+			iter.Status = StatusRolledBackPreCommit
 			iter.Error = fmt.Sprintf("reduce: %v", reduceErr)
 			if reduce != nil {
 				iter.Reduce = reduceSummary(reduce)
@@ -298,7 +298,7 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		// REDUCE succeeded. Promote the staging tree into live so the
 		// next iteration (and MEASURE below) sees the compounded corpus.
 		if commitErr := cp.Commit(); commitErr != nil {
-			iter.Status = "failed"
+			iter.Status = StatusFailed
 			iter.Error = fmt.Sprintf("commit: %v", commitErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
@@ -327,7 +327,7 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 		// --- MEASURE ---
 		measure, measureErr := RunMeasure(loopCtx, opts, log)
 		if measureErr != nil {
-			iter.Status = "degraded"
+			iter.Status = StatusDegraded
 			iter.Error = fmt.Sprintf("measure: %v", measureErr)
 			iter.FinishedAt = time.Now()
 			iter.Duration = iter.FinishedAt.Sub(iterStart).String()
@@ -356,13 +356,20 @@ func RunLoop(ctx context.Context, opts RunLoopOptions) (*RunLoopResult, error) {
 			composite, regressions, regressed := currSnapshot.Delta(prevSnapshot, nil, opts.RegressionFloor)
 			iter.FitnessDelta = composite
 			if regressed && !opts.WarnOnly {
-				iter.Status = "rolled-back"
+				iter.Status = StatusHaltedOnRegressionPostCommit
 				iter.FinishedAt = time.Now()
 				iter.Duration = iter.FinishedAt.Sub(iterStart).String()
 				iterDir := filepath.Join(opts.OutputDir, opts.RunID, "iterations")
 				if writeErr := writeIterationAtomic(iterDir, iter); writeErr != nil {
 					result.Degraded = append(result.Degraded,
 						fmt.Sprintf("persist iter-%d (during regression halt): %v", iterIndex, writeErr))
+				}
+				// Write the committed-but-flagged marker so operators can
+				// find flagged iterations by directory listing without
+				// parsing iter-<N>.json. Marker-write failure is soft.
+				if markErr := writeCommittedButFlaggedMarker(iterDir, iterIndex); markErr != nil {
+					result.Degraded = append(result.Degraded,
+						fmt.Sprintf("committed-but-flagged marker iter-%d: %v", iterIndex, markErr))
 				}
 				result.Iterations = append(result.Iterations, iter)
 				result.RegressionReason = fmt.Sprintf("iteration %d: %d metric(s) breached regression floor %g: %v",

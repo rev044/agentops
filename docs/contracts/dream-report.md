@@ -135,7 +135,7 @@ Schema v2 (2026-04-09) introduces the compounding iteration loop. It is **additi
 | `started_at` | string (RFC3339) | `"2026-04-09T02:15:03Z"` | Iteration start |
 | `finished_at` | string (RFC3339) | `"2026-04-09T02:27:41Z"` | Iteration finish |
 | `duration` | string | `"12m38s"` | Human-readable duration |
-| `status` | string | `"done"` | One of `done`, `degraded`, `rolled-back`, `failed` |
+| `status` | string | `"done"` | One of `done`, `degraded`, `rolled-back-pre-commit`, `halted-on-regression-post-commit`, `failed`. See the Status Precedence Truth Table below. |
 | `ingest` | object | `{"learnings_added": 14}` | INGEST stage sub-summary |
 | `reduce` | object | `{"deduped": 3, "pruned": 1}` | REDUCE stage sub-summary |
 | `measure` | object | `{"retrieval_bench": {...}}` | MEASURE stage sub-summary |
@@ -143,7 +143,25 @@ Schema v2 (2026-04-09) introduces the compounding iteration loop. It is **additi
 | `fitness_after` | object | `{"composite": 0.631}` | Fitness map after this iteration |
 | `fitness_delta` | float | `0.019` | Numeric composite delta for this iteration |
 | `degraded` | array of strings | `["retrieval_bench"]` | Soft-failed stages |
-| `error` | string (optional) | `"checkpoint integrity failure"` | Present on `failed` or `rolled-back` |
+| `error` | string (optional) | `"checkpoint integrity failure"` | Present on `failed`, `rolled-back-pre-commit`, or (rare) `halted-on-regression-post-commit` |
+
+### Status Precedence Truth Table
+
+The `IterationSummary.Status` field uses an exhaustive five-value enum. Each value has distinct semantics that downstream consumers (morning report, rehydration logic, invariant tests) depend on.
+
+| Status | Commit succeeded? | Corpus on disk? | Rehydration baseline? | Typical trigger |
+|---|---|---|---|---|
+| `done` | yes | yes | yes | Happy path — all stages succeeded, fitness delta non-regressing |
+| `degraded` | yes | yes | yes | MEASURE failed post-commit; no fitness delta available but corpus compounded |
+| `rolled-back-pre-commit` | no | no (unchanged) | no | REDUCE failed before commit; checkpoint was rolled back |
+| `halted-on-regression-post-commit` | yes | yes | yes | Post-commit regression check fired; corpus is in live tree but loop halted |
+| `failed` | partial/no | indeterminate | no | Unrecoverable error in INGEST/CHECKPOINT/COMMIT; RecoverFromCrash handles partial state on restart |
+
+**Invariant:** an iteration with `status ∈ {done, degraded, halted-on-regression-post-commit}` is a valid rehydration baseline for `prevSnapshot` on resume, because the compounded corpus is on disk. Statuses `rolled-back-pre-commit` and `failed` are NOT valid baselines — rehydration walks past them.
+
+**Companion marker file:** when an iteration has `status = halted-on-regression-post-commit`, Dream writes a sentinel file `committed-but-flagged.iter-<N>.marker` in the same `<outputDir>/<runID>/iterations/` directory. Operators can find flagged iterations via directory listing without parsing every iter-<N>.json.
+
+**Historical note:** prior to Micro-epic 3 (2026-04-10), `rolled-back-pre-commit` and `halted-on-regression-post-commit` were both represented by a single `"rolled-back"` string. This was a semantic lie: post-commit halts claimed rollback while the corpus stayed committed. The fix is Micro-epic 2 commit d20e21bd (persistence) plus Micro-epic 3 (enum split).
 
 ### Per-Iteration Persistence (Micro-epic 2, 2026-04-10)
 

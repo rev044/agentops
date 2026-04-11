@@ -1,6 +1,7 @@
 package overnight
 
 import (
+	"fmt"
 	"io"
 	"time"
 )
@@ -8,6 +9,90 @@ import (
 // IterationID is the stable identifier for a single iteration inside a
 // Dream run. Format: "<run-id>-iter-<N>" where N is 1-based.
 type IterationID string
+
+// IterationStatus is the mechanically-verifiable status of a single Dream
+// iteration. Values are exhaustive; each has distinct semantics that
+// downstream consumers (morning report renderer, rehydration logic,
+// invariant tests) depend on.
+type IterationStatus string
+
+const (
+	// StatusDone: happy path. INGEST + REDUCE + COMMIT + MEASURE all
+	// succeeded; the compounded corpus is permanently on disk; fitness
+	// delta was non-regressing (or regression was tolerated in WarnOnly
+	// mode). The iteration contributed forward progress.
+	StatusDone IterationStatus = "done"
+
+	// StatusDegraded: MEASURE failed post-commit. The corpus IS
+	// compounded on disk (commit already happened), but we could not
+	// compute a fitness delta for this iteration. The loop continues
+	// with a stale prevSnapshot from the last fully-done iteration.
+	StatusDegraded IterationStatus = "degraded"
+
+	// StatusRolledBackPreCommit: REDUCE failed BEFORE commit. The
+	// checkpoint was rolled back by RunReduce itself; the live tree is
+	// unchanged. No corpus mutation happened. This is a clean rollback
+	// and the iteration should be skipped during rehydration.
+	StatusRolledBackPreCommit IterationStatus = "rolled-back-pre-commit"
+
+	// StatusHaltedOnRegressionPostCommit: the commit succeeded AND the
+	// corpus was compounded, but a post-commit regression check fired.
+	// The corpus is IN the live tree (checkpoint.Rollback post-commit
+	// does not touch the live tree). The loop halted here in strict
+	// mode OR continued with a degraded note in WarnOnly mode.
+	// Rehydration MUST include this iteration when computing
+	// prevSnapshot because the corpus state is the post-compound state.
+	//
+	// This replaces the legacy rolled-back string at the post-commit
+	// regression halt site. The old string was a LIE: it claimed
+	// rollback while the corpus stayed committed. Micro-epic 3 is the
+	// fix.
+	StatusHaltedOnRegressionPostCommit IterationStatus = "halted-on-regression-post-commit"
+
+	// StatusFailed: any unrecoverable error in INGEST, CHECKPOINT, or
+	// COMMIT itself. Distinct from StatusRolledBackPreCommit because
+	// the failure was NOT a clean rollback — it may have left partial
+	// state that RecoverFromCrash handles on the next startup.
+	StatusFailed IterationStatus = "failed"
+)
+
+// Validate returns an error if s is not one of the defined status
+// constants. Useful as an invariant check in tests and for callers that
+// want to reject unknown/legacy status strings at boundary points.
+//
+// Note: LoadIterations does NOT call Validate — legacy persisted files
+// with the old rolled-back string are silently tolerated as a
+// conservative fallback (they fail IsCorpusCompounded and are skipped
+// during rehydration, matching pre-Micro-epic-3 behavior).
+func (s IterationStatus) Validate() error {
+	switch s {
+	case StatusDone, StatusDegraded, StatusRolledBackPreCommit,
+		StatusHaltedOnRegressionPostCommit, StatusFailed:
+		return nil
+	case "":
+		return fmt.Errorf("overnight: IterationStatus is empty")
+	default:
+		return fmt.Errorf("overnight: unknown IterationStatus %q", string(s))
+	}
+}
+
+// IsCorpusCompounded reports whether the iteration's corpus mutation
+// landed on disk. True for StatusDone, StatusDegraded, and
+// StatusHaltedOnRegressionPostCommit — all three represent states where
+// cp.Commit() succeeded before the iteration terminated. False for
+// StatusRolledBackPreCommit (no mutation happened) and StatusFailed
+// (may have partial state; RecoverFromCrash handles).
+//
+// This is the single source of truth for rehydration logic: an iteration
+// with IsCorpusCompounded() == true is a valid prevSnapshot baseline
+// regardless of whether the loop then halted.
+func (s IterationStatus) IsCorpusCompounded() bool {
+	switch s {
+	case StatusDone, StatusDegraded, StatusHaltedOnRegressionPostCommit:
+		return true
+	}
+	return false
+}
 
 // RunLoopOptions bundles every knob RunLoop consumes from the caller.
 //

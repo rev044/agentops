@@ -207,7 +207,7 @@ func TestRunLoop_L2_FullIteration_CorpusQualityMoves(t *testing.T) {
 			len(result.Iterations), result.Degraded)
 	}
 	for i, iter := range result.Iterations {
-		if iter.Status == "rolled-back" || iter.Status == "failed" {
+		if iter.Status == StatusRolledBackPreCommit || iter.Status == StatusFailed {
 			t.Errorf("iteration %d ended in status %q (error=%s)", i+1, iter.Status, iter.Error)
 		}
 		if iter.Reduce == nil {

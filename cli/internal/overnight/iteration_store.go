@@ -104,6 +104,84 @@ func fsyncDir(dir string) error {
 	return nil
 }
 
+// writeCommittedButFlaggedMarker writes a sentinel file next to
+// iter-<N>.json announcing that the iteration committed successfully
+// but was flagged (post-commit regression halt) and the loop stopped.
+// Operators can find flagged iterations by directory listing without
+// parsing every iter-<N>.json file.
+//
+// The marker is empty (zero bytes); its presence is the signal.
+// Filename: committed-but-flagged.iter-<N>.marker
+//
+// Uses the same atomic write pattern as writeIterationAtomic:
+// CreateTemp → Sync → Rename → fsyncDir. Failure to write the marker
+// is NOT a hard error — the caller surfaces the strip via Degraded.
+func writeCommittedButFlaggedMarker(dir string, iterIndex int) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("overnight: mkdir marker dir: %w", err)
+	}
+	f, err := os.CreateTemp(dir, fmt.Sprintf(".committed-but-flagged.iter-%d.*.marker.tmp", iterIndex))
+	if err != nil {
+		return fmt.Errorf("overnight: create temp marker: %w", err)
+	}
+	tmpPath := f.Name()
+	cleanupTmp := true
+	defer func() {
+		if cleanupTmp {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("overnight: fsync marker: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("overnight: close marker: %w", err)
+	}
+	finalPath := filepath.Join(dir, fmt.Sprintf("committed-but-flagged.iter-%d.marker", iterIndex))
+	if err := os.Rename(tmpPath, finalPath); err != nil {
+		return fmt.Errorf("overnight: rename marker: %w", err)
+	}
+	cleanupTmp = false
+	return fsyncDir(dir)
+}
+
+// ListCommittedButFlaggedMarkers returns the iteration indices that
+// have a committed-but-flagged marker file in dir. Used by operators
+// and downstream tooling to quickly find flagged iterations without
+// parsing JSON. Returns an empty slice (not nil error) when the dir
+// does not exist.
+func ListCommittedButFlaggedMarkers(dir string) ([]int, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("overnight: readdir marker dir: %w", err)
+	}
+	var out []int
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		// Pattern: committed-but-flagged.iter-<N>.marker
+		const prefix = "committed-but-flagged.iter-"
+		const suffix = ".marker"
+		if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+			continue
+		}
+		numStr := name[len(prefix) : len(name)-len(suffix)]
+		n, err := strconv.Atoi(numStr)
+		if err != nil || n <= 0 {
+			continue
+		}
+		out = append(out, n)
+	}
+	sort.Ints(out)
+	return out, nil
+}
+
 // LoadIterations reads every valid iter-<N>.json from dir in ascending
 // index order and returns the slice. A "valid" file is one where:
 //   - the filename matches iter-<N>.json with N a positive decimal
