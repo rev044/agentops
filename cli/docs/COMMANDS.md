@@ -1867,6 +1867,66 @@ ao plans update <plan-path> [flags]
 
 ---
 
+### `ao beads`
+
+Commands that help maintain the bd issue tracker alongside the main
+
+```
+ao beads [command]
+```
+
+**Subcommands:**
+
+#### `ao beads harvest`
+
+Reads a closed bead via 'bd show <id>' and writes its closure reason
+
+```
+ao beads harvest <bead-id> [flags]
+```
+
+**Flags:**
+
+```
+      --dry-run          Print the learning content to stdout without writing a file
+  -h, --help             help for harvest
+      --out-dir string   Directory to write the learning file into (default ".agents/learnings")
+```
+
+#### `ao beads lint`
+
+Runs 'ao beads verify' on every bead matching a status filter and
+
+```
+ao beads lint [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help            help for lint
+      --json            Emit lint report as JSON
+      --status string   bd status filter (open, closed, all) (default "open")
+```
+
+#### `ao beads verify`
+
+Reads a bead description via 'bd show <id>' and checks every file
+
+```
+ao beads verify <bead-id> [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help      help for verify
+      --json      Emit verification report as JSON instead of human-readable text
+      --verbose   Include FRESH citations in the output (default: stale only)
+```
+
+---
+
 ### `ao corpus`
 
 Commands that inspect the local .agents/ corpus quality.
