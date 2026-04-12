@@ -1,0 +1,11 @@
+# AgentOps configuration
+# See: ao config list for all available settings
+
+rpi:
+  runtime_mode: auto
+  runtime_command: claude
+  runtimes:
+    bushido:
+      host: 192.168.1.187
+      command: "ssh bushido 'ao rpi phased'"
+      description: "Bushido-box WSL (Ryzen 7 7800X3D, 32GB, RTX 5070)"

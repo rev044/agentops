@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# AgentOps CLI Tool
+set -euo pipefail
+
+AGENTOPS_HOME="${HOME}/.agentops"
+source "${AGENTOPS_HOME}/scripts/lib/common-functions.sh"
+
+case "${1:-help}" in
+    use-profile|switch)
+        set_default_profile "${2:-}"
+        ;;
+    current-profile|current)
+        get_active_profile
+        ;;
+    list-profiles|list)
+        list_installed_profiles
+        ;;
+    profile-info|info)
+        print_profile_info "${2:-}"
+        ;;
+    validate)
+        source "${AGENTOPS_HOME}/scripts/lib/validation.sh"
+        validate_all "${2:-}"
+        ;;
+    version|--version|-v)
+        echo "AgentOps v1.0.0"
+        ;;
+    help|--help|-h|*)
+        cat <<EOF
+AgentOps CLI Tool v1.0.0
+
+Usage:
+  agentops <command> [arguments]
+
+Commands:
+  use-profile <name>    Set default profile
+  current-profile       Show active profile
+  list-profiles         List installed profiles
+  profile-info <name>   Show profile information
+  validate [profile]    Validate installation
+  version               Show version
+  help                  Show this help
+
+Examples:
+  agentops use-profile devops
+  agentops current-profile
+  agentops list-profiles
+  agentops validate
+EOF
+        ;;
+esac
