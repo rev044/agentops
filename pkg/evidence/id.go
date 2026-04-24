@@ -4,10 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"time"
 )
 
 // generateID produces a short random hex identifier for evidence entries.
 // Format: "ev-<8 random bytes as hex>".
+// Using 8 bytes (64 bits) gives us plenty of uniqueness for personal use.
 func generateID() string {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
@@ -19,6 +21,5 @@ func generateID() string {
 
 // mustMonotonicNano is a last-resort counter using the runtime clock.
 func mustMonotonicNano() int64 {
-	import_time_once.Do(func() {})
-	return 0 // placeholder; rand.Read failure is effectively impossible
+	return time.Now().UnixNano()
 }
