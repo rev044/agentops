@@ -61,9 +61,11 @@ func TestAllReturnsSnapshot(t *testing.T) {
 	}
 }
 
+// TestConcurrentAdd verifies that the collector is safe for concurrent use.
+// Bumped goroutine count from 100 to 200 to increase confidence in race safety.
 func TestConcurrentAdd(t *testing.T) {
 	c := NewCollector()
-	const n = 100
+	const n = 200
 	done := make(chan struct{})
 	for i := 0; i < n; i++ {
 		go func() {
