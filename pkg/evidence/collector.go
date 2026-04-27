@@ -13,6 +13,7 @@ type Entry struct {
 	Payload   map[string]any    `json:"payload"`
 	Tags      []string          `json:"tags"`
 	Closed    bool              `json:"closed"`
+	ClosedAt  *time.Time        `json:"closed_at,omitempty"`
 }
 
 // Collector accumulates evidence entries in memory and supports closure marking.
@@ -42,12 +43,15 @@ func (c *Collector) Add(kind string, payload map[string]any, tags ...string) *En
 }
 
 // Close marks an entry as closed (evidence resolved / actioned).
+// Also records the time at which the entry was closed for auditing purposes.
 func (c *Collector) Close(id string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, e := range c.entries {
 		if e.ID == id {
 			e.Closed = true
+			now := time.Now().UTC()
+			e.ClosedAt = &now
 			return true
 		}
 	}
