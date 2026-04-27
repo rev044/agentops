@@ -63,10 +63,11 @@ func TestAllReturnsSnapshot(t *testing.T) {
 
 // TestConcurrentAdd verifies that the collector is safe for concurrent use.
 // Bumped goroutine count from 100 to 200 to increase confidence in race safety.
+// Note: run with `go test -race` to catch data races during development.
 func TestConcurrentAdd(t *testing.T) {
 	c := NewCollector()
 	const n = 200
-	done := make(chan struct{})
+	done := make(chan struct{}, n) // buffered to avoid goroutine leak if test fails early
 	for i := 0; i < n; i++ {
 		go func() {
 			c.Add("concurrent", nil)
