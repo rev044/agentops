@@ -12,10 +12,13 @@ import (
 // .agents/council/evidence-only-closures/.
 func ExportJSON(c *Collector, w io.Writer) error {
 	type exportEnvelope struct {
-		ExportedAt string    `json:"exported_at"`
-		Entries    []*Entry  `json:"entries"`
-		OpenCount  int       `json:"open_count"`
+		ExportedAt  string   `json:"exported_at"`
+		Entries     []*Entry `json:"entries"`
+		OpenCount   int      `json:"open_count"`
 		ClosedCount int      `json:"closed_count"`
+		// TotalCount is included for convenience so consumers don't have to sum
+		// open_count and closed_count themselves.
+		TotalCount int `json:"total_count"`
 	}
 
 	all := c.All()
@@ -26,6 +29,7 @@ func ExportJSON(c *Collector, w io.Writer) error {
 		Entries:     all,
 		OpenCount:   len(open),
 		ClosedCount: len(all) - len(open),
+		TotalCount:  len(all),
 	}
 
 	enc := json.NewEncoder(w)
