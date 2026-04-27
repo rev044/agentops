@@ -39,6 +39,7 @@ func BuildFilter(opts FilterOptions) FilterFunc {
 		if !opts.Since.IsZero() && item.CollectedAt.Before(opts.Since) {
 			return false
 		}
+		// Until is exclusive: items collected exactly at Until are excluded.
 		if !opts.Until.IsZero() && !item.CollectedAt.Before(opts.Until) {
 			return false
 		}
@@ -64,7 +65,8 @@ func BuildFilter(opts FilterOptions) FilterFunc {
 // It operates on a snapshot so callers do not need to hold any lock.
 func (c *Collector) Filter(fn FilterFunc) []Item {
 	snap := c.All()
-	result := make([]Item, 0, len(snap))
+	// Pre-allocate with a smaller capacity hint since most filters are selective.
+	result := make([]Item, 0, len(snap)/2+1)
 	for _, item := range snap {
 		if fn(item) {
 			result = append(result, item)
