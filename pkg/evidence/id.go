@@ -8,10 +8,11 @@ import (
 )
 
 // generateID produces a short random hex identifier for evidence entries.
-// Format: "ev-<8 random bytes as hex>".
-// Using 8 bytes (64 bits) gives us plenty of uniqueness for personal use.
+// Format: "ev-<12 random bytes as hex>".
+// Using 12 bytes (96 bits) for better collision resistance, especially if
+// evidence entries grow in volume over time.
 func generateID() string {
-	b := make([]byte, 8)
+	b := make([]byte, 12)
 	if _, err := rand.Read(b); err != nil {
 		// Fallback — should never happen in practice.
 		return fmt.Sprintf("ev-fallback-%d", mustMonotonicNano())
